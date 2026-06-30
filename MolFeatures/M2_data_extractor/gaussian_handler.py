@@ -1,3 +1,4 @@
+import json
 import pandas as pd
 import numpy as np
 from enum import Enum
@@ -147,6 +148,10 @@ def feather_file_handler(feather_file: str) -> List[Any]:
         df_dict = df_list_to_dict(df_list)
 
         return [df_dict, vib_dict, charge_dict, ev]
+
+
+# NOTE: json_file_handler now lives in utils/help_functions.py (single source of
+# truth) and is imported by data_extractor from there.
 
 
 def save_to_feather(

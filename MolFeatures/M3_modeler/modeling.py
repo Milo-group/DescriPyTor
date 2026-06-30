@@ -3,6 +3,9 @@ import cProfile
 import os
 if not os.environ.get("MPLBACKEND"):
     os.environ["MPLBACKEND"] = "Agg"   # headless, file-only
+# Silence PyTensor "g++ not found" warnings before pymc/pytensor are imported.
+# Works whether set before first import or in a spawned worker process.
+os.environ.setdefault("PYTENSOR_FLAGS", "cxx=")
 import pstats
 import random
 import sqlite3
@@ -64,15 +67,11 @@ import arviz as az
 
 
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-    from plot import *
-    from modeling_utils import simi_sampler, stratified_sampling_with_plots, _normalize_combination_to_columns , _parse_tuple_string
-    from modeling_utils import *
-except:
-    from M3_modeler.plot import *
-    from M3_modeler.modeling_utils import simi_sampler, stratified_sampling_with_plots, _normalize_combination_to_columns , _parse_tuple_string
-    from M3_modeler.modeling_utils import *
+_this_dir   = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_this_dir)
+for _p in (_this_dir, _parent_dir):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 
 
@@ -119,10 +118,41 @@ def _extract_q2(df: pd.DataFrame) -> Optional[pd.Series]:
         return _ensure_numeric(s)
     return None
 
+def _adjusted_r2(r2: float, n: int, p: int) -> float:
+    """Adjusted R²: penalises extra predictors.  Returns NaN when ill-defined."""
+    denom = n - p - 1
+    if denom <= 0:
+        return float("nan")
+    return float(1.0 - (1.0 - r2) * (n - 1) / denom)
+
+
 def _extract_r2(df: pd.DataFrame) -> Optional[pd.Series]:
-    s = _extract_series(df, ("r2", "R2"))
- 
+    # prefer adj_r2 when available, fall back to plain r2
+    s = _extract_series(df, ("adj_r2", "adj_R2"))
+    if s is None:
+        s = _extract_series(df, ("r2", "R2"))
     return _ensure_numeric(s) if s is not None else None
+
+
+def _resolve_effective_jobs(n_jobs: int, bool_parallel: bool, cpu_count: int) -> int:
+    """
+    Resolve the worker count for model evaluation.
+
+    `n_jobs` is treated as the primary knob:
+    - `-1` means all detected cores.
+    - values > 1 enable parallel execution even when `bool_parallel` is False.
+    - `bool_parallel=True` keeps backward compatibility for callers that rely on
+      the flag and omit `n_jobs`.
+    """
+    if cpu_count <= 1:
+        return 1
+
+    requested_jobs = cpu_count if n_jobs == -1 else max(1, int(n_jobs))
+    requested_jobs = min(requested_jobs, cpu_count)
+
+    if bool_parallel or requested_jobs > 1:
+        return requested_jobs
+    return 1
 
 def _is_all_q2_neg_inf(df: pd.DataFrame) -> bool:
     """True iff Q2 exists and every non-NaN value is exactly -inf (NaN => not -inf)."""
@@ -139,14 +169,14 @@ def _best_r2(df: pd.DataFrame) -> Optional[float]:
 
 def _sort_results(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Sort model results by Q² (descending) if present, then by R².
+    Sort model results by Q² (descending) if present, then by adj_r2 / R².
     Falls back to R²-only sorting if Q² not found.
 
     Parameters
     ----------
     df : pd.DataFrame
         Results dataframe expected to contain columns like:
-        ['id', 'threshold', 'model', 'predictions', 'q2', 'r2', ...]
+        ['id', 'threshold', 'model', 'predictions', 'q2', 'adj_r2', 'r2', ...]
 
     Returns
     -------
@@ -312,87 +342,195 @@ def fit_and_evaluate_single_combination_classification(
     return results
 
 
-def fit_and_evaluate_single_combination_regression(model, combination, r2_threshold=0.7):
+def _linear_matrix_fit_predict(
+    X_train,
+    y_train,
+    X_test,
+    *,
+    alpha: float = 1e-5,
+    scale: bool = True,
+):
+    """
+    Fit linear regression with matrix operations and predict on X_test.
+
+    Scaling is fit on X_train only, then applied to X_test, matching the
+    no-leakage behavior expected during cross-validation.
+    """
+    X_train = np.asarray(X_train, dtype=float)
+    X_test = np.asarray(X_test, dtype=float)
+    y_train = np.asarray(y_train, dtype=float).ravel()
+
+    if scale:
+        mean = X_train.mean(axis=0)
+        std = X_train.std(axis=0, ddof=0)
+        std = np.where(std == 0, 1.0, std)
+        X_train = (X_train - mean) / std
+        X_test = (X_test - mean) / std
+
+    Xb_train = np.c_[np.ones((X_train.shape[0], 1)), X_train]
+    Xb_test = np.c_[np.ones((X_test.shape[0], 1)), X_test]
+
+    gram = Xb_train.T @ Xb_train
+    penalty = np.eye(gram.shape[0])
+    penalty[0, 0] = 0.0
+    rhs = Xb_train.T @ y_train
+
+    try:
+        theta = np.linalg.solve(gram + alpha * penalty, rhs)
+    except np.linalg.LinAlgError:
+        theta = np.linalg.pinv(gram + alpha * penalty) @ rhs
+
+    return Xb_test @ theta
+
+
+def _persist_regression_result(result_dict, r2_threshold):
+    """Persist one regression result to the configured DB/CSV outputs."""
+    if 'scores' not in result_dict:
+        return result_dict
+
+    scores = result_dict['scores']
+    model = result_dict['model']
+    combination = result_dict['combination']
+    y_pred = result_dict['predictions']
+
+    try:
+        r2 = scores.get('r2', float('-inf'))
+        adj_r2 = scores.get('adj_r2', float('-inf'))
+        q2 = scores.get('Q2', float('-inf'))
+        mae = scores.get('MAE', float('inf'))
+        rmsd = scores.get('RMSD', float('inf'))
+        csv_path = model.db_path.replace('.db', '.csv')
+
+        insert_result_into_db_regression(
+            db_path=model.db_path,
+            combination=combination,
+            r2=r2,
+            adj_r2=adj_r2,
+            q2=q2,
+            mae=mae,
+            rmsd=rmsd,
+            threshold=r2_threshold,
+            csv_path=csv_path,
+            model=model,
+            predictions=y_pred,
+        )
+    except Exception as e:
+        print(f'failed to insert combination : {combination}')
+        print(e)
+
+    return {
+        'combination': str(combination),
+        'r2': r2,
+        'adj_r2': adj_r2,
+        'q2': q2,
+        'mae': mae,
+        'rmsd': rmsd,
+        'threshold': r2_threshold,
+        'model': model,
+        'predictions': y_pred,
+    }
+
+
+def _analytic_loo_linear(X: np.ndarray, y: np.ndarray, alpha: float = 1e-5):
+    """
+    Exact LOO Q²/MAE/RMSD for ridge-regularised linear regression in O(n·p²).
+
+    Uses the hat-matrix identity  e_loo[i] = e[i] / (1 - h[i])  so no
+    re-fitting loop is needed — equivalent to calling calculate_q2_and_mae
+    with n_splits=1 but orders-of-magnitude faster for large n.
+    """
+    from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+    X = np.asarray(X, dtype=float)
+    y = np.asarray(y, dtype=float).ravel()
+    n = X.shape[0]
+
+    mean = X.mean(axis=0)
+    std  = X.std(axis=0, ddof=0)
+    std  = np.where(std == 0, 1.0, std)
+    Xs   = (X - mean) / std
+
+    Xb = np.c_[np.ones(n), Xs]
+    gram = Xb.T @ Xb
+    pen  = np.eye(gram.shape[0])
+    pen[0, 0] = 0.0                        # no penalty on intercept
+    A_inv = np.linalg.pinv(gram + alpha * pen)
+
+    theta  = A_inv @ (Xb.T @ y)
+    y_hat  = Xb @ theta
+    e      = y - y_hat
+
+    # Hat-matrix diagonal: h_ii = x_i^T A_inv x_i  (avoid building full n×n H)
+    h = np.einsum("ij,jk,ik->i", Xb, A_inv, Xb)
+    h = np.clip(h, None, 1.0 - 1e-10)
+
+    y_pred_loo = y - e / (1.0 - h)
+
+    q2   = float(r2_score(y, y_pred_loo))
+    mae  = float(mean_absolute_error(y, y_pred_loo))
+    rmsd = float(np.sqrt(mean_squared_error(y, y_pred_loo)))
+    return q2, mae, rmsd
+
+
+def fit_and_evaluate_single_combination_regression(model, combination, r2_threshold=0.7, persist_result=True):
     try:
         colms = _normalize_combination_to_columns(combination)
         selected_features = model.features_df[colms]
     except:
-        selected_features = model.features_df[_parse_tuple_string(combination)] 
+        selected_features = model.features_df[_parse_tuple_string(combination)]
 
     X = selected_features.to_numpy()
     y = model.target_vector.to_numpy()
-  
-    # Fit the model
+
+    # ── Fit both estimators ───────────────────────────────────────────────────
+    # Ordinary linear regression uses the matrix-based fit/predict path.
+    # Nonlinear/penalized sklearn estimators, such as lasso, still need their
+    # estimator-specific fit implementation.
     t0 = time.time()
     model.fit(X, y)
-    ## check
-    model.model.fit(X, y)
-    fit_time=time.time()-t0
-    # Evaluate the modeld
-    t1=time.time()
+    if model.model_type.lower() != "linear":
+        model.model.fit(X, y)
+    fit_time = time.time() - t0
+
+    # ── In-sample evaluation (R², adj-R²) ────────────────────────────────────
+    t1 = time.time()
     model._trained_features = list(combination)
     evaluation_results, y_pred = model.evaluate(X, y)
-    eval_time=time.time()-t1
-    coefficients,intercepts = model.get_coefficients_from_trained_estimator()
- 
-    # Check if R-squared is above the threshold
-    t3=time.time()
-    if evaluation_results['r2'] > r2_threshold:
-        q2, mae,rmsd = model.calculate_q2_and_mae(X, y, n_splits=1)
-        evaluation_results['Q2'] = q2
-        evaluation_results['MAE'] = mae
-        evaluation_results['RMSD'] = rmsd
-        # print(f'R2:{evaluation_results["r2"]:.3f} Q2: {q2:.3f}, MAE: {mae:.3f}, RMSD: {rmsd:.3f} for combination: {combination}')
+    eval_time = time.time() - t1
+    coefficients, intercepts = model.get_coefficients_from_trained_estimator()
 
-    q2_time=time.time()-t3
+    # ── Q² LOO — always compute, unconditionally ──────────────────────────────
+    # Linear models use the analytic hat-matrix LOO (no re-fitting loop).
+    t3 = time.time()
+    if model.model_type.lower() == "linear":
+        q2, mae, rmsd = _analytic_loo_linear(X, y)
+    else:
+        q2, mae, rmsd = model.calculate_q2_and_mae(X, y, n_splits=1)
+    evaluation_results['Q2']   = q2
+    evaluation_results['MAE']  = mae
+    evaluation_results['RMSD'] = rmsd
+    q2_time = time.time() - t3
 
     result = {
-        'combination': combination,
-        'scores': evaluation_results,
-        'intercept': intercepts,
+        'combination':  combination,
+        'scores':       evaluation_results,
+        'intercept':    intercepts,
         'coefficients': coefficients,
-        'model': model,
-        'predictions': y_pred
+        'model':        model,
+        'predictions':  y_pred,
     }
 
-    if  'scores' in result:
-        try:
-            r2 = result['scores'].get('r2', float('-inf'))
-            q2 = result['scores'].get('Q2', float('-inf'))
-            mae = result['scores'].get('MAE', float('inf'))
-            rmsd = result['scores'].get('RMSD', float('inf'))
-            csv_path=model.db_path.replace('.db','.csv')
-            model = result['model']
-            # Insert into DB
-            result_dict = {
-                'combination': str(combination),
-                'r2': r2,
-                'q2': q2,
-                'mae': mae,
-                'rmsd': rmsd,
-                'threshold': r2_threshold,
-                'model': model,
-                'predictions': y_pred,
-            }
-            # print(type(model),'type of model variable')
-            insert_result_into_db_regression(
-                db_path=model.db_path,
-                combination=combination,
-                r2=r2,
-                q2=q2,
-                mae=mae,
-                rmsd=rmsd,
-                threshold=r2_threshold,
-                csv_path=csv_path,
-                model=model,
-                predictions=y_pred
-            )
-            return result_dict
-        except Exception as e:
-            print(f'failed to insert combination : {combination}')
-            print(e)
+    if 'scores' in result and persist_result:
+        return _persist_regression_result(result, r2_threshold)
 
-    return result
+    # Parallel path (persist_result=False): return only scalars.
+    # Returning the model object and predictions through the IPC pipe
+    # causes MemoryError on large searches with many workers.
+    return {
+        'combination': combination,
+        'scores':      evaluation_results,
+    }
+
 
 
 
@@ -407,112 +545,170 @@ class PlotModel:
 class LinearRegressionModel:
 
     def __init__(
-            self, 
-            csv_filepaths, 
-            process_method='one csv', 
-            names_column=None,
-            y_value='output', 
-            leave_out=None, 
-            min_features_num=2, 
-            max_features_num=None, 
-            n_splits=5, 
-            metrics=None, 
-            return_coefficients=False, 
-            model_type='linear',    # <--- Choose 'linear' or 'lasso'
-            alpha=1.0,
-            app=None,
-            db_path='results', 
-            scale=True ,
-            seed = 42 ,           # <--- If lasso, this is the regularization strength
-            drop_columns = 'id',
+        self,
+        csv_filepaths,
+        process_method: str = "one csv",
+        names_column: Optional[str] = None,
+        y_value: str = "output",
+        leave_out=None,
+        min_features_num: int = 2,
+        max_features_num: Optional[int] = None,
+        n_splits: int = 5,
+        metrics: Optional[List[str]] = None,
+        return_coefficients: bool = False,
+        model_type: str = "linear",   # "linear" or "lasso"
+        alpha: float = 1.0,           # L2 / Lasso regularisation strength
+        app=None,
+        db_path: str = "results",
+        scale: bool = True,
+        seed: int = 42,
+        drop_columns: Union[str, List[str]] = "id",
     ):
-
         self.random_state = seed
         self.setup_random_seeds()
-        self.drop_columns=drop_columns
-        self.csv_filepaths = csv_filepaths
-        self.process_method = process_method
-        self.y_value = y_value
-        self.names_column = names_column
-        self.leave_out = leave_out
-        self.min_features_num = min_features_num
-        self.max_features_num = max_features_num
-        self.metrics = metrics if metrics is not None else ['r2', 'neg_mean_absolute_error']
-        self.return_coefficients = return_coefficients
-        self.model_type = model_type
-        self.alpha = alpha
-        self.app = app
-        self.n_splits = n_splits
-        self.scale=scale
-        try:
-            self.name=os.path.splitext(os.path.basename(self.csv_filepaths.get('features_csv_filepath')))[0]
-        except:
-            self.name='in_memory_dataset'
 
+        self.csv_filepaths       = csv_filepaths
+        self.process_method      = process_method
+        self.y_value             = y_value
+        self.names_column        = names_column
+        self.leave_out           = leave_out
+        self.min_features_num    = min_features_num
+        self.max_features_num    = max_features_num
+        self.metrics             = metrics if metrics is not None else ["r2", "adj_r2", "neg_mean_absolute_error"]
+        self.return_coefficients = return_coefficients
+        self.model_type          = model_type
+        self.alpha               = alpha
+        self.app                 = app
+        self.n_splits            = n_splits
+        self.scale               = scale
+        self.drop_columns        = drop_columns
+
+        # Dataset name (used for directory / DB naming)
+        try:
+            self.name = os.path.splitext(
+                os.path.basename(self.csv_filepaths.get("features_csv_filepath"))
+            )[0]
+        except Exception:
+            self.name = "in_memory_dataset"
+
+        # Directory structure & DB
         self.paths = prepare_run_dirs(
             base_dir="runs",
             dataset_name=self.name,
             y_value=self.y_value,
-            tag=self.model_type  # e.g., 'linear' or 'lasso'
+            tag=self.model_type,
         )
-
         self.db_path = resolve_db_path(db_path, self.name, self.paths.db)
         create_results_table(self.db_path)
-        
-        if self.model_type.lower() == 'linear':
+
+        # Sklearn estimator
+        model_type_lc = model_type.lower()
+        if model_type_lc == "linear":
             self.model = LinearRegression()
-            print('linear model selected')
-        elif model_type.lower() == 'lasso':
+        elif model_type_lc == "lasso":
             self.model = Lasso(alpha=alpha)
-            print('lasso model selected')
         else:
-            raise ValueError("Invalid model_type. Please specify 'linear' or 'lasso'.")
+            raise ValueError(f"Invalid model_type {model_type!r}. Choose 'linear' or 'lasso'.")
 
-        try:
-            if csv_filepaths:
-                if process_method == 'one csv':
-                    self.process_features_csv(drop_columns=drop_columns)
-                elif process_method == 'two csvs':
-                    self.process_features_csv(drop_columns=drop_columns)
-                    self.process_target_csv(csv_filepaths.get('target_csv_filepath'))
-        except Exception as e:
-            self.process_features_csv(drop_columns=drop_columns)
-            self.features_df = self.features_df.dropna(axis=1)
+        # Load data
+        if csv_filepaths:
+            if process_method == "one csv":
+                self.process_features_csv(drop_columns=drop_columns)
+            elif process_method == "two csvs":
+                self.process_features_csv(drop_columns=drop_columns)
+                self.process_target_csv(csv_filepaths.get("target_csv_filepath"))
 
-        self.scaler = StandardScaler()
+        # Scale features
+        self.scaler              = StandardScaler()
         self.original_features_df = self.features_df.copy()
-        self.features_df =  pd.DataFrame(self.scaler.fit_transform(self.features_df), columns=self.features_df.columns)
-        self.feature_names=self.features_df.columns.tolist()
-        
-        # self.compute_correlation()
-       
+        self.features_df         = pd.DataFrame(
+            self.scaler.fit_transform(self.features_df),
+            columns=self.features_df.columns,
+            index=self.features_df.index,
+        )
+        self.feature_names = self.features_df.columns.tolist()
+
         self.leave_out_samples(self.leave_out)
         self.determine_number_of_features()
 
-        
-
-        self.theta       = None
-        self.X_b_train   = None
-        self.sigma2      = None
-        self.XtX_inv     = None
-        
-        ## need to be preformed on the chosen model
-
-        # self.check_linear_regression_assumptions()
-    
-
-    from pathlib import Path
+        # Fit-state (populated by self.fit())
+        self.theta              = None
+        self.X_b_train          = None
+        self.sigma2             = None
+        self.XtX_inv            = None
+        self.model_covariance_matrix  = None
+        self.spike_and_slab_result    = None
 
 
-    def load_results(self, sort_key: str = "r2", ascending: bool = False):
+    # ─────────────────────────────────────────────────────────────────────────
+    # Setup / utility
+    # ─────────────────────────────────────────────────────────────────────────
+    def drop_rows(self, names):
+        """
+        Remove rows from the training set by molecule name (or list of names).
+
+        Updates features_df, original_features_df, target_vector, and
+        molecule_names in place, then re-fits the scaler on the remaining
+        data so scaling parameters stay consistent.
+
+        Parameters
+        ----------
+        names : str or list[str]
+            One or more molecule names to drop (matched against molecule_names /
+            the DataFrame index).
+
+        Returns
+        -------
+        self  (for chaining)
+
+        Example
+        -------
+        model.drop_rows("L23_2")
+        model.drop_rows(["L23_2", "L_10"])
+        """
+        if isinstance(names, str):
+            names = [names]
+        names = list(names)
+
+        missing = [n for n in names if n not in self.molecule_names]
+        if missing:
+            raise ValueError(f"Names not found in training set: {missing}")
+
+        keep = [n for n in self.molecule_names if n not in set(names)]
+
+        # Drop from both scaled and unscaled feature tables
+        self.original_features_df = self.original_features_df.loc[keep]
+        self.features_df          = self.features_df.loc[keep]
+        self.target_vector        = self.target_vector.loc[keep]
+        self.molecule_names       = keep
+
+        # Re-fit scaler on the reduced unscaled data so parameters are correct
+        self.scaler = StandardScaler()
+        self.features_df = pd.DataFrame(
+            self.scaler.fit_transform(self.original_features_df),
+            columns=self.original_features_df.columns,
+            index=self.original_features_df.index,
+        )
+
+        # Clear any stale fit state
+        self.theta             = None
+        self.X_b_train         = None
+        self.sigma2            = None
+        self.XtX_inv           = None
+        self.model_covariance_matrix = None
+
+        print(f"Dropped {len(names)} row(s). Training set now has {len(keep)} molecules.")
+        return self
+
+    def load_results(self, sort_key: str = "adj_r2", ascending: bool = False):
         """
         Load all CSV results from the run's db directory into DataFrames,
-        optionally sorting them by a metric (default: R²).
+        optionally sorting them by a metric (default: adjusted R²).
 
         Parameters
         ----------
         sort_key : str
-            Column name to sort by (default 'r2').
+            Column name to sort by (default 'adj_r2').
         ascending : bool
             Sort order. Default False = best (highest values first).
 
@@ -523,87 +719,60 @@ class LinearRegressionModel:
         """
         results_dict = {}
 
-        # Use Path.glob so csv_file is a Path, not a str
+        _drop_cols = ['threshold', 'model', 'predictions']
         for csv_file in Path(self.paths.db).glob("*.csv"):
             try:
                 df = pd.read_csv(csv_file)
-
+                df.drop(columns=_drop_cols, errors='ignore', inplace=True)
                 if sort_key in df.columns:
                     df = df.sort_values(by=sort_key, ascending=ascending).reset_index(drop=True)
                 else:
                     print(f"⚠️ Column '{sort_key}' not found in {csv_file.name}, returning unsorted.")
-
                 results_dict[csv_file.stem] = df
             except Exception as e:
                 print(f"❌ Failed to load {csv_file.name}: {e}")
-        # remove threshold, model, predictions columns
-        for df in results_dict.values():
-            df.drop(columns=['threshold', 'model', 'predictions'], errors='ignore', inplace=True)
         return results_dict
 
 
 
     def setup_random_seeds(self) -> None:
-        """
-        Set random seeds across Python, NumPy, and optionally PyTorch 
-        to ensure reproducible results. Also stores a `self.random_state`
-        attribute for use in other methods.
-        """
-        # Python built-in
+        """Seed Python and NumPy for reproducibility."""
         random.seed(self.random_state)
-
-        # NumPy
         np.random.seed(self.random_state)
 
-        # Make Python hash-based operations deterministic
-        os.environ["PYTHONHASHSEED"] = str(self.random_state)
-
-    
-
     def check_linear_regression_assumptions(self):
-        """
-        Check linear regression assumptions (linearity, homoscedasticity, normality).
-        """
-        # check if indices align , if not change features_df index to target_vector index
+        """Check linearity, homoscedasticity, and normality assumptions."""
         if not self.features_df.index.equals(self.target_vector.index):
-            self.features_df.index = self.target_vector.index
+            raise ValueError(
+                "features_df and target_vector have mismatched indices; "
+                "align them before calling check_linear_regression_assumptions()."
+            )
         return check_linear_regression_assumptions(self.features_df, self.target_vector)
 
-    
-    def compute_multicollinearity(self, vif_threshold=5.0):
-        """
-        Compute the Variance Inflation Factor (VIF) for each feature in the dataset.
-        """
-        # Compute VIF
-        vif_results = self._compute_vif(self.features_df)
-        # Identify features with high VIF
-        high_vif_features = vif_results[vif_results['VIF'] > vif_threshold]
-        
-        return vif_results
+    def compute_multicollinearity(self, vif_threshold: float = 5.0) -> pd.DataFrame:
+        """Return VIF table for all features, flagging those above vif_threshold."""
+        vif_df = self._compute_vif(self.features_df)
+        vif_df["high_vif"] = vif_df["VIF"] > vif_threshold
+        return vif_df
     
 
     def process_features_csv(
-    self,
-    drop_columns: Optional[Union[str, List[str]]] = None,
-    drop_smiles: bool = True,
-) -> dict:
+        self,
+        drop_columns: Optional[Union[str, List[str]]] = None,
+        drop_smiles: bool = True,
+    ) -> dict:
         """
-        Load and process a features dataset from:
-        - a CSV file path (string),
-        - a dict with key 'features_csv_filepath',
-        - a single-path list/tuple,
-        - or an in-memory pandas DataFrame.
+        Load and process a features dataset.
 
-        Initializes:
-            - self.molecule_names : list[str]
-            - self.target_vector  : pd.Series (indexed by molecule names)
-            - self.features_df    : pd.DataFrame (numeric-only, deduplicated, indexed by molecule names)
-            - self.features_list  : list[str]
-    """
-        import os
-        from typing import List, Optional, Union
-        import numpy as np
-        import pandas as pd
+        Accepts: CSV path (str), dict with 'features_csv_filepath', single-path
+        list/tuple, or an in-memory DataFrame.
+
+        Sets:
+            self.molecule_names  : list[str]
+            self.target_vector   : pd.Series  (indexed by molecule names)
+            self.features_df     : pd.DataFrame  (numeric, deduplicated, indexed)
+            self.features_list   : list[str]
+        """
 
         # ---------- Load source ----------
         csv_source = getattr(self, "csv_filepaths", None)
@@ -622,7 +791,6 @@ class LinearRegressionModel:
                     f"got {csv_source!r}"
                 )
 
-        names_from_index = False
         path_used = None
 
         if isinstance(csv_source, pd.DataFrame):
@@ -718,7 +886,6 @@ class LinearRegressionModel:
         else:
             if not isinstance(df.index, pd.RangeIndex):
                 names_col = None  # use index
-                names_from_index = True
             else:
                 names_col = _first_match(name_candidates, df.columns) or df.columns[0]
 
@@ -913,249 +1080,129 @@ class LinearRegressionModel:
     def compute_correlation(
         self,
         correlation_threshold: float = 0.80,
-        vif_threshold: float = None,
+        vif_threshold: Optional[float] = None,
     ) -> dict:
         """
-        Analyze multicollinearity via correlation and (optionally) VIF, with optional GUI prompts.
-
-        - Computes the full correlation matrix on `self.features_df`.
-        - Finds features involved in any pair with |r| > correlation_threshold.
-        - (Optional) Visualizes a heatmap of the correlated subset.
-        - (Optional) Prunes multicollinearity using VIF (greedy: drop the highest-VIF
-        feature until all VIF <= vif_threshold).
-        - Updates `self.features_df` and `self.features_list` in-place if pruning occurs.
+        Analyse multicollinearity via correlation and (optionally) greedy VIF pruning.
 
         Parameters
         ----------
-        correlation_threshold : float, default=0.80
-            Absolute correlation cutoff to flag features.
-        vif_threshold : float, default=5.0
-            If not None, apply greedy VIF-based pruning to reduce multicollinearity.
-            Set to None to skip VIF pruning.
+        correlation_threshold : float
+            Absolute correlation cutoff to flag feature pairs.
+        vif_threshold : float or None
+            If set, greedily drop the highest-VIF feature until all VIF ≤ threshold.
 
         Returns
         -------
-        dict
-            {
-            "corr_matrix": pd.DataFrame,
-            "high_corr_features": set[str],
-            "sub_corr": pd.DataFrame | None,
-            "vif_table_before": pd.DataFrame | None,
-            "vif_table_after": pd.DataFrame | None,
-            "dropped_features": list[str],
-            "kept_features": list[str],
-            "message": str
-            }
+        dict with keys: corr_matrix, high_corr_features, sub_corr,
+                        vif_table_before, vif_table_after,
+                        dropped_features, kept_features, message
         """
-        import numpy as np
-        import pandas as pd
-        import seaborn as sns
-        import matplotlib.pyplot as plt
-        from tkinter import messagebox
-        from statsmodels.stats.outliers_influence import variance_inflation_factor
-
-        def _numeric_df(df: pd.DataFrame) -> pd.DataFrame:
-            return df.select_dtypes(include=[np.number]).copy()
-
-        def _find_high_corr_features(corr: pd.DataFrame, thr: float) -> set:
-            feats = set()
-            cols = corr.columns
-            for i in range(len(cols)):
-                for j in range(i + 1, len(cols)):
-                    c = corr.iloc[i, j]
-                    if abs(c) > thr:
-                        feats.add(cols[i])
-                        feats.add(cols[j])
-            return feats
-
-        def _compute_vif_table(df_numeric: pd.DataFrame) -> pd.DataFrame:
-            if df_numeric.shape[1] < 2:
-                return pd.DataFrame({"feature": df_numeric.columns, "VIF": [np.nan] * df_numeric.shape[1]})
-            X = df_numeric.values
-            vif_vals = []
-            for i in range(df_numeric.shape[1]):
-                vif_vals.append(variance_inflation_factor(X, i))
-            return pd.DataFrame({"feature": df_numeric.columns, "VIF": vif_vals}).sort_values("VIF", ascending=False)
-
         app = getattr(self, "app", None)
 
-        # 1) Correlation matrix (numeric only)
-        num_df = _numeric_df(self.features_df)
+        num_df = self.features_df.select_dtypes(include=[np.number])
         self.corr_matrix = num_df.corr()
-
-        # 2) High-correlation set (use helper if present, else fallback)
-        try:
-            high_corr_features = self._get_highly_correlated_features(self.corr_matrix, threshold=correlation_threshold)
-            # Ensure it's a set of strings (column names)
-            high_corr_features = set(list(high_corr_features))
-        except AttributeError:
-            high_corr_features = _find_high_corr_features(self.corr_matrix, correlation_threshold)
-
-        msgs = []
-        dropped_features: list[str] = []
+        high_corr_features = self._get_highly_correlated_features(
+            self.corr_matrix, threshold=correlation_threshold
+        )
+        msgs: List[str] = []
+        dropped_features: List[str] = []
+        sub_corr = vif_table_before = vif_table_after = None
 
         if high_corr_features:
             msgs.append(
-                f"--- Correlation Report ---\n"
-                f"Features with |r| > {correlation_threshold}:\n{sorted(high_corr_features)}"
+                f"Correlation Report: features with |r| > {correlation_threshold}:\n"
+                f"{sorted(high_corr_features)}"
             )
 
-            # 3) Visualization decision
-            visualize = False  # default if no app
+            # Optional heatmap (requires GUI app)
             if app is not None:
-                visualize = messagebox.askyesno(
-                    title="Visualize Correlated Features?",
-                    message="Show a heatmap of correlations among the flagged features?"
-                )
-
-            sub_corr = None
-            if visualize and len(high_corr_features) >= 2:
-
-                sub_corr = self.corr_matrix.loc[sorted(high_corr_features), sorted(high_corr_features)]
-                interactive_corr_heatmap(sub_corr, title=f"Correlation Heatmap (|r| > {correlation_threshold})")
-                # interactive_corr_heatmap_with_highlights(self.features_df)
-    
-            else:
-                sub_corr = None
-
-            # 4) VIF-based pruning (greedy) if requested
-            vif_table_before = None
-            vif_table_after = None
-            apply_vif = vif_threshold is not None
-
-            if app is not None:
-                # Ask the user if they want VIF pruning
-                if apply_vif:
-                    apply_vif = messagebox.askyesno(
-                        title="VIF-based Pruning?",
-                        message=f"Apply VIF pruning to reduce multicollinearity (threshold={vif_threshold})?"
+                from tkinter import messagebox
+                if messagebox.askyesno("Visualize?",
+                                       "Show heatmap of correlated features?"):
+                    sub_corr = self.corr_matrix.loc[
+                        sorted(high_corr_features), sorted(high_corr_features)
+                    ]
+                    interactive_corr_heatmap(
+                        sub_corr,
+                        title=f"Correlation Heatmap (|r| > {correlation_threshold})"
                     )
 
-            if apply_vif:
-                work_df = _numeric_df(self.features_df)  # numeric subset only
-                # Start with the union of high-corr features (operating set).
-                # If union has < 2, it's pointless to compute VIF—skip.
-                vif_operating_cols = [c for c in work_df.columns if c in high_corr_features]
-                if len(vif_operating_cols) < 2:
-                    msgs.append("VIF pruning skipped (fewer than 2 correlated numeric features).")
-                else:
-                    vif_table_before = _compute_vif_table(work_df[vif_operating_cols])
-                    msgs.append(f"Initial VIF (top 10):\n{vif_table_before.head(10).to_string(index=False)}")
+            # Greedy VIF pruning
+            apply_vif = vif_threshold is not None
+            if apply_vif and app is not None:
+                from tkinter import messagebox
+                apply_vif = messagebox.askyesno(
+                    "VIF Pruning?",
+                    f"Apply VIF pruning (threshold={vif_threshold})?"
+                )
 
-                    # Greedy drop the highest-VIF feature until all VIF <= threshold
-                    keep_cols = vif_operating_cols[:]
-                    while True:
-                        vif_tab = _compute_vif_table(work_df[keep_cols])
+            if apply_vif:
+                vif_cols = [c for c in num_df.columns if c in high_corr_features]
+                if len(vif_cols) >= 2:
+                    vif_table_before = self._compute_vif(num_df[vif_cols])
+                    msgs.append(f"VIF before:\n{vif_table_before.head(10).to_string(index=False)}")
+                    keep_cols = vif_cols[:]
+                    while len(keep_cols) > 1:
+                        vif_tab = self._compute_vif(num_df[keep_cols])
                         max_vif = float(vif_tab["VIF"].max())
-                        if np.isnan(max_vif) or max_vif <= vif_threshold or len(keep_cols) <= 1:
+                        if np.isnan(max_vif) or max_vif <= vif_threshold:
                             vif_table_after = vif_tab
                             break
-                        # Drop the feature with the highest VIF
-                        to_drop = vif_tab.iloc[0]["feature"]
+                        to_drop = str(vif_tab.iloc[0]["variable"])
                         keep_cols.remove(to_drop)
                         dropped_features.append(to_drop)
+                else:
+                    msgs.append("VIF pruning skipped — fewer than 2 correlated numeric features.")
 
-            else:
-                msgs.append("VIF pruning skipped by user/preference.")
-                vif_table_before = None
-                vif_table_after = None
-
-            # Report via app if available
-            final_msg = "\n".join(msgs)
-            if app is not None:
-                app.show_result(final_msg)
-            else:
-                print(final_msg)
-
-            return {
-                "corr_matrix": self.corr_matrix,
-                "high_corr_features": high_corr_features,
-                "sub_corr": sub_corr,
-                "vif_table_before": vif_table_before,
-                "vif_table_after": vif_table_after,
-                "dropped_features": dropped_features,
-                "kept_features": getattr(self, "features_list", list(self.features_df.columns)),
-                "message": final_msg,
-            }
-
-        # No high correlations found
-        msg = "No feature pairs exceeded the correlation threshold."
-        if app is not None:
-            app.show_result(msg)
         else:
-            print(msg)
+            msgs.append("No feature pairs exceeded the correlation threshold.")
+
+        final_msg = "\n".join(msgs)
+        if app is not None:
+            app.show_result(final_msg)
+        else:
+            print(final_msg)
 
         return {
-            "corr_matrix": self.corr_matrix,
-            "high_corr_features": set(),
-            "sub_corr": None,
-            "vif_table_before": None,
-            "vif_table_after": None,
-            "dropped_features": [],
-            "kept_features": getattr(self, "features_list", list(self.features_df.columns)),
-            "message": msg,
+            "corr_matrix":        self.corr_matrix,
+            "high_corr_features": high_corr_features,
+            "sub_corr":           sub_corr,
+            "vif_table_before":   vif_table_before,
+            "vif_table_after":    vif_table_after,
+            "dropped_features":   dropped_features,
+            "kept_features":      getattr(self, "features_list", list(self.features_df.columns)),
+            "message":            final_msg,
         }
 
 
 
     def _compute_vif(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Compute the Variance Inflation Factor for each numeric column in df.
-        """
-        # 1) Select only numeric columns
-        df_num = df.select_dtypes(include=[np.number]).copy()
+        """Compute VIF for each numeric column. Returns DataFrame[variable, VIF]."""
+        df_num = (
+            df.select_dtypes(include=[np.number])
+            .replace([np.inf, -np.inf], np.nan)
+            .dropna(axis=1, how="any")
+            .dropna(axis=0, how="any")
+        )
+        if df_num.shape[1] < 2:
+            return pd.DataFrame({"variable": df_num.columns, "VIF": [np.nan] * df_num.shape[1]})
 
-        # 2) Handle missing or infinite values
-        df_num.replace([np.inf, -np.inf], np.nan, inplace=True)
-        df_num.dropna(axis=1, how='any', inplace=True)
-        df_num.dropna(axis=0, how='any', inplace=True)  # ensure no NaNs in rows
-       
-        # 3) Check matrix rank for multicollinearity warnings
         rank = np.linalg.matrix_rank(df_num.values)
         if rank < df_num.shape[1]:
-            print(f"Warning: Linear dependence detected. Matrix rank: {rank} < {df_num.shape[1]}")
+            print(f"Warning: linear dependence detected (rank {rank} < {df_num.shape[1]} features).")
 
-        # 4) Standardize data before VIF calculation
-        scaler = StandardScaler()
-        df_scaled = pd.DataFrame(
-            scaler.fit_transform(df_num),
-            columns=df_num.columns,
-            index=df_num.index
-        )
+        X_scaled = StandardScaler().fit_transform(df_num)
+        vif_vals = [variance_inflation_factor(X_scaled, i) for i in range(df_num.shape[1])]
+        return pd.DataFrame({"variable": df_num.columns, "VIF": vif_vals})
 
-        # 5) Compute VIF for each variable
-        vif_data = {
-            "variable": [],
-            "VIF": []
-        }
-        for i, col in enumerate(df_scaled.columns):
-            vif_val = variance_inflation_factor(df_scaled.values, i)
-            vif_data["variable"].append(col)
-            vif_data["VIF"].append(vif_val)
-
-        vif_df = pd.DataFrame(vif_data)
-        return vif_df
-
-
-    
-    def _get_highly_correlated_features(self, corr_matrix, threshold=0.8):
-        """
-        Identify any features whose pairwise correlation is above the threshold.
-        Returns a set of the implicated feature names.
-        """
-        corr_matrix_abs = corr_matrix.abs()
-        columns = corr_matrix_abs.columns
-        high_corr_features = set()
-
-        # We only need to look at upper triangular part to avoid duplication
-        for i in range(len(columns)):
-            for j in range(i + 1, len(columns)):
-                if corr_matrix_abs.iloc[i, j] > threshold:
-                    # Add both columns in the pair
-                    high_corr_features.add(columns[i])
-                    high_corr_features.add(columns[j])
-        
-        return high_corr_features
+    def _get_highly_correlated_features(self, corr_matrix: pd.DataFrame, threshold: float = 0.8) -> set:
+        """Return the set of feature names involved in any pair with |r| > threshold."""
+        arr  = corr_matrix.abs().values
+        cols = corr_matrix.columns
+        mask = np.triu(arr > threshold, k=1)           # upper triangle, exclude diagonal
+        i_idx, j_idx = np.where(mask)
+        return {cols[i] for i in i_idx} | {cols[j] for j in j_idx}
 
 
     def process_target_csv(self, csv_filepath):
@@ -1271,46 +1318,113 @@ class LinearRegressionModel:
                 self.target_vector = self.target_vector.drop(self.target_vector.index[indices])
             self.molecule_names = [n for i, n in enumerate(self.molecule_names) if i not in indices]
 
-
-
-
-
-
-
-
-        
-
     def determine_number_of_features(self):
         total_features_num = self.features_df.shape[0]
         self.max_features_num = set_max_features_limit(total_features_num, self.max_features_num)
-  
-
 
     def get_feature_combinations(self):
-       
         self.features_combinations = list(get_feature_combinations(self.features_list, self.min_features_num, self.max_features_num))
-   
 
 
-
-    # analyze_shap_values(model, X, feature_names=None, target_name="output", n_top_features=10):
-
-    def plot_shap_values(self, X, feature_names=None, target_name="output", n_top_features=10, plot=True, dir=None):
+    def _add_leftout_mae_to_results(self, results: pd.DataFrame) -> pd.DataFrame:
         """
-        Plot SHAP values for the model's predictions.
+        Compute MAE of left-out predictions for each model in results.
+        Fits a fresh model on training data for each combination and evaluates on left-out samples.
         
-        Args:
-            X (np.ndarray): Feature matrix.
-            feature_names (list, optional): Names of the features.
-            target_name (str, optional): Name of the target variable.
-            n_top_features (int, optional): Number of top features to display.
+        Parameters
+        ----------
+        results : pd.DataFrame
+            Results dataframe with 'combination' column.
+            
+        Returns
+        -------
+        pd.DataFrame
+            Updated results with 'leftout_mae' column added.
         """
-        model= self.model
+        if results.empty or not hasattr(self, 'leftout_samples') or self.leftout_samples is None:
+            return results
         
-        sample_names = self.molecule_names if hasattr(model, 'molecule_names') else None
-        save_dir =self.paths.png_dir if hasattr(model, 'paths') and hasattr(self.paths, 'png_dir') else dir
-        print(f"Saving SHAP plots to: {save_dir}, sample names: {sample_names}")
-        analyze_shap_values(model, X, feature_names=feature_names, sample_names=sample_names, target_name=target_name, n_top_features=n_top_features, plot=plot, dir=save_dir)
+        results = results.copy()
+        leftout_mae_values = []
+        
+        for idx, row in results.iterrows():
+            try:
+                combination = row.get('combination')
+                
+                if combination is None:
+                    leftout_mae_values.append(np.nan)
+                    continue
+                
+                # Extract features for both training and left-out samples
+                try:
+                    colms = _normalize_combination_to_columns(combination)
+                    train_X = self.features_df[colms]
+                    leftout_X = self.leftout_samples[colms]
+                except:
+                    colms = _parse_tuple_string(combination)
+                    train_X = self.features_df[colms]
+                    leftout_X = self.leftout_samples[colms]
+                
+                # Get target values (ensure they're numpy arrays)
+                train_y = self.target_vector.values if hasattr(self.target_vector, 'values') else np.asarray(self.target_vector)
+                leftout_y = self.leftout_target_vector.values if hasattr(self.leftout_target_vector, 'values') else np.asarray(self.leftout_target_vector)
+                
+                # Ensure X data is numpy arrays with correct shape
+                train_X_arr = train_X.values if hasattr(train_X, 'values') else np.asarray(train_X)
+                leftout_X_arr = leftout_X.values if hasattr(leftout_X, 'values') else np.asarray(leftout_X)
+                
+                # Validation: check that shapes align
+                if train_X_arr.shape[0] != train_y.shape[0]:
+                    raise ValueError(
+                        f"Training data mismatch: X has {train_X_arr.shape[0]} samples, "
+                        f"y has {train_y.shape[0]} samples"
+                    )
+                if leftout_X_arr.shape[0] != leftout_y.shape[0]:
+                    raise ValueError(
+                        f"Left-out data mismatch: X has {leftout_X_arr.shape[0]} samples, "
+                        f"y has {leftout_y.shape[0]} samples"
+                    )
+                
+                if self.model_type.lower() == 'linear':
+                    leftout_predictions = _linear_matrix_fit_predict(
+                        train_X_arr,
+                        train_y,
+                        leftout_X_arr,
+                        alpha=1e-5,
+                        scale=False,
+                    )
+                elif self.model_type.lower() == 'lasso':
+                    temp_model = Lasso(alpha=self.alpha)
+                    temp_model.fit(train_X_arr, train_y)
+                    leftout_predictions = temp_model.predict(leftout_X_arr)
+                else:
+                    raise ValueError(f"Unknown model_type: {self.model_type}")
+                
+                # Calculate MAE
+                mae = mean_absolute_error(leftout_y, leftout_predictions)
+                leftout_mae_values.append(mae)
+                
+            except Exception as e:
+                print(f"⚠️ Failed to compute left-out MAE for combination {row.get('combination')}: {e}")
+                leftout_mae_values.append(np.nan)
+        
+        results['leftout_mae'] = leftout_mae_values
+        return results
+
+    def plot_shap_values(self, X, feature_names=None, target_name="output",
+                         n_top_features: int = 10, plot: bool = True, dir=None):
+        """Plot SHAP feature-importance values for the fitted model."""
+        sample_names = getattr(self, "molecule_names", None)
+        save_dir     = getattr(getattr(self, "paths", None), "png_dir", dir)
+        analyze_shap_values(
+            self.model, X,
+            feature_names=feature_names,
+            sample_names=sample_names,
+            target_name=target_name,
+            n_top_features=n_top_features,
+            plot=plot,
+            dir=save_dir,
+        )
 
     def calculate_q2_and_mae(
         self,
@@ -1355,6 +1469,14 @@ class LinearRegressionModel:
             raise ValueError("X must be 2D and y must be 1D with matching rows")
 
         def _fit_predict(train_idx, test_idx):
+            if self.model_type.lower() == "linear":
+                return _linear_matrix_fit_predict(
+                    X[train_idx],
+                    y[train_idx],
+                    X[test_idx],
+                    alpha=1e-5,
+                    scale=True,
+                )
             pipe = make_pipeline(StandardScaler(), clone(self.model))
             pipe.fit(X[train_idx], y[train_idx])
             return pipe.predict(X[test_idx])
@@ -1439,62 +1561,63 @@ class LinearRegressionModel:
 
 
 
-    def fit(self, X, y, alpha=1e-5):
+    def fit(self, X, y, alpha: float = 1e-5):
         """
-        Train linear regression with bias and L2 regularization,
-        and precompute everything for predict().
+        Fit with bias term and ridge regularisation (no penalty on bias).
+        Precomputes σ², (XᵀX)⁻¹, and the coefficient covariance matrix.
         """
-        # 1) build training design matrix with bias
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y, dtype=float).ravel()
         X_b = np.c_[np.ones((X.shape[0], 1)), X]
         self.X_b_train = X_b
 
-        # 2) normal eqn with regularization (no penalty on bias term)
+        # Ridge normal equation
         A = X_b.T @ X_b
         I = np.eye(A.shape[0])
-        I[0, 0] = 0
-        self.theta = np.linalg.inv(A + alpha * I) @ (X_b.T @ y)
+        I[0, 0] = 0.0   # no penalty on bias
+        rhs = X_b.T @ y
+        try:
+            self.theta = np.linalg.solve(A + alpha * I, rhs)
+        except np.linalg.LinAlgError:
+            self.theta = np.linalg.pinv(A + alpha * I) @ rhs
 
-        # 3) residual variance σ² = SSE / (n – p)
-        residuals = y - X_b.dot(self.theta)
-        n, p = X_b.shape
-        self.sigma2 = (residuals**2).sum() / (n - p)
+        # Residual variance σ² = SSE / (n − p)
+        residuals   = y - X_b @ self.theta
+        n, p        = X_b.shape
+        self.sigma2 = float((residuals ** 2).sum() / max(n - p, 1))
 
-        # 4) store (XᵀX)⁻¹ for later interval widths
-        self.XtX_inv = np.linalg.inv(X_b.T @ X_b)
+        # (XᵀX)⁻¹ used for prediction intervals and covariance
+        self.XtX_inv = np.linalg.pinv(X_b.T @ X_b)
+
+        # Coefficient covariance matrix (σ² · (XᵀX)⁻¹)
+        self.model_covariance_matrix = self.sigma2 * self.XtX_inv
 
         return self
 
-    def predict(self, X, return_interval=False, cl=0.95):
+    def predict(self, X, return_interval: bool = False, cl: float = 0.95):
         """
-        Make point predictions, and optionally return (lower, upper)
-        prediction intervals at confidence level cl.
-        """
-        # 1) build new design matrix
-        X_b = np.c_[np.ones((X.shape[0], 1)), X]
+        Point predictions, and optionally (lower, upper) prediction intervals.
 
-        # 2) point predictions
-        yhat = X_b.dot(self.theta)
+        Parameters
+        ----------
+        X : array-like, shape (n, p)
+        return_interval : bool
+        cl : float  confidence level for the interval
+        """
+        X_b  = np.c_[np.ones((X.shape[0], 1)), X]
+        yhat = X_b @ self.theta
 
         if not return_interval:
             return yhat
-        residuals = self.target_vector - X_b.dot(self.theta)  # Assuming target_vector and features_df are stored
-        self.residual_variance = np.sum(residuals ** 2) / (X_b.shape[0] - X_b.shape[1])
-        # Calculate and store the covariance matrix of the coefficients
-        self.model_covariance_matrix = self.residual_variance * np.linalg.inv(X_b.T @ X_b)
-        # 3) t‐value for two-sided interval
-        df   = self.X_b_train.shape[0] - self.X_b_train.shape[1]
-        tval = t.ppf(1 - (1 - cl) / 2, df)
 
-        # 4) standard errors: sqrt(σ² * (1 + xᵀ (XᵀX)⁻¹ x))
-        #    vectorized for all rows
-        #    (X_b @ XtX_inv) has shape [n_pred, p]; elementwise * X_b then sum across axis=1
-        inside = 1 + np.sum((X_b @ self.XtX_inv) * X_b, axis=1)
+        dof  = self.X_b_train.shape[0] - self.X_b_train.shape[1]
+        tval = t.ppf(1 - (1 - cl) / 2, dof)
+
+        # Prediction-interval SE: sqrt(σ² · (1 + xᵀ(XᵀX)⁻¹x))
+        inside  = 1 + np.sum((X_b @ self.XtX_inv) * X_b, axis=1)
         se_pred = np.sqrt(self.sigma2 * inside)
 
-        # 5) intervals
-        lower = yhat - tval * se_pred
-        upper = yhat + tval * se_pred
-        return yhat, lower, upper
+        return yhat, yhat - tval * se_pred, yhat + tval * se_pred
 
 
 
@@ -1619,49 +1742,65 @@ class LinearRegressionModel:
             return (preds, errors) if errors is not None else preds
 
         
-    def evaluate(self, X, y):
-        
-        ## must use model.predict() to get the predictions
-        y_pred = self.model.predict(X)
-        results = {}
-        if 'r2' in self.metrics:
-            results['r2'] = r2_score(y, y_pred)
-        return results , y_pred
+    def evaluate(self, X, y) -> Tuple[dict, np.ndarray]:
+        """Evaluate on (X, y) using all configured metrics.
 
-    def cross_validate(self, X, y):
-        n_splits=self.n_splits 
-        cv = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+        Always computes both R² and adjusted R² regardless of self.metrics so
+        downstream code that keys on either is never surprised.
+        """
+        if self.model_type.lower() == "linear" and self.theta is not None:
+            y_pred = self.predict(X)
+        else:
+            y_pred = self.model.predict(X)
+        n, p   = X.shape[0], X.shape[1]
+        results = {}
+
+        r2 = float(r2_score(y, y_pred))
+        results["r2"]     = r2
+        results["adj_r2"] = _adjusted_r2(r2, n, p)
+
+        if "neg_mean_absolute_error" in self.metrics or "mae" in self.metrics:
+            results["mae"] = float(mean_absolute_error(y, y_pred))
+        if "rmse" in self.metrics:
+            results["rmse"] = float(np.sqrt(mean_squared_error(y, y_pred)))
+        return results, y_pred
+
+    def cross_validate(self, X, y) -> Tuple[np.ndarray, dict]:
+        """K-fold cross-validation; returns (oof_predictions, scores_dict)."""
+        cv     = KFold(n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
         y_pred = cross_val_predict(self.model, X, y, cv=cv)
         scores = cross_validate(self.model, X, y, cv=cv, scoring=self.metrics)
         return y_pred, scores
-    
-    def get_coefficients_from_trained_estimator(self):
-        intercept = self.theta[0]
-        coefficients = self.theta[1:]  
-        return intercept, coefficients
-    
-    def get_covariance_matrix(self,features):
-        intercept = self.theta[0]
-        coefficients = self.theta[1:]
-        cov_matrix = self.model_covariance_matrix
-        std_errors = np.sqrt(np.diag(cov_matrix))
-        t_values = coefficients / std_errors[1:]  # Ignoring intercept for t-value
-        degrees_of_freedom = len(self.target_vector) - len(coefficients) - 1
-        p_values = 2 * (1 - stats.t.cdf(np.abs(t_values), df=degrees_of_freedom))
-        # Include intercept values for std_error, t_value, and p_value
-        intercept_std_error = std_errors[0]
-        intercept_t_value = intercept / intercept_std_error
-        intercept_p_value = 2 * (1 - stats.t.cdf(np.abs(intercept_t_value), df=degrees_of_freedom))
-        coefficient_table = {
-            'Estimate': np.concatenate([[intercept], coefficients]),
-            'Std. Error': std_errors,
-            't value': np.concatenate([[intercept_t_value], t_values]),
-            'p value': np.concatenate([[intercept_p_value], p_values])
-        }
 
-        # Convert to DataFrame
-        coef_df = pd.DataFrame(coefficient_table)
-        coef_df.index = ['(Intercept)'] + features  # Assuming feature_names is a list of your feature names
+    def get_coefficients_from_trained_estimator(self) -> Tuple[float, np.ndarray]:
+        """Return (intercept, coefficients) from the fitted theta vector."""
+        return float(self.theta[0]), self.theta[1:]
+
+    def get_covariance_matrix(self, features: List[str]) -> pd.DataFrame:
+        """
+        Return a coefficient summary table with Estimate, Std. Error, t value, p value.
+        Requires self.fit() to have been called first.
+        """
+        if self.model_covariance_matrix is None:
+            raise RuntimeError("Call fit() before get_covariance_matrix().")
+
+        intercept    = float(self.theta[0])
+        coefficients = self.theta[1:]
+        std_errors   = np.sqrt(np.diag(self.model_covariance_matrix))
+        dof          = len(self.target_vector) - len(coefficients) - 1
+
+        t_vals_coef  = coefficients / std_errors[1:]
+        p_vals_coef  = 2 * (1 - stats.t.cdf(np.abs(t_vals_coef), df=dof))
+
+        t_val_int    = intercept / std_errors[0]
+        p_val_int    = 2 * (1 - stats.t.cdf(np.abs(t_val_int), df=dof))
+
+        coef_df = pd.DataFrame({
+            "Estimate":   np.concatenate([[intercept],   coefficients]),
+            "Std. Error": std_errors,
+            "t value":    np.concatenate([[t_val_int],   t_vals_coef]),
+            "p value":    np.concatenate([[p_val_int],   p_vals_coef]),
+        }, index=["(Intercept)"] + features)
 
         return coef_df
 
@@ -1696,7 +1835,11 @@ class LinearRegressionModel:
 
         # Decide parallel
         cpu_count = multiprocessing.cpu_count()
-        effective_jobs = 1 if (cpu_count == 1 or not bool_parallel) else (n_jobs if n_jobs != -1 else cpu_count)
+        effective_jobs = _resolve_effective_jobs(
+            n_jobs=n_jobs,
+            bool_parallel=bool_parallel,
+            cpu_count=cpu_count,
+        )
         print(f"Using {effective_jobs} jobs for evaluation. Found {cpu_count} cores.")
 
         # Load existing results (avoid re-doing work)
@@ -1751,12 +1894,72 @@ class LinearRegressionModel:
                 results_df = pd.concat([results_df, new_df], ignore_index=True) if not new_df.empty else results_df
                
             else:
-                Parallel(n_jobs=effective_jobs)(
-                    delayed(fit_and_evaluate_single_combination_regression)(self, combo, threshold)
-                    for combo in tqdm(combos_to_run, desc=f"Threshold {threshold:.3f} (parallel)")
+                # Always use threading:
+                #   - NumPy/SciPy release the GIL during matrix ops, so
+                #     threads achieve real CPU parallelism.
+                #   - Zero process-spawn cost (no 2-10 s re-import per worker).
+                #   - Results stay in shared memory — no IPC pickle, no
+                #     MemoryError even with millions of combinations.
+                #   - loky (process pool) is only better when the worker
+                #     function runs pure-Python loops that hold the GIL, which
+                #     is not the case here.
+                print(f"Parallel backend: threading  "
+                      f"(NumPy releases GIL — {effective_jobs} threads)")
+                new_results = Parallel(
+                    n_jobs=effective_jobs,
+                    backend="threading",
+                )(
+                    delayed(fit_and_evaluate_single_combination_regression)(
+                        self,
+                        combo,
+                        threshold,
+                        False,
+                    )
+                    for combo in tqdm(combos_to_run, desc=f"Threshold {threshold:.3f} (threads)")
                 )
-                # reload DB to include new results
-                results_df = _to_df(load_results_from_db(self.db_path))
+                # Build flat result dicts and batch-write to DB/CSV in one transaction.
+                # Workers return only {combination, scores} — no model object or predictions.
+                csv_path = self.db_path.replace(".db", ".csv")
+                flat_results = []
+                for result in new_results:
+                    if not isinstance(result, dict) or "scores" not in result:
+                        continue
+                    scores = result["scores"]
+                    flat = {
+                        "combination": str(result["combination"]),
+                        "r2":          scores.get("r2",    float("-inf")),
+                        "adj_r2":      scores.get("adj_r2", float("-inf")),
+                        "q2":          scores.get("Q2",    float("-inf")),
+                        "mae":         scores.get("MAE",   float("inf")),
+                        "rmsd":        scores.get("RMSD",  float("inf")),
+                        "threshold":   threshold,
+                        "model":       "",
+                        "predictions": "",
+                    }
+                    flat_results.append(flat)
+
+                if flat_results:
+                    try:
+                        batch_insert_results_into_db_regression(self.db_path, flat_results, csv_path)
+                    except Exception as _e:
+                        print(f"Batch DB insert failed ({_e}); falling back to per-row inserts.")
+                        for r in flat_results:
+                            try:
+                                insert_result_into_db_regression(
+                                    db_path=self.db_path,
+                                    combination=r["combination"],
+                                    r2=r["r2"], adj_r2=r["adj_r2"],
+                                    q2=r["q2"], mae=r["mae"], rmsd=r["rmsd"],
+                                    threshold=threshold,
+                                    csv_path=csv_path,
+                                    model=r["model"],
+                                    predictions=r["predictions"],
+                                )
+                            except Exception:
+                                pass
+
+                new_df = _to_df(flat_results)
+                results_df = pd.concat([results_df, new_df], ignore_index=True) if not new_df.empty else results_df
           
             return results_df
 
@@ -2892,10 +3095,10 @@ class ClassificationModel:
 
         # Decide on parallel execution
         cpu_count = multiprocessing.cpu_count()
-        effective_jobs = (
-            1
-            if (cpu_count == 1 or not bool_parallel)
-            else (n_jobs if n_jobs != -1 else cpu_count)
+        effective_jobs = _resolve_effective_jobs(
+            n_jobs=n_jobs,
+            bool_parallel=bool_parallel,
+            cpu_count=cpu_count,
         )
         print(f"Using {effective_jobs} jobs for evaluation. Found {cpu_count} cores.")
 
@@ -3324,10 +3527,22 @@ class ClassificationModel:
         return log_likelihood
 
 
-
-
-
-
-
-
-
+# ---------------------------------------------------------------------------
+# Deferred cross-module imports — placed here so that all functions in this
+# module are fully defined before plot.py tries to import them, avoiding the
+# circular-import failure that occurs when these lines run at the top.
+# ---------------------------------------------------------------------------
+try:
+    from plot import *
+    from modeling_utils import (
+        simi_sampler, stratified_sampling_with_plots,
+        _normalize_combination_to_columns, _parse_tuple_string,
+    )
+    from modeling_utils import *
+except ImportError:
+    from M3_modeler.plot import *
+    from M3_modeler.modeling_utils import (
+        simi_sampler, stratified_sampling_with_plots,
+        _normalize_combination_to_columns, _parse_tuple_string,
+    )
+    from M3_modeler.modeling_utils import *

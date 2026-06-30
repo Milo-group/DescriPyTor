@@ -527,29 +527,34 @@ def show_single_molecule(molecule_name,xyz_df=None,dipole_df=None, origin=None,s
     # Create a subplot with 3D scatter plot
     data_main, annotations_id_main, updatemenus = plot_interactions(xyz_df,color,dipole_df=dipole_df, origin=origin,sterimol_params=sterimol_params)
 
-    # Set axis parameters
-    axis_params = dict(showgrid=False, showbackground=False, showticklabels=False, zeroline=False,
-                       titlefont=dict(color='white'))
-    # Set layout
+    axis_params = dict(
+        showgrid=False,
+        showbackground=False,
+        showticklabels=False,
+        zeroline=False
+    )
+
     scene = dict(
-        xaxis=dict(**axis_params, title='X'),
-        yaxis=dict(**axis_params, title='Y'),
-        zaxis=dict(**axis_params, title='Z'),
+        xaxis=dict(**axis_params, title=dict(text='X', font=dict(color='white'))),
+        yaxis=dict(**axis_params, title=dict(text='Y', font=dict(color='white'))),
+        zaxis=dict(**axis_params, title=dict(text='Z', font=dict(color='white'))),
         annotations=annotations_id_main
     )
 
-    # Set layout
     layout = dict(
         title=dict(
             text=molecule_name,
-            x=0.5, y=0.9,
-            xanchor='center', yanchor='top'
+            x=0.5,
+            y=0.9,
+            xanchor='center',
+            yanchor='top'
         ),
         scene=scene,
         margin=dict(r=0, l=0, b=0, t=0),
         showlegend=False,
         updatemenus=updatemenus
-    )
+        )
+    
     fig = go.Figure(data=data_main, layout=layout)
     html=fig.show()
     run_app(fig)
@@ -600,134 +605,147 @@ import matplotlib.pyplot as plt
 
 
 
-# Atom color map (CPK-like)
+# Atom color map (CPK + common metals)
 atom_colors = {
-    'C': 'black', 'H': 'gray', 'O': 'red', 'N': 'blue', 'S': 'yellow',
-    'Cl': 'green', 'F': 'green', 'Br': 'brown', 'I': 'purple', 'P': 'orange'
+    'C': '#404040', 'H': '#AAAAAA', 'O': '#E83030', 'N': '#3060FF',
+    'S': '#D4A000', 'Cl': '#44BB44', 'F': '#55DD55', 'Br': '#994400',
+    'I': '#773377', 'P': '#FF8800', 'B': '#FFB5B5', 'Si': '#F0C8A0',
+    # transition metals
+    'Sc': '#E6E6E6', 'Ti': '#BFC2C7', 'V': '#A6A6AB', 'Cr': '#8A99C7',
+    'Mn': '#9C7AC7', 'Fe': '#E06633', 'Co': '#F090A0', 'Ni': '#50D050',
+    'Cu': '#C88033', 'Zn': '#7D80B0',
+    'Y': '#94FFFF', 'Zr': '#94E0E0', 'Nb': '#73C2C9', 'Mo': '#54B5B5',
+    'Tc': '#3B9E9E', 'Ru': '#248F8F', 'Rh': '#0A7D8C', 'Pd': '#006985',
+    'Ag': '#C0C0C0', 'Cd': '#FFD98F',
+    'Hf': '#4DC2FF', 'Ta': '#4DA6FF', 'W': '#2194D6', 'Re': '#267DAB',
+    'Os': '#266696', 'Ir': '#175487', 'Pt': '#D0D0E0', 'Au': '#FFD123',
+    'Hg': '#B8B8D0',
+    'Li': '#CC80FF', 'Na': '#AB5CF2', 'K': '#8F40D4',
+    'Mg': '#8AFF00', 'Ca': '#3DFF00',
+    'La': '#70D4FF', 'Ce': '#FFFFC7', 'Lu': '#00AB24',
 }
+_B1_COLOR = '#2E8B57'
+_B5_COLOR = '#CC2222'
+_L_COLOR  = '#2266CC'
 
 
-from matplotlib.patches import ConnectionPatch
+from matplotlib.patches import ConnectionPatch, FancyArrowPatch
+import matplotlib.patches as mpatches
 
 def plot_b1_visualization(rotated_plane, edited_coordinates_df,
-                          n_points=100, title="Rotated Plane Visualization"):
+                          sterimol_df=None, n_points=100,
+                          title="XZ plane — End-on view"):
     """
-    Improved visualization of B1/B5 analysis:
-      • Thin, crisp circles colored by atom identity
-      • Non-overlapping numeric labels with leader lines
-      • Highlighted B1/B5 arrows and angle arc
+    End-on view of the XZ plane showing atom VdW circles, B1 and B5 arrows,
+    and (if sterimol_df supplied) the 3-D vector-to-plane angle.
+    Returns the matplotlib Figure.
     """
-    atom_colors = {
-    'C': 'black', 'H': 'gray', 'O': 'red', 'N': 'blue', 'S': 'yellow',
-    'Cl': 'green', 'F': 'green', 'Br': 'brown', 'I': 'purple', 'P': 'orange'
-    }
-    # ------------------ Compute extremes ------------------
-    max_x, min_x = np.max(rotated_plane[:, 0]), np.min(rotated_plane[:, 0])
-    max_y, min_y = np.max(rotated_plane[:, 1]), np.min(rotated_plane[:, 1])
-    avs = np.abs([max_x, min_x, max_y, min_y])
-    min_val, min_index = np.min(avs), np.argmin(avs)
+    # --- Extremes in the XZ plane ---
+    max_x, min_x = rotated_plane[:, 0].max(), rotated_plane[:, 0].min()
+    max_z, min_z = rotated_plane[:, 1].max(), rotated_plane[:, 1].min()
+    avs = np.abs([max_x, min_x, max_z, min_z])
+    b1_val   = float(avs.min())
+    b1_index = int(avs.argmin())
+    b1_tip   = [(max_x, 0), (min_x, 0), (0, max_z), (0, min_z)][b1_index]
 
-    # B1 arrow (the minimal extreme)
-    b1_coords = np.array([
-        (max_x, 0), (min_x, 0), (0, max_y), (0, min_y)
-    ][min_index])
+    # B5: atom with largest XZ radius (from edited_coordinates_df)
+    b5_row  = edited_coordinates_df.loc[edited_coordinates_df['B5'].idxmax()]
+    b5_x    = float(b5_row['x'])
+    b5_z    = float(b5_row['z'])
+    b5_val  = float(b5_row['B5'])
 
-    # B5 arrow (farthest point)
-    norms_sq = np.sum(rotated_plane**2, axis=1)
-    b5_idx = np.argmax(norms_sq)
-    b5_point = rotated_plane[b5_idx]
-    b5_value = np.linalg.norm(b5_point)
+    # angle label
+    angle_label = None
+    if sterimol_df is not None and 'B1_B5_angle' in sterimol_df.columns:
+        angle_label = float(sterimol_df['B1_B5_angle'].iloc[0])
 
-    # Angles
-    angle_b1 = np.arctan2(b1_coords[1], b1_coords[0]) % (2*np.pi)
-    angle_b5 = np.arctan2(b5_point[1], b5_point[0]) % (2*np.pi)
-    angle_diff = abs(angle_b5 - angle_b1)
-    if angle_diff > np.pi:
-        angle_diff = 2*np.pi - angle_diff
-    angle_diff_deg = np.degrees(angle_diff)
-
-    # ------------------ Figure ------------------
-    fig, ax = plt.subplots(figsize=(8, 8))
+    # --- Figure ---
+    fig, ax = plt.subplots(figsize=(7, 7))
     ax.set_aspect('equal')
-    ax.set_title(title, fontsize=13, fontweight='bold')
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
+    ax.set_title(title, fontsize=13, fontweight='bold', pad=10)
+    ax.set_xlabel("X (Å)", fontsize=11)
+    ax.set_ylabel("Z (Å)", fontsize=11)
+    ax.axhline(0, color='k', lw=0.4, alpha=0.3)
+    ax.axvline(0, color='k', lw=0.4, alpha=0.3)
 
-    # ------------------ Circles ------------------
-    n_total = rotated_plane.shape[0]
-    n_circles = n_total // n_points
-    centers = [
-        (idx, row['atom'], row['y'], row['z'], row['radius'])
-        for idx, row in edited_coordinates_df.iterrows()
-    ]
+    # --- Atom circles ---
+    n_circles = rotated_plane.shape[0] // n_points
+    atom_list = list(edited_coordinates_df.iterrows())
 
     for i in range(n_circles):
         pts = rotated_plane[i*n_points:(i+1)*n_points, :]
         closed = np.vstack([pts, pts[0]])
-
-        atom_idx, atom_type, y0, z0, radius = centers[i]
-        color = atom_colors.get(atom_type, 'black')
-
-        # Thin circle outline
+        atom_idx, row = atom_list[i]
+        color = atom_colors.get(row['atom'], '#808080')
         ax.plot(closed[:, 0], closed[:, 1],
-                color=color, lw=0.8, alpha=0.9, solid_joinstyle='round')
+                color=color, lw=1.0, alpha=0.85, solid_joinstyle='round')
 
-        # Label slightly outside circle with connector line
-        mean_y, mean_z = pts.mean(axis=0)
-        vec = np.array([mean_y, mean_z])
-        norm = np.linalg.norm(vec)
-        if norm == 0: norm = 1e-5
-        offset = 0.25 * vec / norm
-        label_pos = vec + offset
+        cx, cz = pts.mean(axis=0)
+        vec = np.array([cx, cz])
+        vn  = np.linalg.norm(vec)
+        offset = 0.28 * vec / vn if vn > 1e-5 else np.array([0.28, 0.0])
+        lx, lz = vec + offset
+        ax.text(lx, lz, str(atom_idx),
+                ha='center', va='center', fontsize=7, fontweight='bold',
+                color='black',
+                bbox=dict(boxstyle='circle,pad=0.15', fc='white', ec='none', alpha=0.6))
+        ax.add_patch(ConnectionPatch(
+            xyA=(cx, cz), xyB=(lx, lz),
+            coordsA='data', coordsB='data',
+            arrowstyle='-', lw=0.35, color=color, alpha=0.5))
 
-        ax.text(label_pos[0], label_pos[1], str(atom_idx),
-                ha='center', va='center', fontsize=8, fontweight='bold',
-                color='black', bbox=dict(boxstyle='circle,pad=0.2',
-                                         fc='white', ec='none', alpha=0.6))
-        # connector line
-        ax.add_patch(ConnectionPatch(xyA=(mean_y, mean_z),
-                                     xyB=(label_pos[0], label_pos[1]),
-                                     coordsA='data', coordsB='data',
-                                     arrowstyle='-',
-                                     lw=0.4, color=color, alpha=0.6))
+    # --- B1 tangent wall (dashed) + arrow ---
+    lim = max(abs(max_x), abs(min_x), abs(max_z), abs(min_z)) * 1.15
+    if b1_index in (0, 1):   # vertical wall at x = ±b1_val
+        wall_x = b1_tip[0]
+        ax.axvline(wall_x, color=_B1_COLOR, ls='--', lw=1.0, alpha=0.55)
+    else:                     # horizontal wall at z = ±b1_val
+        wall_z = b1_tip[1]
+        ax.axhline(wall_z, color=_B1_COLOR, ls='--', lw=1.0, alpha=0.55)
 
-    # ------------------ Axes lines ------------------
-    ax.axvline(x=max_x, color='darkred', ls='dashed', lw=0.8, alpha=0.4)
-    ax.axvline(x=min_x, color='darkred', ls='dashed', lw=0.8, alpha=0.4)
-    ax.axhline(y=max_y, color='darkgreen', ls='dashed', lw=0.8, alpha=0.4)
-    ax.axhline(y=min_y, color='darkgreen', ls='dashed', lw=0.8, alpha=0.4)
+    ax.annotate('', xy=b1_tip, xytext=(0, 0),
+                arrowprops=dict(arrowstyle='->', color=_B1_COLOR, lw=2.0))
+    ax.text(b1_tip[0]*0.52, b1_tip[1]*0.52,
+            f"B1\n{b1_val:.2f} Å",
+            fontsize=9, ha='center', va='center',
+            fontweight='bold', color=_B1_COLOR,
+            bbox=dict(boxstyle='round,pad=0.2', fc='white', ec=_B1_COLOR, lw=0.8, alpha=0.8))
 
-    # ------------------ B1 & B5 arrows ------------------
-    arrow_colors = ['black']*4
-    arrow_colors[min_index] = '#00A36C'   # highlight B1
-    # X extremes
-    ax.arrow(0, 0, max_x, 0, head_width=0.08, color=arrow_colors[0], length_includes_head=True)
-    ax.arrow(0, 0, min_x, 0, head_width=0.08, color=arrow_colors[1], length_includes_head=True)
-    # Y extremes
-    ax.arrow(0, 0, 0, max_y, head_width=0.08, color=arrow_colors[2], length_includes_head=True)
-    ax.arrow(0, 0, 0, min_y, head_width=0.08, color=arrow_colors[3], length_includes_head=True)
+    # --- B5 arrow ---
+    ax.annotate('', xy=(b5_x, b5_z), xytext=(0, 0),
+                arrowprops=dict(arrowstyle='->', color=_B5_COLOR, lw=2.0))
+    ax.text(b5_x*0.60, b5_z*0.60,
+            f"B5\n{b5_val:.2f} Å",
+            fontsize=9, ha='center', va='center',
+            fontweight='bold', color=_B5_COLOR,
+            bbox=dict(boxstyle='round,pad=0.2', fc='white', ec=_B5_COLOR, lw=0.8, alpha=0.8))
 
-    # B5 arrow
-    ax.arrow(0, 0, b5_point[0], b5_point[1],
-             head_width=0.08, color="#CD3333", length_includes_head=True, lw=1.2, alpha=0.9)
+    # --- Angle arc between B1 and B5 vectors ---
+    a1 = np.arctan2(b1_tip[1], b1_tip[0])
+    a5 = np.arctan2(b5_z, b5_x)
+    a_lo, a_hi = sorted([a1, a5])
+    if a_hi - a_lo > np.pi:
+        a_lo, a_hi = a_hi, a_lo + 2*np.pi
+    arc = np.linspace(a_lo, a_hi, 80)
+    r_arc = min(b1_val, b5_val) * 0.55
+    ax.plot(r_arc*np.cos(arc), r_arc*np.sin(arc), color='gray', lw=1.0, alpha=0.6)
+    mid = (a_lo + a_hi) / 2
+    disp_angle = angle_label if angle_label is not None else float(np.degrees(abs(a5 - a1)))
+    ax.text(r_arc*1.25*np.cos(mid), r_arc*1.25*np.sin(mid),
+            f"{disp_angle:.1f}°",
+            fontsize=8, ha='center', va='center', color='gray', fontweight='bold')
 
-    # Labels
-    ax.text(b1_coords[0]*0.55, b1_coords[1]*0.55, f"B1\n{min_val:.2f}",
-            fontsize=10, ha='center', va='bottom', fontweight='bold', color='#00A36C')
-    ax.text(b5_point[0]*0.65, b5_point[1]*0.65, f"B5\n{b5_value:.2f}",
-            fontsize=10, ha='center', va='bottom', fontweight='bold', color='#CD3333')
+    # --- Angle annotation box (upper-left corner) ---
+    angle_src = "3-D" if angle_label is not None else "2-D proj."
+    ax.text(0.03, 0.97,
+            f"∠B1–B5 = {disp_angle:.1f}°  ({angle_src})",
+            transform=ax.transAxes, ha='left', va='top',
+            fontsize=10, fontweight='bold', color='#444444',
+            bbox=dict(boxstyle='round,pad=0.35', fc='#F7F7F7', ec='#AAAAAA', lw=1))
 
-    # ------------------ Angle arc ------------------
-    arc = np.linspace(min(angle_b1, angle_b5), max(angle_b1, angle_b5), 100)
-    arc_x, arc_y = 0.6*np.cos(arc), 0.6*np.sin(arc)
-    ax.plot(arc_x, arc_y, color='gray', lw=1.0, alpha=0.7)
-    mid_angle = (min(angle_b1, angle_b5) + max(angle_b1, angle_b5)) / 2
-    ax.text(0.75*np.cos(mid_angle), 0.75*np.sin(mid_angle),
-            f"{angle_diff_deg:.1f}°", fontsize=9, color='gray',
-            ha='center', va='center', fontweight='bold')
-
-    ax.grid(alpha=0.15)
-    plt.show()
+    ax.grid(alpha=0.12)
+    plt.tight_layout()
+    return fig
 
 
 
@@ -742,113 +760,106 @@ def generate_circle(center_x, center_y, radius, n_points=20):
     return np.column_stack((x, y))
 
 
-def plot_L_B5_plane(edited_coordinates_df, sterimol_df, n_points=100, title="L–B1 Plane (Y–Z)"):
+def plot_L_B5_plane(edited_coordinates_df, sterimol_df, n_points=100,
+                    title="YZ plane — Side view"):
     """
-    Plot Y–Z plane with B1, L, and B5 arrows.
-    Circles colored by atom type; atom index labels near each circle (no box).
-    Summary labels below the legend; include B1–B5 angle at bottom.
+    Side view (YZ plane) showing L, B5, and B1 reference.
+    B5 atom is identified by the 'B5' column maximum (same atom as calc_sterimol).
+    Returns the matplotlib Figure.
     """
-    # Build Y–Z circles & centers
+    # --- Sterimol values from df ---
+    L_val  = float(sterimol_df['L'].iloc[0])
+    B5_val = float(sterimol_df['B5'].iloc[0])
+    B1_val = float(sterimol_df['B1'].iloc[0])
+    loc_B5 = float(sterimol_df['loc_B5'].iloc[0])
+    angle  = float(sterimol_df['B1_B5_angle'].iloc[0]) if 'B1_B5_angle' in sterimol_df.columns else None
+
+    # --- B5 atom (same selection as calc_sterimol) ---
+    b5_idx = edited_coordinates_df['B5'].idxmax()
+    b5_row = edited_coordinates_df.loc[b5_idx]
+    b5_y, b5_z = float(b5_row['y']), float(b5_row['z'])
+
+    # --- Build YZ circles ---
     circles, centers = [], []
+    seen_types = {}
     for atom_idx, r in edited_coordinates_df.iterrows():
         pts = generate_circle(r['y'], r['z'], r['radius'], n_points=n_points)
         circles.append(pts)
-        centers.append((atom_idx, r['atom'], r['y'], r['z'], r['radius']))
-    plane_yz = np.vstack(circles)
+        centers.append((atom_idx, r['atom'], float(r['y']), float(r['z'])))
+        seen_types[r['atom']] = atom_colors.get(r['atom'], '#808080')
 
-    # Extract sterimol values
-    L_val   = float(sterimol_df['L'].iloc[0])
-    B5_val  = float(sterimol_df['B5'].iloc[0])
-    loc_B5  = float(sterimol_df['loc_B5'].iloc[0])
-    angle   = float(sterimol_df['B1_B5_angle'].iloc[0]) if 'B1_B5_angle' in sterimol_df.columns else None
+    # --- Figure ---
+    fig, ax = plt.subplots(figsize=(8, 7))
+    ax.set_aspect('equal')
+    ax.set_title(title, fontsize=13, fontweight='bold', pad=10)
+    ax.set_xlabel("Y (Å) — substituent axis", fontsize=11)
+    ax.set_ylabel("Z (Å)", fontsize=11)
+    ax.axhline(0, color='k', lw=0.4, alpha=0.3)
+    ax.axvline(0, color='k', lw=0.4, alpha=0.3)
 
-    # Compute extremes
-    ys, zs = plane_yz[:,0], plane_yz[:,1]
-    max_y, min_y = ys.max(), ys.min()
-    max_z, min_z = zs.max(), zs.min()
-    abs_ext = np.abs([max_y, min_y, max_z, min_z])
-
-    # Compute B1
-    i_b1 = int(np.argmin(abs_ext))
-    if i_b1 == 0:
-        b1_y, b1_z = max_y, 0.0
-    elif i_b1 == 1:
-        b1_y, b1_z = min_y, 0.0
-    elif i_b1 == 2:
-        b1_y, b1_z = 0.0, max_z
-    else:
-        b1_y, b1_z = 0.0, min_z
-    B1_val = abs_ext[i_b1]
-
-    # Plot setup
-    fig, ax = plt.subplots(figsize=(8,8))
-    colors = {}
-    # Plot circles and atom labels
+    # --- Atom circles + index labels ---
     for i, pts in enumerate(circles):
         closed = np.vstack([pts, pts[0]])
-        atom_idx, atom_type, y0, z0, radius = centers[i]
-        color = atom_colors.get(atom_type, 'black')
-        colors[atom_type]=color
-        ax.plot(closed[:,0], closed[:,1], color=color, lw=1.5)
-        offset = 0
-        ax.text(y0 + offset, z0 + offset, str(atom_idx),
-                ha='center', va='center', fontsize=9, color='black')
+        atom_idx, atom_type, y0, z0 = centers[i]
+        color = seen_types[atom_type]
+        ax.plot(closed[:, 0], closed[:, 1], color=color, lw=1.0, alpha=0.85)
+        ax.text(y0, z0, str(atom_idx),
+                ha='center', va='center', fontsize=7, color='black',
+                bbox=dict(boxstyle='circle,pad=0.1', fc='white', ec='none', alpha=0.5))
 
-    # Dashed extremes
-    ax.axvline(max_y, color='steelblue', ls='--')
-    ax.axvline(min_y, color='steelblue', ls='--')
-    ax.axhline(max_z, color='firebrick', ls='--')
-    ax.axhline(min_z, color='firebrick', ls='--')
+    # --- L arrow (Y axis, length = L_val) ---
+    ax.annotate('', xy=(L_val, 0), xytext=(0, 0),
+                arrowprops=dict(arrowstyle='->', color=_L_COLOR, lw=2.2))
+    ax.text(L_val * 0.55, 0.12,
+            f"L = {L_val:.2f} Å",
+            fontsize=9, color=_L_COLOR, fontweight='bold',
+            bbox=dict(boxstyle='round,pad=0.2', fc='white', ec=_L_COLOR, lw=0.8, alpha=0.8))
 
-    # Plot arrows
-    ax.arrow(0, 0, b1_y, b1_z, head_width=0.1, length_includes_head=True,
-             color='gold', lw=2)
-    y_L = max_y if abs(max_y) >= abs(min_y) else min_y
-    ax.arrow(0, 0, y_L, 0, head_width=0.1, length_includes_head=True,
-             color='forestgreen', lw=2)
-    row = edited_coordinates_df.iloc[(edited_coordinates_df['y'] - loc_B5).abs().argmin()]
-    y5, z5 = row['y'], row['z']
-    ax.arrow(0, 0, y5, z5, head_width=0.1, length_includes_head=True,
-             color='firebrick', lw=2)
+    # --- loc_B5 dashed vertical line ---
+    ax.axvline(loc_B5, color=_B5_COLOR, ls=':', lw=1.0, alpha=0.55)
+    ax.text(loc_B5, ax.get_ylim()[0] if ax.get_ylim()[0] != 0 else -0.3,
+            f"loc_B5\n{loc_B5:.2f}", fontsize=7, color=_B5_COLOR,
+            ha='center', va='top', alpha=0.7)
 
-    # Legend for atom types (upper right)
-    legend_handles = [Line2D([0], [0], color=color, lw=3, label=atom)
-                      for atom, color in colors.items()]
-    ax.legend(handles=legend_handles, title="Atom Types",
-              loc='upper left', bbox_to_anchor=(1.02, 1))
+    # --- B5 arrow to actual B5 atom ---
+    ax.annotate('', xy=(b5_y, b5_z), xytext=(0, 0),
+                arrowprops=dict(arrowstyle='->', color=_B5_COLOR, lw=2.2))
+    ax.text(b5_y*0.58, b5_z*0.58,
+            f"B5 = {B5_val:.2f} Å",
+            fontsize=9, color=_B5_COLOR, fontweight='bold',
+            bbox=dict(boxstyle='round,pad=0.2', fc='white', ec=_B5_COLOR, lw=0.8, alpha=0.8))
 
-    # Summary labels below legend
-    start_y = 0.5  # adjust as needed
-    dy      = 0.1
-    for i, (label, color) in enumerate([
-            (f"B1: {B1_val:.2f}", 'gold'),
-            (f"L:  {L_val:.2f}", 'forestgreen'),
-            (f"B5: {B5_val:.2f}", 'firebrick'),
-        ]):
-        ax.text(
-            1.02,
-            start_y - i*dy,
-            label,
-            transform=ax.transAxes,
-            ha='left', va='bottom',
-            color=color,
-            fontweight='bold',
-            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec=color, lw=1)
-        )
-   
+    # --- B1 reference: double-headed arrow ±B1/2 in Z at Y=0 ---
+    ax.annotate('', xy=(0,  B1_val), xytext=(0, -B1_val),
+                arrowprops=dict(arrowstyle='<->', color=_B1_COLOR, lw=1.8))
+    ax.text(0.08, 0,
+            f"B1 = {B1_val:.2f} Å\n(XZ property)",
+            fontsize=8, color=_B1_COLOR, fontweight='bold', va='center',
+            bbox=dict(boxstyle='round,pad=0.2', fc='white', ec=_B1_COLOR, lw=0.8, alpha=0.8))
 
-    # Angle annotation at bottom center
+    # --- Atom type legend ---
+    legend_handles = [mpatches.Patch(color=c, label=a) for a, c in seen_types.items()]
+    ax.legend(handles=legend_handles, title="Atom types",
+              fontsize=8, title_fontsize=8,
+              loc='upper left', bbox_to_anchor=(1.02, 1.0),
+              framealpha=0.9)
+
+    # --- Summary text box ---
+    summary_lines = [
+        f"B1 = {B1_val:.3f} Å",
+        f"B5 = {B5_val:.3f} Å",
+        f"L  = {L_val:.3f} Å",
+    ]
     if angle is not None:
-        ax.text(0.5, -0.1, f"B1–B5 angle: {angle:.1f}°",
-                transform=ax.transAxes, ha='center', va='top',
-                fontsize=12, fontweight='bold')
+        summary_lines.append(f"∠B1–B5 = {angle:.1f}° (3-D)")
+    ax.text(1.02, 0.48, "\n".join(summary_lines),
+            transform=ax.transAxes, ha='left', va='top',
+            fontsize=9, family='monospace',
+            bbox=dict(boxstyle='round,pad=0.4', fc='#F5F5F5', ec='#AAAAAA', lw=1))
 
-    ax.set_title(title)
-    ax.set_xlabel("Y")
-    ax.set_ylabel("Z")
-    ax.set_aspect('equal', 'box')
+    ax.grid(alpha=0.12)
     plt.tight_layout()
-    plt.show()
+    return fig
 
 
 if __name__ == '__main__':

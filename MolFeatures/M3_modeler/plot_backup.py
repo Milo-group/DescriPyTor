@@ -162,13 +162,6 @@ _SCATTER_PRESETS = {
         "show_legend": False,
         "show_equation": False,
         "label_max": 0,
-        "show_identity_line": False,
-        "figsize": (5.5, 5.5),
-        "dpi": 300,
-        "fontsize": 12,
-        "marker_size": 55,
-        "marker_edgewidth": 0.8,
-        "fit_line_width": 1.6,
     },
 }
 
@@ -2412,13 +2405,8 @@ def _draw_scatter_on_ax(ax, y, pred, names, folds_df, features, coef_df,
     _eff = dict(_SCATTER_PRESETS.get(scatter_mode, {}))
     if scatter_config:
         _eff.update(scatter_config)
-    show_metrics       = _eff.get("show_metrics",       scatter_mode == "full")
-    label_max          = _eff.get("label_max",          None if scatter_mode == "full" else 0)
-    show_identity_line = _eff.get("show_identity_line", False)
-    marker_size        = _eff.get("marker_size",        55)
-    marker_edgewidth   = _eff.get("marker_edgewidth",   0.8)
-    fit_line_width     = _eff.get("fit_line_width",     1.4)
-    fontsize           = _eff.get("fontsize",           11)
+    show_metrics  = _eff.get("show_metrics",  scatter_mode == "full")
+    label_max     = _eff.get("label_max",     None if scatter_mode == "full" else 0)
 
     y    = np.asarray(y).ravel()
     pred = np.asarray(pred).ravel()
@@ -2427,8 +2415,8 @@ def _draw_scatter_on_ax(ax, y, pred, names, folds_df, features, coef_df,
                          "Residual": pred - y})
 
     # scatter
-    ax.scatter(data["Measured"], data["Predicted"], s=marker_size, color="#0b0e0b",
-               edgecolors="white", linewidths=marker_edgewidth, zorder=3)
+    ax.scatter(data["Measured"], data["Predicted"], s=55, color="#0b0e0b",
+               edgecolors="white", linewidths=0.8, zorder=3)
 
     # left-out points
     if leftout_pred_df is not None and len(leftout_pred_df):
@@ -2449,17 +2437,11 @@ def _draw_scatter_on_ax(ax, y, pred, names, folds_df, features, coef_df,
 
     xx = np.linspace(lo_p, hi_p, 300)
     slope, intercept = np.polyfit(y, pred, 1)
-    ax.plot(xx, slope * xx + intercept, color="black", lw=fit_line_width, ls="--", zorder=2)
+    ax.plot(xx, slope * xx + intercept, color="black", lw=1.4, ls="--", zorder=2)
 
-    # identity line y=x (paper mode)
-    if show_identity_line:
-        ax.plot([lo_p, hi_p], [lo_p, hi_p], color="#1f77b4", lw=1.0, ls="-",
-                alpha=0.45, zorder=1, label="y = x")
-
-    ax.set_xlabel(r"Measured $\Delta\Delta G^{\ddagger}$", fontsize=fontsize)
-    ax.set_ylabel(r"Predicted $\Delta\Delta G^{\ddagger}$", fontsize=fontsize)
-    if scatter_mode != "paper":
-        ax.set_title("Predicted vs Measured", fontsize=fontsize + 1, fontweight="bold")
+    ax.set_xlabel(r"Measured $\Delta\Delta G^{\ddagger}$", fontsize=11)
+    ax.set_ylabel(r"Predicted $\Delta\Delta G^{\ddagger}$", fontsize=11)
+    ax.set_title("Predicted vs Measured", fontsize=12, fontweight="bold")
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
 
@@ -2709,31 +2691,7 @@ def _add_diagnostics_page(pdf, png_dir, base_name, X, y):
 def _build_scatter_display_fig(y, pred, names, folds_df, features, coef_df,
                                 lig_types, leftout_pred_df, scatter_mode, scatter_config):
     """Clean scatter-only figure for inline display."""
-    _eff = dict(_SCATTER_PRESETS.get(scatter_mode, {}))
-    if scatter_config:
-        _eff.update(scatter_config)
-    figsize = _eff.pop("figsize", (7, 7))
-    dpi     = _eff.pop("dpi", 150)
-
-    # publication-quality rcParams for paper mode
-    if scatter_mode == "paper":
-        import matplotlib
-        matplotlib.rcParams.update({
-            "font.family":        "sans-serif",
-            "font.sans-serif":    ["Arial", "Helvetica", "DejaVu Sans"],
-            "font.size":          12,
-            "mathtext.default":   "regular",
-            "axes.linewidth":     1.0,
-            "xtick.major.width":  0.8,
-            "ytick.major.width":  0.8,
-            "xtick.major.size":   4,
-            "ytick.major.size":   4,
-            "savefig.dpi":        300,
-            "savefig.bbox":       "tight",
-            "figure.dpi":         dpi,
-        })
-
-    fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+    fig, ax = plt.subplots(figsize=(7, 7))
     _draw_scatter_on_ax(ax, y, pred, names, folds_df, features, coef_df,
                         lig_types, leftout_pred_df, scatter_mode, scatter_config)
     fig.tight_layout()
@@ -2765,11 +2723,23 @@ def _show_figs(*figs):
     Display one or more matplotlib figures inline (Jupyter) then close them.
     Works transparently in both Jupyter and plain Python (no-op on non-figure items).
     """
+    try:
+        from IPython.display import display as ipy_display
+        in_jupyter = get_ipython() is not None
+    except Exception:
+        in_jupyter = False
+
     for fig in figs:
         if fig is None:
             continue
-        fig.show()
-    # do NOT close — let the notebook keep the figure interactive
+        if in_jupyter:
+            try:
+                ipy_display(fig)
+            except Exception:
+                pass
+        else:
+            plt.show(fig)
+        plt.close(fig)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2815,85 +2785,26 @@ def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=
     print(f"Report → {pdf_path}")
     print(f"PNGs   → {png_dir}")
 
-    # ── inline display (Jupyter) — figures + tables ─────────────────────────────
-    display_figs = {}
+    # ── inline display (Jupyter) — exactly 3 figures, nothing else ───────────
     if show:
-        try:
-            from IPython.display import display as ipy_display, HTML
-            _has_ipy = True
-        except ImportError:
-            _has_ipy = False
-
-        # ── 0. Summary metrics ────────────────────────────────────────────────
-        adj_r2 = _calc_adj_r2(r2_in, *X.shape)
-        print("\n" + "=" * 58)
-        print(f"  {'Metric':<22} {'Value':>10}")
-        print("-" * 58)
-        print(f"  {'R² (in-sample)':<22} {r2_in:>10.4f}")
-        print(f"  {'adj R²':<22} {adj_r2:>10.4f}")
-        print(f"  {'MAE (in-sample)':<22} {mae_in:>10.4f}")
-        if folds_df is not None and not folds_df.empty:
-            q = folds_df.iloc[0]
-            for col in ["Q2_3_Fold", "Q2_5_Fold", "Q2_LOOCV", "MAE_LOOCV"]:
-                if col in q:
-                    print(f"  {col:<22} {float(q[col]):>10.4f}")
-        if r2_lo is not None:
-            print(f"  {'R² (held-out)':<22} {r2_lo:>10.4f}")
-        if mae_lo is not None:
-            print(f"  {'MAE (held-out)':<22} {mae_lo:>10.4f}")
-        print("=" * 58 + "\n")
-
-        # ── 1. Regression scatter ─────────────────────────────────────────────
+        # 1. Regression scatter (plot only — tables go in the PDF)
         try:
             fig_scatter = _build_scatter_display_fig(
                 y, pred, model.molecule_names, folds_df, features, coef_df,
                 lig_types, leftout_pred_df, scatter_mode, scatter_config,
             )
             _show_figs(fig_scatter)
-            display_figs["scatter"] = fig_scatter
         except Exception as e:
             print(f"[display scatter] {e}")
 
-        # ── 2. CV metrics table ───────────────────────────────────────────────
-        if folds_df is not None and not folds_df.empty:
-            print("\n── Cross-validation metrics ──")
-            if _has_ipy:
-                ipy_display(folds_df.round(4))
-            else:
-                print(folds_df.round(4).to_string())
-
-        # ── 3. Coefficients & VIF ─────────────────────────────────────────────
-        if coef_df is not None and not coef_df.empty:
-            print("\n── Coefficients ──")
-            if _has_ipy:
-                ipy_display(coef_df.round(4))
-            else:
-                print(coef_df.round(4).to_string())
-
-        if vif_df is not None and not vif_df.empty:
-            print("\n── VIF ──")
-            if _has_ipy:
-                ipy_display(vif_df.round(3))
-            else:
-                print(vif_df.round(3).to_string())
-
-        # ── 4. Held-out predictions table ─────────────────────────────────────
-        if leftout_pred_df is not None and not leftout_pred_df.empty:
-            print("\n── Held-out set predictions ──")
-            if _has_ipy:
-                ipy_display(leftout_pred_df.round(4))
-            else:
-                print(leftout_pred_df.round(4).to_string())
-
-        # ── 5. Feature violin ────────────────────────────────────────────────
+        # 2. Feature violin (plot only — stats table goes in the PDF)
         try:
             fig_violin = _build_violin_display_fig(model, features)
             _show_figs(fig_violin)
-            display_figs["violin"] = fig_violin
         except Exception as e:
             print(f"[display violin] {e}")
 
-        # ── 6. Classification threshold plots ─────────────────────────────────
+        # 3. Classification threshold plots (one per feature)
         try:
             _, thresh_figs = threshold_analysis_plot(
                 model.target_vector,
@@ -2978,7 +2889,6 @@ def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=
         "coef_df":   coef_df,
         "in_sample": {"R2": r2_in, "adj_R2": _calc_adj_r2(r2_in, *X.shape), "MAE": mae_in},
         "leftout":   {"df": leftout_pred_df, "R2": r2_lo, "MAE": mae_lo},
-        "figures":   display_figs,
     }
 
 

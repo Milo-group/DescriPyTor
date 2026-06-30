@@ -83,10 +83,8 @@ def fragmented_to_mol(mol, main_idx, dummies = True):
           
     for a in list(mw.GetAtoms())[::-1]:
         if a.GetSymbol() == "*":
-            
-            if mw.GetBondBetweenAtoms(upt_idx[main_idx], a.GetIdx()) == None or dummies == False:
+            if dummies == False or mw.GetBondBetweenAtoms(upt_idx[main_idx], a.GetIdx()) is None:
                 mw.RemoveAtom(a.GetIdx())
-                
             else:
                 mw.ReplaceAtom(a.GetIdx(), Chem.rdchem.Atom("*"))
     
@@ -101,7 +99,7 @@ def fragmented_to_mol(mol, main_idx, dummies = True):
     return res_mol, upt_idx
 
 def produce_maps_list (ref, query, main_idx, ref_main_idx, bondCommpare = Chem.rdFMCS.BondCompare.CompareOrder,
-                       atomCompare=Chem.rdFMCS.AtomCompare.CompareElements):
+                       atomCompare=Chem.rdFMCS.AtomCompare.CompareAny):
 
     
     maps_list = [{}]
@@ -169,14 +167,13 @@ def produce_maps_list (ref, query, main_idx, ref_main_idx, bondCommpare = Chem.r
     return maps_list
 
 def find_best_fitted_surface(points):
-
-    pca = PCA(n_components=2)
-    pca.fit(points.numpy())
-
-    principal_components = pca.components_
-
-    normal_vector = torch.tensor(principal_components[0], dtype=torch.float32)
-
+    pts = points.numpy()
+    n_components = min(2, pts.shape[0], pts.shape[1])
+    if n_components < 1:
+        return torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32)
+    pca = PCA(n_components=n_components)
+    pca.fit(pts)
+    normal_vector = torch.tensor(pca.components_[0], dtype=torch.float32)
     return normal_vector
 
 def rotation_angles_between_vectors(vec1, vec2):
@@ -250,7 +247,7 @@ def find_init_vars(ref, query, df_1, df_2, Frag_mcs = -1, anchors = None):
 
     print ("search for MCS...")
 
-    mcs = rdFMCS.FindMCS([ref_to_match, query_to_match], bondCompare=Chem.rdFMCS.BondCompare.CompareOrderExact).smartsString 
+    mcs = rdFMCS.FindMCS([ref_to_match, query_to_match], atomCompare=Chem.rdFMCS.AtomCompare.CompareAny, bondCompare=Chem.rdFMCS.BondCompare.CompareOrderExact).smartsString
     mcs_mol = MolFromSmarts(mcs)
     if Frag_mcs >= 0:
         mcs_mol = even_fragments(mcs_mol)[Frag_mcs]

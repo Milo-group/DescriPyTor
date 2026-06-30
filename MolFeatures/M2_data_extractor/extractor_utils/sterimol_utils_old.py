@@ -51,38 +51,10 @@ class GeneralConstants(Enum):
     
     BONDI_RADII={
         'H': 1.10, 'C': 1.70, 'F': 1.47,
-        'S': 1.80, 'B': 1.92, 'I': 1.98,
-        'N': 1.55, 'O': 1.52,
-        'Br': 1.83, 'Si': 2.10,
-        'P': 1.80, 'Cl': 1.75,
-        # alkali / alkaline-earth (Alvarez 2013, DOI: 10.1039/c3dt50599e)
-        'Li': 1.82, 'Be': 1.53, 'Na': 2.27, 'Mg': 1.73,
-        'K': 2.75, 'Ca': 2.31, 'Rb': 3.03, 'Sr': 2.49,
-        'Cs': 3.43, 'Ba': 2.68,
-        # p-block metals / heavier metalloids
-        'Al': 1.84, 'Ga': 1.87, 'Ge': 2.11, 'As': 1.85,
-        'In': 1.93, 'Sn': 2.17, 'Sb': 2.06, 'Te': 2.06,
-        'Tl': 1.96, 'Pb': 2.02, 'Bi': 2.07,
-        # first-row transition metals
-        'Sc': 2.18, 'Ti': 2.11, 'V': 2.07, 'Cr': 2.06,
-        'Mn': 2.05, 'Fe': 2.04, 'Co': 2.00, 'Ni': 1.97,
-        'Cu': 1.96, 'Zn': 2.01,
-        # second-row transition metals
-        'Y': 2.32, 'Zr': 2.23, 'Nb': 2.18, 'Mo': 2.17,
-        'Tc': 2.16, 'Ru': 2.13, 'Rh': 2.10, 'Pd': 2.10,
-        'Ag': 2.11, 'Cd': 2.18,
-        # third-row transition metals
-        'Hf': 2.23, 'Ta': 2.22, 'W': 2.18, 'Re': 2.16,
-        'Os': 2.16, 'Ir': 2.13, 'Pt': 2.09, 'Au': 2.14,
-        'Hg': 2.23,
-        # lanthanides
-        'La': 2.43, 'Ce': 2.42, 'Pr': 2.40, 'Nd': 2.39,
-        'Pm': 2.38, 'Sm': 2.36, 'Eu': 2.35, 'Gd': 2.34,
-        'Tb': 2.33, 'Dy': 2.31, 'Ho': 2.30, 'Er': 2.29,
-        'Tm': 2.27, 'Yb': 2.26, 'Lu': 2.24,
-        # actinides
-        'Ac': 2.47, 'Th': 2.45, 'Pa': 2.43, 'U': 2.41,
-        'Np': 2.39, 'Pu': 2.37, 'Am': 2.35, 'Cm': 2.35,
+        'S': 1.80, 'B': 1.92, 'I': 1.98, 
+        'N': 1.55, 'O': 1.52, 'Co': 2.00, 
+        'Br': 1.83, 'Si': 2.10,'Ni': 2.00,
+        'P': 1.80, 'Cl': 1.75, 
     }
     CPK_RADII = {
     'C': 1.50,
@@ -101,28 +73,7 @@ class GeneralConstants(Enum):
     'S4': 1.40,
     'Br': 1.95,
     'I': 2.15,
-    'X': 1.92,
-    # metals — element symbols used directly (Alvarez 2013 VdW values)
-    'Li': 1.82, 'Be': 1.53, 'Na': 2.27, 'Mg': 1.73,
-    'K': 2.75, 'Ca': 2.31, 'Rb': 3.03, 'Sr': 2.49,
-    'Cs': 3.43, 'Ba': 2.68,
-    'Al': 1.84, 'Ga': 1.87, 'Ge': 2.11, 'In': 1.93,
-    'Sn': 2.17, 'Tl': 1.96, 'Pb': 2.02, 'Bi': 2.07,
-    'Sc': 2.18, 'Ti': 2.11, 'V': 2.07, 'Cr': 2.06,
-    'Mn': 2.05, 'Fe': 2.04, 'Co': 2.00, 'Ni': 1.97,
-    'Cu': 1.96, 'Zn': 2.01,
-    'Y': 2.32, 'Zr': 2.23, 'Nb': 2.18, 'Mo': 2.17,
-    'Tc': 2.16, 'Ru': 2.13, 'Rh': 2.10, 'Pd': 2.10,
-    'Ag': 2.11, 'Cd': 2.18,
-    'Hf': 2.23, 'Ta': 2.22, 'W': 2.18, 'Re': 2.16,
-    'Os': 2.16, 'Ir': 2.13, 'Pt': 2.09, 'Au': 2.14,
-    'Hg': 2.23,
-    'La': 2.43, 'Ce': 2.42, 'Pr': 2.40, 'Nd': 2.39,
-    'Pm': 2.38, 'Sm': 2.36, 'Eu': 2.35, 'Gd': 2.34,
-    'Tb': 2.33, 'Dy': 2.31, 'Ho': 2.30, 'Er': 2.29,
-    'Tm': 2.27, 'Yb': 2.26, 'Lu': 2.24,
-    'Ac': 2.47, 'Th': 2.45, 'Pa': 2.43, 'U': 2.41,
-    'Np': 2.39, 'Pu': 2.37, 'Am': 2.35, 'Cm': 2.35,
+    'X': 1.92
 }
     
 
@@ -305,37 +256,60 @@ def filter_atoms_for_sterimol(bonded_atoms_df,coordinates_df):
 
 
 def get_extended_df_for_sterimol(coordinates_df, bonds_df, radii='CPK'):
+    """
+    A function that adds information to the regular coordinates_df
+
+    Parameters
+    ----------
+    coordinates_df : dataframe
+    bond_type : str
+        The bond type of the molecule
+    radii : str, optional
+        The type of F to use ('bondi' or 'CPK'), by default 'bondi'
+
+    Returns
+    -------
+    dataframe
+        The extended dataframe with additional columns
+
+    """
+
     radii_map = GeneralConstants.CPK_RADII.value if radii == 'CPK' else GeneralConstants.BONDI_RADII.value
-    df = coordinates_df.copy()
-
+    df = coordinates_df.copy()  # make a copy of the dataframe to avoid modifying the original
     if radii == 'bondi':
-        df['atype'] = df['atom']
+        df['atype']=df['atom']
     else:
-        df['atype'] = nob_atype(coordinates_df, bonds_df)
-
-    df['magnitude'] = np.linalg.norm(df[['x', 'z']].astype(float), axis=1)
+        df['atype']=nob_atype(coordinates_df, bonds_df)
+    df['magnitude']  = np.linalg.norm((df[['x', 'z']].astype(float)), axis=1)
     df['radius'] = df['atype'].map(radii_map)
     df['B5'] = df['radius'] + df['magnitude']
     df['L'] = df['y'] + df['radius']
-    df['loc_B5'] = df['y']
 
     return df
 
-def get_transfomed_plane_for_sterimol(plane, degree):
-    """
-    Rotate a 2D plane by a given angle in degrees.
-    plane: np.ndarray of shape (n_points, 2)
-    """
-    theta = np.deg2rad(degree)
-    cos_theta = np.cos(theta)
-    sin_theta = np.sin(theta)
 
-    rot_matrix = np.array([
-        [cos_theta, -sin_theta],
-        [sin_theta,  cos_theta]
-    ])
+def get_transfomed_plane_for_sterimol(plane,degree):
+    """
+    a function that gets a plane and rotates it by a given degree
+    in the case of sterimol the plane is the x,z plane.
+    Parameters:
+    ----------
+    plane : np.array
+        [x,z] plane of the molecule coordinates.
+        example:
+            [-0.6868 -0.4964]
+    degree : float
+    """
+  
+    cos_deg=np.cos(degree*(np.pi/180))
+    sin_deg=np.sin(degree*(np.pi/180))
+    rot_matrix=np.array([[cos_deg,-1*sin_deg],[sin_deg,cos_deg]])
+    transformed_plane=np.vstack([np.matmul(rot_matrix,row) for row in plane]).round(4)
 
-    return plane @ rot_matrix.T
+    
+    ## return the inversed rotation matrix to transform the plane back
+
+    return transformed_plane
 
 
 def calc_B1(transformed_plane,avs,edited_coordinates_df,column_index):
@@ -401,82 +375,94 @@ def calc_B1(transformed_plane,avs,edited_coordinates_df,column_index):
       
     return [B1,B1_loc] 
 
-def b1s_for_loop_function(degree_list, plane):
+def b1s_for_loop_function(extended_df, b1s, b1s_loc, degree_list, plane, b1_planes):
     """
-    Scan rotated planes over a list of angles and compute B1-related metrics.
-
+    For each degree in degree_list, rotate the plane and compute B1 values and the B1-B5 angle.
+    Instead of returning after the first iteration, this version accumulates all results
+    into a DataFrame.
+    
     Parameters
     ----------
-    degree_list : iterable of float
-        Angles in degrees to scan.
-    plane : np.ndarray, shape (n_points, 2)
-        Original 2D steric point cloud.
-
+    extended_df : pd.DataFrame
+        DataFrame with at least columns 'x', 'z', 'radius', 'L'.
+    b1s : list
+        (Unused here; kept for compatibility)
+    b1s_loc : list
+        (Unused here; kept for compatibility)
+    degree_list : list
+        List of rotation angles (in degrees) to scan.
+    plane : np.array
+        Array of shape (n_points_total, 2) that contains the combined circle points.
+    b1_planes : list
+        List to store the rotated plane from each iteration.
+        
     Returns
     -------
     pd.DataFrame
-        Columns:
-        - degree
-        - B1
-        - B1_B5_angle
-        - b1_coords
-        - b5_value
-        - plane
+        DataFrame with one row per degree, containing:
+         - 'degree': the rotation angle,
+         - 'B1': the minimum extreme value from the rotated plane,
+         - 'B1_B5_angle': the angle between the B1 and B5 arrows in degrees,
+         - 'b1_coords': the coordinate (as a tuple) chosen for B1,
+         - 'b5_value': the distance of the farthest point (B5) from the origin.
     """
-    results = []
-
+    results = []  # List to accumulate results
+    
     for degree in degree_list:
-        transformed_plane = get_transfomed_plane_for_sterimol(plane, degree)
-
+        transformed_plane = get_transfomed_plane_for_sterimol(plane, degree)  # Rotate the plane
+     
         max_x = np.max(transformed_plane[:, 0])
         min_x = np.min(transformed_plane[:, 0])
         max_y = np.max(transformed_plane[:, 1])
         min_y = np.min(transformed_plane[:, 1])
-
-        extents = np.array([abs(max_x), abs(min_x), abs(max_y), abs(min_y)])
-        min_index = int(np.argmin(extents))
-        b1_value = float(extents[min_index])
-
+        avs = np.abs([max_x, min_x, max_y, min_y])
+       
+        min_val = np.min(avs)
+        min_index = np.argmin(avs)
+        
+        # Mimic R's switch to pick the B1 coordinate:
         if min_index == 0:
-            b1_coords = (float(max_x), 0.0)
+            b1_coords = (max_x, 0)
         elif min_index == 1:
-            b1_coords = (float(min_x), 0.0)
+            b1_coords = (min_x, 0)
         elif min_index == 2:
-            b1_coords = (0.0, float(max_y))
+            b1_coords = (0, max_y)
         else:
-            b1_coords = (0.0, float(min_y))
-
-        norms_sq = np.sum(transformed_plane ** 2, axis=1)
-        b5_index = int(np.argmax(norms_sq))
+            b1_coords = (0, min_y)
+        
+        # Determine B5 as the farthest point from the origin.
+        norms_sq = np.sum(transformed_plane**2, axis=1)
+        b5_index = np.argmax(norms_sq)
         b5_point = transformed_plane[b5_index]
-        b5_value = float(np.linalg.norm(b5_point))
-
-        angle_b1 = np.arctan2(b1_coords[1], b1_coords[0]) % (2 * np.pi)
-        angle_b5 = np.arctan2(b5_point[1], b5_point[0]) % (2 * np.pi)
+        b5_value = np.linalg.norm(b5_point)
+        
+        # Calculate angles for the arrows.
+        angle_b1 = np.arctan2(b1_coords[1], b1_coords[0]) % (2*np.pi)
+        angle_b5 = np.arctan2(b5_point[1], b5_point[0]) % (2*np.pi)
         angle_diff = abs(angle_b5 - angle_b1)
         if angle_diff > np.pi:
-            angle_diff = 2 * np.pi - angle_diff
-
-        # B1 plane normal in the original (pre-rotation) xz frame.
-        # The rotation maps original x → [cos θ, sin θ] and original z → [-sin θ, cos θ].
-        # B1 minimum falls along the rotated x-axis (min_index 0/1) or z-axis (2/3).
-        theta = np.deg2rad(degree)
-        if min_index in (0, 1):
-            b1_normal = np.array([np.cos(theta), np.sin(theta)])
-        else:
-            b1_normal = np.array([-np.sin(theta), np.cos(theta)])
-
+            angle_diff = 2*np.pi - angle_diff
+        # Convert the angle difference to degrees.
+        B1_B5 = np.degrees(angle_diff)
+        B1 = min_val
+        
+        # Save the transformed plane for this iteration.
+        b1_planes.append(transformed_plane)
+        
+        # Accumulate the result for this degree.
         results.append({
-            "degree": degree,
-            "B1": b1_value,
-            "B1_B5_angle": float(np.degrees(angle_diff)),
-            "b1_coords": b1_coords,
-            "b5_value": b5_value,
-            "plane": transformed_plane,
-            "b1_normal": b1_normal,
+            'degree': degree,
+            'B1': B1,
+            'B1_B5_angle': B1_B5,
+            'b1_coords': b1_coords,
+            'b5_value': b5_value,
+            'plane': transformed_plane
         })
-
-    return pd.DataFrame(results)
+    
+    # Create a DataFrame from the accumulated results.
+    sterimol_df = pd.DataFrame(results)
+  
+    return sterimol_df
 
 
 def preform_coordination_transformation(xyz_df, indices=None, origin=None):
@@ -699,171 +685,131 @@ def get_specific_bonded_atoms_df(bonds_df, longest_path, coordinates_df):
     bonded_atoms_df = pd.concat([pd.DataFrame(atom_bonds), edited_bonds_df], axis=1)
     bonded_atoms_df.columns = XYZConstants.BONDED_COLUMNS.value
     return bonded_atoms_df
-
-def scan_b1_over_angles(plane, degree_list):
-    """
-    Scan rotated planes over a list of angles and compute B1-related metrics.
     
-    Parameters
-    ----------
-    plane : np.ndarray, shape (n_points, 2)
-        The original 2D steric point cloud.
-    degree_list : iterable of float
-        Angles in degrees to scan.
+def get_b1s_list(extended_df, scans=90//5,plot_result=False):
+    """
+    Calculate B1 values by scanning over a range of rotation angles.
+    Instead of using only the center points, this version generates circle points
+    for each substituent from extended_df and then stacks them into one plane.
     
-    Returns
-    -------
-    pd.DataFrame
-        Columns:
-        - degree
-        - B1
-        - B1_B5_angle
-        - b1_coords
-        - b5_value
-        - plane
-    """
-    results = []
-
-    for degree in degree_list:
-        transformed_plane = get_transfomed_plane_for_sterimol(plane, degree)
-
-        max_x = np.max(transformed_plane[:, 0])
-        min_x = np.min(transformed_plane[:, 0])
-        max_y = np.max(transformed_plane[:, 1])
-        min_y = np.min(transformed_plane[:, 1])
-
-        extents = np.array([abs(max_x), abs(min_x), abs(max_y), abs(min_y)])
-        min_index = int(np.argmin(extents))
-        b1_value = float(extents[min_index])
-
-        if min_index == 0:
-            b1_coords = (max_x, 0.0)
-        elif min_index == 1:
-            b1_coords = (min_x, 0.0)
-        elif min_index == 2:
-            b1_coords = (0.0, max_y)
-        else:
-            b1_coords = (0.0, min_y)
-
-        norms_sq = np.sum(transformed_plane ** 2, axis=1)
-        b5_index = int(np.argmax(norms_sq))
-        b5_point = transformed_plane[b5_index]
-        b5_value = float(np.linalg.norm(b5_point))
-
-        angle_b1 = np.arctan2(b1_coords[1], b1_coords[0]) % (2 * np.pi)
-        angle_b5 = np.arctan2(b5_point[1], b5_point[0]) % (2 * np.pi)
-        angle_diff = abs(angle_b5 - angle_b1)
-        if angle_diff > np.pi:
-            angle_diff = 2 * np.pi - angle_diff
-
-        theta = np.deg2rad(degree)
-        if min_index in (0, 1):
-            b1_normal = np.array([np.cos(theta), np.sin(theta)])
-        else:
-            b1_normal = np.array([-np.sin(theta), np.cos(theta)])
-
-        results.append({
-            "degree": degree,
-            "B1": b1_value,
-            "B1_B5_angle": float(np.degrees(angle_diff)),
-            "b1_coords": b1_coords,
-            "b5_value": b5_value,
-            "plane": transformed_plane,
-            "b1_normal": b1_normal,
-        })
-
-    return pd.DataFrame(results)
-
-def get_b1s_list(extended_df, scans=1, plot_result=False):
-    """
-    Calculate B1 values by scanning over rotation angles using circle-expanded atoms.
-
     Parameters
     ----------
     extended_df : pd.DataFrame
-        DataFrame with at least the columns: 'x', 'z', 'radius', 'L', 'B5', 'loc_B5'.
+        DataFrame with at least the columns: 'x', 'z', 'radius', 'L'.
     scans : int, optional
-        Coarse step size in degrees.
-    plot_result : bool, optional
-        Kept for compatibility.
-
+        Degree step for the initial scan.
+        
     Returns
     -------
-    list
-        [b1s, b1_b5_angle, planes]
+    tuple
+        (np.array of B1 values, np.array of B1 location values, list of rotated planes)
     """
+    b1s, b1s_loc, b1_planes = [], [], []
+    
+    degree_list = list(range(18, 108, scans))
+    circles_y = []
     circles = []
 
-    for _, row in extended_df.iterrows():
-        circle_points = generate_circle(row["x"], row["z"], row["radius"], n_points=100)
+    for idx, row in extended_df.iterrows():
+        
+        circle_points = generate_circle(row['x'], row['z'], row['radius'], n_points=100)
         circles.append(circle_points)
+        circle_points_y = generate_circle(row['x'], row['z'], row['radius'], n_points=100)
+        circles_y.append(circle_points_y)
+    plane_xz = np.vstack(circles)  # All circle points combined.
+    plane_yz = np.vstack(circles_y)  # All circle points combined.
 
-    original_plane_xz = np.vstack(circles)
+    sterimol_df=b1s_for_loop_function(extended_df, b1s, b1s_loc, degree_list, plane_xz, b1_planes)
 
-    # Coarse scan on original geometry
-    degree_list = list(range(18, 108, scans))
-    sterimol_df = b1s_for_loop_function(degree_list, original_plane_xz)
+    b1s=sterimol_df['B1']
+    
+    try:
+        back_ang=degree_list[np.where(b1s==min(b1s))[0][0]]-scans   
+        front_ang=degree_list[np.where(b1s==min(b1s))[0][0]]+scans
+        new_degree_list=range(back_ang,front_ang+1)
+    except:
+        
+        back_ang=degree_list[np.where(np.isclose(b1s, min(b1s), atol=1e-8))[0][0]]-scans
+        front_ang=degree_list[np.where(np.isclose(b1s, min(b1s), atol=1e-8))[0][0]]+scans
+        new_degree_list=range(back_ang,front_ang+1)
+    # plane=sterimol_df['plane']
+    best_idx = np.where(sterimol_df['B1']==sterimol_df['B1'].min())[0][0]
+    # 4) *you should* take that rotated plane:
+    plane_xz = sterimol_df.loc[best_idx, 'plane']
 
-    best_idx = int(sterimol_df["B1"].idxmin())
-    best_angle = int(sterimol_df.loc[best_idx, "degree"])
+    b1s, b1s_loc, b1_planes = [], [], []
+    sterimol_df=b1s_for_loop_function(extended_df, b1s, b1s_loc, list(new_degree_list), plane_xz, b1_planes)
 
-    # Fine scan, still on the original geometry
-    back_ang = best_angle - scans
-    front_ang = best_angle + scans
-    new_degree_list = list(range(back_ang, front_ang + 1))
+    b1s=sterimol_df['B1']
 
-    sterimol_df = b1s_for_loop_function(new_degree_list, original_plane_xz)
+    b1_b5_angle=sterimol_df['B1_B5_angle']
+    plane_xz=sterimol_df['plane']
+    
 
-    b1s = sterimol_df["B1"].to_numpy()
-    b1_b5_angle = sterimol_df["B1_B5_angle"].to_numpy()
-    plane_xz = sterimol_df["plane"].to_list()
-    b1_normals = np.array(sterimol_df["b1_normal"].to_list())  # shape (n, 2): [x, z]
-
-    return [b1s, b1_b5_angle, plane_xz, b1_normals]
+    return [b1s, b1_b5_angle, plane_xz]
 
 
-def calc_sterimol(bonded_atoms_df, extended_df, visualize_bool=False):
-    edited_coordinates_df, index_list = filter_atoms_for_sterimol(bonded_atoms_df, extended_df)
 
-    b1s, b1_b5_angle, planes, b1_normals = get_b1s_list(edited_coordinates_df)
 
-    best_idx = int(np.argmin(b1s))
-    best_b1 = float(b1s[best_idx])
+def calc_sterimol(bonded_atoms_df,extended_df,visualize_bool=False):
+    edited_coordinates_df,index_list=filter_atoms_for_sterimol(bonded_atoms_df,extended_df)
+    b1s,b1_b5_angle,plane=get_b1s_list(edited_coordinates_df)
+    valid_indices = np.where(b1s >= 0)[0]
+    best_idx = valid_indices[np.argmin(b1s[valid_indices])]
+    best_b1_plane = plane[best_idx]
+    max_x = np.max(best_b1_plane[:, 0])
+    min_x = np.min(best_b1_plane[:, 0])
+    max_y = np.max(best_b1_plane[:, 1])
+    min_y = np.min(best_b1_plane[:, 1])
+    avs = np.abs([max_x, min_x, max_y, min_y])
+    min_val = np.min(avs)
+    B1= min_val
+    b1_index=np.where(b1s==B1)[0][0]
+    angle=b1_b5_angle[b1_index]
+    norms_sq = np.sum(best_b1_plane**2, axis=1)
+    b5_index = np.argmax(norms_sq)
+    b5_point = best_b1_plane[b5_index]
+    b5_value = np.linalg.norm(b5_point)
+    max_row=edited_coordinates_df['B5'].idxmax()
+    max_row=int(max_row)
+    L=max(edited_coordinates_df['L'].values)
+    loc_B5 = edited_coordinates_df['y'].iloc[np.where(edited_coordinates_df['B5']==max(edited_coordinates_df['B5']))[0][0]]
 
-    # B5, L, and loc_B5 should come from the original Sterimol dataframe
-    best_b5 = float(np.max(edited_coordinates_df["B5"]))
-    best_b5_index = edited_coordinates_df["B5"].idxmax()
-    best_loc_b5 = float(edited_coordinates_df.loc[best_b5_index, "loc_B5"])
-    best_L = float(np.max(edited_coordinates_df["L"]))
-
-    # B1-B5 angle: angle from the 3D B5 vector to the B1 plane.
-    # The B1 plane contains the y-axis (substituent direction) and is defined by its
-    # normal n̂ in xz. This correctly accounts for the y-position of the B5 atom,
-    # unlike the old xz-projection approach which discarded it.
-    b5_row = edited_coordinates_df.loc[best_b5_index]
-    v_b5 = np.array([float(b5_row["x"]), float(b5_row["y"]), float(b5_row["z"])])
-    n_xz = b1_normals[best_idx]                          # [x, z] in original frame
-    n_3d = np.array([n_xz[0], 0.0, n_xz[1]])             # [x, y=0, z]
-    v_norm = np.linalg.norm(v_b5)
-    if v_norm > 1e-10:
-        sin_val = np.clip(np.abs(np.dot(v_b5, n_3d)) / v_norm, 0.0, 1.0)
-        best_angle = float(np.degrees(np.arcsin(sin_val)))
+    # --- B1 direction in the X-Z perpendicular plane ---
+    min_index = np.argmin(avs)
+    if min_index == 0:
+        b1_xz = np.array([max_x, 0.0])
+    elif min_index == 1:
+        b1_xz = np.array([min_x, 0.0])
+    elif min_index == 2:
+        b1_xz = np.array([0.0, max_y])
     else:
-        best_angle = 0.0
-    result_df = pd.DataFrame([{
-        "B1": best_b1,
-        "B5": best_b5,
-        "L": best_L,
-        "loc_B5": best_loc_b5,
-        "B1_B5_angle": best_angle
-    }])
+        b1_xz = np.array([0.0, min_y])
 
+    # 3D vectors in the Sterimol frame (Y = primary/L axis, X-Z = perpendicular plane)
+    vis_params = {
+        'B1_coords': [float(b1_xz[0]), 0.0, float(b1_xz[1])],
+        'B5_coords': [float(b5_point[0]), 0.0, float(b5_point[1])],
+        'L_coords':  [0.0, float(L), 0.0],
+        'B1_value':  float(B1),
+        'B5_value':  float(b5_value),
+        'L_value':   float(L),
+    }
+
+    sterimol_df = pd.DataFrame([B1, b5_value, L ,loc_B5,angle], index=XYZConstants.STERIMOL_INDEX.value)
     if visualize_bool:
+        # change edit coordinates_df index to original index
         edited_coordinates_df.index = [index_list[i] + 1 for i in range(len(index_list))]
-        plot_b1_visualization(planes[best_idx], edited_coordinates_df=edited_coordinates_df,
-                              sterimol_df=result_df)
+        plot_b1_visualization(best_b1_plane, edited_coordinates_df=edited_coordinates_df)
+        plt.show()
+        print('B1 B5 Plane')
+        # plot_L_B5_plane(edited_coordinates_df, sterimol_df.T)
+        # plt.show()
+        # print('L B5 Plane')
 
-    return result_df
+
+    return sterimol_df.T, vis_params
+
 
 def get_sterimol_df(coordinates_df, bonds_df, base_atoms, connected_from_direction, 
                     radii='CPK', sub_structure=True, drop_atoms=None, visualize_bool=False, mode='all'):
@@ -906,7 +852,7 @@ def get_sterimol_df(coordinates_df, bonds_df, base_atoms, connected_from_directi
     bonded_atoms_df = get_specific_bonded_atoms_df(bonds_df, connected_from_direction, new_coordinates_df)
     extended_df = get_extended_df_for_sterimol(new_coordinates_df, bonds_df, radii)
 
-    sterimol_df = calc_sterimol(bonded_atoms_df, extended_df, visualize_bool)
+    sterimol_df, vis_params = calc_sterimol(bonded_atoms_df, extended_df, visualize_bool)
     sterimol_df = sterimol_df.rename(index={0: str(base_atoms[0]) + '-' + str(base_atoms[1])})
     sterimol_df = sterimol_df.round(4)
 

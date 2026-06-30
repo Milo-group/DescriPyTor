@@ -160,7 +160,8 @@ def calc_dipole_gaussian(
     Semantics (R-equivalent):
       - len==3: [origin_atom, y_atom, plane_atom]
       - len>=4: [origin_set..., y_atom, plane_atom]  (origin = centroid(origin_set)
-      - or: [[origin_set], y_atom, plane_atom]
+      - [[origin_set], y_atom, plane_atom]
+      - [[origin_set], [direction_set], [plane_set]]
 
     Parameters
     ----------
@@ -186,31 +187,38 @@ def calc_dipole_gaussian(
         idx = np.asarray(idx_list, dtype=int)
         return idx if (idx == 0).any() else (idx - 1)
 
-    def _parse_base(group: Sequence) -> Tuple[np.ndarray, int, int]:
+    def _centroid_selector(coords: np.ndarray, selector) -> np.ndarray:
+        idx = _to0(selector if isinstance(selector, (list, tuple, np.ndarray)) else [selector])
+        return coords[idx].mean(axis=0)
+
+    def _parse_base(group: Sequence) -> Tuple[np.ndarray, Sequence, Sequence]:
         """
-        Returns (origin_set_0based, y_idx_0based, plane_idx_0based).
-        Accepts [[o...], y, plane] OR [o, y, plane] OR [o..., y, plane].
+        Returns (origin_set_0based, y_selector, plane_selector).
+        Accepts [[o...], y, plane], [[o...], [y...], [plane...]],
+        [o, y, plane], or [o..., y, plane].
         """
         if not isinstance(group, (list, tuple)) or len(group) < 3:
             raise ValueError("base_atoms_indices must be a sequence with at least 3 entries.")
 
         if isinstance(group[0], (list, tuple)):  # [[o...], y, plane]
             origin_set = _to0(group[0])
-            y_idx = int(group[1]); plane_idx = int(group[2])
+            y_sel = group[1]
+            plane_sel = group[2]
         elif len(group) >= 4:                    # [o..., y, plane]
             origin_set = _to0(group[:-2])
-            y_idx = int(group[-2]); plane_idx = int(group[-1])
+            y_sel = group[-2]
+            plane_sel = group[-1]
         else:                                    # [o, y, plane]
             origin_set = _to0([group[0]])
-            y_idx = int(group[1]); plane_idx = int(group[2])
+            y_sel = group[1]
+            plane_sel = group[2]
 
-        y_idx0, plane_idx0 = _to0([y_idx])[0], _to0([plane_idx])[0]
-        return origin_set, y_idx0, plane_idx0
+        return origin_set, y_sel, plane_sel
 
-    def _build_basis(coords: np.ndarray, origin_pt: np.ndarray, y_idx: int, plane_idx: int) -> np.ndarray:
+    def _build_basis(coords: np.ndarray, origin_pt: np.ndarray, y_sel, plane_sel) -> np.ndarray:
         """Rows are basis axes (X, Y, Z) expressed in the original coordinates."""
-        new_y = _normalize(coords[y_idx] - origin_pt)
-        coplane = _normalize(coords[plane_idx] - origin_pt)
+        new_y = _normalize(_centroid_selector(coords, y_sel) - origin_pt)
+        coplane = _normalize(_centroid_selector(coords, plane_sel) - origin_pt)
 
         # X = projection of 'coplane' onto plane ⟂ Y (with robust fallback)
         x_raw = coplane - np.dot(coplane, new_y) * new_y
@@ -250,9 +258,9 @@ def calc_dipole_gaussian(
         return pd.DataFrame(g, columns=['dipole_x','dipole_y','dipole_z','total'])
 
     # -------- build basis from base_atoms_indices only --------
-    origin_set, y_idx, plane_idx = _parse_base(base_atoms_indices)
+    origin_set, y_sel, plane_sel = _parse_base(base_atoms_indices)
     origin_pt = coords[origin_set].mean(axis=0)         # centroid of origin set
-    basis = _build_basis(coords, origin_pt, y_idx, plane_idx)  # rows: X,Y,Z
+    basis = _build_basis(coords, origin_pt, y_sel, plane_sel)  # rows: X,Y,Z
 
     # -------- rotate dipole(s) --------
     d_xyz = g[:, :3]                 # (M,3)

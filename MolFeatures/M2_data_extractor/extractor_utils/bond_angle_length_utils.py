@@ -1,36 +1,50 @@
 from typing import List, Optional
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
 
 
-try:
-    from ...utils.help_functions import *
-except ImportError:
-    from utils.help_functions import * 
+def adjust_indices(element):
+    """Convert user-facing 1-based atom indices into 0-based indices."""
+    if isinstance(element, (list, tuple, np.ndarray)):
+        return [adjust_indices(sub_element) for sub_element in element]
+    if isinstance(element, (int, np.integer)):
+        return int(element) - 1
+    if isinstance(element, float) and element.is_integer():
+        return int(element) - 1
+    raise ValueError(f"Unsupported element type: {type(element)}; value: {element}")
+
+
+def calc_angle(p1: npt.ArrayLike, p2: npt.ArrayLike, degrees: bool = False) -> float:
+    """Calculate the angle between two vectors."""
+    p1 = np.asarray(p1, dtype=float)
+    p2 = np.asarray(p2, dtype=float)
+    denom = np.linalg.norm(p1) * np.linalg.norm(p2)
+    if denom == 0:
+        raise ValueError("Cannot calculate an angle with a zero-length vector.")
+    cosine = np.clip(np.dot(p1, p2) / denom, -1.0, 1.0)
+    theta = np.arccos(cosine)
+    return float(np.degrees(theta) if degrees else theta)
 
 
 
 
-def indices_to_coordinates_vector(coordinates_array,indices):
+def indices_to_coordinates_vector(coordinates_array, indices):
     """
-    a function that recives coordinates_array and indices of two atoms
-    and returns the bond vector between them
-    """
-    try:
-        if  isinstance(indices[0], (list, np.ndarray, tuple)):
-            bond_vector=[(coordinates_array[index[1]]-coordinates_array[index[0]]) for index in indices]
-            
-        else:
-            bond_vector= coordinates_array[indices[1]]-coordinates_array[indices[0]]
-    except:
-        if  isinstance(indices[0], tuple):
-            bond_vector=[(coordinates_array[index[0]]-coordinates_array[index[1]]) for index in indices]
-        else:
-            bond_vector= coordinates_array[indices[0]]-coordinates_array[indices[1]]
+    Return coordinate vector(s) for atom index pairs.
 
-       
-    return bond_vector
+    Parameters
+    ----------
+    coordinates_array
+        Array-like structure with atom coordinates.
+    indices
+        Either one pair, such as ``[0, 1]``, or an iterable of pairs, such as
+        ``[(0, 1), (1, 2)]``.
+    """
+    first = indices[0]
+    if isinstance(first, (list, tuple, np.ndarray)):
+        return [coordinates_array[pair[1]] - coordinates_array[pair[0]] for pair in indices]
+
+    return coordinates_array[indices[1]] - coordinates_array[indices[0]]
 
 
 
@@ -113,7 +127,8 @@ def get_angle_df(coordinates_array, atom_indices):
     atom_indices- list of lists of ints
         a list of atom indices to calculate the angle between- [[2,3,4],[2,3,4,5]]
     """
- 
+    import pandas as pd
+
     if isinstance(atom_indices, list) and all(isinstance(elem, list) for elem in atom_indices):
         indices_list=['angle_{}'.format(index) if len(index)==3 else 'dihedral_{}'.format(index) for index in atom_indices]
         angle_list=[calc_angle_between_atoms(coordinates_array,index) for index in atom_indices]
@@ -169,6 +184,8 @@ def calc_bonds_length(coordinates_array,atom_pairs):
     bond length[4, 5]            2.881145
     
     """
+    import pandas as pd
+
     # Check the order of bond list and pairs
     bond_list=[calc_single_bond_length(coordinates_array,pair) for pair in atom_pairs]
     pairs=adjust_indices(atom_pairs)

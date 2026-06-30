@@ -1,6 +1,6 @@
 
 import os
-os.chdir(r'C:\Users\edens\Documents\GitHub\‏‏LabCode_backup\MolFeatures\MolAlign')
+os.chdir(r'C:\Users\edens\Desktop\DescriPytor\DescriPyTor-main\MolFeatures\MolAlign')
 import pandas as pd
 from tqdm import tqdm
 import argparse

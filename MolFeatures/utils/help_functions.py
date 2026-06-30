@@ -55,10 +55,38 @@ class GeneralConstants(Enum):
     
     BONDI_RADII={
         'H': 1.10, 'C': 1.70, 'F': 1.47,
-        'S': 1.80, 'B': 1.92, 'I': 1.98, 
-        'N': 1.55, 'O': 1.52, 'Co': 2.00, 
-        'Br': 1.83, 'Si': 2.10,'Ni': 2.00,
-        'P': 1.80, 'Cl': 1.75, 
+        'S': 1.80, 'B': 1.92, 'I': 1.98,
+        'N': 1.55, 'O': 1.52,
+        'Br': 1.83, 'Si': 2.10,
+        'P': 1.80, 'Cl': 1.75,
+        # alkali / alkaline-earth (Alvarez 2013, DOI: 10.1039/c3dt50599e)
+        'Li': 1.82, 'Be': 1.53, 'Na': 2.27, 'Mg': 1.73,
+        'K': 2.75, 'Ca': 2.31, 'Rb': 3.03, 'Sr': 2.49,
+        'Cs': 3.43, 'Ba': 2.68,
+        # p-block metals / heavier metalloids
+        'Al': 1.84, 'Ga': 1.87, 'Ge': 2.11, 'As': 1.85,
+        'In': 1.93, 'Sn': 2.17, 'Sb': 2.06, 'Te': 2.06,
+        'Tl': 1.96, 'Pb': 2.02, 'Bi': 2.07,
+        # first-row transition metals
+        'Sc': 2.18, 'Ti': 2.11, 'V': 2.07, 'Cr': 2.06,
+        'Mn': 2.05, 'Fe': 2.04, 'Co': 2.00, 'Ni': 1.97,
+        'Cu': 1.96, 'Zn': 2.01,
+        # second-row transition metals
+        'Y': 2.32, 'Zr': 2.23, 'Nb': 2.18, 'Mo': 2.17,
+        'Tc': 2.16, 'Ru': 2.13, 'Rh': 2.10, 'Pd': 2.10,
+        'Ag': 2.11, 'Cd': 2.18,
+        # third-row transition metals
+        'Hf': 2.23, 'Ta': 2.22, 'W': 2.18, 'Re': 2.16,
+        'Os': 2.16, 'Ir': 2.13, 'Pt': 2.09, 'Au': 2.14,
+        'Hg': 2.23,
+        # lanthanides
+        'La': 2.43, 'Ce': 2.42, 'Pr': 2.40, 'Nd': 2.39,
+        'Pm': 2.38, 'Sm': 2.36, 'Eu': 2.35, 'Gd': 2.34,
+        'Tb': 2.33, 'Dy': 2.31, 'Ho': 2.30, 'Er': 2.29,
+        'Tm': 2.27, 'Yb': 2.26, 'Lu': 2.24,
+        # actinides
+        'Ac': 2.47, 'Th': 2.45, 'Pa': 2.43, 'U': 2.41,
+        'Np': 2.39, 'Pu': 2.37, 'Am': 2.35, 'Cm': 2.35,
     }
     CPK_RADII = {
     'C': 1.50,
@@ -77,7 +105,28 @@ class GeneralConstants(Enum):
     'S4': 1.40,
     'Br': 1.95,
     'I': 2.15,
-    'X': 1.92
+    'X': 1.92,
+    # metals — element symbols used directly (Alvarez 2013 VdW values)
+    'Li': 1.82, 'Be': 1.53, 'Na': 2.27, 'Mg': 1.73,
+    'K': 2.75, 'Ca': 2.31, 'Rb': 3.03, 'Sr': 2.49,
+    'Cs': 3.43, 'Ba': 2.68,
+    'Al': 1.84, 'Ga': 1.87, 'Ge': 2.11, 'In': 1.93,
+    'Sn': 2.17, 'Tl': 1.96, 'Pb': 2.02, 'Bi': 2.07,
+    'Sc': 2.18, 'Ti': 2.11, 'V': 2.07, 'Cr': 2.06,
+    'Mn': 2.05, 'Fe': 2.04, 'Co': 2.00, 'Ni': 1.97,
+    'Cu': 1.96, 'Zn': 2.01,
+    'Y': 2.32, 'Zr': 2.23, 'Nb': 2.18, 'Mo': 2.17,
+    'Tc': 2.16, 'Ru': 2.13, 'Rh': 2.10, 'Pd': 2.10,
+    'Ag': 2.11, 'Cd': 2.18,
+    'Hf': 2.23, 'Ta': 2.22, 'W': 2.18, 'Re': 2.16,
+    'Os': 2.16, 'Ir': 2.13, 'Pt': 2.09, 'Au': 2.14,
+    'Hg': 2.23,
+    'La': 2.43, 'Ce': 2.42, 'Pr': 2.40, 'Nd': 2.39,
+    'Pm': 2.38, 'Sm': 2.36, 'Eu': 2.35, 'Gd': 2.34,
+    'Tb': 2.33, 'Dy': 2.31, 'Ho': 2.30, 'Er': 2.29,
+    'Tm': 2.27, 'Yb': 2.26, 'Lu': 2.24,
+    'Ac': 2.47, 'Th': 2.45, 'Pa': 2.43, 'U': 2.41,
+    'Np': 2.39, 'Pu': 2.37, 'Am': 2.35, 'Cm': 2.35,
 }
 
 
@@ -136,6 +185,17 @@ class GeneralConstants(Enum):
             'Ac' : 227.028, 'Th' : 232.038, 'Pa' : 231.036, 'U' : 238.029,
             'Np' : 237, 'Pu' : 244, 'Am' : 243, 'Cm' : 247
     }
+
+_METAL_ELEMENTS = {
+    'Li', 'Be', 'Na', 'Mg', 'K', 'Ca', 'Rb', 'Sr', 'Cs', 'Ba', 'Fr', 'Ra',
+    'Al', 'Ga', 'Ge', 'In', 'Sn', 'Sb', 'Tl', 'Pb', 'Bi',
+    'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
+    'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd',
+    'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',
+    'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy',
+    'Ho', 'Er', 'Tm', 'Yb', 'Lu',
+    'Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm',
+}
 
 class FileExtensions(Enum):
     """
@@ -958,6 +1018,8 @@ def nob_atype(xyz_df, bonds_df):
                 result = 'C6/N6'
             elif nob > 3.5:
                 result = 'C'
+        elif symbol in _METAL_ELEMENTS:
+            result = symbol
         else:
             result = 'X'
 
@@ -992,7 +1054,31 @@ def remove_atom_bonds(bonded_atoms_df,atom_remove='H'):
 
 
 
-def extract_connectivity(xyz_df, threshold_distance=1.82, metal_atom='Pd'):
+def extract_connectivity(xyz_df, threshold_distance=1.82, metals=None,
+                         metal_threshold=2.8, max_coordination=6):
+    """
+    Build a connectivity table from XYZ coordinates.
+
+    Parameters
+    ----------
+    threshold_distance : float
+        Max bond distance (Å) for non-metal pairs.
+    metals : None | str | list[str]
+        Metal element symbols to treat with relaxed distance rules.
+        None → auto-detect from the full periodic-table metal set.
+        Pass an empty list [] to disable metal handling entirely.
+    metal_threshold : float
+        Max bond distance (Å) for metal–ligand pairs.
+    max_coordination : int
+        Maximum number of bonds kept per metal centre.
+    """
+    if metals is None:
+        active_metals = _METAL_ELEMENTS
+    elif isinstance(metals, str):
+        active_metals = {metals}
+    else:
+        active_metals = set(metals)
+
     coordinates = np.array(xyz_df[['x', 'y', 'z']].values)
     atoms_symbol = np.array(xyz_df['atom'].values)
     distances = pdist(coordinates)
@@ -1019,67 +1105,62 @@ def extract_connectivity(xyz_df, threshold_distance=1.82, metal_atom='Pd'):
            ((atom1 == 'H' or atom2 == 'H') and float(dist) >= 1.5):
             remove_flag = True
 
-        # If not a Pd bond, apply strict threshold
-        if (atom1 != metal_atom and atom2 != metal_atom) and (float(dist) >= threshold_distance or float(dist) == 0):
-            remove_flag = True
+        involves_metal = atom1 in active_metals or atom2 in active_metals
 
-        # Allow Pd bonds up to 2.6 Å
-        if (metal_atom in (atom1, atom2)) and (float(dist) > 2.6):
-            remove_flag = True
+        if not involves_metal:
+            if float(dist) >= threshold_distance or float(dist) == 0:
+                remove_flag = True
+        else:
+            if float(dist) > metal_threshold or float(dist) == 0:
+                remove_flag = True
 
-        # Allow halogen bonds between 1.8 and 2.6 Å
-        if (atom1 in special_atoms or atom2 in special_atoms) and (1.8 < float(dist) < 2.6):
+        # Halogens bonded between threshold and 2.6 Å are allowed (e.g. C–I, C–Br)
+        if (atom1 in special_atoms or atom2 in special_atoms) and \
+           (threshold_distance <= float(dist) < 2.6) and not involves_metal:
             remove_flag = False
 
         if remove_flag:
             remove_list.append(idx)
 
     dist_df = dist_df.drop(remove_list)
-    dist_df[['min_col', 'max_col']] = pd.DataFrame(np.sort(dist_df[['a1', 'a2']], axis=1), index=dist_df.index)
+    dist_df[['min_col', 'max_col']] = pd.DataFrame(
+        np.sort(dist_df[['a1', 'a2']], axis=1), index=dist_df.index
+    )
     dist_df = dist_df.drop(columns=['a1', 'a2']).rename(columns={'min_col': 0, 'max_col': 1})
     dist_df = dist_df.drop_duplicates(subset=[0, 1])
 
-    # Handle special atoms with more than one bond — keep only closest
+    # Keep only the closest bond per halogen (terminal halogens bond to one atom)
     special_atoms_idxs = {}
     for idx, row in dist_df.iterrows():
         if row['first_atom'] in special_atoms:
-            atom_idx = row[0]
-            special_atoms_idxs.setdefault(atom_idx, []).append((idx, row['value']))
+            special_atoms_idxs.setdefault(row[0], []).append((idx, row['value']))
         if row['second_atom'] in special_atoms:
-            atom_idx = row[1]
-            special_atoms_idxs.setdefault(atom_idx, []).append((idx, row['value']))
+            special_atoms_idxs.setdefault(row[1], []).append((idx, row['value']))
 
     special_atoms_to_remove = []
     for atom_idx, bonds in special_atoms_idxs.items():
         if len(bonds) > 1:
             bonds.sort(key=lambda x: x[1])
-            special_atoms_to_remove.extend([idx for idx, _ in bonds[1:]])
-
+            special_atoms_to_remove.extend([i for i, _ in bonds[1:]])
     dist_df = dist_df.drop(special_atoms_to_remove)
 
-    # Filter Pd bonds: keep only the 4 shortest per Pd atom
-    pd_mask = (dist_df['first_atom'] == metal_atom) | (dist_df['second_atom'] == metal_atom)
-    pd_bonds = dist_df[pd_mask].copy()
-    non_pd = dist_df[~pd_mask].copy()
+    # For each metal centre keep only the max_coordination shortest bonds
+    metal_mask = dist_df['first_atom'].isin(active_metals) | dist_df['second_atom'].isin(active_metals)
+    metal_bonds = dist_df[metal_mask].copy()
+    non_metal = dist_df[~metal_mask].copy()
 
-    kept_pd = []
-    for idx, row in pd_bonds.iterrows():
-        pd_idx = row[0] if row['first_atom'] == metal_atom else row[1]
-        pd_bonds.loc[idx, 'pd_idx'] = pd_idx
+    kept_metal_idx = []
+    if not metal_bonds.empty:
+        metal_bonds['_metal_idx'] = metal_bonds.apply(
+            lambda r: r[0] if r['first_atom'] in active_metals else r[1], axis=1
+        )
+        for _, group in metal_bonds.groupby('_metal_idx'):
+            kept_metal_idx.extend(group.nsmallest(max_coordination, 'value').index)
 
-    try:
-        for pd_idx, group in pd_bonds.groupby('pd_idx'):
-            shortest = group.nsmallest(4, 'value').index
-            kept_pd.extend(shortest)
-    except Exception as e:
-        
-        pass
+    metal_kept = metal_bonds.loc[kept_metal_idx, [0, 1]] if kept_metal_idx else pd.DataFrame(columns=[0, 1])
 
-    pd_kept = pd_bonds.loc[kept_pd, [0, 1]] if kept_pd else pd.DataFrame(columns=[0, 1])
-
-    # Combine and convert back to 1-based indexing
-    final = pd.concat([non_pd[[0, 1]], pd_kept], ignore_index=True)
-    return pd.DataFrame(final[[0, 1]] + 1)  # Return 1-based indices
+    final = pd.concat([non_metal[[0, 1]], metal_kept], ignore_index=True)
+    return pd.DataFrame(final[[0, 1]] + 1)
 
 
 import plotly.graph_objs as go
@@ -1617,3 +1698,121 @@ def check_renumbering(
         "columns_checked": list(cols),
         "per_column": per_col,
     }
+
+
+# =============================================================================
+# Structured-JSON molecular file handler (Gaussian / ORCA hybrid converter)
+# -----------------------------------------------------------------------------
+# Loads the JSON produced by the cclib hybrid converter and returns the SAME
+# package feather_file_handler returns:
+#     [df_dict, vib_dict, charge_dict, ev_df]
+# so Molecule/Molecules can consume .json exactly like .feather. Vibrations are
+# returned in the canonical PER-ATOM layout (vibration_atom_<i> -> (n_modes, 3));
+# the per-mode view stays a Python-side derivation (build_vibration_mode_dict).
+# =============================================================================
+
+def _json_charge_df(values: Any) -> pd.DataFrame:
+    """Build a single-column 'charge' DataFrame from a list of per-atom charges."""
+    if not values:
+        return pd.DataFrame(columns=['charge'])
+    try:
+        return pd.DataFrame({'charge': [float(v) for v in values]})
+    except (TypeError, ValueError):
+        return pd.DataFrame(columns=['charge'])
+
+
+def json_file_handler(json_file: Union[str, Any]) -> List[Any]:
+    """
+    Read a structured JSON file (Gaussian- or ORCA-derived) and return:
+        [df_dict, vib_dict, charge_dict, ev_df]
+
+    df_dict keys: 'standard_orientation_df', 'dipole_df', 'pol_df', 'info_df', 'energy_df'
+    vib_dict:     {'vibration_atom_<i>': np.ndarray of shape (n_modes, 3)}
+    charge_dict:  {'nbo', 'hirshfeld', 'cm5'} -> single-column 'charge' DataFrames
+    ev_df:        single-row DataFrame with column 'energy'
+    """
+    with open(json_file, 'r', encoding='utf-8') as fh:
+        payload = json.load(fh)
+
+    props = payload.get('properties') or {}
+
+    # --- XYZ / standard orientation ------------------------------------------
+    atoms = (payload.get('molecule') or {}).get('atoms') or []
+    xyz_rows = [{'atom': a.get('atom'),
+                 'x': a.get('x'), 'y': a.get('y'), 'z': a.get('z')} for a in atoms]
+    xyz = pd.DataFrame(xyz_rows, columns=['atom', 'x', 'y', 'z'])
+    if not xyz.empty:
+        xyz[['x', 'y', 'z']] = xyz[['x', 'y', 'z']].astype(float)
+
+    # --- Dipole ---------------------------------------------------------------
+    dp = props.get('dipole') or {}
+    if dp and dp.get('x') is not None:
+        dipole_df = pd.DataFrame([{
+            'dip_x': float(dp.get('x')), 'dip_y': float(dp.get('y')),
+            'dip_z': float(dp.get('z')), 'total_dipole': float(dp.get('total')),
+        }])
+    else:
+        dipole_df = pd.DataFrame(columns=['dip_x', 'dip_y', 'dip_z', 'total_dipole'])
+
+    # --- Polarizability -------------------------------------------------------
+    pol = props.get('polarizability') or {}
+    if pol and pol.get('iso') is not None:
+        pol_df = pd.DataFrame([{'aniso': pol.get('aniso'), 'iso': pol.get('iso')}])
+    else:
+        pol_df = pd.DataFrame(columns=['aniso', 'iso'])
+
+    # --- Vibrations: info_df + per-atom displacement arrays -------------------
+    modes = (payload.get('vibrations') or {}).get('modes') or []
+    if modes:
+        info_df = pd.DataFrame(
+            [{'Frequency': m.get('frequency_cm-1'),
+              'IR': m.get('ir_intensity_km_per_mol')} for m in modes],
+            columns=['Frequency', 'IR'],
+        ).astype(float)
+    else:
+        info_df = pd.DataFrame(columns=['Frequency', 'IR'])
+
+    n_atoms = len(atoms) if atoms else (len(modes[0].get('displacements') or []) if modes else 0)
+    vib_dict: Dict[str, np.ndarray] = {}
+    if modes and n_atoms:
+        for ai in range(n_atoms):
+            rows = []
+            for m in modes:
+                disp = m.get('displacements') or []
+                if ai < len(disp):
+                    d = disp[ai]
+                    rows.append([float(d.get('dx', np.nan)),
+                                 float(d.get('dy', np.nan)),
+                                 float(d.get('dz', np.nan))])
+                else:
+                    rows.append([np.nan, np.nan, np.nan])
+            vib_dict[f'vibration_atom_{ai + 1}'] = np.array(rows, dtype=float)
+
+    # --- Charges --------------------------------------------------------------
+    charges = payload.get('charges') or {}
+    charge_dict = {
+        'nbo': _json_charge_df(charges.get('nbo')),
+        'hirshfeld': _json_charge_df(charges.get('hirshfeld')),
+        'cm5': _json_charge_df(charges.get('cm5')),
+    }
+
+    # --- Energy (prefer Hartree to match feather convention) ------------------
+    energies = props.get('energies') or {}
+    energy_val = (energies.get('scf_energy_hartree_gaussian_custom')
+                  or energies.get('final_single_point_energy_hartree_orca')
+                  or energies.get('last_total_energy_hartree_orca')
+                  or energies.get('final_scf_energy_ev_cclib'))
+    try:
+        ev = pd.DataFrame({'energy': [float(energy_val)]}) if energy_val is not None \
+            else pd.DataFrame({'energy': [None]})
+    except (TypeError, ValueError):
+        ev = pd.DataFrame({'energy': [None]})
+
+    df_dict = {
+        'standard_orientation_df': xyz,
+        'dipole_df': dipole_df,
+        'pol_df': pol_df,
+        'info_df': info_df,
+        'energy_df': ev,
+    }
+    return [df_dict, vib_dict, charge_dict, ev]

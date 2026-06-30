@@ -12,7 +12,7 @@ import warnings
 from scipy.spatial.distance import pdist, squareform
 
 from sklearn.preprocessing import MinMaxScaler
-from morfeus import Sterimol, read_xyz
+from morfeus import Sterimol, BuriedVolume, read_xyz
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
@@ -109,10 +109,38 @@ class GeneralConstants(Enum):
     
     BONDI_RADII={
         'H': 1.10, 'C': 1.70, 'F': 1.47,
-        'S': 1.80, 'B': 1.92, 'I': 1.98, 
-        'N': 1.55, 'O': 1.52, 'Co': 2.00, 
-        'Br': 1.83, 'Si': 2.10,'Ni': 2.00,
-        'P': 1.80, 'Cl': 1.75, 
+        'S': 1.80, 'B': 1.92, 'I': 1.98,
+        'N': 1.55, 'O': 1.52,
+        'Br': 1.83, 'Si': 2.10,
+        'P': 1.80, 'Cl': 1.75,
+        # alkali / alkaline-earth (Alvarez 2013, DOI: 10.1039/c3dt50599e)
+        'Li': 1.82, 'Be': 1.53, 'Na': 2.27, 'Mg': 1.73,
+        'K': 2.75, 'Ca': 2.31, 'Rb': 3.03, 'Sr': 2.49,
+        'Cs': 3.43, 'Ba': 2.68,
+        # p-block metals / heavier metalloids
+        'Al': 1.84, 'Ga': 1.87, 'Ge': 2.11, 'As': 1.85,
+        'In': 1.93, 'Sn': 2.17, 'Sb': 2.06, 'Te': 2.06,
+        'Tl': 1.96, 'Pb': 2.02, 'Bi': 2.07,
+        # first-row transition metals
+        'Sc': 2.18, 'Ti': 2.11, 'V': 2.07, 'Cr': 2.06,
+        'Mn': 2.05, 'Fe': 2.04, 'Co': 2.00, 'Ni': 1.97,
+        'Cu': 1.96, 'Zn': 2.01,
+        # second-row transition metals
+        'Y': 2.32, 'Zr': 2.23, 'Nb': 2.18, 'Mo': 2.17,
+        'Tc': 2.16, 'Ru': 2.13, 'Rh': 2.10, 'Pd': 2.10,
+        'Ag': 2.11, 'Cd': 2.18,
+        # third-row transition metals
+        'Hf': 2.23, 'Ta': 2.22, 'W': 2.18, 'Re': 2.16,
+        'Os': 2.16, 'Ir': 2.13, 'Pt': 2.09, 'Au': 2.14,
+        'Hg': 2.23,
+        # lanthanides
+        'La': 2.43, 'Ce': 2.42, 'Pr': 2.40, 'Nd': 2.39,
+        'Pm': 2.38, 'Sm': 2.36, 'Eu': 2.35, 'Gd': 2.34,
+        'Tb': 2.33, 'Dy': 2.31, 'Ho': 2.30, 'Er': 2.29,
+        'Tm': 2.27, 'Yb': 2.26, 'Lu': 2.24,
+        # actinides
+        'Ac': 2.47, 'Th': 2.45, 'Pa': 2.43, 'U': 2.41,
+        'Np': 2.39, 'Pu': 2.37, 'Am': 2.35, 'Cm': 2.35,
     }
     CPK_RADII = {
     'C': 1.50,
@@ -132,7 +160,27 @@ class GeneralConstants(Enum):
     'Br': 1.95,
     'I': 2.15,
     'X': 1.92,
-    'F': 1.35
+    # metals — element symbols used directly (Alvarez 2013 VdW values)
+    'Li': 1.82, 'Be': 1.53, 'Na': 2.27, 'Mg': 1.73,
+    'K': 2.75, 'Ca': 2.31, 'Rb': 3.03, 'Sr': 2.49,
+    'Cs': 3.43, 'Ba': 2.68,
+    'Al': 1.84, 'Ga': 1.87, 'Ge': 2.11, 'In': 1.93,
+    'Sn': 2.17, 'Tl': 1.96, 'Pb': 2.02, 'Bi': 2.07,
+    'Sc': 2.18, 'Ti': 2.11, 'V': 2.07, 'Cr': 2.06,
+    'Mn': 2.05, 'Fe': 2.04, 'Co': 2.00, 'Ni': 1.97,
+    'Cu': 1.96, 'Zn': 2.01,
+    'Y': 2.32, 'Zr': 2.23, 'Nb': 2.18, 'Mo': 2.17,
+    'Tc': 2.16, 'Ru': 2.13, 'Rh': 2.10, 'Pd': 2.10,
+    'Ag': 2.11, 'Cd': 2.18,
+    'Hf': 2.23, 'Ta': 2.22, 'W': 2.18, 'Re': 2.16,
+    'Os': 2.16, 'Ir': 2.13, 'Pt': 2.09, 'Au': 2.14,
+    'Hg': 2.23,
+    'La': 2.43, 'Ce': 2.42, 'Pr': 2.40, 'Nd': 2.39,
+    'Pm': 2.38, 'Sm': 2.36, 'Eu': 2.35, 'Gd': 2.34,
+    'Tb': 2.33, 'Dy': 2.31, 'Ho': 2.30, 'Er': 2.29,
+    'Tm': 2.27, 'Yb': 2.26, 'Lu': 2.24,
+    'Ac': 2.47, 'Th': 2.45, 'Pa': 2.43, 'U': 2.41,
+    'Np': 2.39, 'Pu': 2.37, 'Am': 2.35, 'Cm': 2.35,
 }
     # CPK_RADII={
     #     'C':1.50,   'H':1.00,   'S.O':1.70,  'Si':2.10,
@@ -201,6 +249,17 @@ class GeneralConstants(Enum):
             'Ac' : 227.028, 'Th' : 232.038, 'Pa' : 231.036, 'U' : 238.029,
             'Np' : 237, 'Pu' : 244, 'Am' : 243, 'Cm' : 247
     }
+
+_METAL_ELEMENTS = {
+    'Li', 'Be', 'Na', 'Mg', 'K', 'Ca', 'Rb', 'Sr', 'Cs', 'Ba', 'Fr', 'Ra',
+    'Al', 'Ga', 'Ge', 'In', 'Sn', 'Sb', 'Tl', 'Pb', 'Bi',
+    'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
+    'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd',
+    'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',
+    'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy',
+    'Ho', 'Er', 'Tm', 'Yb', 'Lu',
+    'Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm',
+}
 
 import numpy.typing as npt
 
@@ -545,11 +604,16 @@ def direction_atoms_for_sterimol(bonds_df,base_atoms)->list: #help function for 
                 break
     return base_atoms_copy
 
-def get_molecule_connections(bonds_df,source,direction):
-    graph=ig.Graph.DataFrame(edges=bonds_df,directed=True)
-    paths=graph.get_all_simple_paths(v=source,mode='all')
-    with_direction=[path for path in paths if (direction in path)]
-    longest_path=np.unique(flatten_list(with_direction))
+def get_molecule_connections(bonds_df, source, direction):
+    # igraph requires 0-based integer vertex IDs; bonds_df uses 1-based IDs
+    edges = pd.DataFrame({
+        0: pd.to_numeric(bonds_df.iloc[:, 0]).astype(int) - 1,
+        1: pd.to_numeric(bonds_df.iloc[:, 1]).astype(int) - 1,
+    })
+    graph = ig.Graph.DataFrame(edges=edges, directed=True)
+    paths = graph.get_all_simple_paths(v=int(source) - 1, mode='all')
+    with_direction = [path for path in paths if (int(direction) - 1) in path]
+    longest_path = np.unique(flatten_list(with_direction)) + 1  # back to 1-based
     return longest_path
 
 
@@ -587,32 +651,113 @@ def remove_atom_bonds(bonded_atoms_df,atom_remove='H'):
 
 
 
-def extract_connectivity(xyz_df, threshhold_distance=1.82):
-    coordinates=np.array(xyz_df[['x','y','z']].values)
-    atoms_symbol=np.array(xyz_df['atom'].values)
-    # compute the pairwise distances between the points
+def extract_connectivity(xyz_df, threshold_distance=1.82, metals=None,
+                         metal_threshold=2.8, max_coordination=6):
+    """
+    Build a connectivity table from XYZ coordinates.
+
+    Parameters
+    ----------
+    threshold_distance : float
+        Max bond distance (Å) for non-metal pairs.
+    metals : None | str | list[str]
+        Metal element symbols to treat with relaxed distance rules.
+        None → auto-detect from the full periodic-table metal set.
+        Pass an empty list [] to disable metal handling entirely.
+    metal_threshold : float
+        Max bond distance (Å) for metal–ligand pairs.
+    max_coordination : int
+        Maximum number of bonds kept per metal centre.
+    """
+    if metals is None:
+        active_metals = _METAL_ELEMENTS
+    elif isinstance(metals, str):
+        active_metals = {metals}
+    else:
+        active_metals = set(metals)
+
+    coordinates = np.array(xyz_df[['x', 'y', 'z']].values)
+    atoms_symbol = np.array(xyz_df['atom'].values)
     distances = pdist(coordinates)
-    # convert the flat array of distances into a distance matrix
     dist_matrix = squareform(distances)
-    dist_df=pd.DataFrame(dist_matrix).stack().reset_index()
+
+    dist_df = pd.DataFrame(dist_matrix).stack().reset_index()
     dist_df.columns = ['a1', 'a2', 'value']
-    dist_df['first_atom']=[atoms_symbol[i] for i in dist_df['a1']]
-    dist_df['second_atom']=[atoms_symbol[i] for i in dist_df['a2']]
-    remove_list=[]
-    dist_array=np.array(dist_df)
-    for idx,row in enumerate(dist_array):
-        if ((row[3]=='H') & (row[4] not in XYZConstants.NOF_ATOMS.value)):
+    dist_df['first_atom'] = [atoms_symbol[i] for i in dist_df['a1']]
+    dist_df['second_atom'] = [atoms_symbol[i] for i in dist_df['a2']]
+
+    remove_list = []
+    dist_array = np.array(dist_df)
+    special_atoms = {'Cl', 'Br', 'F', 'I'}
+
+    for idx, row in enumerate(dist_array):
+        i, j, dist, atom1, atom2 = row
+        remove_flag = False
+
+        if i == j:
+            remove_flag = True
+
+        if ((atom1 == 'H') and (atom2 not in XYZConstants.NOF_ATOMS.value)) or \
+           ((atom1 == 'H') and (atom2 == 'H')) or \
+           ((atom1 == 'H' or atom2 == 'H') and float(dist) >= 1.5):
+            remove_flag = True
+
+        involves_metal = atom1 in active_metals or atom2 in active_metals
+
+        if not involves_metal:
+            if float(dist) >= threshold_distance or float(dist) == 0:
+                remove_flag = True
+        else:
+            if float(dist) > metal_threshold or float(dist) == 0:
+                remove_flag = True
+
+        # Halogens bonded between threshold and 2.6 Å are allowed (e.g. C–I, C–Br)
+        if (atom1 in special_atoms or atom2 in special_atoms) and \
+           (threshold_distance <= float(dist) < 2.6) and not involves_metal:
+            remove_flag = False
+
+        if remove_flag:
             remove_list.append(idx)
-        if ((row[3] == 'H') & (row[4] == 'H')):
-            remove_list.append(idx)
-        if (((row[3] == 'H') | (row[4] == 'H')) & (row[2]>=1.5) ):
-            remove_list.append(idx)
-        if ((row[2]>=threshhold_distance) | (row[2]==0)):
-            remove_list.append(idx)
-    dist_df=dist_df.drop(remove_list)
-    dist_df=dist_df.drop_duplicates(subset=['value'])
-    dist_array=np.array(dist_df[['a1','a2']])+1
-    return pd.DataFrame(dist_array)
+
+    dist_df = dist_df.drop(remove_list)
+    dist_df[['min_col', 'max_col']] = pd.DataFrame(
+        np.sort(dist_df[['a1', 'a2']], axis=1), index=dist_df.index
+    )
+    dist_df = dist_df.drop(columns=['a1', 'a2']).rename(columns={'min_col': 0, 'max_col': 1})
+    dist_df = dist_df.drop_duplicates(subset=[0, 1])
+
+    # Keep only the closest bond per halogen (terminal halogens bond to one atom)
+    special_atoms_idxs = {}
+    for idx, row in dist_df.iterrows():
+        if row['first_atom'] in special_atoms:
+            special_atoms_idxs.setdefault(row[0], []).append((idx, row['value']))
+        if row['second_atom'] in special_atoms:
+            special_atoms_idxs.setdefault(row[1], []).append((idx, row['value']))
+
+    special_atoms_to_remove = []
+    for atom_idx, bonds in special_atoms_idxs.items():
+        if len(bonds) > 1:
+            bonds.sort(key=lambda x: x[1])
+            special_atoms_to_remove.extend([i for i, _ in bonds[1:]])
+    dist_df = dist_df.drop(special_atoms_to_remove)
+
+    # For each metal centre keep only the max_coordination shortest bonds
+    metal_mask = dist_df['first_atom'].isin(active_metals) | dist_df['second_atom'].isin(active_metals)
+    metal_bonds = dist_df[metal_mask].copy()
+    non_metal = dist_df[~metal_mask].copy()
+
+    kept_metal_idx = []
+    if not metal_bonds.empty:
+        metal_bonds['_metal_idx'] = metal_bonds.apply(
+            lambda r: r[0] if r['first_atom'] in active_metals else r[1], axis=1
+        )
+        for _, group in metal_bonds.groupby('_metal_idx'):
+            kept_metal_idx.extend(group.nsmallest(max_coordination, 'value').index)
+
+    metal_kept = metal_bonds.loc[kept_metal_idx, [0, 1]] if kept_metal_idx else pd.DataFrame(columns=[0, 1])
+
+    final = pd.concat([non_metal[[0, 1]], metal_kept], ignore_index=True)
+    return pd.DataFrame(final[[0, 1]].apply(pd.to_numeric).astype(int) + 1)
 
 def get_center_of_mass(xyz_df):
     coordinates=np.array(xyz_df[['x','y','z']].values,dtype=float)
@@ -687,6 +832,8 @@ def nob_atype(xyz_df, bonds_df):
                 result = 'C6/N6'
             elif nob > 3.5:
                 result = 'C'
+        elif symbol in _METAL_ELEMENTS:
+            result = symbol
         else:
             result = 'X'
 
@@ -1253,7 +1400,14 @@ class Molecule():
         
         
         self.xyz_df = get_df_from_file(molecule_xyz_filename)
-        
+
+        with open(molecule_xyz_filename, 'r') as _f:
+            _comment = _f.readlines()[1].strip()
+        try:
+            self.energy = float(_comment)
+        except (ValueError, IndexError):
+            self.energy = np.nan
+
         self.coordinates_array = np.array(self.xyz_df[['x', 'y', 'z']].astype(float))
         self.bonds_df = extract_connectivity(self.xyz_df)
         
@@ -1368,6 +1522,55 @@ class Molecule():
             bond_df = self.get_bond_length_single(atom_pairs)
         return bond_df
 
+    def get_buried_volume(
+        self,
+        metal_index: int,
+        radii: str = 'bondi',
+        radius: float = 3.5,
+        radii_scale: float = 1.17,
+        include_hs: bool = False,
+        z_axis_atoms=None,
+        xz_plane_atoms=None,
+    ) -> pd.DataFrame:
+        """
+        Calculate the buried volume around a given metal/anchor atom using
+        morfeus BuriedVolume.
+
+        Args:
+            metal_index (int): 1-based index of the atom at the sphere centre
+                               (typically the metal or key anchor atom).
+            radii (str): VdW radii set to use ('bondi' or 'alvarez').
+            radius (float): Sphere radius in Å (default 3.5).
+            radii_scale (float): Scaling factor for VdW radii (default 1.17).
+            include_hs (bool): Whether to include H atoms (default False).
+            z_axis_atoms: Atom index (or list of indices) that define the
+                          z-axis direction (optional).
+            xz_plane_atoms: Atom index (or list of indices) that define the
+                            xz-plane (optional).
+
+        Returns:
+            pd.DataFrame: Single-row DataFrame with columns:
+                percent_buried_volume, fraction_buried_volume,
+                buried_volume, free_volume.
+        """
+        elements = self.xyz_df['atom'].tolist()
+        bv = BuriedVolume(
+            elements=elements,
+            coordinates=self.coordinates_array,
+            metal_index=metal_index,
+            radii_type=radii,
+            radius=radius,
+            radii_scale=radii_scale,
+            include_hs=include_hs,
+            z_axis_atoms=z_axis_atoms,
+            xz_plane_atoms=xz_plane_atoms,
+        )
+        return pd.DataFrame([{
+            'percent_buried_volume':   bv.percent_buried_volume,
+            'fraction_buried_volume':  bv.fraction_buried_volume,
+            'buried_volume':           bv.buried_volume,
+            'free_volume':             bv.free_volume,
+        }])
 
 
 def dict_to_horizontal_df(data_dict):
@@ -1435,6 +1638,20 @@ class Molecules_xyz():
         self.molecules = [self.molecules[i] for i in indices]
         self.molecules_names = [self.molecules_names[i] for i in indices]
 
+    def get_energy_df(self) -> pd.DataFrame:
+        """
+        Returns a DataFrame with the energy for each molecule.
+
+        Energy is read from the comment line (line 2) of each .xyz file.
+        Molecules with an empty or non-numeric comment line get NaN.
+
+        Returns:
+            pd.DataFrame: index = molecule names, column = 'energy'.
+        """
+        return pd.DataFrame(
+            {'energy': {mol.molecule_name: mol.energy for mol in self.molecules}}
+        )
+
     def get_sterimol_dict(self,atom_indices,radii='CPK'):
         sterimol_dict={}
         for molecule in self.molecules:
@@ -1452,6 +1669,111 @@ class Molecules_xyz():
         sterimol_dict=self.get_sterimol_dict(atom_indices,radii)
         sterimol_df=dict_to_horizontal_df(sterimol_dict)
         return sterimol_df
+
+    # ── Angles & dihedrals ─────────────────────────────────────────────────
+
+    def get_angles_df(self, atom_indices_list) -> pd.DataFrame:
+        """
+        Calculate bond angles and/or dihedral angles for all molecules.
+
+        Pass 3-atom groups for bond angles, 4-atom groups for dihedrals,
+        or a mix of both.  All indices are 1-based.
+
+        Args:
+            atom_indices_list: a single group (list of ints) or a list of
+                groups, e.g. [[1,2,3], [1,2,3,4]].
+
+        Returns:
+            pd.DataFrame: molecules × angle/dihedral columns (degrees).
+                Column names follow the existing convention:
+                ``angle_[i,j,k]`` or ``dihedral_[i,j,k,l]``.
+        """
+        rows = {}
+        for molecule in self.molecules:
+            try:
+                df = molecule.get_bond_angle(atom_indices_list)
+                rows[molecule.molecule_name] = df[0].to_dict()
+                print(f'calculated angles for {molecule.molecule_name}')
+            except Exception as e:
+                print(f'Error ({molecule.molecule_name}): {e}')
+                rows[molecule.molecule_name] = np.nan
+        return pd.DataFrame(rows).T
+
+    # ── Bond lengths ───────────────────────────────────────────────────────
+
+    def get_bond_lengths_df(self, atom_pairs) -> pd.DataFrame:
+        """
+        Calculate bond lengths for all molecules.
+
+        Args:
+            atom_pairs: a single pair (list of 2 ints) or a list of pairs,
+                e.g. [[1,2], [3,4]].  Indices are 1-based.
+
+        Returns:
+            pd.DataFrame: molecules × bond-length columns (Å).
+                Column names: ``bond_length_i-j``.
+        """
+        rows = {}
+        for molecule in self.molecules:
+            try:
+                df = molecule.get_bond_length(atom_pairs)
+                rows[molecule.molecule_name] = df[0].to_dict()
+                print(f'calculated bond lengths for {molecule.molecule_name}')
+            except Exception as e:
+                print(f'Error ({molecule.molecule_name}): {e}')
+                rows[molecule.molecule_name] = np.nan
+        return pd.DataFrame(rows).T
+
+    # ── Buried volume ──────────────────────────────────────────────────────
+
+    def get_buried_volume_df(
+        self,
+        metal_index: int,
+        radii: str = 'bondi',
+        radius: float = 3.5,
+        radii_scale: float = 1.17,
+        include_hs: bool = False,
+        z_axis_atoms=None,
+        xz_plane_atoms=None,
+    ) -> pd.DataFrame:
+        """
+        Calculate buried volume around a given atom for all molecules.
+
+        Args:
+            metal_index (int): 1-based index of the sphere-centre atom
+                               (metal, P, N, …).
+            radii (str): VdW radii set ('bondi' or 'alvarez').
+            radius (float): Sphere radius in Å (default 3.5).
+            radii_scale (float): VdW scaling factor (default 1.17).
+            include_hs (bool): Include H atoms in the calculation
+                               (default False).
+            z_axis_atoms: Atom index (or list) defining the z-axis
+                          (optional, for quadrant/octant analysis).
+            xz_plane_atoms: Atom index (or list) defining the xz-plane
+                            (optional).
+
+        Returns:
+            pd.DataFrame: molecules × {percent_buried_volume,
+                fraction_buried_volume, buried_volume, free_volume}.
+        """
+        rows = {}
+        for molecule in self.molecules:
+            try:
+                df = molecule.get_buried_volume(
+                    metal_index=metal_index,
+                    radii=radii,
+                    radius=radius,
+                    radii_scale=radii_scale,
+                    include_hs=include_hs,
+                    z_axis_atoms=z_axis_atoms,
+                    xz_plane_atoms=xz_plane_atoms,
+                )
+                rows[molecule.molecule_name] = df.iloc[0].to_dict()
+                print(f'calculated buried volume for {molecule.molecule_name}')
+            except Exception as e:
+                print(f'Error ({molecule.molecule_name}): {e}')
+                rows[molecule.molecule_name] = np.nan
+        return pd.DataFrame(rows).T
 
 if __name__=='__main__':
     pass

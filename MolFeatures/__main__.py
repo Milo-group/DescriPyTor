@@ -1,77 +1,97 @@
-from html import parser
-import sys
+﻿import sys
 import os
 if not os.environ.get("MPLBACKEND"):
     os.environ["MPLBACKEND"] = "Agg"
 import gc
 import time
-import psutil
 import argparse
+import inspect
+import json
+import re
+from datetime import datetime
 from typing import Optional, List
-try:
-    from tkinter import Tk, Frame, Label, Button, Entry, StringVar, OptionMenu, Toplevel, filedialog, Text, Scrollbar, Checkbutton, IntVar, Canvas, LEFT, SOLID,END
-    import customtkinter  # Assuming you have this library
-    
-    pkg_dir = os.path.dirname(os.path.abspath(__file__))
-    # 2) Compute your project root (the parent of MolFeatures/)
-    project_root = os.path.dirname(pkg_dir)
-    project_root = os.path.join(project_root, 'MolFeatures')
-    print(f'Starting at {project_root}')
-    # 3) If it’s not already on sys.path, insert it at the front
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-        
-    import matplotlib
-    matplotlib.use(os.environ["MPLBACKEND"])
-    from tkinter.simpledialog import askstring
-    import csv
+
+
+def _ensure_project_on_path() -> None:
+    """Allow both `python __main__.py` and installed-package execution."""
+    package_dir = os.path.dirname(os.path.abspath(__file__))
+    if package_dir not in sys.path:
+        sys.path.insert(0, package_dir)
+
+
+def _load_runtime_dependencies(include_gui: bool = False, include_modeling: bool = False) -> None:
+    """
+    Import optional scientific and GUI dependencies only when a command needs them.
+
+    Keeping these imports lazy lets `python __main__.py --help` work even when a
+    local scientific environment is temporarily inconsistent.
+    """
+    _ensure_project_on_path()
+
+    global pd, shutil, subprocess, warnings, webbrowser, traceback, urllib
     import pandas as pd
-    import re
     import shutil
     import subprocess
     import warnings
-    from tkinter import filedialog, messagebox
-    import warnings
-    from typing import Dict
-    from tkinter import ttk
-    from PIL import Image , ImageTk
-    from datetime import datetime
-    import argparse
     import webbrowser
-    import seaborn as sns
-    import json
-    import inspect
     import traceback
     import urllib.request
 
+    global help_functions, file_handlers, Molecules, Module1Handler
+    global logs_to_feather, cube_many, Molecules_xyz
     try:
         from .utils import help_functions, file_handlers
         from .M2_data_extractor.data_extractor import Molecules
         from .M1_pre_calculations.main import Module1Handler
-        # from .Mol_align.renumbering import batch_renumbering
         from .M2_data_extractor.feather_extractor import logs_to_feather
-        from .M3_modeler.modeling import ClassificationModel, LinearRegressionModel
         from .M2_data_extractor.cube_sterimol import cube_many
         from .M2_data_extractor.sterimol_standalone import Molecules_xyz
     except ImportError:
-
         import utils.help_functions as help_functions
         import utils.file_handlers as file_handlers
         from M2_data_extractor.data_extractor import Molecules
         from M1_pre_calculations.main import Module1Handler
-        # from Mol_align.renumbering import batch_renumbering
         from M2_data_extractor.feather_extractor import logs_to_feather
-        from M3_modeler.modeling import ClassificationModel, LinearRegressionModel
         from M2_data_extractor.cube_sterimol import cube_many
         from M2_data_extractor.sterimol_standalone import Molecules_xyz
-        
 
+    if include_modeling:
+        global ClassificationModel, LinearRegressionModel
+        try:
+            from .M3_modeler.modeling import ClassificationModel, LinearRegressionModel
+        except ImportError:
+            from M3_modeler.modeling import ClassificationModel, LinearRegressionModel
 
+    if include_gui:
+        global Tk, Frame, Label, Button, Entry, StringVar, OptionMenu, Toplevel
+        global filedialog, Text, Scrollbar, Checkbutton, IntVar, Canvas, LEFT, SOLID, END
+        global messagebox, ttk, Image, ImageTk, customtkinter
+        from tkinter import (
+            Tk,
+            Frame,
+            Label,
+            Button,
+            Entry,
+            StringVar,
+            OptionMenu,
+            Toplevel,
+            filedialog,
+            Text,
+            Scrollbar,
+            Checkbutton,
+            IntVar,
+            Canvas,
+            LEFT,
+            SOLID,
+            END,
+            messagebox,
+            ttk,
+        )
+        import customtkinter
+        import matplotlib
+        from PIL import Image, ImageTk
 
-
-except ImportError or ModuleNotFoundError as e:
-    print(f"An error occurred: {e}, Run install_packages.py script to install the required packages.")
-
+        matplotlib.use(os.environ["MPLBACKEND"])
 
 def load_answers_json(path = None):
 
@@ -432,6 +452,8 @@ class MoleculeApp:
         def confirm_selection():
             nonlocal selected_indices
             selected_indices = [i for i, var in var_list if var.get() == 1]
+            self.leave_out_indices = selected_indices
+            self.leave_out_mols.set(",".join(str(x) for x in selected_indices) if selected_indices else "None")
             new_window.destroy()
 
         Button(new_window, text="Confirm", command=confirm_selection).pack(pady=10)
@@ -441,31 +463,6 @@ class MoleculeApp:
         new_window.wait_window()
 
         return selected_indices
-
-        def confirm_selection():
-            """Collect all checked molecules and close the window."""
-            for idx, variable in var_list:
-                if variable.get() == 1:
-                    selected_indices.append(idx)
-            
-            self.leave_out_indices = selected_indices
-
-            # 2) Also store as a comma-separated string in the StringVar
-            if selected_indices:
-                csv_str = ",".join(str(x) for x in selected_indices)
-                self.leave_out_mols.set(csv_str)
-            else:
-                self.leave_out_mols.set("None")
-            new_window.destroy()  # Closes the Toplevel window
-            
-
-        # Add a 'Confirm' button at the bottom
-        confirm_button = Button(new_window, text="Confirm", command=confirm_selection)
-        confirm_button.pack(pady=10)
-
-        # This forces the function to wait until the user closes the window,
-        # allowing us to return the final list of selected indices.
-        new_window.wait_window()
 
     
     def run_model_in_directory(self):
@@ -1532,7 +1529,27 @@ def resolve_n_jobs(user_n_jobs) -> int:
             return int(env_slots)
         except ValueError:
             pass
+    import psutil
     return int(psutil.cpu_count(logical=True))
+
+
+def resolve_effective_n_jobs(requested_n_jobs: int, bool_parallel: bool) -> int:
+    """
+    Normalize the runtime worker count for CLI model execution.
+
+    `n_jobs` is treated as the primary control. A value greater than 1 enables
+    parallel execution even when `--bool-parallel` is omitted, while
+    `--bool-parallel` remains supported for backward compatibility.
+    """
+    requested_n_jobs = int(requested_n_jobs)
+    if requested_n_jobs == -1:
+        import psutil
+        requested_n_jobs = int(psutil.cpu_count(logical=True))
+
+    requested_n_jobs = max(1, requested_n_jobs)
+    if bool_parallel or requested_n_jobs > 1:
+        return requested_n_jobs
+    return 1
 
 def add_modeling_path():
     """Add the modeling path to sys.path if given (or if a sensible default exists)."""
@@ -1575,6 +1592,7 @@ def run_experiment(
     - For regression, calls: fit_and_evaluate_combinations(...) if available, else search_models(...)
     - For classification, calls: search_models(...)
     """
+    _load_runtime_dependencies(include_modeling=True)
 
 
     csv_filepaths = {
@@ -1610,7 +1628,7 @@ def run_experiment(
         raise ValueError("mode must be 'regression' or 'classification'")
 
     # Decide parallel cores
-    eff_n_jobs = n_jobs if bool_parallel else 1
+    eff_n_jobs = resolve_effective_n_jobs(n_jobs, bool_parallel)
     print(f"\n[run_experiment] mode={mode} | n_jobs={eff_n_jobs} (requested={n_jobs}, parallel={bool_parallel})")
     print(f"[run_experiment] features={features_csv} | target={target_csv or '(none)'} | y_value={y_value}")
     print(f"[run_experiment] min/max features: {min_features_num}/{max_features_num}\n")
@@ -1644,6 +1662,7 @@ def run_experiment(
     return elapsed
 
 def run_gui_app():
+    _load_runtime_dependencies(include_gui=True, include_modeling=True)
     print("Running GUI app...")
     root = Tk()
     app = MoleculeApp(root)
@@ -1651,11 +1670,13 @@ def run_gui_app():
     # Your code to launch the GUI app goes here
 
 def run_feature_extraction(input_file, output_file = 'features_set', molecules_dir_name='feather_example'):
+    _load_runtime_dependencies()
     answers = load_answers_json(input_file)
     mols = load_molecules(molecules_dir_name, renumber=False)
     mols.get_molecules_features_set(answers, save_as=True, csv_file_name=output_file)
 
 def load_molecules(molecules_dir_name, renumber=False):
+    _load_runtime_dependencies()
     return Molecules(molecules_dir_name, renumber=renumber)
 
 def interactive_cli(molecules):
@@ -1723,11 +1744,11 @@ def main():
     model_parser.add_argument("-t", "--target_csv", default="", help="Path to target/labels CSV.")
     model_parser.add_argument("-y", "--y_value", default="output", help="Base name for output files.")
     model_parser.add_argument("-j", "--n_jobs", type=int,
-                              help="Cores to use (-1 = all). If omitted, uses NSLOTS or all logical cores.")
+                              help="Cores to use (-1 = all). If omitted, uses NSLOTS or all logical cores. Values > 1 enable parallel execution.")
     model_parser.add_argument("--min-features", type=int, default=4, help="Minimum features per model.")
     model_parser.add_argument("--max-features", type=int, default=4, help="Maximum features per model.")
     model_parser.add_argument("--top-n", type=int, default=50, help="How many top models to keep/evaluate.")
-    model_parser.add_argument("--bool-parallel", action="store_false", help="Enable parallel evaluation.")
+    model_parser.add_argument("--bool-parallel", action="store_true", help="Enable parallel evaluation.")
     model_parser.add_argument("--threshold", type=float, default=0.70, help="Initial threshold (regression(R2)/classification(mcfadden_R2)).")
     model_parser.add_argument("--leave-out", nargs="*", default=[], help="Space-separated list of samples to leave out.")
     feature_extraction.add_argument("-i", "--input", required=True, help="Path to input file.")
@@ -1739,11 +1760,13 @@ def main():
         run_gui_app()
         
     elif args.command == "logs_to_feather":
+        _load_runtime_dependencies()
         log_dir = input("Enter the path to the log files directory: ")
         logs_to_feather(log_dir)
         
 
     elif args.command == "cube":
+        _load_runtime_dependencies()
         while True:
             cube_file_path = input("Enter the full path to directory with cube files: ")
             base_atoms = input("Enter the atom indices: ")
@@ -1757,6 +1780,7 @@ def main():
             if another_dir != 'yes':
                 break
     elif args.command == "sterimol":
+        _load_runtime_dependencies()
         while True:
             xyz_dir = input("Enter the path to the xyz files directory: ")
             base_atoms = input("Enter the atom indices: ")
@@ -1782,6 +1806,7 @@ def main():
         # Prepare environment/import path & working dir
         n_jobs = resolve_n_jobs(args.n_jobs)
         if n_jobs == -1:
+            import psutil
             n_jobs = int(psutil.cpu_count(logical=True))
         add_modeling_path()
         # safe_chdir(args.workdir, args.features_csv)
