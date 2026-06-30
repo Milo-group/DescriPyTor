@@ -55,10 +55,38 @@ class GeneralConstants(Enum):
     
     BONDI_RADII={
         'H': 1.10, 'C': 1.70, 'F': 1.47,
-        'S': 1.80, 'B': 1.92, 'I': 1.98, 
-        'N': 1.55, 'O': 1.52, 'Co': 2.00, 
-        'Br': 1.83, 'Si': 2.10,'Ni': 2.00,
-        'P': 1.80, 'Cl': 1.75, 
+        'S': 1.80, 'B': 1.92, 'I': 1.98,
+        'N': 1.55, 'O': 1.52,
+        'Br': 1.83, 'Si': 2.10,
+        'P': 1.80, 'Cl': 1.75,
+        # alkali / alkaline-earth (Alvarez 2013, DOI: 10.1039/c3dt50599e)
+        'Li': 1.82, 'Be': 1.53, 'Na': 2.27, 'Mg': 1.73,
+        'K': 2.75, 'Ca': 2.31, 'Rb': 3.03, 'Sr': 2.49,
+        'Cs': 3.43, 'Ba': 2.68,
+        # p-block metals / heavier metalloids
+        'Al': 1.84, 'Ga': 1.87, 'Ge': 2.11, 'As': 1.85,
+        'In': 1.93, 'Sn': 2.17, 'Sb': 2.06, 'Te': 2.06,
+        'Tl': 1.96, 'Pb': 2.02, 'Bi': 2.07,
+        # first-row transition metals
+        'Sc': 2.18, 'Ti': 2.11, 'V': 2.07, 'Cr': 2.06,
+        'Mn': 2.05, 'Fe': 2.04, 'Co': 2.00, 'Ni': 1.97,
+        'Cu': 1.96, 'Zn': 2.01,
+        # second-row transition metals
+        'Y': 2.32, 'Zr': 2.23, 'Nb': 2.18, 'Mo': 2.17,
+        'Tc': 2.16, 'Ru': 2.13, 'Rh': 2.10, 'Pd': 2.10,
+        'Ag': 2.11, 'Cd': 2.18,
+        # third-row transition metals
+        'Hf': 2.23, 'Ta': 2.22, 'W': 2.18, 'Re': 2.16,
+        'Os': 2.16, 'Ir': 2.13, 'Pt': 2.09, 'Au': 2.14,
+        'Hg': 2.23,
+        # lanthanides
+        'La': 2.43, 'Ce': 2.42, 'Pr': 2.40, 'Nd': 2.39,
+        'Pm': 2.38, 'Sm': 2.36, 'Eu': 2.35, 'Gd': 2.34,
+        'Tb': 2.33, 'Dy': 2.31, 'Ho': 2.30, 'Er': 2.29,
+        'Tm': 2.27, 'Yb': 2.26, 'Lu': 2.24,
+        # actinides
+        'Ac': 2.47, 'Th': 2.45, 'Pa': 2.43, 'U': 2.41,
+        'Np': 2.39, 'Pu': 2.37, 'Am': 2.35, 'Cm': 2.35,
     }
     CPK_RADII = {
     'C': 1.50,
@@ -77,7 +105,28 @@ class GeneralConstants(Enum):
     'S4': 1.40,
     'Br': 1.95,
     'I': 2.15,
-    'X': 1.92
+    'X': 1.92,
+    # metals — element symbols used directly (Alvarez 2013 VdW values)
+    'Li': 1.82, 'Be': 1.53, 'Na': 2.27, 'Mg': 1.73,
+    'K': 2.75, 'Ca': 2.31, 'Rb': 3.03, 'Sr': 2.49,
+    'Cs': 3.43, 'Ba': 2.68,
+    'Al': 1.84, 'Ga': 1.87, 'Ge': 2.11, 'In': 1.93,
+    'Sn': 2.17, 'Tl': 1.96, 'Pb': 2.02, 'Bi': 2.07,
+    'Sc': 2.18, 'Ti': 2.11, 'V': 2.07, 'Cr': 2.06,
+    'Mn': 2.05, 'Fe': 2.04, 'Co': 2.00, 'Ni': 1.97,
+    'Cu': 1.96, 'Zn': 2.01,
+    'Y': 2.32, 'Zr': 2.23, 'Nb': 2.18, 'Mo': 2.17,
+    'Tc': 2.16, 'Ru': 2.13, 'Rh': 2.10, 'Pd': 2.10,
+    'Ag': 2.11, 'Cd': 2.18,
+    'Hf': 2.23, 'Ta': 2.22, 'W': 2.18, 'Re': 2.16,
+    'Os': 2.16, 'Ir': 2.13, 'Pt': 2.09, 'Au': 2.14,
+    'Hg': 2.23,
+    'La': 2.43, 'Ce': 2.42, 'Pr': 2.40, 'Nd': 2.39,
+    'Pm': 2.38, 'Sm': 2.36, 'Eu': 2.35, 'Gd': 2.34,
+    'Tb': 2.33, 'Dy': 2.31, 'Ho': 2.30, 'Er': 2.29,
+    'Tm': 2.27, 'Yb': 2.26, 'Lu': 2.24,
+    'Ac': 2.47, 'Th': 2.45, 'Pa': 2.43, 'U': 2.41,
+    'Np': 2.39, 'Pu': 2.37, 'Am': 2.35, 'Cm': 2.35,
 }
 
 
@@ -136,6 +185,17 @@ class GeneralConstants(Enum):
             'Ac' : 227.028, 'Th' : 232.038, 'Pa' : 231.036, 'U' : 238.029,
             'Np' : 237, 'Pu' : 244, 'Am' : 243, 'Cm' : 247
     }
+
+_METAL_ELEMENTS = {
+    'Li', 'Be', 'Na', 'Mg', 'K', 'Ca', 'Rb', 'Sr', 'Cs', 'Ba', 'Fr', 'Ra',
+    'Al', 'Ga', 'Ge', 'In', 'Sn', 'Sb', 'Tl', 'Pb', 'Bi',
+    'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
+    'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd',
+    'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',
+    'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy',
+    'Ho', 'Er', 'Tm', 'Yb', 'Lu',
+    'Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm',
+}
 
 class FileExtensions(Enum):
     """
@@ -958,6 +1018,8 @@ def nob_atype(xyz_df, bonds_df):
                 result = 'C6/N6'
             elif nob > 3.5:
                 result = 'C'
+        elif symbol in _METAL_ELEMENTS:
+            result = symbol
         else:
             result = 'X'
 
@@ -992,7 +1054,31 @@ def remove_atom_bonds(bonded_atoms_df,atom_remove='H'):
 
 
 
-def extract_connectivity(xyz_df, threshold_distance=1.82, metal_atom='Pd'):
+def extract_connectivity(xyz_df, threshold_distance=1.82, metals=None,
+                         metal_threshold=2.8, max_coordination=6):
+    """
+    Build a connectivity table from XYZ coordinates.
+
+    Parameters
+    ----------
+    threshold_distance : float
+        Max bond distance (Å) for non-metal pairs.
+    metals : None | str | list[str]
+        Metal element symbols to treat with relaxed distance rules.
+        None → auto-detect from the full periodic-table metal set.
+        Pass an empty list [] to disable metal handling entirely.
+    metal_threshold : float
+        Max bond distance (Å) for metal–ligand pairs.
+    max_coordination : int
+        Maximum number of bonds kept per metal centre.
+    """
+    if metals is None:
+        active_metals = _METAL_ELEMENTS
+    elif isinstance(metals, str):
+        active_metals = {metals}
+    else:
+        active_metals = set(metals)
+
     coordinates = np.array(xyz_df[['x', 'y', 'z']].values)
     atoms_symbol = np.array(xyz_df['atom'].values)
     distances = pdist(coordinates)
@@ -1019,67 +1105,62 @@ def extract_connectivity(xyz_df, threshold_distance=1.82, metal_atom='Pd'):
            ((atom1 == 'H' or atom2 == 'H') and float(dist) >= 1.5):
             remove_flag = True
 
-        # If not a Pd bond, apply strict threshold
-        if (atom1 != metal_atom and atom2 != metal_atom) and (float(dist) >= threshold_distance or float(dist) == 0):
-            remove_flag = True
+        involves_metal = atom1 in active_metals or atom2 in active_metals
 
-        # Allow Pd bonds up to 2.6 Å
-        if (metal_atom in (atom1, atom2)) and (float(dist) > 2.6):
-            remove_flag = True
+        if not involves_metal:
+            if float(dist) >= threshold_distance or float(dist) == 0:
+                remove_flag = True
+        else:
+            if float(dist) > metal_threshold or float(dist) == 0:
+                remove_flag = True
 
-        # Allow halogen bonds between 1.8 and 2.6 Å
-        if (atom1 in special_atoms or atom2 in special_atoms) and (1.8 < float(dist) < 2.6):
+        # Halogens bonded between threshold and 2.6 Å are allowed (e.g. C–I, C–Br)
+        if (atom1 in special_atoms or atom2 in special_atoms) and \
+           (threshold_distance <= float(dist) < 2.6) and not involves_metal:
             remove_flag = False
 
         if remove_flag:
             remove_list.append(idx)
 
     dist_df = dist_df.drop(remove_list)
-    dist_df[['min_col', 'max_col']] = pd.DataFrame(np.sort(dist_df[['a1', 'a2']], axis=1), index=dist_df.index)
+    dist_df[['min_col', 'max_col']] = pd.DataFrame(
+        np.sort(dist_df[['a1', 'a2']], axis=1), index=dist_df.index
+    )
     dist_df = dist_df.drop(columns=['a1', 'a2']).rename(columns={'min_col': 0, 'max_col': 1})
     dist_df = dist_df.drop_duplicates(subset=[0, 1])
 
-    # Handle special atoms with more than one bond — keep only closest
+    # Keep only the closest bond per halogen (terminal halogens bond to one atom)
     special_atoms_idxs = {}
     for idx, row in dist_df.iterrows():
         if row['first_atom'] in special_atoms:
-            atom_idx = row[0]
-            special_atoms_idxs.setdefault(atom_idx, []).append((idx, row['value']))
+            special_atoms_idxs.setdefault(row[0], []).append((idx, row['value']))
         if row['second_atom'] in special_atoms:
-            atom_idx = row[1]
-            special_atoms_idxs.setdefault(atom_idx, []).append((idx, row['value']))
+            special_atoms_idxs.setdefault(row[1], []).append((idx, row['value']))
 
     special_atoms_to_remove = []
     for atom_idx, bonds in special_atoms_idxs.items():
         if len(bonds) > 1:
             bonds.sort(key=lambda x: x[1])
-            special_atoms_to_remove.extend([idx for idx, _ in bonds[1:]])
-
+            special_atoms_to_remove.extend([i for i, _ in bonds[1:]])
     dist_df = dist_df.drop(special_atoms_to_remove)
 
-    # Filter Pd bonds: keep only the 4 shortest per Pd atom
-    pd_mask = (dist_df['first_atom'] == metal_atom) | (dist_df['second_atom'] == metal_atom)
-    pd_bonds = dist_df[pd_mask].copy()
-    non_pd = dist_df[~pd_mask].copy()
+    # For each metal centre keep only the max_coordination shortest bonds
+    metal_mask = dist_df['first_atom'].isin(active_metals) | dist_df['second_atom'].isin(active_metals)
+    metal_bonds = dist_df[metal_mask].copy()
+    non_metal = dist_df[~metal_mask].copy()
 
-    kept_pd = []
-    for idx, row in pd_bonds.iterrows():
-        pd_idx = row[0] if row['first_atom'] == metal_atom else row[1]
-        pd_bonds.loc[idx, 'pd_idx'] = pd_idx
+    kept_metal_idx = []
+    if not metal_bonds.empty:
+        metal_bonds['_metal_idx'] = metal_bonds.apply(
+            lambda r: r[0] if r['first_atom'] in active_metals else r[1], axis=1
+        )
+        for _, group in metal_bonds.groupby('_metal_idx'):
+            kept_metal_idx.extend(group.nsmallest(max_coordination, 'value').index)
 
-    try:
-        for pd_idx, group in pd_bonds.groupby('pd_idx'):
-            shortest = group.nsmallest(4, 'value').index
-            kept_pd.extend(shortest)
-    except Exception as e:
-        
-        pass
+    metal_kept = metal_bonds.loc[kept_metal_idx, [0, 1]] if kept_metal_idx else pd.DataFrame(columns=[0, 1])
 
-    pd_kept = pd_bonds.loc[kept_pd, [0, 1]] if kept_pd else pd.DataFrame(columns=[0, 1])
-
-    # Combine and convert back to 1-based indexing
-    final = pd.concat([non_pd[[0, 1]], pd_kept], ignore_index=True)
-    return pd.DataFrame(final[[0, 1]] + 1)  # Return 1-based indices
+    final = pd.concat([non_metal[[0, 1]], metal_kept], ignore_index=True)
+    return pd.DataFrame(final[[0, 1]] + 1)
 
 
 import plotly.graph_objs as go

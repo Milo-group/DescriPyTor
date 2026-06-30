@@ -482,57 +482,62 @@ def create_results_table(db_path='results.db'):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             combination TEXT,
             r2 REAL,
+            adj_r2 REAL,
             q2 REAL,
             mae REAL,
             rmsd REAL,
-
             threshold REAL,
             model TEXT,
             predictions TEXT
         );
     ''')
+    # Add adj_r2 column to existing databases that pre-date this schema change
+    try:
+        c.execute("ALTER TABLE regression_results ADD COLUMN adj_r2 REAL;")
+    except Exception:
+        pass  # column already exists
     print("Table 'regression_results' has been ensured to exist.")
     
     conn.commit()
     conn.close()
 
 
-def insert_result_into_db_regression(db_path, combination, r2, q2, mae, rmsd, threshold, model, predictions, csv_path='results.csv'):
+def insert_result_into_db_regression(db_path, combination, r2, q2, mae, rmsd, threshold, model, predictions,
+                                      adj_r2=None, csv_path='results.csv'):
     """
     Insert one row of results into the SQLite database and append to a CSV file.
-    
+
     Args:
         db_path (str): Path to the SQLite database.
         combination (str): Feature combination.
-        formula (str): Model formula.
         r2 (float): R-squared value.
+        adj_r2 (float): Adjusted R-squared value.
         q2 (float): Q-squared value.
         mae (float): Mean Absolute Error.
         rmsd (float): Root Mean Squared Deviation.
         threshold (float): Threshold used.
         csv_path (str): Path to the CSV file.
     """
-    # Insert into SQLite database
-    # print(f'Inserting results for combination: {combination} | R2: {r2} | Q2: {q2}')
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     c.execute('''
-        INSERT INTO regression_results (combination, r2, q2, mae, rmsd, threshold, model, predictions)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-    ''', (str(combination), r2, q2, mae, rmsd, threshold, str(model), str(predictions)))
+        INSERT INTO regression_results (combination, r2, adj_r2, q2, mae, rmsd, threshold, model, predictions)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ''', (str(combination), r2, adj_r2, q2, mae, rmsd, threshold, str(model), str(predictions)))
     conn.commit()
     conn.close()
 
     # Prepare data for CSV
     result_dict = {
         'combination': [str(combination)],
-        'r2': [r2],
-        'q2': [q2],
-        'mae': [mae],
-        'rmsd': [rmsd],
+        'r2':     [r2],
+        'adj_r2': [adj_r2],
+        'q2':     [q2],
+        'mae':    [mae],
+        'rmsd':   [rmsd],
         'threshold': [threshold],
-        'model': [model],
-        'predictions': [predictions]
+        'model':       [model],
+        'predictions': [predictions],
     }
   
     result_df = pd.DataFrame(result_dict)
@@ -1035,48 +1040,51 @@ def check_linear_regression_assumptions(X, y, dir=None, plot=False, k_best=10):
         if dir and not os.path.isdir(dir):
             os.makedirs(dir, exist_ok=True)
 
-        # Residuals vs fitted (scale-location style)
-        plt.figure()
-        plt.scatter(fitted, resid, alpha=0.7)
-        plt.axhline(0, ls="--")
-        plt.xlabel("Fitted values")
-        plt.ylabel("Residuals")
-        plt.title("Residuals vs Fitted")
-        if dir: plt.savefig(os.path.join(dir, "resid_vs_fitted.png"), dpi=200)
-        # plt.show()
+        # Residuals vs fitted
+        fig_resid, ax = plt.subplots()
+        ax.scatter(fitted, resid, alpha=0.7)
+        ax.axhline(0, ls="--")
+        ax.set_xlabel("Fitted values")
+        ax.set_ylabel("Residuals")
+        ax.set_title("Residuals vs Fitted")
+        if dir:
+            fig_resid.savefig(os.path.join(dir, "resid_vs_fitted.png"), dpi=200, bbox_inches="tight")
+        plt.close(fig_resid)
 
         # Q-Q plot
-        plt.figure()
-        probplot(resid, dist="norm", plot=plt)
-        plt.title("Q-Q plot of residuals")
-        if dir: plt.savefig(os.path.join(dir, "qq_plot_residuals.png"), dpi=200)
-        # plt.show()
+        fig_qq, ax = plt.subplots()
+        probplot(resid, dist="norm", plot=ax)
+        ax.set_title("Q-Q plot of residuals")
+        if dir:
+            fig_qq.savefig(os.path.join(dir, "qq_plot_residuals.png"), dpi=200, bbox_inches="tight")
+        plt.close(fig_qq)
 
-        # Scale-location plot (|studentized residuals| vs fitted)
+        # Scale-location
         try:
             infl = model.get_influence()
             stud = infl.resid_studentized_internal
-            plt.figure()
-            plt.scatter(fitted, np.sqrt(np.abs(stud)), alpha=0.7)
-            plt.xlabel("Fitted values")
-            plt.ylabel("sqrt(|Studentized residuals|)")
-            plt.title("Scale-Location")
-            if dir: plt.savefig(os.path.join(dir, "scale_location.png"), dpi=200)
-            # plt.show()
+            fig_sl, ax = plt.subplots()
+            ax.scatter(fitted, np.sqrt(np.abs(stud)), alpha=0.7)
+            ax.set_xlabel("Fitted values")
+            ax.set_ylabel("sqrt(|Studentized residuals|)")
+            ax.set_title("Scale-Location")
+            if dir:
+                fig_sl.savefig(os.path.join(dir, "scale_location.png"), dpi=200, bbox_inches="tight")
+            plt.close(fig_sl)
         except Exception:
             pass
 
-        # Cook’s distance stem plot
+        # Cook’s distance
         try:
             cooks = results["influence_table"]["cooks_d"].values
-            plt.figure()
-            markerline, stemlines, baseline = plt.stem(range(len(cooks)), cooks, use_line_collection=True)
-            plt.setp(markerline, markersize=4)
-            plt.xlabel("Observation")
-            plt.ylabel("Cook's distance")
-            plt.title("Influence: Cook's Distance")
-            if dir: plt.savefig(os.path.join(dir, "cooks_distance.png"), dpi=200)
-            # plt.show()
+            fig_ck, ax = plt.subplots()
+            ax.stem(range(len(cooks)), cooks)
+            ax.set_xlabel("Observation")
+            ax.set_ylabel("Cook’s distance")
+            ax.set_title("Influence: Cook’s Distance")
+            if dir:
+                fig_ck.savefig(os.path.join(dir, "cooks_distance.png"), dpi=200, bbox_inches="tight")
+            plt.close(fig_ck)
         except Exception:
             pass
 

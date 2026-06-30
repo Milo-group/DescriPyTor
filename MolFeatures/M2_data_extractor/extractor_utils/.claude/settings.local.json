@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import ast, sys; ast.parse\\(open\\('modeling.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\(r'C:\\\\Users\\\\edens\\\\Desktop\\\\DescriPytor\\\\DescriPyTor-main\\\\MolFeatures\\\\M3_modeler\\\\plot.py', encoding='utf-8'\\).read\\(\\)\\); print\\('plot.py OK'\\)\")",
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\(r'C:\\\\Users\\\\edens\\\\Desktop\\\\DescriPytor\\\\DescriPyTor-main\\\\MolFeatures\\\\M3_modeler\\\\plot.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\(r'C:\\\\Users\\\\edens\\\\Desktop\\\\DescriPytor\\\\DescriPyTor-main\\\\MolFeatures\\\\M3_modeler\\\\modeling_utils.py', encoding='utf-8'\\).read\\(\\)\\); print\\('modeling_utils.py OK'\\)\")",
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\(r'C:\\\\Users\\\\edens\\\\Desktop\\\\DescriPytor\\\\DescriPyTor-main\\\\MolFeatures\\\\M3_modeler\\\\modeling.py', encoding='utf-8'\\).read\\(\\)\\); print\\('modeling.py OK'\\)\")",
+      "Bash(dir \"C:\\\\Users\\\\edens\\\\Desktop\\\\Lab\\\\datasets\\\\feather_files_after_crest\" /b)",
+      "Bash(ls \"C:\\\\Users\\\\edens\\\\Desktop\\\\Lab\\\\datasets\\\\feather_files_after_crest\\\\renumbered\")",
+      "Bash(rm -rf \"C:\\\\Users\\\\edens\\\\Desktop\\\\Lab\\\\datasets\\\\feather_files_after_crest\\\\renumbered\\\\renumbered\" && echo \"deleted\")",
+      "Bash(python3 -)",
+      "Bash(python -c \"from morfeus import BuriedVolume; help\\(BuriedVolume.__init__\\)\")",
+      "Bash(python -c ' *)",
+      "Read(//c/Users/edens/**)",
+      "Bash(pip show *)",
+      "Bash(rm \"C:/Users/edens/Desktop/DescriPytor/DescriPyTor-main/MolFeatures/Getting_started_with_examples/_build_analysis_nb.py\")",
+      "Bash(python \"_build_analysis_nb.py\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\edens\\\\Desktop\\\\DescriPytor\\\\DescriPyTor-main\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\edens\\\\Desktop\\\\DescriPytor\\\\DescriPyTor-main\\\\MolFeatures\\\\M2_data_extractor\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "Bash(python _build_viewer_nb.py)"
+    ]
+  }
+}

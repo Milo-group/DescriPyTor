@@ -16,7 +16,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
     # Now you can import from the parent directory
     from gaussian_handler import feather_file_handler, save_to_feather
-    # from MolAlign.renumbering import batch_renumbering
     from utils import visualize
     from utils.help_functions import *
     # from utils.rdkit_utils import xyz_list_to_mols, visualize_mols, mols_to_fingerprint_df 
@@ -27,7 +26,6 @@ try:
     
 except:
     from .gaussian_handler import feather_file_handler, save_to_feather
-    # from ..MolAlign.renumbering import batch_renumbering
     from ..utils import visualize
     from ..utils.help_functions import *
     # from ..utils.rdkit_utils import xyz_list_to_mols, visualize_mols, mols_to_fingerprint_df 
@@ -193,9 +191,15 @@ def _validate_and_build_maps(n: int, renumbering_dict: Dict[int, int]) -> Tuple[
 
 
 def _reindex_like(obj: Union[pd.Series, pd.DataFrame], order: np.ndarray) -> Union[pd.Series, pd.DataFrame]:
-    """Reindex a Series/DataFrame (row-wise) by an integer order vector (0-based)."""
+    """Reindex a Series/DataFrame (row-wise) by an integer order vector (0-based).
+
+    If ``obj`` has fewer rows than ``order`` (e.g. charge DataFrames that were
+    dropna'd during loading), only the in-bounds indices are used so that the
+    reordering is applied to however many rows actually exist.
+    """
     if hasattr(obj, "iloc"):
-        out = obj.iloc[order].copy()
+        valid = order[order < len(obj)]
+        out = obj.iloc[valid].copy()
         out.index = range(len(out))  # normalize to 0..n-1
         return out
     raise TypeError(f"Unsupported type for reindexing: {type(obj)}")
@@ -1339,32 +1343,76 @@ class Molecule:
 
  
     
-    def get_bend_vibration_single(self, atom_pair: List[int], threshold: float = 1300)-> pd.DataFrame:
-        # Create the adjacency dictionary for the pair of atoms
-        adjacency_dict = create_adjacency_dict_for_pair(self.bonds_df, atom_pair)
+    # def get_bend_vibration_single(self, atom_pair: List[int], threshold: float = 1300)-> pd.DataFrame:
+    #     # Create the adjacency dictionary for the pair of atoms
+    #     atom_pair = [a - 1 for a in atom_pair]
+    #     adjacency_dict = create_adjacency_dict_for_pair(self.bonds_df, atom_pair)
   
+    #     center_atom_exists = find_center_atom(atom_pair[0], atom_pair[1], adjacency_dict)
+    #     if not center_atom_exists:
+    #         raise ValueError(f'Bend Vibration - Atoms do not share a center in molecule {self.molecule_name} - for atoms {atom_pair} check atom numbering in molecule')
+    #     else:
+    #         # Create the extended DataFrame for the vibration modes
+    #         extended_df = extended_df_for_stretch(self.vibration_dict, self.info_df, atom_pair, threshold)
+    #         # Calculate the cross product and magnitude for each row in the extended DataFrame
+    #         cross_list = []
+    #         cross_mag_list = []
+    #         for i in range(extended_df.shape[0]):
+    #             cross_list.append(np.cross(extended_df[[0, 1, 2]].iloc[i], extended_df[[3, 4, 5]].iloc[i]))
+    #             cross_mag_list.append(np.linalg.norm(cross_list[-1]))
+    #         # Add the cross magnitude column to the extended DataFrame
+    #         extended_df['Cross_mag'] = cross_mag_list
+    #         extended_df.reset_index(drop=True, inplace=True)
+    #         # Find the row with the maximum cross magnitude and extract the bending frequency and cross magnitude
+
+    #         index_max = extended_df['Cross_mag'].idxmax()
+    #         max_frequency_vibration = (pd.DataFrame(extended_df.iloc[index_max]).T)[['Frequency', 'Cross_mag']]
+    #         max_frequency_vibration = max_frequency_vibration.rename(index={index_max: f'Bending_{atom_pair[0]}-{atom_pair[1]}'})
+    #         return max_frequency_vibration
+
+    def get_bend_vibration_single(self, atom_pair: List[int], threshold: float = 1300) -> pd.DataFrame:
+        print(f"[get_bend_vibration_single] molecule={self.molecule_name}, atom_pair={atom_pair}, threshold={threshold}")
+
+        # bonds_df is 1-based
+        adjacency_dict = create_adjacency_dict_for_pair(self.bonds_df, atom_pair)
         center_atom_exists = find_center_atom(atom_pair[0], atom_pair[1], adjacency_dict)
+
         if not center_atom_exists:
-            raise ValueError(f'Bend Vibration - Atoms do not share a center in molecule {self.molecule_name} - for atoms {atom_pair} check atom numbering in molecule')
-        else:
-            # Create the extended DataFrame for the vibration modes
-            extended_df = extended_df_for_stretch(self.vibration_dict, self.info_df, atom_pair, threshold)
-            # Calculate the cross product and magnitude for each row in the extended DataFrame
-            cross_list = []
-            cross_mag_list = []
-            for i in range(extended_df.shape[0]):
-                cross_list.append(np.cross(extended_df[[0, 1, 2]].iloc[i], extended_df[[3, 4, 5]].iloc[i]))
-                cross_mag_list.append(np.linalg.norm(cross_list[-1]))
-            # Add the cross magnitude column to the extended DataFrame
-            extended_df['Cross_mag'] = cross_mag_list
-            extended_df.reset_index(drop=True, inplace=True)
-            # Find the row with the maximum cross magnitude and extract the bending frequency and cross magnitude
+            raise ValueError(
+                f'Bend Vibration - Atoms do not share a center in molecule {self.molecule_name} '
+                f'- for atoms {atom_pair} check atom numbering in molecule'
+            )
 
-            index_max = extended_df['Cross_mag'].idxmax()
-            max_frequency_vibration = (pd.DataFrame(extended_df.iloc[index_max]).T)[['Frequency', 'Cross_mag']]
-            max_frequency_vibration = max_frequency_vibration.rename(index={index_max: f'Bending_{atom_pair[0]}-{atom_pair[1]}'})
-            return max_frequency_vibration
+        # extended_df_for_stretch expects 0-based
+        # atom_pair_0 = [a - 1 for a in atom_pair]
+        print(f"[get_bend_vibration_single] converted to 0-based: {atom_pair}")
+        
+        extended_df = extended_df_for_stretch(self.vibration_dict, self.info_df, atom_pair, threshold)
+        print(f"[get_bend_vibration_single] extended_df shape={extended_df.shape}")
+        print(f"[get_bend_vibration_single] extended_df head:\n{extended_df.head()}")
 
+        if extended_df.empty:
+            raise ValueError(f"[get_bend_vibration_single] No modes found above threshold {threshold} for {self.molecule_name}")
+
+        cross_list, cross_mag_list = [], []
+        for i in range(extended_df.shape[0]):
+            cross = np.cross(extended_df[[0, 1, 2]].iloc[i], extended_df[[3, 4, 5]].iloc[i])
+            cross_list.append(cross)
+            cross_mag_list.append(np.linalg.norm(cross))
+
+        extended_df['Cross_mag'] = cross_mag_list
+        extended_df.reset_index(drop=True, inplace=True)
+
+        index_max = extended_df['Cross_mag'].idxmax()
+        print(f"[get_bend_vibration_single] index_max={index_max}, max Cross_mag={cross_mag_list[index_max]:.4f}")
+        print(f"[get_bend_vibration_single] winning row:\n{extended_df.iloc[index_max]}")
+
+        max_frequency_vibration = pd.DataFrame(extended_df.iloc[index_max]).T[['Frequency', 'Cross_mag']]
+        max_frequency_vibration = max_frequency_vibration.rename(
+            index={index_max: f'Bending_{atom_pair[0]}-{atom_pair[1]}'}
+        )
+        print(f"[get_bend_vibration_single] result:\n{max_frequency_vibration}")
+        return max_frequency_vibration
 
     def get_bend_vibration(self, atom_pairs: List[str], threshold: float = 1300) -> pd.DataFrame:
         """"
@@ -1451,6 +1499,79 @@ class Molecules():
             #     log_exception("renumber_all_molecules")
         print('All molecules renumbered.')
     
+    def show_ring_atoms(self, n: int = 5) -> pd.DataFrame:
+        """
+        Print the first ``n`` atoms of every molecule side-by-side so you can
+        spot inconsistent ring numbering at a glance.
+
+        Parameters
+        ----------
+        n : int
+            How many atoms to inspect (default 5 = the 5-membered ring).
+
+        Returns
+        -------
+        pd.DataFrame
+            Rows = atom positions 1..n, columns = molecule names,
+            values = element symbol.
+
+        Example
+        -------
+        mols.show_ring_atoms()          # check positions 1-5
+        mols.show_ring_atoms(n=7)       # check positions 1-7
+        """
+        records = {}
+        for mol in self.molecules:
+            xyz = mol.xyz_df if hasattr(mol, "xyz_df") else None
+            if xyz is None or xyz.empty:
+                records[mol.molecule_name] = ["?"] * n
+                continue
+            atoms = xyz["atom"].tolist()[:n]
+            atoms += ["—"] * (n - len(atoms))   # pad if molecule has < n atoms
+            records[mol.molecule_name] = atoms
+
+        df = pd.DataFrame(records, index=[f"atom_{i+1}" for i in range(n)])
+        print(df.to_string())
+        return df
+
+    def swap_atoms(self, swaps: Dict[str, Dict[int, int]], save_feather: bool = True) -> None:
+        """
+        Manually fix atom numbering for specific molecules by swapping pairs.
+
+        Parameters
+        ----------
+        swaps : dict
+            ``{molecule_name: {old_1based: new_1based, ...}}``
+            Each inner dict is a 1-based renumbering dict passed directly to
+            ``Molecule.renumber_atoms``.  Only the listed molecules are touched.
+        save_feather : bool
+            Whether to save the updated feather file (default True).
+
+        Example
+        -------
+        # L5 has N at position 7 instead of 2 — swap them:
+        mols.swap_atoms({"L5": {2: 7, 7: 2}})
+
+        # Multiple molecules at once:
+        mols.swap_atoms({
+            "L5":  {2: 7, 7: 2},
+            "L12": {2: 5, 5: 2},
+        })
+        """
+        mol_map = {mol.molecule_name: mol for mol in self.molecules}
+        for mol_name, renumbering_dict in swaps.items():
+            if mol_name not in mol_map:
+                print(f"[swap_atoms] '{mol_name}' not found. Available: {list(mol_map)}")
+                continue
+            mol = mol_map[mol_name]
+            # Save back to the original file location (overwrite in place) so
+            # calling swap_atoms on already-renumbered molecules doesn't nest
+            # another 'renumbered' subdirectory.
+            out_file = os.path.join(mol.molecule_path, f"{mol.molecule_name}.feather") if save_feather else None
+            mol.renumber_atoms(renumbering_dict, bonds_are_0_based=False,
+                               save_feather=save_feather, out_file=out_file)
+            print(f"[swap_atoms] '{mol_name}' updated: {renumbering_dict}")
+
     def filter_molecules(self, indices):
         self.molecules = [self.molecules[i] for i in indices]
         self.molecule_names = [self.molecule_names[i] for i in indices]
@@ -1776,38 +1897,27 @@ class Molecules():
                 pass
         return charge_dict_to_horizontal_df(charge_diff_dict)
     
-    def get_bend_vibration_dict(self,atom_pairs,threshold=1300):
-        """
-        Returns a dictionary with the bending vibrations calculated for the specified pairs of atoms.
-
-        Args:
-            atom_pairs (List[Tuple[int, int]]): The pairs of atoms to use for the bending vibration calculation.
-            threshold (float, optional): The frequency threshold for selecting vibration modes. Defaults to 1300.
-        
-        Returns:
-            Dict[str, pd.DataFrame]: A dictionary where each key is a molecule name and each value is a DataFrame with the bending vibration data.
-        
-        input example: molecules.get_bend_vibration_dict([[1, 2], [3, 4]])
-        output example: 
-        Results for LS1716_optimized:
-                        Frequency  Cross_mag
-            Bending_1-2  1300.6785    0.123456
-            Bending_3-4  1400.5678    0.234567
-
-        Results for LS1717_optimized:
-                        Frequency  Cross_mag
-            Bending_1-2  1350.1234    0.345678
-            Bending_3-4  1450.2345    0.456789
-        """
-        bending_dict={}
+    def get_bend_vibration_dict(self, atom_pairs, threshold=1300):
+        bending_dict = {}
 
         for molecule in self.molecules:
-            try:
-                bending_dict[molecule.molecule_name]=molecule.get_bend_vibration(atom_pairs,threshold)
-            except Exception as e:
-                print(f'Error: could not calculate bend vibration for {molecule.molecule_name} : {e}')
-                #log_exception("get_bend_vibration_dict")
-                pass
+            molecule_results = []
+            
+            for pair in atom_pairs:
+                try:
+                    # Call a version that handles a SINGLE pair
+                    res = molecule.get_bend_vibration_single(pair, threshold)
+                    molecule_results.append(res)
+                except Exception as e:
+                    # Log that this specific pair failed, but keep going
+                    print(f"Skipping pair {pair} for {molecule.molecule_name}: {e}")
+                    continue
+            
+            # Only add to the dictionary if at least one pair succeeded
+            if molecule_results:
+                bending_dict[molecule.molecule_name] = pd.concat(molecule_results)
+
+        
         return dict_to_horizontal_df(bending_dict)
     
     def visualize_molecules(self,indices=None):
@@ -1959,7 +2069,7 @@ class Molecules():
                 log_exception("get_molecules_comp_set_app – polarizability/energy")
 
         # --- 5. Correlation analysis (optional visualization) ---
-        interactive_corr_heatmap_with_highlights(res_df)
+        # interactive_corr_heatmap_with_highlights(res_df)
         correlation_table = show_highly_correlated_pairs(res_df, corr_thresh=0.8)
 
         # --- 6. Post-processing diagnostics ---
@@ -1979,9 +2089,13 @@ class Molecules():
         numeric_df = res_df.select_dtypes(include=[np.number])
         duplicate_groups = []
         corr = numeric_df.corr().abs()
-        corr.values[np.tril_indices_from(corr)] = np.nan  # <-- fixed line
+
+        corr_arr = corr.to_numpy(copy=True)
+        corr_arr[np.tril_indices_from(corr_arr)] = np.nan
+        corr = pd.DataFrame(corr_arr, index=corr.index, columns=corr.columns)
+
         near_dupes = corr.stack()[corr.stack() > 0.999].index.tolist()
-        
+                
         if near_dupes:
             print(f"[!] Columns with nearly identical values (>0.999 correlation):")
             for (a, b) in near_dupes:
@@ -2014,6 +2128,7 @@ class Molecules():
         
         self.export_all_xyz()
         os.chdir('xyz_files')
+        from MolAlign.renumbering import batch_renumbering  # lazy import (requires torch)
         self.renumbering_list, target_idx = batch_renumbering(os.getcwd())
       
         # self.renumbering_list = [

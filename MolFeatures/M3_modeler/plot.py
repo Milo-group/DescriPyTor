@@ -32,6 +32,8 @@ from datetime import datetime
 import warnings
 warnings.filterwarnings("ignore", message="Glyph.*missing from font")
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import matplotlib 
+# matplotlib.rcParams["font.family"] = "Apotos"
 try:
     from .modeling import fit_and_evaluate_single_combination_regression , fit_and_evaluate_single_combination_classification
     from .modeling_utils import _normalize_combination_to_columns, check_linear_regression_assumptions
@@ -143,8 +145,32 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from adjustText import adjust_text
-import matplotlib.patheffects as pe  
+import matplotlib.patheffects as pe
 
+# ── Scatter-plot mode presets ─────────────────────────────────────────────────
+# "full"  – everything on (labels, metrics box, legend, equation footer)
+# "paper" – clean figure for publication: no labels, no annotation boxes
+_SCATTER_PRESETS = {
+    "full": {
+        "show_metrics": True,
+        "show_legend": True,
+        "show_equation": True,
+        "label_max": None,
+    },
+    "paper": {
+        "show_metrics": False,
+        "show_legend": False,
+        "show_equation": False,
+        "label_max": 0,
+        "show_identity_line": False,
+        "figsize": (5.5, 5.5),
+        "dpi": 300,
+        "fontsize": 12,
+        "marker_size": 55,
+        "marker_edgewidth": 0.8,
+        "fit_line_width": 1.6,
+    },
+}
 
 def generate_q2_scatter_plot(
     y,
@@ -156,11 +182,11 @@ def generate_q2_scatter_plot(
     r=None,
     lower_bound=None,
     upper_bound=None,
-    figsize=(6, 6),
-    width_scale=1.0,          # ← make it wider (e.g., 1.6)
-    height_scale=1.0,         # ← optional height scaling
-    equal_aspect=True,        # ← keep y=x at 45°; set False if you want a stretched plot
-    fontsize=6,
+    figsize=(4.6, 4.6),
+    width_scale=1.0,
+    height_scale=1.0,
+    equal_aspect=True,
+    fontsize=13,
     scatter_color="#0b0e0b",
     band_color="cadetblue",
     identity_color="#1f77b4",
@@ -168,40 +194,53 @@ def generate_q2_scatter_plot(
     dpi=300,
     plot=True,
     dir=None,
-    margin_frac=0.05,
-    # Categories / markers
+    margin_frac=0.10,
     ligand_types=None,
     type_markers=None,
     color_by_labels=False,
     show_type_legend=True,
-    # Compact + labeling
     compact=True,
     label_fraction=1.0,
     label_strategy="residual",
     random_state=42,
-    # Left-out support
     leftout_mask=None,
     leftout_pred_df=None,
     leftout_label_col="Molecule",
     leftout_meas_col="Actual",
     leftout_pred_col="Predicted",
     leftout_index_col=None,
-    # Left-out styling
     leftout_marker="X",
     leftout_size=50,
     leftout_edgecolor="k",
     leftout_facecolor=None,
-    leftout_alpha=0.95,
-    # --- new controls ---
-    marker_size=36,
-    marker_edgewidth=0.6,
-    label_max=12,
+    leftout_alpha=0.98,
+    marker_size=50,
+    marker_edgewidth=1.0,
+    label_max=0, ###
     label_min_abs_residual=None,
-    label_fontsize=6,
-    leftout_label_fontsize=6,
-    show_metrics=True,      # no metrics box when False
-    footer_y=0.10            # footer equation vertical position in figure coords
+    label_fontsize=13,
+    leftout_label_fontsize=13,
+    show_metrics=False,
+    show_legend=True,
+    show_equation=True,
+    mode="full",
+    plot_config=None,
+    footer_y=0.015,
+    auto_expand_figure=False,
+    max_adjust_iterations=500,
+    show_confidence_interval=False,
+    confidence_level=0.95,
+    confidence_alpha=0.22,
+    confidence_on="fit",
+    show_identity_line=False, ####
+    identity_lw=1.0,
+    fit_line_color="black",
+    fit_line_style="--",
+    fit_line_width=1.5,
+    save_name="q2_scatter_plot.png",
 ):
+    import os
+    import math
     import numpy as np
     import pandas as pd
     import seaborn as sns
@@ -209,23 +248,20 @@ def generate_q2_scatter_plot(
     import matplotlib.patheffects as pe
     from adjustText import adjust_text
     from matplotlib.lines import Line2D
-    print('Debugging print')
-    # ---------- helpers ----------
-    def _build_eqn(formula, coefficients, corr):
-        """
-        Build a readable regression equation for up to N coefficients.
-        Uses feature names from 'formula' instead of x1, x2.
-        Handles 1D, 2D, or multi-feature models.
-        """
-        import numpy as np
 
+    try:
+        from scipy.stats import t as student_t
+        has_scipy = True
+    except Exception:
+        has_scipy = False
+
+    def _build_eqn(formula, coefficients, corr):
         try:
             coeffs = np.asarray(coefficients, dtype=float).ravel()
             n = len(coeffs)
         except Exception:
             return f"R = {corr:.2f}"
 
-        # Normalize formula → list of feature names (if string, wrap in list)
         if isinstance(formula, str):
             features = [formula]
         else:
@@ -234,39 +270,105 @@ def generate_q2_scatter_plot(
             except Exception:
                 features = [f"x{i+1}" for i in range(n)]
 
-        # --- 1D (no intercept)
-        if n == 1:
-            return f"y = {coeffs[0]:.3g}·{features[0]}"
+        if n == 0:
+            return f"R = {corr:.2f}"
 
-        # --- 2D (slope + intercept)
-        elif n == 2:
+        if n == 1:
+            return rf"$\Delta\Delta G^{{\ddagger}}$ = {coeffs[0]:.3g}{features[0]}"
+
+        if n == 2:
             a, b = coeffs
             name = features[0] if len(features) >= 1 else "x"
-            return f"y = {a:.3g}·{name} + {b:.3g}"
+            sign = "+" if b >= 0 else "-"
+            return rf"$\Delta\Delta G^{{\ddagger}}$ = {a:.3g}{name} {sign} {abs(b):.3g}"
 
-        # --- Multi-feature (more than 2 terms)
+        feat_names = features[: n - 1] if len(features) >= n - 1 else [f"x{i+1}" for i in range(n - 1)]
+        terms = [f"{c:.3g}{f}" for c, f in zip(coeffs[:-1], feat_names)]
+        intercept = coeffs[-1]
+        sign = "+" if intercept >= 0 else "-"
+        eqn = " + ".join(terms) + f" {sign} {abs(intercept):.3g}"
+        return rf"$\Delta\Delta G^{{\ddagger}}$ = {eqn}"
+
+    def _t_crit(conf_level, dof):
+        alpha = 1.0 - conf_level
+        if dof <= 0:
+            return 1.96
+        if has_scipy:
+            return float(student_t.ppf(1.0 - alpha / 2.0, dof))
+        return 1.96
+
+    def _compute_fit_and_ci(x, y_obs, x_grid, slope, intercept, conf_level=0.95, mode="fit"):
+        x = np.asarray(x, dtype=float)
+        y_obs = np.asarray(y_obs, dtype=float)
+        x_grid = np.asarray(x_grid, dtype=float)
+
+        y_hat_obs = slope * x + intercept
+        resid = y_obs - y_hat_obs
+        n = len(x)
+
+        if n < 3:
+            y_fit = slope * x_grid + intercept
+            return y_fit, None, None
+
+        x_bar = np.mean(x)
+        sxx = np.sum((x - x_bar) ** 2)
+
+        if sxx <= 0:
+            y_fit = slope * x_grid + intercept
+            return y_fit, None, None
+
+        dof = n - 2
+        rss = np.sum(resid ** 2)
+        mse = rss / dof if dof > 0 else 0.0
+        s = np.sqrt(max(mse, 0.0))
+        tcrit = _t_crit(conf_level, dof)
+
+        y_fit = slope * x_grid + intercept
+        base = (1.0 / n) + ((x_grid - x_bar) ** 2) / sxx
+
+        mode = str(mode).lower()
+        if mode in {"prediction", "pred"}:
+            se = s * np.sqrt(1.0 + base)
         else:
-            # Align number of coefficients (excluding intercept) with features
-            feat_names = features[: n - 1] if len(features) >= n - 1 else [
-                f"x{i+1}" for i in range(n - 1)
-            ]
-            terms = [f"{c:.3g}·{f}" for c, f in zip(coeffs[:-1], feat_names)]
-            intercept = coeffs[-1]
-            eqn = " + ".join(terms) + f" + {intercept:.3g}"
-            return f"y = {eqn}"
+            se = s * np.sqrt(base)
+
+        lower = y_fit - tcrit * se
+        upper = y_fit + tcrit * se
+        return y_fit, lower, upper
+
     rng = np.random.default_rng(random_state)
+
+    # ── resolve mode presets, then overlay plot_config overrides ──────────────
+    _eff = dict(_SCATTER_PRESETS.get(mode, {}))
+    if plot_config:
+        _eff.update(plot_config)
+    show_metrics     = _eff.get("show_metrics",     show_metrics)
+    show_legend      = _eff.get("show_legend",      show_legend)
+    show_equation    = _eff.get("show_equation",    show_equation)
+    label_max        = _eff.get("label_max",        label_max)
+    show_type_legend = _eff.get("show_type_legend", show_type_legend)
+    show_confidence_interval = _eff.get("show_confidence_interval", show_confidence_interval)
+    show_identity_line       = _eff.get("show_identity_line",       show_identity_line)
+    # ─────────────────────────────────────────────────────────────────────────
 
     y = np.asarray(y).ravel().astype(float)
     y_pred = np.asarray(y_pred).ravel().astype(float)
     labels = np.asarray(labels).astype(str)
-    data = pd.DataFrame({"Measured": y, "Predicted": y_pred, "Labels": labels})
+
+    if not (len(y) == len(y_pred) == len(labels)):
+        raise ValueError("y, y_pred, and labels must have the same length.")
+
+    data = pd.DataFrame({
+        "Measured": y,
+        "Predicted": y_pred,
+        "Labels": labels
+    })
     data["Residual"] = data["Predicted"] - data["Measured"]
 
-    # Optional categorical styling
     if ligand_types is not None:
         ligand_types = np.asarray(ligand_types).astype(str)
         if len(ligand_types) != len(data):
-            raise ValueError("`ligand_types` must have the same length as y/y_pred.")
+            raise ValueError("ligand_types must have the same length as y and y_pred.")
         data["Type"] = ligand_types
         type_levels = pd.Categorical(data["Type"]).categories.tolist()
     else:
@@ -274,7 +376,7 @@ def generate_q2_scatter_plot(
 
     if ligand_types is not None:
         if type_markers is None:
-            default_cycle = ['o', 's', 'D', '^', 'v', 'P', 'X', '*', 'h', '<', '>']
+            default_cycle = ["o", "s", "D", "^", "v", "P", "X", "*", "h", "<", ">"]
             if len(type_levels) > len(default_cycle):
                 k = int(np.ceil(len(type_levels) / len(default_cycle)))
                 default_cycle = (default_cycle * k)[:len(type_levels)]
@@ -286,88 +388,177 @@ def generate_q2_scatter_plot(
 
     sns.set_theme(style="white", palette=palette)
 
-    # --- figure (NO constrained_layout) ---
-    fw, fh = figsize
-    fig, ax = plt.subplots(figsize=(fw * width_scale, fh * height_scale), dpi=dpi)
+    n_labels_total = len(data)
+    longest_label = max((len(str(x)) for x in labels), default=8)
 
-    # ---- scatter points ----
+    fw, fh = figsize
+    fw *= width_scale
+    fh *= height_scale
+
+    if auto_expand_figure:
+        fw += min(8.0, 0.12 * n_labels_total + 0.018 * longest_label * max(n_labels_total, 1))
+        fh += min(8.0, 0.10 * n_labels_total + 0.012 * longest_label * max(n_labels_total, 1))
+        fw = max(fw, 10.0)
+        fh = max(fh, 10.0)
+
+    fig, ax = plt.subplots(figsize=(fw, fh), dpi=dpi)
+
     scatter_kwargs = dict(
-        x="Measured", y="Predicted", s=marker_size,
-        edgecolor="w", linewidth=marker_edgewidth, zorder=3, ax=ax
+        x="Measured",
+        y="Predicted",
+        s=marker_size,
+        edgecolor="white",
+        linewidth=marker_edgewidth,
+        zorder=3,
+        ax=ax
     )
+
     if ligand_types is not None and color_by_labels:
-        sns.scatterplot(data=data, hue="Type", style="Type",
-                        markers=type_markers, palette=palette, **scatter_kwargs)
+        sns.scatterplot(
+            data=data,
+            hue="Type",
+            style="Type",
+            markers=type_markers,
+            palette=palette,
+            **scatter_kwargs
+        )
         show_type_legend = True
     else:
-        sns.scatterplot(data=data, color=scatter_color, legend=False, **scatter_kwargs)
+        sns.scatterplot(
+            data=data,
+            color=scatter_color,
+            legend=False,
+            **scatter_kwargs
+        )
         show_type_legend = False
 
-    # ---- optional explicit regression line from coefficients ----
-    if coefficients is not None and len(coefficients) == 2:
-        a, b = coefficients
-        xx = np.linspace(np.nanmin(data["Measured"]), np.nanmax(data["Measured"]), 200)
-        ax.plot(xx, a * xx + b, color="black", lw=1.2, zorder=2)
-
-    # ---- external/left-out overlay ----
+    lo_df = None
     texts_lo_all = []
+
     if leftout_pred_df is not None and len(leftout_pred_df):
         lo_df = leftout_pred_df.copy()
         y_meas = pd.to_numeric(lo_df.get(leftout_meas_col, lo_df.get("Measured")), errors="coerce")
-        y_pr   = pd.to_numeric(lo_df.get(leftout_pred_col, lo_df.get("Predicted")), errors="coerce")
+        y_pr = pd.to_numeric(lo_df.get(leftout_pred_col, lo_df.get("Predicted")), errors="coerce")
         lo_df = lo_df.assign(Measured=y_meas, Predicted=y_pr).dropna(subset=["Measured", "Predicted"])
-        ax.scatter(lo_df["Measured"], lo_df["Predicted"],
-                   marker=leftout_marker, s=leftout_size,
-                   facecolors=leftout_facecolor or "blue",
-                   edgecolors=leftout_edgecolor, linewidths=0.8,
-                   alpha=leftout_alpha, zorder=4, label="External Validation")
-        for _, row in lo_df.iterrows():
-            t = ax.text(row["Measured"], row["Predicted"], str(row.get(leftout_label_col, "")),
-                        fontsize=leftout_label_fontsize, ha="center", va="bottom", color="blue",
-                        path_effects=[pe.withStroke(linewidth=1.5, foreground="white")])
-            texts_lo_all.append(t)
 
-    # ---- correlation + equation string (footer) ----
+        ax.scatter(
+            lo_df["Measured"],
+            lo_df["Predicted"],
+            marker=leftout_marker,
+            s=leftout_size,
+            facecolors=leftout_facecolor or "blue",
+            edgecolors=leftout_edgecolor,
+            linewidths=1.2,
+            alpha=leftout_alpha,
+            zorder=5,
+            label="External Validation"
+        )
+
     try:
         corr = float(r) if r is not None else float(np.corrcoef(y, y_pred)[0, 1])
     except Exception:
         corr = np.nan
+
     eqn = _build_eqn(formula, coefficients, corr)
 
-    # ---- identity line + symmetric padded limits ----
-    lo = float(np.nanmin([y.min(), y_pred.min()]))
-    hi = float(np.nanmax([y.max(), y_pred.max()]))
+    lo = float(np.nanmin([np.nanmin(y), np.nanmin(y_pred)]))
+    hi = float(np.nanmax([np.nanmax(y), np.nanmax(y_pred)]))
+
+    if lo_df is not None and not lo_df.empty:
+        lo = min(lo, float(np.nanmin(lo_df[["Measured", "Predicted"]].to_numpy())))
+        hi = max(hi, float(np.nanmax(lo_df[["Measured", "Predicted"]].to_numpy())))
+
     if lower_bound is not None:
         lo = min(lo, float(lower_bound))
     if upper_bound is not None:
         hi = max(hi, float(upper_bound))
+
     span = hi - lo
     pad = margin_frac * span if span > 0 else 1.0
     lo_p, hi_p = lo - pad, hi + pad
 
-    # Keep the limits logic you computed:
-    ax.set_xlim(lo_p, hi_p)
-    ax.set_ylim(lo_p, hi_p)
+    xmin = np.floor(lo_p * 2) / 2
+    xmax = np.ceil(hi_p * 2) / 2
 
-    # ---- draw a fitted line through the data instead of y=x ----
-    # Prefer passed-in coefficients if available, else compute from data
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(xmin, xmax)
+
+    # identical ticks
+    ticks = np.arange(xmin, xmax + 0.001, 0.5)
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+
+    # identical formatting (same digits)
+    from matplotlib.ticker import FormatStrFormatter
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+
+    if equal_aspect:
+        ax.set_aspect("equal", adjustable="box")
+
+    coeffs_flat = None
     try:
-        if (coefficients is not None) and (len(coefficients) == 2):
-            a, b = float(coefficients[0]), float(coefficients[1])   # slope, intercept
-        else:
-            # robust simple linear fit: Predicted = a*Measured + b
-            a, b = np.polyfit(y, y_pred, 1)
+        if coefficients is not None:
+            coeffs_flat = np.asarray(coefficients, dtype=float).ravel()
     except Exception:
-        a, b = np.polyfit(y, y_pred, 1)
+        coeffs_flat = None
 
-    # draw fit line across the visible x-range
-    xx = np.linspace(*ax.get_xlim(), 200)
-    yy = a*xx + b
-    ax.plot(xx, yy, color="black", lw=1.3, linestyle="--", zorder=2)
-    # ---- label selection & placement ----
+    try:
+        if coeffs_flat is not None and len(coeffs_flat) == 2:
+            slope, intercept = float(coeffs_flat[0]), float(coeffs_flat[1])
+        else:
+            slope, intercept = np.polyfit(y, y_pred, 1)
+    except Exception:
+        slope, intercept = np.polyfit(y, y_pred, 1)
+
+    if show_identity_line:
+        xx_id = np.linspace(*ax.get_xlim(), 200)
+        ax.plot(
+            xx_id,
+            xx_id,
+            color=identity_color,
+            lw=identity_lw,
+            linestyle="-",
+            alpha=0.8,
+            zorder=1
+        )
+
+    xx = np.linspace(*ax.get_xlim(), 300)
+
+    if show_confidence_interval:
+        ci_mode = "fit" if str(confidence_on).lower() not in {"prediction", "pred"} else "prediction"
+        yy_fit, yy_lo, yy_hi = _compute_fit_and_ci(
+            x=y,
+            y_obs=y_pred,
+            x_grid=xx,
+            slope=slope,
+            intercept=intercept,
+            conf_level=confidence_level,
+            mode=ci_mode,
+        )
+        if yy_lo is not None and yy_hi is not None:
+            ax.fill_between(
+                xx,
+                yy_lo,
+                yy_hi,
+                color=band_color,
+                alpha=confidence_alpha,
+                zorder=1.5,
+                linewidth=0
+            )
+    else:
+        yy_fit = slope * xx + intercept
+
+    ax.plot(
+        xx,
+        yy_fit,
+        color=fit_line_color,
+        lw=fit_line_width,
+        linestyle=fit_line_style,
+        zorder=2
+    )
+
     n_total = len(data)
-    n_default = max(1, int(np.ceil(label_fraction * n_total)))
-    n_to_label = min(label_max if label_max is not None else n_default, n_total)
 
     if label_strategy == "residual":
         order = np.argsort(np.abs(data["Residual"].values))[::-1]
@@ -377,94 +568,259 @@ def generate_q2_scatter_plot(
     if label_min_abs_residual is not None:
         order = [i for i in order if abs(data["Residual"].iat[i]) >= label_min_abs_residual]
 
-    idx = np.array(order, dtype=int)
+    if label_max is None:
+        idx = np.array(order, dtype=int)
+    else:
+        n_default = max(1, int(np.ceil(label_fraction * n_total)))
+        n_to_label = min(label_max if label_max is not None else n_default, n_total)
+        idx = np.array(order[:n_to_label], dtype=int)
+
+    if label_max is None and label_fraction >= 1.0:
+        idx = np.arange(n_total, dtype=int)
 
     texts = []
-    for _, row in data.iloc[idx].iterrows():
-        x, y_ = row["Measured"], row["Predicted"]
-        if (lo_p <= x <= hi_p) and (lo_p <= y_ <= hi_p):
+    initial_dx = 0.03  * (hi_p - lo_p)
+    initial_dy = 0.03  * (hi_p - lo_p)
+
+    for k, (_, row) in enumerate(data.iloc[idx].iterrows()):
+        x0 = float(row["Measured"])
+        y0 = float(row["Predicted"])
+
+        angle = 2.0 * math.pi * (k / max(len(idx), 1))
+        x_text = x0 + 1.3 * initial_dx * math.cos(angle)
+        y_text = y0 + 1.3 * initial_dy * math.sin(angle)
+
+        t = ax.text(
+            x_text,
+            y_text,
+            str(row["Labels"]),
+            fontsize=label_fontsize,
+            ha="center",
+            va="center",
+            color="black",
+            fontweight="normal",
+            clip_on=False,
+            zorder=6,
+            path_effects=[
+                pe.withStroke(linewidth=2.8, foreground="white", alpha=1.0)
+            ]
+        )
+        texts.append(t)
+
+    if lo_df is not None and not lo_df.empty:
+        for k, (_, row) in enumerate(lo_df.iterrows()):
+            x0 = float(row["Measured"])
+            y0 = float(row["Predicted"])
+
+            angle = 2.0 * math.pi * (k / max(len(lo_df), 1))
+            x_text = x0 + 1.2 * initial_dx * math.cos(angle)
+            y_text = y0 + 1.2 * initial_dy * math.sin(angle)
+
+            if label_max == 0 :
+                break
+
             t = ax.text(
-                x, y_, row["Labels"],
-                fontsize=label_fontsize,
-                ha="center", va="bottom", color="black",
-                clip_on=True,
-                path_effects=[pe.withStroke(linewidth=1.2, foreground="white", alpha=0.95)]
+                x_text,
+                y_text,
+                str(row.get(leftout_label_col, "")),
+                fontsize=leftout_label_fontsize,
+                ha="center",
+                va="center",
+                color="blue",
+                fontweight="normal",
+                clip_on=False,
+                zorder=7,
+                path_effects=[
+                    pe.withStroke(linewidth=2.8, foreground="white", alpha=1.0)
+                ]
             )
-            texts.append(t)
+            texts_lo_all.append(t)
+
+    all_x = data["Measured"].to_numpy()
+    all_y = data["Predicted"].to_numpy()
+    if lo_df is not None and not lo_df.empty:
+        all_x = np.concatenate([all_x, lo_df["Measured"].to_numpy()])
+        all_y = np.concatenate([all_y, lo_df["Predicted"].to_numpy()])
 
     try:
         adjust_text(
             texts + texts_lo_all,
-            x=data["Measured"].values, y=data["Predicted"].values, ax=ax,
-            arrowprops=dict(arrowstyle='-', color='gray', lw=0.2, alpha=0.6),
-            expand_text=(1.05, 1.05),
-            expand_points=(1.05, 1.05),
-            force_text=(0.6, 0.8),
-            lim=300
+            x=all_x,
+            y=all_y,
+            ax=ax,
+            expand_text=(1.25, 1.35),
+            expand_points=(1.15, 1.25),
+            force_text=(1.2, 1.5),
+            force_points=(0.8, 1.0),
+            force_pull=(0.08, 0.10),
+            only_move={"points": "y", "text": "xy"},
+            arrowprops=dict(
+                arrowstyle="-",
+                color="gray",
+                lw=0.5,
+                alpha=0.7
+            ),
+            ensure_inside_axes=False,
+            expand_axes=True,
+            lim=max_adjust_iterations
         )
     except Exception:
         pass
 
-    # ---- cosmetics ----
-    ax.set_xlabel("Measured", fontsize=fontsize)
-    ax.set_ylabel("Predicted", fontsize=fontsize)
-    ax.set_title("Predicted vs Measured", fontsize=fontsize + 1)
+    ax.margins(x=0.18, y=0.18)
+
+    ax.set_xlabel(
+    r"Measured $\Delta\Delta G^{\ddagger}$",
+    fontsize=fontsize + 1,
+    fontweight="normal"
+    )
+
+    ax.set_ylabel(
+        r"Predicted $\Delta\Delta G^{\ddagger}$",
+        fontsize=fontsize + 1,
+        fontweight="normal"
+    )
+    # ax.set_title("Predicted vs Measured", fontsize=fontsize + 3, fontweight="normal")
+
     if compact:
         for s in ("top", "right"):
             ax.spines[s].set_visible(False)
-        ax.tick_params(axis="both", which="both", length=3, width=0.8,
-                       labelsize=max(6, fontsize - 2))
-
-    # ---- lean legend ----
-    handles = [Line2D([0], [0], marker="o", color="w",
-                      markerfacecolor=scatter_color, markeredgecolor="w",
-                      markeredgewidth=marker_edgewidth, markersize=np.sqrt(marker_size),
-                      label="Training Set")]
-    labels_ = ["Training Set"]
-    if leftout_pred_df is not None and len(leftout_pred_df):
-        handles.append(Line2D([0], [0], marker=leftout_marker, color="w",
-                              markerfacecolor=leftout_facecolor or "blue",
-                              markeredgecolor=leftout_edgecolor, markeredgewidth=0.8,
-                              markersize=np.sqrt(leftout_size), label="External Validation"))
-        labels_.append("External Validation")
-    ax.legend(handles, labels_, loc="lower right", frameon=True,
-              fontsize=max(6, fontsize - 1), markerscale=0.9, handlelength=1.0,
-              handletextpad=0.3, borderpad=0.3, labelspacing=0.25)
-
-    # ---- optional metrics box inside axes ----
-    if show_metrics:
-        if folds_df is not None and not folds_df.empty:
-            q = folds_df.iloc[0]
-            q_txt = (
-                rf"$R^2 = {corr:.2f}$"
-                f"\n3-fold Q²: {q.get('Q2_3_Fold', np.nan):.2f}"
-                f"\n5-fold Q²: {q.get('Q2_5_Fold', np.nan):.2f}"
-                f"\nLOOCV Q²: {q.get('Q2_LOOCV', np.nan):.2f}"
-            )
-        # else:
-        #     q_txt = rf"$R^2 = {corr:.2f}$"
-        ax.text(
-            0.02, 0.98, q_txt,
-            transform=ax.transAxes,
-            fontsize=fontsize,
-            va="top", ha="left",
-            bbox=dict(facecolor="white", alpha=0.9, boxstyle="round,pad=0.25"),
-            zorder=4,
+        ax.tick_params(
+            axis="both",
+            which="both",
+            length=4,
+            width=1.0,
+            labelsize=max(9, fontsize - 1)
         )
 
-    # ---- footer equation OUTSIDE axes (prevents squeezing) ----
-    fig.subplots_adjust(left=0.12, right=0.95, bottom=max(0.18, footer_y + 0.06), top=0.95)
-    fig.text(0.5, footer_y, eqn, ha="center", va="center",
-             fontsize=max(5, fontsize - 1),
-             bbox=dict(facecolor="white", alpha=0.9, boxstyle="round,pad=0.25"))
+    handles = [
+        Line2D(
+            [0], [0],
+            marker="o",
+            color="w",
+            markerfacecolor=scatter_color,
+            markeredgecolor="w",
+            markeredgewidth=marker_edgewidth,
+            markersize=np.sqrt(marker_size),
+            label="Training Set"
+        )
+    ]
+    labels_legend = ["Training Set"]
+
+    if leftout_pred_df is not None and len(leftout_pred_df):
+        handles.append(
+            Line2D(
+                [0], [0],
+                marker=leftout_marker,
+                color="w",
+                markerfacecolor=leftout_facecolor or "blue",
+                markeredgecolor=leftout_edgecolor,
+                markeredgewidth=1.0,
+                markersize=np.sqrt(leftout_size),
+                label="External Validation"
+            )
+        )
+        labels_legend.append("External Validation")
+
+    if show_confidence_interval:
+        ci_text = f"{int(round(confidence_level * 100))}% CI"
+        if str(confidence_on).lower() in {"prediction", "pred"}:
+            ci_text = f"{int(round(confidence_level * 100))}% Prediction Interval"
+
+        handles.append(
+            Line2D(
+                [0], [0],
+                color=band_color,
+                lw=8,
+                alpha=confidence_alpha,
+                label=ci_text
+            )
+        )
+        if show_metrics is not False:
+            labels_legend.append(ci_text)
+
+    if show_legend:
+        ax.legend(
+            handles,
+            labels_legend,
+            loc="lower right",
+            frameon=True,
+            facecolor="white",
+            edgecolor="black",
+            framealpha=0.95,
+            fontsize=max(9, fontsize),
+            markerscale=1.0,
+            handlelength=1.3,
+            handletextpad=0.6,
+            borderpad=0.5,
+            labelspacing=0.35
+        )
+    else:
+        ax.legend_ = None
+
+    if show_metrics:
+        if folds_df is not None and not getattr(folds_df, "empty", True):
+            q = folds_df.iloc[0]
+            q_txt = (
+            f"R$^2$ = {corr:.2f}"
+            f"\n3-fold Q$^2$: {q.get('Q2_3_Fold', np.nan):.2f}"
+            f"\n5-fold Q$^2$: {q.get('Q2_5_Fold', np.nan):.2f}"
+            f"\nLOOCV Q$^2$: {q.get('Q2_LOOCV', np.nan):.2f}"
+        )
+        else:
+            q_txt = f"R$^2$ = {corr:.2f}"
+
+        ax.text(
+            0.02,
+            0.98,
+            q_txt,
+            transform=ax.transAxes,
+            fontsize=fontsize,
+            fontweight="normal",
+            va="top",
+            ha="left",
+            bbox=dict(
+                facecolor="white",
+                edgecolor="black",
+                alpha=0.97,
+                boxstyle="round,pad=0.35"
+            ),
+            zorder=8
+        )
+
+    fig.subplots_adjust(
+        left=0.12,
+        right=0.96,
+        bottom=max(0.2, footer_y + 0.07),
+        top=0.93
+    )
+
+    if show_equation:
+        fig.text(
+            0.5,
+            footer_y,
+            eqn,
+            ha="center",
+            va="center",
+            fontsize=max(9, fontsize - 1),
+            fontweight="normal",
+            bbox=dict(
+                facecolor="white",
+                edgecolor="black",
+                alpha=0.97,
+                boxstyle="round,pad=0.35"
+            )
+        )
+
+    if dir is not None:
+        os.makedirs(dir, exist_ok=True)
+        outpath = os.path.join(dir, save_name)
+        fig.savefig(outpath, dpi=dpi, bbox_inches="tight")
 
     if plot:
         plt.show()
 
     return fig, ax
-
-
-
 
 
 
@@ -792,7 +1148,7 @@ from matplotlib.gridspec import GridSpec
 def _nice_table(ax, df, title=None, fontsize=9):
     ax.axis('off')
     if title:
-        ax.set_title(title, pad=8, fontsize=11, fontweight='bold')
+        ax.set_title(title, pad=8, fontsize=11, fontweight='normal')
     tbl = ax.table(cellText=df.values, colLabels=df.columns, loc='center', cellLoc='center')
     tbl.auto_set_font_size(False)
     tbl.set_fontsize(fontsize)
@@ -801,7 +1157,7 @@ def _nice_table(ax, df, title=None, fontsize=9):
     for (row, col), cell in tbl.get_celld().items():
         # header row
         if row == 0:
-            cell.set_text_props(weight='bold')
+            cell.set_text_props(weight='normal')
             cell.set_height(0.08)
         else:
             cell.set_height(0.06)
@@ -812,7 +1168,7 @@ def _nice_table(ax, df, title=None, fontsize=9):
     ax.set_xlim(0, 1); ax.set_ylim(0, 1)
 
 def _page_header(fig, subtitle):
-    fig.suptitle(subtitle, y=0.98, fontsize=13, fontweight='bold')
+    fig.suptitle(subtitle, y=0.98, fontsize=13, fontweight='normal')
     
 
 def _normalize_combination_to_columns(combination) -> list[str]:
@@ -890,7 +1246,7 @@ def _safe_table(
     show_index: bool = False,
     zebra: bool = True,
     header_facecolor: str = "#ECECEC",
-    header_text_weight: str = "bold",
+    header_text_weight: str = "normal",
     header_text_align: str = "center",
     # NEW: sizing strategy
     auto_resize_figure: bool = True,
@@ -904,7 +1260,7 @@ def _safe_table(
     1) limit rows/cols, 2) wrap text, 3) grow figure up to max_figsize,
     4) only then shrink font/scale a bit. Falls back to monospace if still too big.
     """
-    ax.set_title(title, fontsize=12, fontweight="bold", pad=8)
+    ax.set_title(title, fontsize=12, fontweight="normal", pad=8)
     ax.axis("off")
 
     # ---- Early exits
@@ -1134,7 +1490,7 @@ def _save_top5_pdf_regression(results: pd.DataFrame, model, pdf_path: str = "top
         try:
             _page_header(fig, f"Top {len(top_idx)} Models (ranked by R²)")
         except Exception:
-            fig.suptitle(f"Top {len(top_idx)} Models (ranked by R²)", y=0.98, fontsize=16, fontweight="bold")
+            fig.suptitle(f"Top {len(top_idx)} Models (ranked by R²)", y=0.98, fontsize=16, fontweight="normal")
 
         gs = GridSpec(1, 1, figure=fig)
         ax = fig.add_subplot(gs[0, 0])
@@ -1199,7 +1555,7 @@ def _save_top5_pdf_regression(results: pd.DataFrame, model, pdf_path: str = "top
             try:
                 _page_header(fig1, f"{title}\n{formula_str}")
             except Exception:
-                fig1.suptitle(f"{title}\n{formula_str}", y=0.98, fontsize=14, fontweight="bold")
+                fig1.suptitle(f"{title}\n{formula_str}", y=0.98, fontsize=14, fontweight="normal")
 
             # Adapt the height ratios to give more space to long coefficient tables
             coef_rows = 0 if coef_df is None else getattr(coef_df, "shape", (0, 0))[0]
@@ -1252,7 +1608,7 @@ def _save_top5_pdf_regression(results: pd.DataFrame, model, pdf_path: str = "top
             _render_cell_table(ax_cv,   folds_df.round(3), "Cross-validation metrics")
             # Meta box
             ax_meta = fig1.add_subplot(gs[1, 2]); ax_meta.axis("off")
-            ax_meta.set_title("Model Summary", pad=8, fontsize=11, fontweight="bold")
+            ax_meta.set_title("Model Summary", pad=8, fontsize=11, fontweight="normal")
             meta_txt = [
                 f"Formula: {formula_str}",
                 f"Train R²: {r2_val:.3f}",
@@ -1293,7 +1649,7 @@ def _save_top5_pdf_regression(results: pd.DataFrame, model, pdf_path: str = "top
                 try:
                     _page_header(fig_fallback, "Q² scatter")
                 except Exception:
-                    fig_fallback.suptitle("Q² scatter", y=0.98, fontsize=14, fontweight="bold")
+                    fig_fallback.suptitle("Q² scatter", y=0.98, fontsize=14, fontweight="normal")
                 ax = fig_fallback.add_subplot(111); ax.axis("off")
                 ax.text(0.5, 0.5, "Q² scatter plot unavailable.", ha="center", va="center", fontsize=11, alpha=0.7)
                 page_counter += 1
@@ -1338,6 +1694,7 @@ def print_models_regression_table(results, app=None ,model=None):
    
     formulas=results['combination'].values
     r_squared=results['r2'].values
+    adj_r_squared=results['adj_r2'].values if 'adj_r2' in results.columns else [float('nan')] * len(results)
     q_squared=results['q2'].values
     mae=results['mae'].values
     model_ids=[i for i in range(len(results))]
@@ -1347,6 +1704,7 @@ def print_models_regression_table(results, app=None ,model=None):
     df = pd.DataFrame({
         'formula': formulas,
         'R.sq': r_squared,
+        'adj R.sq': adj_r_squared,
         'Q.sq': q_squared,
         'MAE': mae,
         'Model_id': model_ids
@@ -1422,13 +1780,26 @@ def print_models_regression_table(results, app=None ,model=None):
         Q2_5, MAE_5, rmsd_5 = model.calculate_q2_and_mae(X, y, n_splits=5)
         ## LOOCV
         Q2_loo, MAE_loo , rmsd_loo = model.calculate_q2_and_mae(X, y, n_splits=1)
-        
+
+        # In-sample stats
+        from sklearn.metrics import mean_absolute_error as _mae_fn, r2_score as _r2_fn
+        r2_train     = float(_r2_fn(y, pred))
+        adj_r2_train = _calc_adj_r2(r2_train, len(y), len(features))
+        mae_train  = float(_mae_fn(y, pred))
+        in_sample_df = pd.DataFrame({
+            'R²': [r2_train], 'adj R²': [adj_r2_train], 'MAE': [mae_train]
+        })
+
         if app:
             app.show_result(f'\n\n Model Picked: {selected_model}_{formulas[selected_model]}\n')
+            app.show_result("\nIn-sample\n")
+            app.show_result(in_sample_df.to_markdown(tablefmt="pipe", index=False))
             app.show_result(pd.DataFrame({'Q2_3_Fold': [Q2_3], 'MAE': [MAE_3], 'RMSD':[rmsd_3]}).to_markdown(tablefmt="pipe", index=False))
             app.show_result(pd.DataFrame({'Q2_5_Fold':[Q2_5], 'MAE': [MAE_5], 'RMSD':[rmsd_5]}).to_markdown(tablefmt="pipe", index=False))
             app.show_result(pd.DataFrame({'Q2_LOOCV':[Q2_loo], 'MAE': [MAE_loo], 'RMSD':[rmsd_loo]}).to_markdown(tablefmt="pipe", index=False))
         else:
+            print("\nIn-sample\n")
+            print(in_sample_df.to_markdown(tablefmt="pipe", index=False))
             print("\n3-fold CV\n")
             print(pd.DataFrame({'Q2_3_Fold': [Q2_3], 'MAE': [MAE_3]}).to_markdown(tablefmt="pipe", index=False))
             print("\n5-fold CV\n")
@@ -1711,7 +2082,7 @@ def draw_table_on_ax(ax, df, title, max_rows=12, fontsize=8, round_digits=None):
         if cell:
             cell.set_facecolor("#E8EEF6")
             cell.set_edgecolor("#CCCCCC")
-            cell.set_text_props(weight="bold")
+            cell.set_text_props(weight="normal")
     # Zebra stripes
     for r in range(1, max_row+1):
         color = "#F8F9FB" if (r % 2 == 0) else "white"
@@ -1767,9 +2138,25 @@ def save_current_fig_both(pdf: PdfPages, outdir: str, stem: str, dpi: int = 300)
 
 
 def _extract_Xy(model, features):
+    """
+    Extract X and y for the CV set only.
+    leave_out_samples() already trims features_df/target_vector in-place,
+    but this guard makes the function safe even if called before that step.
+    """
     X = model.features_df[features].to_numpy()
     y = model.target_vector.to_numpy()
+
+    # Safety net: if held-out names are somehow still present, drop them
+    if (hasattr(model, 'molecule_names_predict')
+            and model.molecule_names_predict
+            and hasattr(model, 'molecule_names')):
+        lo = set(model.molecule_names_predict)
+        keep = np.array([n not in lo for n in model.molecule_names], dtype=bool)
+        if keep.sum() < len(y):          # only act if something actually needs dropping
+            X, y = X[keep], y[keep]
+
     return X, y
+
 
 def _fit_and_predict(model, features):
     result = fit_and_evaluate_single_combination_regression(model, features)
@@ -1874,6 +2261,13 @@ def _compute_vif(model, features):
     except Exception:
         return pd.DataFrame()
 
+def _calc_adj_r2(r2: float, n: int, p: int) -> float:
+    denom = n - p - 1
+    if denom <= 0:
+        return float("nan")
+    return float(1.0 - (1.0 - r2) * (n - 1) / denom)
+
+
 def _in_sample_stats(y, pred):
     from sklearn.metrics import mean_absolute_error
     r2_in = float(np.corrcoef(y, pred)[0, 1]**2)
@@ -1894,13 +2288,19 @@ def _coeffs_and_intervals(model, X, features):
 # ----------------------------- paths & pdf -----------------------------------
 
 def _prepare_paths(model, features, pdf_name=None):
-    figs_dir = getattr(getattr(model, "paths", None), "figs", ".")
-    os.makedirs(figs_dir, exist_ok=True)
-
     feat_slug = _slugify("_".join(features)) or "model"
-    base_name = f"report_{feat_slug}"
-    pdf_path = os.path.join(figs_dir, f"{base_name}.pdf")
-    
+    if pdf_name:
+        pdf_path = os.path.abspath(os.fspath(pdf_name))
+        if not pdf_path.lower().endswith(".pdf"):
+            pdf_path = f"{pdf_path}.pdf"
+        figs_dir = os.path.dirname(pdf_path) or "."
+        base_name = _slugify(os.path.splitext(os.path.basename(pdf_path))[0]) or f"report_{feat_slug}"
+    else:
+        figs_dir = getattr(getattr(model, "paths", None), "figs", ".")
+        base_name = f"report_{feat_slug}"
+        pdf_path = os.path.join(figs_dir, f"{base_name}.pdf")
+
+    os.makedirs(figs_dir, exist_ok=True)
     png_dir = os.path.join(figs_dir, base_name)
     try:
         os.makedirs(png_dir, exist_ok=True)
@@ -1912,94 +2312,348 @@ def _prepare_paths(model, features, pdf_name=None):
         model.paths.png_dir = png_dir
     return figs_dir, base_name, pdf_path, png_dir
 
-# ----------------------------- page builders ---------------------------------
 
-def _add_summary_page(pdf, png_dir, base_name, folds_df, vif_df, coef_df, leftout_pred_df):
-    fig = plt.figure(figsize=(11.0, 8.5))
-    gs = fig.add_gridspec(nrows=3, ncols=3, height_ratios=[1.0, 1.0, 0.8], hspace=0.6, wspace=0.4)
+def _save_report_tables(outdir, base_name, **tables):
+    """Save report DataFrames as individual CSV files beside the report PNGs."""
+    os.makedirs(outdir, exist_ok=True)
+    saved = {}
+    for label, df in tables.items():
+        if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+            continue
+        table_path = _shorten_if_needed(outdir, f"{base_name}__table_{_slugify(label)}", ".csv")
+        try:
+            df.to_csv(table_path, index=False)
+            saved[label] = table_path
+        except Exception as e:
+            print(f"[table:{label}] {e}")
+    return saved
 
-    # Row 0: CV metrics
-    ax_cv3 = fig.add_subplot(gs[0, 0])
-    draw_table_on_ax(ax_cv3, folds_df[["Q2_3_Fold", "MAE_3", "RMSD_3"]], "3-fold CV Metrics", max_rows=12, round_digits=3)
+# ─────────────────────────────────────────────────────────────────────────────
+# Page builders
+# ─────────────────────────────────────────────────────────────────────────────
 
-    ax_cv5 = fig.add_subplot(gs[0, 1])
-    draw_table_on_ax(ax_cv5, folds_df[["Q2_5_Fold", "MAE_5", "RMSD_5"]], "5-fold CV Metrics", max_rows=12, round_digits=3)
+def _build_scatter_metrics_fig(y, pred, names, folds_df, features, coef_df,
+                               r2_in, mae_in, r2_leftout, mae_leftout,
+                               lig_types=None, leftout_pred_df=None,
+                               scatter_mode="full", scatter_config=None):
+    """
+    Build and return the scatter + metrics/coefficient figure (caller owns closing).
+    """
+    _figsize = (scatter_config or {}).get("figsize", (14, 7))
+    fig = plt.figure(figsize=_figsize)
+    gs  = fig.add_gridspec(nrows=2, ncols=2,
+                           width_ratios=[1.35, 1.0],
+                           height_ratios=[1.0, 0.55],
+                           hspace=0.45, wspace=0.35)
 
-    ax_loo = fig.add_subplot(gs[0, 2])
-    draw_table_on_ax(ax_loo, folds_df[["Q2_LOOCV", "MAE_LOOCV", "RMSD_LOOCV"]], "LOOCV Metrics", max_rows=12, round_digits=3)
+    ax_scatter = fig.add_subplot(gs[:, 0])
+    _draw_scatter_on_ax(ax_scatter, y, pred, names, folds_df, features, coef_df,
+                        lig_types, leftout_pred_df, scatter_mode, scatter_config)
 
-    # Row 1: VIF + Coef
-    ax_vif = fig.add_subplot(gs[1, 0:2])
-    vif_for_pdf = vif_df.copy()
-    if not vif_for_pdf.empty and "VIF" in vif_for_pdf.columns:
-        vif_for_pdf = vif_for_pdf.sort_values("VIF", ascending=False)
-    draw_table_on_ax(ax_vif, vif_for_pdf, "Variance Inflation Factors", max_rows=12, round_digits=2)
+    ax_metrics = fig.add_subplot(gs[0, 1])
+    q = folds_df.iloc[0] if folds_df is not None and not folds_df.empty else {}
+    n, p      = len(y), len(features)
+    adj_r2_in = _calc_adj_r2(r2_in, n, p)
+    metrics_rows = [
+        ["R² (train)",      f"{r2_in:.4f}"],
+        ["adj R² (train)",  f"{adj_r2_in:.4f}"],
+        ["MAE (train)",     f"{mae_in:.4f}"],
+        ["Q² 3-fold",   f"{q.get('Q2_3_Fold', float('nan')):.4f}"],
+        ["MAE 3-fold",  f"{q.get('MAE_3',    float('nan')):.4f}"],
+        ["Q² 5-fold",   f"{q.get('Q2_5_Fold', float('nan')):.4f}"],
+        ["MAE 5-fold",  f"{q.get('MAE_5',    float('nan')):.4f}"],
+        ["Q² LOOCV",    f"{q.get('Q2_LOOCV', float('nan')):.4f}"],
+        ["MAE LOOCV",   f"{q.get('MAE_LOOCV',float('nan')):.4f}"],
+    ]
+    if r2_leftout is not None:
+        n_lo      = len(leftout_pred_df) if leftout_pred_df is not None and len(leftout_pred_df) else n
+        adj_r2_lo = _calc_adj_r2(r2_leftout, n_lo, p)
+        metrics_rows += [
+            ["R² (ext. val.)",      f"{r2_leftout:.4f}"],
+            ["adj R² (ext. val.)",  f"{adj_r2_lo:.4f}"],
+            ["MAE (ext. val.)",     f"{mae_leftout:.4f}"],
+        ]
+    metrics_df = pd.DataFrame(metrics_rows, columns=["Metric", "Value"])
+    draw_table_on_ax(ax_metrics, metrics_df, "Model Metrics", max_rows=15, round_digits=None)
 
-    ax_coef = fig.add_subplot(gs[1, 2])
-    coef_for_pdf = coef_df.copy()
-    preferred = [c for c in ["Estimate", "Std. Error", "t value", "Pr(>|t|)", "p-value"] if c in coef_for_pdf.columns]
+    ax_coef = fig.add_subplot(gs[1, 1])
+    coef_show = coef_df.copy()
+    preferred = [c for c in ["Estimate", "Std. Error", "t value", "Pr(>|t|)", "p-value"]
+                 if c in coef_show.columns]
     if preferred:
-        rest = [c for c in coef_for_pdf.columns if c not in preferred]
-        coef_for_pdf = coef_for_pdf[preferred + rest]
-    draw_table_on_ax(ax_coef, coef_for_pdf, "Coefficient Estimates", max_rows=12, round_digits=3)
+        coef_show = coef_show[preferred + [c for c in coef_show.columns if c not in preferred]]
+    draw_table_on_ax(ax_coef, coef_show, "Coefficient Estimates", max_rows=10, round_digits=3)
 
-    # Row 2: Leftout table
-    ax_leftout = fig.add_subplot(gs[2, :])
-    if leftout_pred_df is not None:
-        draw_table_on_ax(ax_leftout, leftout_pred_df, "Left-out Predictions", max_rows=12, round_digits=3)
+    return fig
+
+
+def _add_scatter_with_metrics_page(pdf, png_dir, base_name,
+                                   y, pred, names, folds_df, features, coef_df,
+                                   r2_in, mae_in, r2_leftout, mae_leftout,
+                                   lig_types=None, leftout_pred_df=None,
+                                   scatter_mode="full", scatter_config=None):
+    """Page 1 — scatter plot (left 60 %) + key metrics & coefficient table (right 40 %)."""
+    fig = _build_scatter_metrics_fig(
+        y, pred, names, folds_df, features, coef_df,
+        r2_in, mae_in, r2_leftout, mae_leftout,
+        lig_types=lig_types, leftout_pred_df=leftout_pred_df,
+        scatter_mode=scatter_mode, scatter_config=scatter_config,
+    )
+    save_fig_both(fig, pdf, png_dir, f"{base_name}__01_scatter_metrics")
+
+
+def _draw_scatter_on_ax(ax, y, pred, names, folds_df, features, coef_df,
+                        lig_types, leftout_pred_df, scatter_mode, scatter_config):
+    """Minimal scatter directly on a supplied Axes (no new figure)."""
+    import math
+    from matplotlib.lines import Line2D
+    import matplotlib.patheffects as pe
+
+    _eff = dict(_SCATTER_PRESETS.get(scatter_mode, {}))
+    if scatter_config:
+        _eff.update(scatter_config)
+    show_metrics       = _eff.get("show_metrics",       scatter_mode == "full")
+    label_max          = _eff.get("label_max",          None if scatter_mode == "full" else 0)
+    show_identity_line = _eff.get("show_identity_line", False)
+    marker_size        = _eff.get("marker_size",        55)
+    marker_edgewidth   = _eff.get("marker_edgewidth",   0.8)
+    fit_line_width     = _eff.get("fit_line_width",     1.4)
+    fontsize           = _eff.get("fontsize",           11)
+
+    y    = np.asarray(y).ravel()
+    pred = np.asarray(pred).ravel()
+    data = pd.DataFrame({"Measured": y, "Predicted": pred,
+                         "Label": np.asarray(names).astype(str),
+                         "Residual": pred - y})
+
+    # scatter
+    ax.scatter(data["Measured"], data["Predicted"], s=marker_size, color="#0b0e0b",
+               edgecolors="white", linewidths=marker_edgewidth, zorder=3)
+
+    # left-out points
+    if leftout_pred_df is not None and len(leftout_pred_df):
+        lo = leftout_pred_df.copy()
+        lm = pd.to_numeric(lo.get("Actual",    lo.get("Measured")),   errors="coerce")
+        lp = pd.to_numeric(lo.get("Predicted", lo.get("Predicted")),  errors="coerce")
+        ax.scatter(lm, lp, marker="X", s=60, facecolors="blue",
+                   edgecolors="k", linewidths=1.0, alpha=0.95, zorder=5,
+                   label="Ext. validation")
+
+    lo_val = float(np.nanmin([y.min(), pred.min()]))
+    hi_val = float(np.nanmax([y.max(), pred.max()]))
+    span   = hi_val - lo_val or 1.0
+    lo_p   = lo_val - 0.10 * span
+    hi_p   = hi_val + 0.10 * span
+    ax.set_xlim(lo_p, hi_p); ax.set_ylim(lo_p, hi_p)
+    ax.set_aspect("equal", adjustable="box")
+
+    xx = np.linspace(lo_p, hi_p, 300)
+    slope, intercept = np.polyfit(y, pred, 1)
+    ax.plot(xx, slope * xx + intercept, color="black", lw=fit_line_width, ls="--", zorder=2)
+
+    # identity line y=x (paper mode)
+    if show_identity_line:
+        ax.plot([lo_p, hi_p], [lo_p, hi_p], color="#1f77b4", lw=1.0, ls="-",
+                alpha=0.45, zorder=1, label="y = x")
+
+    ax.set_xlabel(r"Measured $\Delta\Delta G^{\ddagger}$", fontsize=fontsize)
+    ax.set_ylabel(r"Predicted $\Delta\Delta G^{\ddagger}$", fontsize=fontsize)
+    if scatter_mode != "paper":
+        ax.set_title("Predicted vs Measured", fontsize=fontsize + 1, fontweight="bold")
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+
+    # labels
+    if label_max != 0:
+        n_lbl = len(data) if label_max is None else min(int(label_max), len(data))
+        order = np.argsort(np.abs(data["Residual"].values))[::-1][:n_lbl]
+        dx = 0.025 * span
+        for k, i in enumerate(order):
+            row = data.iloc[i]
+            angle = 2 * math.pi * k / max(n_lbl, 1)
+            ax.text(row["Measured"] + dx * math.cos(angle),
+                    row["Predicted"] + dx * math.sin(angle),
+                    row["Label"], fontsize=7,
+                    path_effects=[pe.withStroke(linewidth=2, foreground="white")])
+
+    # metrics box
+    if show_metrics and folds_df is not None and not getattr(folds_df, "empty", True):
+        q    = folds_df.iloc[0]
+        corr = float(np.corrcoef(y, pred)[0, 1])
+        r2     = corr ** 2
+        adj_r2 = _calc_adj_r2(r2, len(y), len(features))
+        txt  = (f"R² = {r2:.3f}"
+                f"\nadj R² = {adj_r2:.3f}"
+                f"\nQ²₃ = {q.get('Q2_3_Fold', float('nan')):.3f}"
+                f"\nQ²₅ = {q.get('Q2_5_Fold', float('nan')):.3f}"
+                f"\nQ²LOO = {q.get('Q2_LOOCV', float('nan')):.3f}")
+        ax.text(0.03, 0.97, txt, transform=ax.transAxes, fontsize=9,
+                va="top", ha="left",
+                bbox=dict(facecolor="white", edgecolor="black",
+                          alpha=0.92, boxstyle="round,pad=0.3"))
+
+
+def _add_statistics_page(pdf, png_dir, base_name, folds_df, vif_df, coef_df):
+    """
+    Page 2 — full statistics: consolidated CV table, VIF, coefficients.
+    """
+    fig = plt.figure(figsize=(14, 8))
+    gs  = fig.add_gridspec(nrows=2, ncols=3,
+                           height_ratios=[1.0, 1.1],
+                           hspace=0.55, wspace=0.4)
+
+    # ── Row 0: consolidated CV metrics table (spans all columns) ─────────────
+    ax_cv = fig.add_subplot(gs[0, :])
+    if folds_df is not None and not folds_df.empty:
+        cv_display = pd.DataFrame({
+            "Metric":     ["Q²", "MAE", "RMSD"],
+            "3-Fold":     [folds_df["Q2_3_Fold"].iloc[0],
+                           folds_df["MAE_3"].iloc[0],
+                           folds_df["RMSD_3"].iloc[0]],
+            "5-Fold":     [folds_df["Q2_5_Fold"].iloc[0],
+                           folds_df["MAE_5"].iloc[0],
+                           folds_df["RMSD_5"].iloc[0]],
+            "LOOCV":      [folds_df["Q2_LOOCV"].iloc[0],
+                           folds_df["MAE_LOOCV"].iloc[0],
+                           folds_df["RMSD_LOOCV"].iloc[0]],
+        })
     else:
-        ax_leftout.axis("off")
-        ax_leftout.set_title("Left-out Predictions (none)", fontsize=12, pad=6)
+        cv_display = pd.DataFrame()
+    draw_table_on_ax(ax_cv, cv_display, "Cross-Validation Metrics",
+                     max_rows=10, round_digits=4)
 
-    # plt.tight_layout()
-    save_fig_both(fig, pdf, png_dir, f"{base_name}__tables_summary")
+    # ── Row 1 left: VIF ───────────────────────────────────────────────────────
+    ax_vif = fig.add_subplot(gs[1, :2])
+    vif_show = vif_df.copy() if not vif_df.empty else vif_df
+    if not vif_show.empty and "VIF" in vif_show.columns:
+        vif_show = vif_show.sort_values("VIF", ascending=False)
+    draw_table_on_ax(ax_vif, vif_show, "Variance Inflation Factors (VIF)",
+                     max_rows=15, round_digits=3)
 
-def _add_q2_scatter_page(pdf, png_dir, base_name, y, pred, names, folds_df, features, coef_df, r2_in, lig_types=None,leftout_pred_df=None):
-    print("Calling generate_q2_scatter_plot...")
-    print('predicitions,',leftout_pred_df)
-    est = coef_df['Estimate'] if 'Estimate' in coef_df.columns else None
-    fig_q2, ax_q2 = generate_q2_scatter_plot(y, pred, names, folds_df, features, est, r2_in, plot=True, dir=None, ligand_types=lig_types,leftout_pred_df=leftout_pred_df)
-    plt.show()
-    save_fig_both(fig_q2, pdf, png_dir, f"{base_name}__03_pred_vs_meas")
+    # ── Row 1 right: coefficients ─────────────────────────────────────────────
+    ax_coef = fig.add_subplot(gs[1, 2])
+    coef_show = coef_df.copy()
+    preferred = [c for c in ["Estimate", "Std. Error", "t value", "Pr(>|t|)", "p-value"]
+                 if c in coef_show.columns]
+    if preferred:
+        coef_show = coef_show[preferred + [c for c in coef_show.columns if c not in preferred]]
+    draw_table_on_ax(ax_coef, coef_show, "Coefficient Estimates",
+                     max_rows=15, round_digits=4)
+
+    save_fig_both(fig, pdf, png_dir, f"{base_name}__02_statistics")
+
+
+def _add_leftout_page(pdf, png_dir, base_name,
+                      leftout_pred_df, r2_leftout, mae_leftout,
+                      y, pred):
+    """
+    Page 3 — external validation: scatter (if targets available) + predictions table.
+    """
+    has_targets = (leftout_pred_df is not None
+                   and "Actual" in leftout_pred_df.columns
+                   and leftout_pred_df["Actual"].notna().any())
+
+    fig = plt.figure(figsize=(14, 6))
+    if has_targets:
+        gs = fig.add_gridspec(nrows=1, ncols=2, width_ratios=[1, 1.4], wspace=0.35)
+        ax_sc  = fig.add_subplot(gs[0])
+        ax_tbl = fig.add_subplot(gs[1])
+
+        lm = leftout_pred_df["Actual"].to_numpy(dtype=float)
+        lp = leftout_pred_df["Predicted"].to_numpy(dtype=float)
+        ax_sc.scatter(lm, lp, s=60, color="#CC2222", edgecolors="k", lw=0.7, zorder=3)
+        lo_v = min(lm.min(), lp.min()); hi_v = max(lm.max(), lp.max())
+        sp   = hi_v - lo_v or 1.0
+        ax_sc.set_xlim(lo_v - 0.1*sp, hi_v + 0.1*sp)
+        ax_sc.set_ylim(lo_v - 0.1*sp, hi_v + 0.1*sp)
+        ax_sc.set_aspect("equal", adjustable="box")
+        xx = np.linspace(lo_v - 0.1*sp, hi_v + 0.1*sp, 200)
+        ax_sc.plot(xx, xx, ls="--", color="gray", lw=1.0, zorder=1, label="Identity")
+        if r2_leftout is not None:
+            ax_sc.text(0.04, 0.95,
+                       f"R² = {r2_leftout:.4f}\nMAE = {mae_leftout:.4f}",
+                       transform=ax_sc.transAxes, fontsize=9, va="top",
+                       bbox=dict(facecolor="white", edgecolor="black",
+                                 boxstyle="round,pad=0.3", alpha=0.9))
+        ax_sc.set_xlabel("Measured"); ax_sc.set_ylabel("Predicted")
+        ax_sc.set_title("External Validation", fontsize=12, fontweight="bold")
+        for s in ("top", "right"):
+            ax_sc.spines[s].set_visible(False)
+    else:
+        ax_tbl = fig.add_subplot(1, 1, 1)
+
+    if leftout_pred_df is not None:
+        draw_table_on_ax(ax_tbl, leftout_pred_df,
+                         "External Validation Predictions",
+                         max_rows=30, round_digits=3)
+    else:
+        ax_tbl.axis("off")
+        ax_tbl.text(0.5, 0.5, "No external validation set",
+                    ha="center", va="center", fontsize=12, color="gray")
+
+    save_fig_both(fig, pdf, png_dir, f"{base_name}__03_external_validation")
+
+
+def _build_violin_fig(model, features):
+    """Build and return the violin + statistics figure (caller owns closing)."""
+    n_feat = len(features)
+    fig = plt.figure(figsize=(max(10, 1.6 * n_feat), 8))
+    gs  = fig.add_gridspec(nrows=2, ncols=1, height_ratios=[1.6, 1.0], hspace=0.45)
+
+    ax_vln = fig.add_subplot(gs[0])
+    sns.violinplot(data=model.features_df[features], inner="point",
+                   cut=0, linewidth=1, ax=ax_vln)
+    ax_vln.set_title("Distribution of Selected Features", fontsize=13, fontweight="bold")
+    ax_vln.set_ylabel("Feature Value", fontsize=11)
+    ax_vln.set_xlabel("")
+    ax_vln.tick_params(axis="x", rotation=30)
+    for s in ("top", "right"):
+        ax_vln.spines[s].set_visible(False)
+
+    ax_tbl = fig.add_subplot(gs[1])
+    desc = model.features_df[features].describe().T.reset_index()
+    desc.columns = ["Feature"] + list(desc.columns[1:])
+    desc = desc[["Feature", "mean", "std", "min", "25%", "50%", "75%", "max"]]
+    draw_table_on_ax(ax_tbl, desc, "Descriptive Statistics",
+                     max_rows=n_feat + 2, round_digits=3)
+    return fig
+
 
 def _add_violin_page(pdf, png_dir, base_name, model, features):
-    print("Generating violin plots for selected features...")
-    fig, ax = plt.subplots(figsize=(1.5 * len(features), 6))
-    sns.violinplot(data=model.features_df[features], inner="point", cut=0, linewidth=1, ax=ax)
-    ax.set_title("Distribution of Selected Features", fontsize=14)
-    ax.set_ylabel("Feature Value", fontsize=12)
-    ax.set_xlabel("Feature", fontsize=12)
-    plt.xticks(rotation=30, ha="right")
-    # plt.tight_layout()
-    plt.show()
-    save_fig_both(fig, pdf, png_dir, f"{base_name}__01_violin")
+    """Page 4 — feature distribution violin plots with per-feature statistics table."""
+    fig = _build_violin_fig(model, features)
+    save_fig_both(fig, pdf, png_dir, f"{base_name}__04_violin")
+
 
 def _add_shap_page(pdf, png_dir, base_name, model, features):
+    """Page 5 — SHAP feature importance."""
     try:
-     
         shap_res = _try(
-                lambda: analyze_shap_values(
-                    model=model,
-                    X=model.features_df[features],
-                    feature_names=features,
-                    sample_names=model.molecule_names,
-                    target_name=getattr(model, "output_name", "target"),
-                    n_top_features=min(10, len(features)),
-                    plot=True,
-                    dir=png_dir
-                ),
-                default=None, note="SHAP analysis failed"
-            )
-        fig = shap_res.get("figure", [])
-        plt.show()
-        if fig is None:
-            save_current_fig_both(pdf, png_dir, f"{base_name}__04_shap")
+            lambda: analyze_shap_values(
+                model=model,
+                X=model.features_df[features],
+                feature_names=features,
+                sample_names=model.molecule_names,
+                target_name=getattr(model, "output_name", "target"),
+                n_top_features=min(10, len(features)),
+                plot=True,
+                dir=png_dir
+            ),
+            default=None, note="SHAP analysis failed"
+        )
+        if shap_res is None:
+            return
+        fig = shap_res.get("figure")
+        if fig is not None:
+            save_fig_both(fig, pdf, png_dir, f"{base_name}__05_shap")
         else:
-            save_fig_both(fig, pdf, png_dir, f"{base_name}__04_shap")
+            save_current_fig_both(pdf, png_dir, f"{base_name}__05_shap")
     except Exception as e:
-        print("Error generating SHAP plot:", e)
+        print(f"[SHAP] {e}")
+
 
 def _add_threshold_pages(pdf, png_dir, base_name, model, features):
+    """Pages 6+ — classification threshold analysis."""
     _, figs = threshold_analysis_plot(
         model.target_vector,
         model.features_df[features],
@@ -2007,10 +2661,11 @@ def _add_threshold_pages(pdf, png_dir, base_name, model, features):
         data_labels=model.molecule_names
     )
     for i, f in enumerate(figs):
-        save_fig_both(f, pdf, png_dir, f"{base_name}__02_threshold_analysis_{i+1}")
-        plt.close(f)
+        save_fig_both(f, pdf, png_dir, f"{base_name}__06_threshold_{i+1}")
 
-def _run_sanity(model, X, y, features, Q2_loo, pdf, folds_df, png_dir):
+
+def _add_sanity_page(model, X, y, features, Q2_loo, pdf, folds_df, png_dir):
+    """Sanity-check permutation plots — returns (possibly updated) folds_df."""
     sanity_out = run_model_sanity_checks(
         model, X, y, features, Q2_loo,
         folds_df=folds_df, n_runs=30, random_state=42,
@@ -2018,83 +2673,313 @@ def _run_sanity(model, X, y, features, Q2_loo, pdf, folds_df, png_dir):
     )
     return sanity_out.get("folds_df", folds_df)
 
-# ----------------------------- public wrapper --------------------------------
 
-def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=None):
+def _add_diagnostics_page(pdf, png_dir, base_name, X, y):
     """
-    Smaller, testable steps; relies on pre-existing helpers:
-    - save_fig_both, _slugify, generate_q2_scatter_plot, draw_table_on_ax,
-      run_model_sanity_checks, save_current_fig_both, threshold_analysis_plot
+    Page — regression assumption diagnostics (residual plots, QQ, etc.).
+    Captures every figure opened by check_linear_regression_assumptions,
+    saves them to the PDF, then closes them all.
     """
-    # 1) data & fit
-    X, y = _extract_Xy(model, features)
-    pred, _ = _fit_and_predict(model, features)
+    before = set(plt.get_fignums())
+    try:
+        check_linear_regression_assumptions(X, y, dir=png_dir, plot=True)
+    except Exception as e:
+        print(f"[Diagnostics] {e}")
+    finally:
+        after = set(plt.get_fignums())
+        new_figs = [plt.figure(n) for n in sorted(after - before)]
+        for i, f in enumerate(new_figs):
+            try:
+                save_fig_both(f, pdf, png_dir, f"{base_name}__07_diagnostics_{i+1}")
+            except Exception:
+                plt.close(f)
+        # close anything save_fig_both didn't close (e.g. on error)
+        for n in sorted(after - before):
+            try:
+                plt.close(plt.figure(n))
+            except Exception:
+                pass
 
-    # 2) metrics
-    folds_df, Q2_loo = _compute_cv_metrics(model, X, y)
-    leftout_pred_df, r2_leftout, mae_leftout = _compute_leftout(model, features)
 
-    # 3) aux calcs
-    _ = _compute_margins()  # if you want to pass on later
-    vif_df = _compute_vif(model, features)
-    r2_in, mae_in = _in_sample_stats(y, pred)
-    (_, _, _), coef_df = _coeffs_and_intervals(model, X, features)
+# ─────────────────────────────────────────────────────────────────────────────
+# Lightweight plot-only builders for inline Jupyter display
+# (no tables — those live in the PDF composite builders above)
+# ─────────────────────────────────────────────────────────────────────────────
 
-    # 4) paths
+def _build_scatter_display_fig(y, pred, names, folds_df, features, coef_df,
+                                lig_types, leftout_pred_df, scatter_mode, scatter_config):
+    """Clean scatter-only figure for inline display."""
+    _eff = dict(_SCATTER_PRESETS.get(scatter_mode, {}))
+    if scatter_config:
+        _eff.update(scatter_config)
+    figsize = _eff.pop("figsize", (7, 7))
+    dpi     = _eff.pop("dpi", 150)
+
+    # publication-quality rcParams for paper mode
+    if scatter_mode == "paper":
+        import matplotlib
+        matplotlib.rcParams.update({
+            "font.family":        "sans-serif",
+            "font.sans-serif":    ["Arial", "Helvetica", "DejaVu Sans"],
+            "font.size":          12,
+            "mathtext.default":   "regular",
+            "axes.linewidth":     1.0,
+            "xtick.major.width":  0.8,
+            "ytick.major.width":  0.8,
+            "xtick.major.size":   4,
+            "ytick.major.size":   4,
+            "savefig.dpi":        300,
+            "savefig.bbox":       "tight",
+            "figure.dpi":         dpi,
+        })
+
+    fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+    _draw_scatter_on_ax(ax, y, pred, names, folds_df, features, coef_df,
+                        lig_types, leftout_pred_df, scatter_mode, scatter_config)
+    fig.tight_layout()
+    return fig
+
+
+def _build_violin_display_fig(model, features):
+    """Clean violin-only figure for inline display."""
+    n_feat = len(features)
+    fig, ax = plt.subplots(figsize=(max(8, 1.4 * n_feat), 5))
+    sns.violinplot(data=model.features_df[features], inner="point",
+                   cut=0, linewidth=1, ax=ax)
+    ax.set_title("Distribution of Selected Features", fontsize=13, fontweight="bold")
+    ax.set_ylabel("Feature Value", fontsize=11)
+    ax.set_xlabel("")
+    ax.tick_params(axis="x", rotation=30)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    fig.tight_layout()
+    return fig
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Inline display helper
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _show_figs(*figs):
+    """
+    Display one or more matplotlib figures inline (Jupyter) then close them.
+    Works transparently in both Jupyter and plain Python (no-op on non-figure items).
+    """
+    for fig in figs:
+        if fig is None:
+            continue
+        fig.show()
+    # do NOT close — let the notebook keep the figure interactive
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Public wrapper
+# ─────────────────────────────────────────────────────────────────────────────
+
+def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=None,
+                            scatter_mode="full", scatter_config=None, show=True):
+    """
+    Build a multi-page PDF report for a single feature combination.
+
+    Parameters
+    ----------
+    show : bool
+        When True (default) display the three key figures inline so they are
+        visible immediately in a Jupyter notebook:
+          • Regression scatter + metrics table
+          • Feature violin plots + descriptive statistics
+          • Classification threshold plots
+
+    Pages (PDF)
+    -----------
+    1  Scatter + metrics/coefficients panel
+    2  Statistics (CV table, VIF, coefficients)
+    3  External validation (scatter + predictions table)
+    4  Feature violin plots + descriptive statistics table
+    5  SHAP (if available)
+    6+ Threshold analysis
+    7+ Sanity checks
+    8  Regression diagnostics
+    """
+    # ── compute everything first ──────────────────────────────────────────────
+    X, y       = _extract_Xy(model, features)
+    pred, _    = _fit_and_predict(model, features)
+    folds_df, Q2_loo             = _compute_cv_metrics(model, X, y)
+    leftout_pred_df, r2_lo, mae_lo = _compute_leftout(model, features)
+    vif_df                       = _compute_vif(model, features)
+    r2_in, mae_in                = _in_sample_stats(y, pred)
+    (_, _, _), coef_df           = _coeffs_and_intervals(model, X, features)
+
+    # ── paths ─────────────────────────────────────────────────────────────────
     figs_dir, base_name, pdf_path, png_dir = _prepare_paths(model, features, pdf_name)
-    print(f"Saving report to: {pdf_path} and PNGs to: {png_dir}")
+    print(f"Report → {pdf_path}")
+    print(f"PNGs   → {png_dir}")
 
-    # 5) build pdf
-    with PdfPages(pdf_path) as pdf:
-        # Q2 scatter first (cover)
+    # ── inline display (Jupyter) — figures + tables ─────────────────────────────
+    display_figs = {}
+    if show:
         try:
-            
-            _add_q2_scatter_page(pdf, png_dir, base_name, y, pred, model.molecule_names, folds_df, features, coef_df, r2_in, lig_types=lig_types, leftout_pred_df=leftout_pred_df)
-        except Exception as e:
-            print("Error in Q2 scatter page:", e)
+            from IPython.display import display as ipy_display, HTML
+            _has_ipy = True
+        except ImportError:
+            _has_ipy = False
 
-        # Summary tables page
+        # ── 0. Summary metrics ────────────────────────────────────────────────
+        adj_r2 = _calc_adj_r2(r2_in, *X.shape)
+        print("\n" + "=" * 58)
+        print(f"  {'Metric':<22} {'Value':>10}")
+        print("-" * 58)
+        print(f"  {'R² (in-sample)':<22} {r2_in:>10.4f}")
+        print(f"  {'adj R²':<22} {adj_r2:>10.4f}")
+        print(f"  {'MAE (in-sample)':<22} {mae_in:>10.4f}")
+        if folds_df is not None and not folds_df.empty:
+            q = folds_df.iloc[0]
+            for col in ["Q2_3_Fold", "Q2_5_Fold", "Q2_LOOCV", "MAE_LOOCV"]:
+                if col in q:
+                    print(f"  {col:<22} {float(q[col]):>10.4f}")
+        if r2_lo is not None:
+            print(f"  {'R² (held-out)':<22} {r2_lo:>10.4f}")
+        if mae_lo is not None:
+            print(f"  {'MAE (held-out)':<22} {mae_lo:>10.4f}")
+        print("=" * 58 + "\n")
+
+        # ── 1. Regression scatter ─────────────────────────────────────────────
         try:
-            _add_summary_page(pdf, png_dir, base_name, folds_df, vif_df, coef_df, leftout_pred_df)
+            fig_scatter = _build_scatter_display_fig(
+                y, pred, model.molecule_names, folds_df, features, coef_df,
+                lig_types, leftout_pred_df, scatter_mode, scatter_config,
+            )
+            _show_figs(fig_scatter)
+            display_figs["scatter"] = fig_scatter
         except Exception as e:
-            print("Error in summary tables page:", e)
+            print(f"[display scatter] {e}")
 
-        # Sanity checks (updates folds_df possibly)
+        # ── 2. CV metrics table ───────────────────────────────────────────────
+        if folds_df is not None and not folds_df.empty:
+            print("\n── Cross-validation metrics ──")
+            if _has_ipy:
+                ipy_display(folds_df.round(4))
+            else:
+                print(folds_df.round(4).to_string())
+
+        # ── 3. Coefficients & VIF ─────────────────────────────────────────────
+        if coef_df is not None and not coef_df.empty:
+            print("\n── Coefficients ──")
+            if _has_ipy:
+                ipy_display(coef_df.round(4))
+            else:
+                print(coef_df.round(4).to_string())
+
+        if vif_df is not None and not vif_df.empty:
+            print("\n── VIF ──")
+            if _has_ipy:
+                ipy_display(vif_df.round(3))
+            else:
+                print(vif_df.round(3).to_string())
+
+        # ── 4. Held-out predictions table ─────────────────────────────────────
+        if leftout_pred_df is not None and not leftout_pred_df.empty:
+            print("\n── Held-out set predictions ──")
+            if _has_ipy:
+                ipy_display(leftout_pred_df.round(4))
+            else:
+                print(leftout_pred_df.round(4).to_string())
+
+        # ── 5. Feature violin ────────────────────────────────────────────────
         try:
-            folds_df = _run_sanity(model, X, y, features, Q2_loo, pdf, folds_df, png_dir)
+            fig_violin = _build_violin_display_fig(model, features)
+            _show_figs(fig_violin)
+            display_figs["violin"] = fig_violin
         except Exception as e:
-            print("Error during sanity checks:", e)
+            print(f"[display violin] {e}")
 
-        # Violin plots
+        # ── 6. Classification threshold plots ─────────────────────────────────
         try:
-            _add_violin_page(pdf, png_dir, base_name, model, features)
+            _, thresh_figs = threshold_analysis_plot(
+                model.target_vector,
+                model.features_df[features],
+                cutoff=("percentile", 30, "low_is_positive"),
+                data_labels=model.molecule_names,
+                plot=True,
+            )
+            _show_figs(*thresh_figs)
         except Exception as e:
-            print("Error generating violin plots:", e)
+            print(f"[display classification] {e}")
 
-        # # SHAP
-        # _add_shap_page(pdf, png_dir, base_name, model, features)
-
-        # Threshold pages
+    def _page(label, fn, *args, **kwargs):
         try:
-            _add_threshold_pages(pdf, png_dir, base_name, model, features)
+            fn(*args, **kwargs)
         except Exception as e:
-            print("Error generating threshold analysis plot:", e)
+            print(f"[{label}] {e}")
 
-        try:
-            results, _ = check_linear_regression_assumptions(X, y, dir="diag_plots", plot=False)
-        except Exception as e:
-            print("Error generating regression diagnostics plots:", e)
+    # ── build PDF (plt.show suppressed — display already handled above) ───────
+    import unittest.mock as _mock
+    _noop = lambda *a, **kw: None
+    if pdf_path is not None:
+        with _mock.patch("matplotlib.pyplot.show", _noop):
+            with PdfPages(pdf_path) as pdf:
 
-    results_dict = {
-        "pdf_path": pdf_path,
-        "png_dir": png_dir,
-        "folds_df": folds_df,
-        "vif_df": vif_df,
-        "coef_df": coef_df,
-        "in_sample": {"R2": r2_in, "MAE": mae_in},
-        "leftout": {"df": leftout_pred_df, "R2": r2_leftout, "MAE": mae_leftout},
+                _page("scatter+metrics",
+                    _add_scatter_with_metrics_page,
+                    pdf, png_dir, base_name,
+                    y, pred, model.molecule_names, folds_df, features, coef_df,
+                    r2_in, mae_in, r2_lo, mae_lo,
+                    lig_types=lig_types, leftout_pred_df=leftout_pred_df,
+                    scatter_mode=scatter_mode, scatter_config=scatter_config)
+
+                _page("statistics",
+                    _add_statistics_page,
+                    pdf, png_dir, base_name, folds_df, vif_df, coef_df)
+
+                _page("external validation",
+                    _add_leftout_page,
+                    pdf, png_dir, base_name,
+                    leftout_pred_df, r2_lo, mae_lo, y, pred)
+
+                _page("violin",
+                    _add_violin_page,
+                    pdf, png_dir, base_name, model, features)
+
+                _page("SHAP",
+                    _add_shap_page,
+                    pdf, png_dir, base_name, model, features)
+
+                _page("threshold analysis",
+                    _add_threshold_pages,
+                    pdf, png_dir, base_name, model, features)
+
+                _page("sanity checks",
+                    _add_sanity_page,
+                    model, X, y, features, Q2_loo, pdf, folds_df, png_dir)
+
+                _page("diagnostics",
+                    _add_diagnostics_page,
+                    pdf, png_dir, base_name, X, y)
+
+    table_files = _save_report_tables(
+        png_dir, base_name,
+        cv_metrics=folds_df,
+        vif=vif_df,
+        coefficients=coef_df,
+        external_validation=leftout_pred_df,
+    )
+    try:
+        png_files = sorted(str(Path(png_dir) / name) for name in os.listdir(png_dir) if name.lower().endswith(".png"))
+    except Exception:
+        png_files = []
+
+    return {
+        "pdf_path":  pdf_path,
+        "png_dir":   png_dir,
+        "png_files": png_files,
+        "table_files": table_files,
+        "folds_df":  folds_df,
+        "vif_df":    vif_df,
+        "coef_df":   coef_df,
+        "in_sample": {"R2": r2_in, "adj_R2": _calc_adj_r2(r2_in, *X.shape), "MAE": mae_in},
+        "leftout":   {"df": leftout_pred_df, "R2": r2_lo, "MAE": mae_lo},
+        "figures":   display_figs,
     }
-    return results_dict
 
 
 
@@ -2906,10 +3791,7 @@ def threshold_analysis_plot(
             ax.set_xlabel(f"{feature} {f'({feature_units[i]})' if feature_units[i] else ''}", fontsize=14)
             ax.set_ylabel("Y value", fontsize=14)
             ax.set_title(f"Threshold analysis: {feature}", fontsize=15)
-            plt.show()
-
-            # Prevent display in non-interactive environments
-            figs.append(fig)   # <-- keep the open figure
+            figs.append(fig)
 
             
     return results, figs

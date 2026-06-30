@@ -1,6 +1,6 @@
 
 import os
-os.chdir(r'C:\Users\edens\Documents\GitHub\‏‏LabCode_backup\MolFeatures\MolAlign')
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 import pandas as pd
 from tqdm import tqdm
 import argparse

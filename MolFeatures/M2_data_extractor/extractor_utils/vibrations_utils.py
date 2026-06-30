@@ -185,7 +185,7 @@ def calc_vibration_dot_product(extended_vib_df, coordinates_vector):
     # vibration_dot_product=abs(np.dot(extended_vib_df[[0,1,2]], coordinates_vector)) + abs(np.dot(extended_vib_df[[3,4,5]], coordinates_vector))
     return vibration_dot_product_list
 
-def extended_df_for_stretch(vibration_dict: dict, info_df:pd.DataFrame,atom_pair,threshhold: int = 1600, upper_threshold: int = 3500):
+def extended_df_for_stretch(vibration_dict: dict, info_df:pd.DataFrame,atom_pair,threshhold: int = 1400, upper_threshold: int = 3500):
     vibration_array_pairs,_= vibrations_dict_to_list(vibration_dict, atom_pair)
     array=pd.DataFrame(np.hstack([vibration_array_pairs[0][0],vibration_array_pairs[0][1]]))
     df=pd.concat([array,info_df['Frequency']],axis=1)
@@ -584,57 +584,40 @@ def calc_min_max_ring_vibration(filtered_df: pd.DataFrame, ring_atom_indices: li
 
 
 ### bending vibration
-
 def find_center_atom(atom1: str, atom2: str, adjacency_dict: Dict[str, List[str]]) -> bool:
-    """
-    Determines if there is a common atom between two atoms in a molecule.
-
-    Args:
-        atom1 (str): The first atom.
-        atom2 (str): The second atom.
-        adjacency_dict (dict): A dictionary that maps each atom to a list of its neighboring atoms.
-
-    Returns:
-        bool: True if there is a common atom between atom1 and atom2, False otherwise.
-    """
-    # Get the lists of neighbors for atom1 and atom2
+    
     neighbors1 = adjacency_dict.get(atom1, [])
     neighbors2 = adjacency_dict.get(atom2, [])
-    # Check if there is a common atom in the two lists
+ 
+    
     common_atoms = set(neighbors1).intersection(neighbors2)
-    # If there are common atoms, return True. Otherwise, return False.
+
+    
     return bool(common_atoms)
 
+
 def create_adjacency_dict_for_pair(bond_df: pd.DataFrame, pair: List[str]) -> Dict[str, List[str]]:
-    """
-    Creates an adjacency dictionary for a pair of atoms in a molecule.
-
-    Args:
-        bond_df (pd.DataFrame): A DataFrame that contains the bond information for the molecule.
-        pair (list): A list of two atom symbols representing the pair of atoms to create the adjacency dictionary for.
-
-    Returns:
-        dict: A dictionary that maps each atom in the pair to a list of its neighboring atoms.
-    """
+    
     def create_adjacency_list(bond_df: pd.DataFrame) -> Dict[int, List[int]]:
-        """
-        Creates an adjacency list for all atoms in a molecule.
-
-        Args:
-            bond_df (pd.DataFrame): A DataFrame that contains the bond information for the molecule.
-
-        Returns:
-            dict: A dictionary that maps each atom index to a list of its neighboring atom indices.
-        """
         adjacency_list = {i: [] for i in np.unique(bond_df.values)}
         for atom1, atom2 in bond_df.values:
             adjacency_list[atom1].append(atom2)
             adjacency_list[atom2].append(atom1)
+        
         return adjacency_list
 
-    # Create the adjacency dictionary for the pair of atoms
     adjacency_dict = create_adjacency_list(bond_df)
-    return {atom: adjacency_dict[atom] for atom in pair}
+    
+    # Check if pair atoms exist in the adjacency dict before filtering
+    for atom in pair:
+        if atom not in adjacency_dict:
+            print(f"[create_adjacency_dict_for_pair] WARNING: atom {atom} not found in bond_df!")
+    
+    result = {atom: adjacency_dict.get(atom, []) for atom in pair}
+   
+    return result
+
+
 
 def reindex_and_preserve(df, new_index_order):
         # Select rows that are in the new index order
