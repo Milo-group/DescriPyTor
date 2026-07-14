@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MolFeatures Tutorial</title>
+  <style>
+    :root {
+      --bg: #f6f8fc;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #667085;
+      --accent: #2563eb;
+      --border: #e5e7eb;
+      --code-bg: #0b1220;
+      --code-text: #e5eefc;
+      --soft: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    .wrap {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+    .hero, .section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+    }
+    .hero { padding: 30px; margin-bottom: 18px; }
+    .section { padding: 26px; margin-bottom: 18px; }
+    h1, h2, h3 { line-height: 1.2; margin: 0 0 14px; }
+    h1 { font-size: 2.35rem; }
+    h2 { font-size: 1.55rem; margin-top: 0; }
+    h3 { font-size: 1.12rem; margin-top: 22px; }
+    p, ul, ol { margin: 0 0 16px; }
+    ul, ol { padding-left: 22px; }
+    .muted { color: var(--muted); }
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .step {
+      background: var(--soft);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      min-height: 92px;
+    }
+    .step strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #0f172a;
+    }
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+      margin-top: 10px;
+    }
+    .module-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      background: #fbfcff;
+    }
+    .screenshot {
+      margin: 14px 0 18px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: white;
+    }
+    .screenshot img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .caption {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      font-size: 0.95rem;
+      color: var(--muted);
+      background: #fcfdff;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 14px;
+    }
+    .gallery .screenshot {
+      margin: 0;
+    }
+    code {
+      font-family: Consolas, Menlo, monospace;
+      background: #eef2ff;
+      padding: 0.1rem 0.35rem;
+      border-radius: 6px;
+    }
+    pre {
+      margin: 0 0 18px;
+      padding: 16px;
+      overflow: auto;
+      border-radius: 10px;
+      background: var(--code-bg);
+      color: var(--code-text);
+      border: 1px solid #0f172a;
+    }
+    pre code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .tip {
+      padding: 14px 16px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 880px) {
+      .workflow { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>MolFeatures Tutorial</h1>
+      <p>This tutorial walks through the most common MolFeatures flow: prepare data, extract descriptors, assemble a feature matrix, run modeling, and inspect the saved results.</p>
+      <p class="muted">If you want the shorter front page, open <a href="README.html">README.html</a>.</p>
+
+      <div class="workflow">
+        <div class="step"><strong>1. Input data</strong>Gaussian logs, feather files, XYZ files, or cube files.</div>
+        <div class="step"><strong>2. Extraction</strong>Use <code>M2_data_extractor</code> or the GUI to define descriptors.</div>
+        <div class="step"><strong>3. Feature matrix</strong>Generate CSV-ready tables for modeling.</div>
+        <div class="step"><strong>4. Modeling</strong>Run regression or classification search with <code>M3_modeler</code>.</div>
+        <div class="step"><strong>5. Outputs</strong>Save SQLite results, CSVs, plots, and reports.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Installation</h2>
+      <p>These are the most useful setup commands to run before working through the notebooks or the GUI.</p>
+
+      <h3>Create an environment</h3>
+      <pre><code>python -m venv .venv
+.venv\Scripts\activate</code></pre>
+
+      <h3>Install MolFeatures in editable mode</h3>
+      <pre><code>python -m pip install -U pip
+python -m pip install -e .</code></pre>
+
+      <h3>Install notebook extras</h3>
+      <pre><code>python -m pip install -e ".[notebooks]"</code></pre>
+
+      <h3>Optional: install BASSA</h3>
+      <pre><code>pip install bassa-reg</code></pre>
+
+      <p class="muted">Some workflows also depend on external chemistry tools such as Gaussian or Open Babel, which are installed separately from pip.</p>
+    </div>
+
+    <div class="section">
+      <h2>Big-picture pipeline</h2>
+      <p>This visual gives a compact view of the workflow that MolFeatures is built around: starting from molecular inputs, generating 3D structures, running calculations, extracting descriptors, then building models from the resulting feature matrix.</p>
+
+      <div class="screenshot">
+        <img src="images/pipeline-overview.png" alt="Pipeline overview">
+        <div class="caption">A project-level view of preprocessing, DFT-based extraction, and downstream modeling.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>What each module does</h2>
+      <div class="module-grid">
+        <div class="module-card"><strong>M1_pre_calculations</strong><br><span class="muted">Prepare external calculation inputs and submission helpers.</span></div>
+        <div class="module-card"><strong>M2_data_extractor</strong><br><span class="muted">Turn molecular files into descriptors and feature tables.</span></div>
+        <div class="module-card"><strong>M3_modeler</strong><br><span class="muted">Search and evaluate models, then save rankings and metrics.</span></div>
+        <div class="module-card"><strong>MolAlign</strong><br><span class="muted">Alignment and renumbering utilities for structure handling.</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Path 1: start from feather files</h2>
+      <p>This is the smoothest route when your molecular data has already been converted into <code>.feather</code> files.</p>
+
+      <h3>Step 1. Launch the GUI</h3>
+      <pre><code>python __main__.py gui</code></pre>
+
+      <p>Use the GUI when you want to inspect molecules before extracting descriptors, choose atoms interactively, save extraction setups as JSON, and test descriptor families quickly.</p>
+
+      <div class="screenshot">
+        <img src="images/atom-picker.png" alt="3D atom picker">
+        <div class="caption">The 3D atom picker lets you click atoms and build extraction groups directly from the structure view.</div>
+      </div>
+
+      <h3>Step 2. Reuse a saved extraction config</h3>
+      <pre><code>python __main__.py extractor \
+  --input Getting_started_with_examples/feather_example/input_example.json \
+  --output feature_set \
+  --feather_directory Getting_started_with_examples/feather_example</code></pre>
+
+      <p>Typical outputs include a feature matrix CSV, optional correlation summaries, and any plots configured by the extraction path.</p>
+    </div>
+
+    <div class="section">
+      <h2>Path 2: convert Gaussian logs first</h2>
+      <div class="tip">
+        <strong>Workflow:</strong> Gaussian log files -> <code>python __main__.py logs_to_feather</code> -> feather dataset -> extractor or GUI workflow.
+      </div>
+
+      <pre><code>python __main__.py logs_to_feather</code></pre>
+
+      <p>The command prompts for the directory containing log files and writes feather outputs for downstream extraction.</p>
+    </div>
+
+    <div class="section">
+      <h2>Descriptor extraction in Python</h2>
+      <p>If you prefer scripting instead of the GUI, follow the same pattern used in <code>Practical_Notebook_Features.ipynb</code>.</p>
+      <pre><code>import os
+import sys
+
+ROOT_DIR = r"C:\Users\edens\Desktop\DescriPytor\DescriPyTor-main\MolFeatures"
+sys.path.append(ROOT_DIR)
+sys.path.append(os.path.join(ROOT_DIR, "M2_data_extractor"))
+os.chdir(ROOT_DIR)
+
+from data_extractor import Molecules
+
+feather_path = os.path.join(ROOT_DIR, "Getting_started_with_examples", "feather_example")
+mols = Molecules(feather_path)
+
+# first inspect a structure, then build descriptor inputs
+mols.visualize_molecules([0])</code></pre>
+      <p>Once your atom selections are defined, the notebook workflow uses <code>get_molecules_features_set(...)</code> to save a feature matrix and correlation table.</p>
+
+      <h3>Feature extraction example</h3>
+      <pre><code>answers_dict = {
+    "Sterimol": "[[1, 6], [3, 4]]",
+    "Bond-Angle": "[1, 2, 3]",
+    "Dipole": "[[1, 2, 3], 5, 6]",
+    "Charges": "[1, 3, 5]",
+}
+
+df = mols.get_molecules_features_set(
+    entry_widgets=answers_dict,
+    answers_list=None,
+    save_as=True,
+    csv_file_name="tutorial_features",
+)</code></pre>
+
+      <h3>Convert Gaussian logs to feather files</h3>
+      <pre><code>from feather_extractor import logs_to_feather
+
+logs_to_feather(r"C:\path\to\gaussian_logs")</code></pre>
+    </div>
+
+    <div class="section">
+      <h2>Sterimol and geometry views</h2>
+      <p>These screenshots are useful when you want to explain how Sterimol-style geometry is measured from different viewpoints. They complement the GUI examples by showing both the 3D object and the projected slices used for interpretation.</p>
+
+      <div class="gallery">
+        <div class="screenshot">
+          <img src="images/sterimol-3d-view.png" alt="Sterimol 3D view">
+          <div class="caption">3D view with L, B1, and B5 annotations on the molecular structure.</div>
+        </div>
+        <div class="screenshot">
+          <img src="images/sterimol-side-view.png" alt="Sterimol side view">
+          <div class="caption">Side-on view showing angular context and projected width definitions.</div>
+        </div>
+        <div class="screenshot">
+          <img src="images/sterimol-end-on-local.png" alt="Sterimol end-on local slices">
+          <div class="caption">End-on local slices used to interpret B1/B5 behavior around the molecular axis.</div>
+        </div>
+        <div class="screenshot">
+          <img src="images/sterimol-end-on-global.png" alt="Sterimol end-on global projection">
+          <div class="caption">Global projection view that shows the overall envelope and directional spread.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Conformer comparison and visual inspection</h2>
+      <p>MolFeatures also includes viewer-oriented utilities for comparing related structures and checking how conformers align in 3D. That helps when you are validating atom numbering, ring alignment, or ensemble consistency before extraction.</p>
+
+      <div class="screenshot">
+        <img src="images/conformer-viewer.png" alt="Conformer viewer">
+        <div class="caption">Conformer comparison view with stacked alignment and per-conformer RMSD.</div>
+      </div>
+
+      <div class="screenshot">
+        <img src="images/aligned-common-frame.png" alt="Aligned common frame">
+        <div class="caption">Aligned common-frame concept showing how rotation, translation, and shared axes help keep descriptor definitions consistent across structures.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Modeling workflow</h2>
+      <div class="workflow">
+        <div class="step"><strong>Feature matrix CSV</strong>Start from the descriptors you extracted.</div>
+        <div class="step"><strong>Model search</strong>Run regression or classification across feature combinations.</div>
+        <div class="step"><strong>Cross-validation</strong>Rank candidates using held-out metrics.</div>
+        <div class="step"><strong>Saved results</strong>Persist ranked models in SQLite and CSV.</div>
+        <div class="step"><strong>Reports</strong>Inspect plots and summaries from the best models.</div>
+      </div>
+
+      <h3>Regression example</h3>
+      <p>The modeling notebook uses a one-CSV setup and instantiates <code>LinearRegressionModel</code> directly. A repo-local example looks like this:</p>
+      <pre><code>import os
+import sys
+
+ROOT_DIR = r"C:\Users\edens\Desktop\DescriPytor\DescriPyTor-main\MolFeatures"
+sys.path.append(ROOT_DIR)
+sys.path.append(os.path.join(ROOT_DIR, "M3_modeler"))
+os.chdir(ROOT_DIR)
+
+from modeling import LinearRegressionModel
+
+csv_path = os.path.join(
+    ROOT_DIR,
+    "Getting_started_with_examples",
+    "modeling_example",
+    "Linear_Dataset_Example.csv",
+)
+
+csv_filepaths = {
+    "features_csv_filepath": csv_path,
+    "target_csv_filepath": "",
+}
+
+regression_model = LinearRegressionModel(
+    csv_filepaths,
+    process_method="one csv",
+    y_value="output",
+    leave_out=[],
+    min_features_num=2,
+    max_features_num=3,
+)
+
+results = regression_model.search_models(top_n=20, threshold=0.70, n_jobs=16)</code></pre>
+
+      <p>The equivalent CLI form is:</p>
+      <pre><code>python __main__.py model \
+  --mode regression \
+  --features_csv Getting_started_with_examples/modeling_example/Linear_Dataset_Example.csv \
+  --y_value output \
+  --min-features 2 \
+  --max-features 3 \
+  --top-n 20 \
+  --threshold 0.70 \
+  --n_jobs 16</code></pre>
+
+      <h3>Classification example</h3>
+      <pre><code>python __main__.py model \
+  --mode classification \
+  --features_csv Getting_started_with_examples/modeling_example/Logistic_Dataset_Example.csv \
+  --y_value class \
+  --min-features 2 \
+  --max-features 4 \
+  --top-n 20 \
+  --threshold 0.50 \
+  --n_jobs 16</code></pre>
+
+      <h3>Classification example in Python</h3>
+      <pre><code>from modeling import ClassificationModel
+
+csv_filepaths = {
+    "features_csv_filepath": os.path.join(
+        ROOT_DIR,
+        "Getting_started_with_examples",
+        "modeling_example",
+        "Logistic_Dataset_Example.csv",
+    ),
+    "target_csv_filepath": "",
+}
+
+clf = ClassificationModel(
+    csv_filepaths,
+    process_method="one csv",
+    y_value="class",
+    leave_out=[],
+    min_features_num=2,
+    max_features_num=4,
+)
+
+results = clf.search_models(top_n=20, threshold=0.50, n_jobs=16)</code></pre>
+
+      <div class="screenshot">
+        <img src="images/model-components-chart.png" alt="Model component chart">
+        <div class="caption">An example decomposition plot showing how descriptor contributions line up with measured and predicted values across a series.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>BASSA quick start</h2>
+      <p>If you want a Bayesian sparse-regression workflow that keeps multiple plausible linear explanations in play, BASSA fits naturally after descriptor generation and feature-matrix preparation.</p>
+
+      <h3>Install</h3>
+      <pre><code>pip install bassa-reg</code></pre>
+
+      <p>For higher-quality plots, the BASSA project also recommends installing a local LaTeX distribution such as MiKTeX on Windows.</p>
+
+      <h3>Minimal example</h3>
+      <pre><code>import os
+
+import numpy as np
+import pandas as pd
+from bassa_reg import Bassa
+from bassa_reg.spike_and_slab.spike_and_slab import (
+    SpikeAndSlabConfigurations,
+    SpikeAndSlabRegression,
+)
+from bassa_reg.spike_and_slab.spike_and_slab_util_models import SpikeAndSlabPriors
+
+def generate_data(N, M, K, noise_level=0.1):
+    X = pd.DataFrame(np.random.randn(N, M), columns=[f"s_{i}" for i in range(M)])
+    coefficients = np.random.randn(K)
+    Y = pd.Series(X.iloc[:, :K].dot(coefficients) + np.random.randn(N) * noise_level)
+    return X, Y
+
+x_train, y_train = generate_data(100, 20, 5)
+
+priors = SpikeAndSlabPriors()
+config = SpikeAndSlabConfigurations(sampler_iterations=5000)
+project_dir = os.getcwd()
+
+regression = SpikeAndSlabRegression(
+    x=x_train,
+    y=y_train,
+    priors=priors,
+    config=config,
+    project_path=project_dir,
+    experiment_name="demo",
+)
+
+regression.run()
+bassa = Bassa(model=regression)
+bassa.run()</code></pre>
+
+      <h3>Prediction on new data</h3>
+      <pre><code>from bassa_reg.spike_and_slab.spike_and_slab_util_models import TestSet
+
+test_set = TestSet(
+    x_test=x_test,
+    samples_per_y=100,
+    iterations=200,
+)
+
+regression = SpikeAndSlabRegression(
+    x=x_train,
+    y=y_train,
+    priors=priors,
+    config=config,
+    test_set=test_set,
+    project_path=project_dir,
+    experiment_name="prediction_demo",
+)
+
+regression.run()</code></pre>
+
+      <p>After both the spike-and-slab regression and BASSA run, the project directory contains the BASSA plots and summary CSV files.</p>
+
+      <div class="gallery">
+        <div class="screenshot">
+          <img src="images/bassa-plot.jpeg" alt="BASSA plot">
+          <div class="caption">The main BASSA plot organizes selected models, feature combinations, and their relative performance.</div>
+        </div>
+        <div class="screenshot">
+          <img src="images/bassa-markov-chain.png" alt="BASSA markov chain visualization">
+          <div class="caption">The Markov-chain visualization shows how the sampler explores model space over time and which features appear most often.</div>
+        </div>
+        <div class="screenshot">
+          <img src="images/bassa-survival-plot.png" alt="BASSA survival plot">
+          <div class="caption">The survival plot tracks how models persist or drop out across iterations and helps interpret the final upset-style summaries.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Parallel modeling note</h2>
+      <p>For large regression searches, <code>--n_jobs</code> is the main control for parallelism.</p>
+      <ul>
+        <li>On a 20-core machine, start with <code>--n_jobs 16</code>.</li>
+        <li>Move to <code>18</code> if memory usage stays comfortable.</li>
+        <li>Use <code>20</code> only if the machine remains responsive and the dataset is not memory-heavy.</li>
+      </ul>
+      <p>Large searches may still take time because feature-combination counts grow very quickly.</p>
+    </div>
+
+    <div class="section">
+      <h2>Suggested first session</h2>
+      <ol>
+        <li>Run <code>python __main__.py --help</code>.</li>
+        <li>Open <code>Getting_started_with_examples/README.md</code>.</li>
+        <li>Launch <code>python __main__.py gui</code>.</li>
+        <li>Run the extractor example on <code>Getting_started_with_examples/feather_example</code>.</li>
+        <li>Run a small regression search with a conservative <code>--max-features</code>.</li>
+      </ol>
+      <p class="muted">That sequence gives you a feel for the whole stack without dropping you straight into a multi-million-combination search.</p>
+    </div>
+  </div>
+</body>
+</html>

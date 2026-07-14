@@ -1,0 +1,3338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DescriPytor - 3D Atom Picker</title>
+<script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+<style>
+  /* ── Design tokens ── */
+  :root {
+    --blue:    #007AFF; --blue-d:   #0055CC; --blue-l:  rgba(0,122,255,.10);
+    --green:   #28CD41; --green-d:  #1A9E32;
+    --orange:  #FF9F0A;
+    --red:     #FF3B30;
+    --indigo:  #5E5CE6;
+    --teal:    #32ADE6;
+    --surface: rgba(255,255,255,.90);
+    --surface-hi: rgba(255,255,255,.97);
+    --border:  rgba(0,0,0,.07);
+    --accent:  var(--blue);
+    --ok:      var(--green);
+    --warn:    var(--orange);
+    --text:    #1C1C1E;
+    --muted:   rgba(60,60,67,.55);
+    --line:    var(--border);
+    --panel:   var(--surface);
+    --shadow-xs: 0 1px 3px rgba(0,0,0,.05);
+    --shadow:    0 4px 28px rgba(0,0,0,.09),0 1px 4px rgba(0,0,0,.04);
+    --shadow-lg: 0 20px 64px rgba(0,0,0,.11),0 4px 18px rgba(0,0,0,.05);
+    --r: 16px; --r-sm:10px; --r-lg:22px; --r-xl:28px;
+  }
+
+  /* ── Reset ── */
+  * { box-sizing:border-box; }
+
+  /* ── Body + background ── */
+  body {
+    margin:0; min-height:100vh; -webkit-font-smoothing:antialiased;
+    font-family:"SF Pro Text","SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(ellipse 90% 55% at 12% -8%,  rgba(0,122,255,.13), transparent 52%),
+      radial-gradient(ellipse 65% 50% at 88%  4%,  rgba(48,209,88,.09),  transparent 50%),
+      radial-gradient(ellipse 75% 80% at 50% 105%, rgba(94,92,230,.07), transparent 68%),
+      linear-gradient(180deg,#F4F6FA 0%,#EDF1F8 100%);
+    background-attachment:fixed;
+  }
+
+  /* ── Header ── */
+  header {
+    position:sticky; top:0; z-index:20;
+    height:54px; padding:0 24px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    background:rgba(255,255,255,.78);
+    backdrop-filter:saturate(200%) blur(24px);
+    -webkit-backdrop-filter:saturate(200%) blur(24px);
+    border-bottom:1px solid rgba(0,0,0,.06);
+    box-shadow:0 1px 0 rgba(255,255,255,.85),0 2px 10px rgba(0,0,0,.05);
+  }
+  header h1 {
+    margin:0; font-size:15px; font-weight:700; letter-spacing:-.02em;
+    background:linear-gradient(128deg,#007AFF 0%,#5E5CE6 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
+  header .hint { color:rgba(60,60,67,.60); font-size:12px; line-height:1.4; flex:1; }
+
+  /* ── Wrap layout ── */
+  .wrap {
+    display:grid;
+    grid-template-columns:minmax(440px,1.3fr) minmax(380px,1fr);
+    gap:18px; padding:20px 20px 8px; align-items:start;
+  }
+  #leftCol  { display:flex; flex-direction:column; gap:10px; }
+  #rightCol { display:flex; flex-direction:column; gap:14px; max-height:calc(100vh - 74px); overflow-y:auto; padding-right:4px; }
+  #rightCol::-webkit-scrollbar { width:4px; }
+  #rightCol::-webkit-scrollbar-track { background:transparent; }
+  #rightCol::-webkit-scrollbar-thumb { background:rgba(0,0,0,.12); border-radius:999px; }
+  #featuresPanel, #exportPanel { width:100%; max-height:none; }
+
+  /* ── Viewer card ── */
+  #viewer-card {
+    position:relative; width:100%;
+    height:min(calc(100vh - 130px),820px); min-height:560px;
+    background:#ffffff;
+    border:1px solid rgba(255,255,255,.95);
+    border-radius:var(--r-xl);
+    box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.9);
+    overflow:hidden;
+  }
+  #viewer { width:100%; height:calc(100% - 54px); position:relative; }
+  .viewer-toolbar {
+    position:absolute; bottom:0; left:0; right:0; z-index:2;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:9px 16px;
+    background:rgba(255,255,255,.78);
+    backdrop-filter:saturate(200%) blur(18px);
+    -webkit-backdrop-filter:saturate(200%) blur(18px);
+    border-top:1px solid rgba(0,0,0,.06);
+    border-radius:0 0 var(--r-xl) var(--r-xl);
+  }
+  .viewer-toolbar label { font-size:12px; color:var(--muted); }
+  .viewer-toolbar input[type=file] { font-size:11.5px; }
+  /* ── Molecule info badge ── */
+  .mol-info-badge {
+    position:absolute; top:14px; left:16px; z-index:2;
+    display:flex; align-items:center; gap:7px;
+    padding:5px 12px;
+    background:rgba(255,255,255,.82);
+    backdrop-filter:saturate(200%) blur(16px);
+    -webkit-backdrop-filter:saturate(200%) blur(16px);
+    border:1px solid rgba(0,0,0,.07); border-radius:999px;
+    font-size:12px; font-weight:500; color:#415165;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+    pointer-events:none;
+  }
+  .mol-info-badge .mol-dot {
+    width:8px; height:8px; border-radius:50%;
+    background:linear-gradient(135deg,var(--blue),var(--indigo));
+    box-shadow:0 1px 4px rgba(0,122,255,.40); flex-shrink:0;
+  }
+  .mol-info-badge .mol-count { color:var(--muted); font-size:11px; }
+  /* ── Feature legend overlay ── */
+  .feat-legend {
+    position:absolute; top:14px; right:14px; z-index:2;
+    display:flex; flex-direction:column; gap:5px;
+    padding:8px 11px;
+    background:rgba(255,255,255,.82);
+    backdrop-filter:saturate(200%) blur(16px);
+    -webkit-backdrop-filter:saturate(200%) blur(16px);
+    border:1px solid rgba(0,0,0,.07); border-radius:12px;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+    pointer-events:none; min-width:130px;
+  }
+  .feat-legend-title {
+    font-size:9.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.08em; color:var(--muted); margin-bottom:2px;
+  }
+  .feat-legend-row {
+    display:flex; align-items:center; gap:7px;
+    font-size:11.5px; font-weight:500; color:#2d3748;
+  }
+  .feat-legend-dot {
+    width:12px; height:12px; border-radius:50%; flex-shrink:0;
+    box-shadow:0 0 0 2px rgba(255,255,255,.7), 0 1px 4px rgba(0,0,0,.18);
+  }
+  /* ── Drag-over highlight on main viewer ── */
+  #viewer-card { transition:box-shadow .18s; }
+  #viewer-card.drag-over-main {
+    box-shadow:var(--shadow-lg), 0 0 0 3px var(--blue), inset 0 0 0 2px rgba(0,122,255,.12) !important;
+  }
+
+  /* ── Panels ── */
+  .panel {
+    background:var(--surface);
+    border:1px solid rgba(255,255,255,.90);
+    border-radius:var(--r-lg);
+    padding:18px; width:100%;
+    overflow:visible;
+    box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.9);
+    backdrop-filter:saturate(180%) blur(20px);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);
+  }
+  .panel h2 {
+    font-size:10.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.10em; color:var(--muted); margin:0 0 14px;
+  }
+  /* ── Panel action bar (collapse/expand all) ── */
+  .panel-actions {
+    display:flex; align-items:center; gap:6px; justify-content:flex-end; margin-bottom:12px;
+  }
+  .micro-btn {
+    font-size:10.5px; padding:2px 9px; border-radius:999px; min-height:20px;
+    background:rgba(0,0,0,.04); color:var(--muted); border:1px solid rgba(0,0,0,.09);
+    cursor:pointer; font-family:inherit; font-weight:500; box-shadow:none;
+    transition:all .14s;
+  }
+  .micro-btn:hover { background:rgba(0,122,255,.08); color:var(--blue); border-color:rgba(0,122,255,.22); transform:none; box-shadow:none; }
+  .micro-btn.active-mode { background:rgba(0,122,255,.13); color:var(--blue); border-color:rgba(0,122,255,.45); font-weight:700; box-shadow:0 0 0 2px rgba(0,122,255,.18); }
+  /* Measurement readout strip */
+  #measureReadout {
+    display:none; align-items:center; gap:10px; padding:5px 14px;
+    background:rgba(255,255,255,.9); backdrop-filter:saturate(200%) blur(16px);
+    border-top:1px solid rgba(0,122,255,.15);
+    font-size:12px; font-family:ui-monospace,Menlo,Consolas,monospace; color:#1d3557;
+    border-radius:0 0 var(--r-xl) var(--r-xl); flex-wrap:wrap; gap:6px;
+  }
+  #measureReadout.visible { display:flex; }
+  .msr-chip { background:rgba(0,122,255,.08); border:1px solid rgba(0,122,255,.22); border-radius:6px; padding:2px 8px; white-space:nowrap; }
+  .msr-clear { margin-left:auto; cursor:pointer; color:var(--muted); font-size:11px; font-family:inherit; background:none; border:none; padding:0; }
+  .msr-clear:hover { color:var(--blue); }
+  /* ── Scrollbar for rightCol ── */
+  #rightCol::-webkit-scrollbar { width:5px; }
+  #rightCol::-webkit-scrollbar-track { background:transparent; }
+  #rightCol::-webkit-scrollbar-thumb { background:rgba(0,0,0,.14); border-radius:99px; }
+  #rightCol::-webkit-scrollbar-thumb:hover { background:rgba(0,0,0,.24); }
+  /* ── Section header badges ── */
+  .sec-head {
+    display:flex; align-items:center; gap:9px;
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.09em;
+    color:var(--muted); margin:20px 0 13px;
+  }
+  .sec-head:first-child { margin-top:0; }
+  .sec-num {
+    width:19px; height:19px; border-radius:50%;
+    background:linear-gradient(135deg,var(--blue),var(--indigo));
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:9.5px; font-weight:800; flex-shrink:0;
+    box-shadow:0 2px 6px rgba(0,122,255,.30);
+  }
+  .sec-line { flex:1; height:1px; background:rgba(0,0,0,.07); }
+  /* ── Status chip (building group) ── */
+  .status-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;
+    background:rgba(0,122,255,.05); border:1.5px dashed rgba(0,122,255,.28);
+    border-radius:var(--r-sm); padding:5px 10px;
+    min-width:120px; min-height:30px; color:var(--text);
+    transition:background .2s, border-color .2s;
+  }
+  .status-chip.has-data {
+    background:rgba(40,205,65,.06); border:1.5px solid rgba(40,205,65,.35);
+    border-style:solid; animation:chip-pulse 2.4s ease-in-out infinite;
+  }
+  .status-chip .chip-dot {
+    width:7px; height:7px; border-radius:50%; background:rgba(0,122,255,.30); flex-shrink:0;
+    transition:background .2s;
+  }
+  .status-chip.has-data .chip-dot { background:var(--green); }
+  @keyframes chip-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(40,205,65,.0)} 50%{box-shadow:0 0 0 4px rgba(40,205,65,.14)} }
+  /* ── Collapsible section bodies ── */
+  .sec-head.collapsible { cursor:pointer; user-select:none; }
+  .sec-head.collapsible:hover .sec-num { transform:scale(1.10); }
+  .sec-chev {
+    font-size:9px; color:var(--muted); margin-left:2px; flex-shrink:0;
+    transition:transform .25s cubic-bezier(.4,0,.2,1);
+  }
+  .sec-head.collapsible.closed .sec-chev { transform:rotate(-90deg); }
+  .sec-body {
+    overflow:hidden;
+    max-height:1800px; opacity:1;
+    transition:max-height .34s cubic-bezier(.4,0,.2,1), opacity .22s ease, margin .22s ease;
+    margin-bottom:2px;
+  }
+  .sec-body.closed { max-height:0 !important; opacity:0; margin-bottom:0; pointer-events:none; }
+
+  /* ── Vizbar header ── */
+  .vizbar-header {
+    display:flex; align-items:center; gap:8px;
+    padding-bottom:9px; margin-bottom:4px;
+    border-bottom:1px solid rgba(0,0,0,.06);
+  }
+  .vizbar-title {
+    font-size:10.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.09em; color:var(--muted); flex:1;
+  }
+  /* ── sec-num glow when section is open ── */
+  .sec-head.collapsible:not(.closed) .sec-num {
+    box-shadow:0 2px 10px rgba(0,122,255,.42);
+  }
+  .sec-num { transition:box-shadow .25s, transform .2s; }
+  /* ── VizBar section dividers ── */
+  .viz-sec {
+    display:flex; align-items:center; gap:8px;
+    font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.10em;
+    color:var(--muted); margin:4px 0 2px;
+    cursor:pointer; user-select:none;
+  }
+  .viz-sec:hover { opacity:.75; }
+  .viz-sec-line { flex:1; height:1px; background:rgba(0,0,0,.06); }
+  .viz-sec-chev {
+    font-size:9px; color:var(--muted); transition:transform .22s cubic-bezier(.4,0,.2,1);
+  }
+  .viz-sec.closed .viz-sec-chev { transform:rotate(-90deg); }
+  .viz-body {
+    overflow:hidden; max-height:600px; opacity:1;
+    transition:max-height .28s cubic-bezier(.4,0,.2,1), opacity .18s ease;
+  }
+  .viz-body.closed { max-height:0 !important; opacity:0; pointer-events:none; }
+
+  /* ── VizBar ── */
+  .vizbar {
+    margin-top:14px; width:100%; display:flex; flex-direction:column; gap:8px;
+    background:var(--surface);
+    border:1px solid rgba(255,255,255,.90); border-radius:var(--r);
+    padding:12px 14px;
+    box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.9);
+    backdrop-filter:saturate(180%) blur(20px);
+  }
+  .vizrow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:12.5px; }
+  .vizrow input[type=checkbox] { accent-color:var(--blue); width:14px; height:14px; cursor:pointer; }
+  .vizrow button { padding:4px 12px; }
+  .polar { flex-basis:100%; margin-top:4px; }
+  .polar svg { background:#f8fafe; border:1px solid rgba(0,0,0,.05); border-radius:10px; box-shadow:var(--shadow-xs); }
+  .dipole-basis input { text-align:center; }
+
+  /* ── Typography helpers ── */
+  .row { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+  label { font-size:12px; color:var(--muted); font-weight:500; }
+  .small { font-size:11px; color:var(--muted); }
+  .legend { font-size:11px; color:rgba(60,60,67,.40); margin-top:8px; line-height:1.5; }
+  a.dl { text-decoration:none; }
+
+  /* ── Inputs / selects ── */
+  select, input[type=number], textarea {
+    font-family:inherit; font-size:13px; color:var(--text);
+    background:rgba(255,255,255,.88);
+    border:1px solid rgba(0,0,0,.10);
+    border-radius:10px; padding:7px 10px; min-height:34px;
+    outline:none; transition:border-color .15s,box-shadow .15s;
+  }
+  select:focus, input[type=number]:focus, textarea:focus {
+    border-color:rgba(0,122,255,.45);
+    box-shadow:0 0 0 3.5px rgba(0,122,255,.13);
+  }
+
+  /* ── Buttons ── */
+  button {
+    font-family:inherit; font-size:13px; font-weight:500; cursor:pointer;
+    border-radius:999px; padding:6px 16px; min-height:32px;
+    border:1px solid rgba(0,0,0,.09);
+    background:rgba(255,255,255,.96); color:var(--text);
+    box-shadow:0 1px 3px rgba(0,0,0,.06),inset 0 1px 0 rgba(255,255,255,.85);
+    transition:border-color .15s,box-shadow .15s,transform .12s;
+  }
+  button:hover {
+    border-color:rgba(0,122,255,.35);
+    box-shadow:0 4px 16px rgba(0,122,255,.14),inset 0 1px 0 rgba(255,255,255,.85);
+    transform:translateY(-1px);
+  }
+  button:active { transform:translateY(0); box-shadow:var(--shadow-xs); }
+  button.primary {
+    background:linear-gradient(180deg,#1E8FFF 0%,#006AE3 100%);
+    color:#fff; border-color:transparent;
+    box-shadow:0 2px 10px rgba(0,106,227,.32),inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  button.primary:hover { box-shadow:0 6px 22px rgba(0,106,227,.42),inset 0 1px 0 rgba(255,255,255,.18); }
+  button.ok {
+    background:linear-gradient(180deg,#35D267 0%,#1CB04A 100%);
+    color:#fff; border-color:transparent;
+    box-shadow:0 2px 10px rgba(28,176,74,.30),inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  button.ok:hover { box-shadow:0 6px 22px rgba(28,176,74,.40),inset 0 1px 0 rgba(255,255,255,.18); }
+
+  /* ── Chips / pills ── */
+  .chips { display:flex; flex-wrap:wrap; gap:5px; }
+  .chip {
+    background:rgba(0,122,255,.07); border:1px solid rgba(0,122,255,.16);
+    border-radius:6px; padding:2px 7px;
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;
+    display:inline-flex; gap:6px; align-items:center; color:var(--text);
+  }
+  .chip span.x { color:var(--red); cursor:pointer; font-weight:700; }
+  .pill {
+    display:inline-flex; align-items:center; font-size:11px; font-weight:600;
+    letter-spacing:.02em;
+    background:rgba(0,122,255,.09); border:1px solid rgba(0,122,255,.18);
+    color:#0057C8; border-radius:999px; padding:2px 9px;
+  }
+  .current {
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;
+    background:rgba(0,122,255,.05); border:1.5px dashed rgba(0,122,255,.28);
+    border-radius:var(--r-sm); padding:6px 10px;
+    min-width:120px; min-height:30px; display:inline-flex; align-items:center; color:var(--text);
+  }
+
+  /* ── Output box ── */
+  .out {
+    background:rgba(246,249,253,.98); border:1px solid rgba(0,0,0,.07);
+    border-radius:var(--r); padding:12px;
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;
+    white-space:pre; overflow:auto; max-height:240px; color:var(--text);
+    box-shadow:inset 0 1px 4px rgba(0,0,0,.04);
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display:flex; gap:0; margin-bottom:10px;
+    background:rgba(116,116,128,.12); border:none;
+    border-radius:999px; padding:3px; width:max-content;
+  }
+  .tabs button {
+    border:0; background:transparent; box-shadow:none; min-height:28px;
+    border-radius:999px; padding:4px 16px; font-size:12.5px;
+    color:var(--muted); transition:all .15s;
+  }
+  .tabs button:hover { transform:none; box-shadow:none; border:none; }
+  .tabs button.active { background:#fff; color:#0B63CE; box-shadow:0 2px 8px rgba(0,0,0,.10); }
+
+  /* ── Table ── */
+  table { width:100%; border-spacing:0 4px; border-collapse:separate; font-size:12.5px; }
+  th { color:var(--muted); font-weight:600; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; padding:5px 8px; }
+  td { padding:7px 8px; vertical-align:top; }
+  tr.selrow { cursor:pointer; }
+  tr.selrow td { background:rgba(255,255,255,.65); border-top:1px solid rgba(0,0,0,.05); border-bottom:1px solid rgba(0,0,0,.05); }
+  tr.selrow td:first-child { border-left:1px solid rgba(0,0,0,.05); border-radius:10px 0 0 10px; }
+  tr.selrow td:last-child { border-right:1px solid rgba(0,0,0,.05); border-radius:0 10px 10px 0; }
+  tr.selrow:hover td { background:rgba(0,122,255,.05); }
+  tr.field-active td { background:rgba(0,122,255,.08); }
+  .field-active { outline:2.5px solid var(--blue); outline-offset:2px; border-radius:10px; }
+
+  /* ── Guide ── */
+  .guide { margin-top:14px; background:rgba(248,250,253,.96); border:1px solid rgba(0,0,0,.06); border-radius:var(--r); padding:14px; }
+  .guide h3 { margin:0 0 8px; font-size:14px; font-weight:600; color:var(--text); }
+  .guide .tag { display:inline-flex; align-items:center; background:rgba(0,0,0,.04); border:1px solid rgba(0,0,0,.08); color:var(--muted); border-radius:999px; padding:2px 8px; margin:0 5px 6px 0; font-size:11px; }
+  .guide p { margin:6px 0; font-size:12.5px; line-height:1.5; color:#415165; }
+  .guide ul { margin:6px 0 0 18px; padding:0; color:#415165; font-size:12.5px; line-height:1.5; }
+  .guide code { background:rgba(0,0,0,.05); border:1px solid rgba(0,0,0,.08); border-radius:5px; padding:1px 5px; color:#0B3D6B; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; }
+  .guide-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .guide-card { background:rgba(255,255,255,.80); border:1px solid rgba(0,0,0,.06); border-radius:10px; padding:10px; }
+  .guide-card b { color:var(--blue); font-size:12px; }
+  .guide-card div { color:#415165; font-size:12px; margin-top:4px; line-height:1.4; }
+  .exampleBtn { font-size:12px; padding:4px 10px; margin-top:8px; }
+  .install-line { margin-top:10px; font-size:12px; color:#415165; }
+  .install-line b { color:var(--blue); margin-right:4px; }
+  .guide-note { margin-top:10px; font-size:12px; line-height:1.5; color:#7a4b12; background:rgba(255,159,10,.07); border:1px solid rgba(255,159,10,.22); border-left:3px solid var(--orange); border-radius:var(--r-sm); padding:8px 10px; }
+  .needs-ok { color:var(--green); font-weight:600; }
+  .needs-warn { color:var(--orange); font-weight:600; }
+
+  /* ── Package rows ── */
+  .pkgbox { display:flex; flex-direction:column; gap:5px; }
+  .pkgrow { display:flex; gap:8px; align-items:center; font-size:12.5px; color:var(--text); background:rgba(255,255,255,.65); border:1px solid rgba(0,0,0,.07); border-radius:10px; padding:7px 11px; cursor:pointer; transition:all .13s; }
+  .pkgrow:hover { background:rgba(255,255,255,.90); box-shadow:var(--shadow-xs); }
+  .pkgrow.active-guide { border-color:rgba(0,122,255,.32); background:rgba(0,122,255,.06); }
+  .pkgrow input { accent-color:var(--blue); }
+  .pkggroup { font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--blue); margin:8px 0 3px; font-weight:700; }
+
+  /* ── Workflow presets ── */
+  .preset-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0 14px; }
+  .preset-card {
+    text-align:left; border-radius:14px; padding:11px 13px; cursor:pointer;
+    background:rgba(255,255,255,.85); border:1.5px solid rgba(0,0,0,.07);
+    color:var(--text); min-height:58px;
+    box-shadow:var(--shadow-xs); transition:all .15s;
+  }
+  .preset-card:hover { border-color:rgba(0,122,255,.28); box-shadow:0 4px 18px rgba(0,122,255,.13); transform:translateY(-1px); }
+  .preset-card b { display:block; font-size:12.5px; font-weight:600; margin-bottom:3px; }
+  .preset-card span { display:block; font-size:11.5px; line-height:1.35; color:var(--muted); font-weight:400; }
+  .preset-card.active { border-color:var(--blue); background:rgba(0,122,255,.06); box-shadow:0 4px 22px rgba(0,122,255,.18); }
+  .flow-strip { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 12px; }
+  .flow-step { display:inline-flex; align-items:center; gap:5px; background:rgba(0,0,0,.04); border:1px solid rgba(0,0,0,.07); color:var(--muted); border-radius:999px; padding:4px 10px; font-size:11.5px; }
+  .flow-step strong { color:var(--text); font-weight:650; }
+
+  /* ── Responsive ── */
+  @media (max-width:1100px) {
+    .wrap { grid-template-columns:1fr; padding:14px; }
+    #rightCol { max-height:none; overflow-y:visible; padding-right:0; }
+    #viewer-card { min-height:420px; height:56vh; }
+  }
+  @media (max-width:520px) { .preset-grid { grid-template-columns:1fr; } }
+
+  /* ── Collapsible bars (shared) ── */
+  .csearch-bar, .cview-bar {
+    margin:0 18px 16px;
+    background:var(--surface);
+    border:1px solid rgba(255,255,255,.90);
+    border-radius:var(--r-lg);
+    box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.9);
+    backdrop-filter:saturate(180%) blur(20px);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);
+    overflow:hidden;
+    transition:box-shadow .2s;
+  }
+  .csearch-bar:hover, .cview-bar:hover { box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.9); }
+  .csearch-head, .cview-head {
+    display:flex; gap:10px; align-items:center;
+    padding:14px 20px; cursor:pointer; user-select:none;
+    border-bottom:1px solid transparent; transition:border-color .15s,background .15s;
+  }
+  .csearch-head:hover, .cview-head:hover { background:rgba(0,0,0,.015); }
+  .csearch-head.open, .cview-head.open { border-color:rgba(0,0,0,.07); }
+  .csearch-body { display:none; padding:20px; }
+  .csearch-body.open { display:grid; grid-template-columns:minmax(300px,1fr) minmax(300px,1fr) minmax(260px,.85fr); gap:18px; }
+
+  /* ── Conformer Search internals ── */
+  .cs-h2 { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.10em; color:var(--muted); margin:0 0 12px; }
+  .prog-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 12px; }
+  .prog-card {
+    text-align:left; border:1.5px solid rgba(0,0,0,.07); border-radius:12px;
+    padding:10px 12px; background:rgba(255,255,255,.80); cursor:pointer;
+    transition:all .15s; box-shadow:var(--shadow-xs);
+  }
+  .prog-card:hover { border-color:rgba(0,122,255,.28); transform:translateY(-1px); box-shadow:0 4px 14px rgba(0,122,255,.10); }
+  .prog-card b { display:block; font-size:13px; font-weight:600; margin-bottom:3px; }
+  .prog-card span { display:block; font-size:11.5px; color:var(--muted); line-height:1.3; }
+  .prog-card.active { border-color:var(--blue); background:rgba(0,122,255,.06); box-shadow:0 4px 16px rgba(0,122,255,.14); }
+  .cs-pre {
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;
+    background:rgba(246,249,253,.98); border:1px solid rgba(0,0,0,.07);
+    border-radius:12px; padding:13px 15px; white-space:pre-wrap;
+    word-break:break-all; min-height:90px; color:var(--text); line-height:1.55;
+    box-shadow:inset 0 1px 4px rgba(0,0,0,.04);
+  }
+  .cs-note { font-size:12px; color:#415165; background:rgba(0,122,255,.05); border:1px solid rgba(0,122,255,.14); border-radius:10px; padding:10px 12px; margin-top:12px; line-height:1.55; }
+  .cs-note code { background:rgba(0,0,0,.06); border-radius:4px; padding:1px 5px; font-family:ui-monospace,Menlo,Consolas,monospace; }
+  .src-tabs { display:flex; gap:0; margin-bottom:12px; background:rgba(116,116,128,.10); border-radius:999px; padding:3px; width:max-content; }
+  .src-tabs button { border:0; background:transparent; border-radius:999px; padding:4px 14px; font-size:12.5px; cursor:pointer; color:var(--muted); font-family:inherit; box-shadow:none; min-height:28px; transition:all .15s; }
+  .src-tabs button:hover { transform:none; box-shadow:none; }
+  .src-tabs button.active { background:#fff; color:#0B63CE; box-shadow:0 2px 8px rgba(0,0,0,.10); }
+  .cs-field { margin-bottom:10px; }
+  .cs-field label { display:block; font-size:12px; color:var(--muted); font-weight:500; margin-bottom:5px; }
+  .cs-field input,.cs-field select,.cs-field textarea { width:100%; min-height:34px; border:1px solid rgba(0,0,0,.10); border-radius:10px; padding:7px 10px; font:inherit; color:var(--text); background:rgba(255,255,255,.90); outline:none; transition:border-color .15s,box-shadow .15s; }
+  .cs-field input:focus,.cs-field select:focus,.cs-field textarea:focus { border-color:rgba(0,122,255,.40); box-shadow:0 0 0 3px rgba(0,122,255,.12); }
+  .cs-field textarea { min-height:110px; resize:vertical; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; }
+  .cs-row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .cs-row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  @media (max-width:960px) { .csearch-body.open { grid-template-columns:1fr; } }
+
+  /* ── Conformer Viewer internals ── */
+  .cvctrl-bar {
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+    padding:12px 16px;
+    background:rgba(246,249,253,.96);
+    border:1px solid rgba(0,0,0,.07); border-radius:14px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  #cvDropZone {
+    border:2px dashed rgba(0,122,255,.28); border-radius:12px;
+    padding:8px 18px; cursor:pointer; font-size:12.5px; font-weight:500;
+    color:rgba(0,122,255,.75); background:rgba(0,122,255,.04);
+    transition:all .15s;
+  }
+  #cvDropZone:hover, .drag-over {
+    border-color:var(--blue); color:var(--blue);
+    background:rgba(0,122,255,.08); box-shadow:0 2px 10px rgba(0,122,255,.12);
+  }
+  .cview-main { display:grid; grid-template-columns:290px 1fr; gap:14px; min-height:480px; }
+  .cvlist-wrap { display:flex; flex-direction:column; gap:10px; overflow:hidden; }
+  .cv-list {
+    flex:1; overflow-y:auto;
+    border:1px solid rgba(0,0,0,.07); border-radius:14px;
+    background:rgba(255,255,255,.80); padding:6px;
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.04);
+  }
+  .cv-item {
+    display:flex; align-items:center; gap:9px;
+    padding:7px 9px; border-radius:10px; cursor:pointer;
+    transition:all .13s;
+  }
+  .cv-item:hover { background:rgba(0,122,255,.05); }
+  .cv-item.cv-on { background:rgba(0,122,255,.07); }
+  .cv-dot {
+    width:13px; height:13px; border-radius:50%; flex-shrink:0;
+    border:2px solid rgba(255,255,255,.7);
+    box-shadow:0 1px 3px rgba(0,0,0,.18);
+  }
+  .cv-info { flex:1; min-width:0; }
+  .cv-name { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
+  .cv-meta { font-size:11px; color:var(--muted); margin-top:1px; }
+  .cv-rmsd {
+    font-size:11px; font-weight:700; white-space:nowrap;
+    padding:2px 7px; border-radius:6px;
+    background:rgba(0,0,0,.05); color:var(--text);
+  }
+  .cv-stats {
+    font-size:12px; color:#415165;
+    background:rgba(0,122,255,.05); border:1px solid rgba(0,122,255,.14);
+    border-radius:12px; padding:10px 13px; line-height:1.6; display:none;
+  }
+  .cv-stats.visible { display:block; }
+  .cv-viewer {
+    border-radius:var(--r-lg); overflow:hidden;
+    border:1px solid rgba(0,0,0,.07);
+    position:relative; min-height:480px; background:#ffffff;
+    box-shadow:inset 0 1px 4px rgba(0,0,0,.04);
+  }
+  .cv-empty {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    height:100%; gap:8px; font-size:13px; color:var(--muted); text-align:center; line-height:1.5;
+  }
+  @media (max-width:900px) { .cview-main { grid-template-columns:1fr; } .cv-viewer { min-height:320px; } }
+  /* Combined extraction -> modeling workflow */
+  .model-bar { margin:14px 20px 0; background:var(--surface-hi); border:1px solid rgba(0,0,0,.07); border-radius:var(--r-lg); box-shadow:var(--shadow); overflow:hidden; }
+  .model-head { display:flex; align-items:center; gap:10px; padding:13px 17px; cursor:pointer; user-select:none; background:rgba(255,255,255,.72); }
+  .model-head:hover { background:rgba(0,122,255,.035); }
+  .model-body { display:none; padding:16px 17px 18px; border-top:1px solid var(--line); }
+  .model-body.open { display:block; }
+  .model-grid { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:12px; }
+  .model-field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+  .model-field.wide { grid-column:span 2; }
+  .model-field label { font-size:10px; font-weight:700; text-transform:uppercase; color:var(--muted); letter-spacing:.06em; }
+  .model-field input, .model-field select, .model-field textarea { width:100%; }
+  .model-field textarea { min-height:92px; resize:vertical; font:12px/1.45 ui-monospace,Menlo,Consolas,monospace; }
+  .model-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .model-status { display:none; margin-top:12px; padding:10px 12px; border-radius:var(--r-sm); border:1px solid rgba(0,0,0,.08); font-size:12px; line-height:1.5; }
+  .model-status.visible { display:block; }
+  .model-status.ok { background:rgba(40,205,65,.07); border-color:rgba(40,205,65,.28); }
+  .model-status.bad { background:rgba(255,59,48,.06); border-color:rgba(255,59,48,.25); }
+  .model-status.warn { background:rgba(255,159,10,.07); border-color:rgba(255,159,10,.28); }
+  .model-command { display:none; margin-top:12px; padding:11px 13px; border-radius:var(--r-sm); background:#f5f7fb; border:1px solid rgba(0,0,0,.08); color:#24344d; font:11.5px/1.55 ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .model-command.visible { display:block; }
+  .model-check { display:flex; align-items:center; gap:7px; min-height:34px; font-size:12px; color:#415165; }
+  @media (max-width:1050px) { .model-grid { grid-template-columns:repeat(2,minmax(150px,1fr)); } }
+  @media (max-width:620px) {
+    body { overflow-x:hidden; }
+    header { height:auto; min-height:54px; padding:10px 14px; align-items:flex-start; }
+    header h1 { width:100%; }
+    header .hint { font-size:11px; }
+    .wrap { padding:10px; }
+    #viewer-card { min-height:390px; height:62vh; border-radius:16px; }
+    .panel, .vizbar { border-radius:14px; padding:14px; }
+    .model-bar, .csearch-bar, .cview-bar { margin:10px 10px 14px; border-radius:14px; }
+    .model-head, .csearch-head, .cview-head { padding:12px 14px; flex-wrap:wrap; gap:7px; }
+    .model-head .small, .csearch-head .small, .cview-head .small { display:none; }
+    .model-head > span:last-child, .csearch-head > span:last-child, .cview-head > span:last-child { margin-left:auto; }
+    .model-body, .csearch-body { padding:14px; }
+    .model-grid { grid-template-columns:1fr; }
+    .model-field.wide { grid-column:span 1; }
+    .model-actions button { flex:1 1 135px; }
+    .csearch-body.open { grid-template-columns:1fr; }
+    .cview-body { padding:10px; }
+    .cvctrl-bar { align-items:stretch; }
+    #cvDropZone { width:100%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>DescriPytor &middot; Visual Workflow</h1>
+  <span class="hint">Pick atoms in 3D, extract descriptors, validate the feature CSV, then prepare or run M3/BASSA modeling.</span>
+</header>
+
+<div class="wrap">
+  <!-- Left column: pure 3D viewer -->
+  <div id="leftCol">
+    <div id="viewer-card"
+      ondragover="event.preventDefault(); this.classList.add('drag-over-main')"
+      ondragleave="this.classList.remove('drag-over-main')"
+      ondrop="event.preventDefault(); this.classList.remove('drag-over-main'); handleMainDrop(event)">
+      <div id="viewer"></div>
+      <div id="molInfoBadge" class="mol-info-badge" style="display:none"></div>
+      <div id="featLegend" class="feat-legend" style="display:none"></div>
+      <div class="viewer-toolbar">
+        <label style="font-size:12.5px;font-weight:500;color:#415165;">Load structure:</label>
+        <input type="file" id="fileInput" accept=".xyz" />
+        <button id="pasteBtn">Paste XYZ&hellip;</button>
+        <label><input type="checkbox" id="labelToggle" /> index labels</label>
+        <span style="flex:1"></span>
+        <button class="micro-btn" id="measureBtn" title="Measurement mode (M) — click 2 atoms for distance, 3 for angle">📐 Measure</button>
+        <button class="micro-btn" id="recenterBtn" title="Recenter view (R)" onclick="if(viewer){viewer.zoomTo();viewer.render();}">⊙ Recenter</button>
+        <button class="micro-btn" id="screenshotBtn" title="Download PNG screenshot">⬇ Screenshot</button>
+      </div>
+      <div id="measureReadout">
+        <span id="msrText"></span>
+        <button class="msr-clear" onclick="clearMeasure()">✕ Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column: all selection & visualization controls -->
+  <div id="rightCol">
+
+  <!-- Selection / features panel -->
+  <div class="panel" id="featuresPanel">
+    <div class="panel-actions">
+      <button class="micro-btn" onclick="collapseAllSecs(true)">Collapse all</button>
+      <button class="micro-btn" onclick="collapseAllSecs(false)">Expand all</button>
+    </div>
+    <div class="sec-head collapsible" onclick="toggleSec(this)"><span class="sec-num">1</span>Workflow<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-body">
+      <div class="small" style="margin-bottom:6px;">Start from the closest workflow, then adjust individual engines only if needed.</div>
+      <div class="flow-strip">
+        <span class="flow-step"><strong>1</strong> choose workflow</span>
+        <span class="flow-step"><strong>2</strong> pick atoms</span>
+        <span class="flow-step"><strong>3</strong> enable engines</span>
+        <span class="flow-step"><strong>4</strong> export config</span>
+        <span class="flow-step"><strong>5</strong> model CSV</span>
+      </div>
+      <div class="preset-grid" id="workflowPresets">
+        <button class="preset-card" data-preset="feather"><b>Feather only</b><span>DescriPytor features from feather files.</span></button>
+        <button class="preset-card" data-preset="feather_xyz"><b>Feather + XYZ</b><span>Derive XYZ and add steric/geometry checks.</span></button>
+        <button class="preset-card" data-preset="external"><b>External packages</b><span>RDKit, Mordred, moltop, morfeus from XYZ.</span></button>
+        <button class="preset-card" data-preset="logs"><b>Logs + feathers</b><span>Add Gaussian log descriptors and validation.</span></button>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="useFeatherXyz" /> derive XYZ files from feathers for XYZ engines</label>
+      </div>
+    </div>
+
+    <div class="sec-head collapsible" onclick="toggleSec(this)"><span class="sec-num">2</span>Pick atoms<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-body">
+      <div class="row">
+        <label>Active field</label>
+        <select id="fieldSelect"></select>
+        <span class="small" id="fieldDesc"></span>
+      </div>
+      <div class="guide" id="fieldGuide"></div>
+      <div class="row">
+        <label>Building group</label>
+        <span class="status-chip" id="currentGroup"><span class="chip-dot"></span>(empty)</span>
+        <button id="commitBtn">Commit group</button>
+        <button id="undoPickBtn" title="Undo last atom pick (Ctrl+Z)">↩ Undo</button>
+        <button id="clearGroupBtn">Clear group</button>
+        <span class="small" id="groupHint"></span>
+      </div>
+    </div>
+
+    <div class="sec-head collapsible closed" onclick="toggleSec(this)"><span class="sec-num">3</span>Thresholds<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-body closed">
+      <div class="row">
+        <label>Stretch threshold</label>
+        <input type="number" id="stretchThr" value="1600" style="width:90px" />
+        <label>Bend threshold</label>
+        <input type="number" id="bendThr" value="3000" style="width:90px" />
+      </div>
+    </div>
+
+    <div class="sec-head collapsible" onclick="toggleSec(this)"><span class="sec-num">4</span>Selections<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-body">
+      <table id="selTable">
+        <thead><tr><th style="width:38%">field</th><th>groups</th><th style="width:46px"></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="sec-head collapsible closed" onclick="toggleSec(this)"><span class="sec-num">5</span>Feature packages<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-body closed">
+      <div class="small" style="margin-bottom:6px;">Tick extra descriptor engines to include in the run (each needs its pip install).</div>
+      <div id="pkgBox" class="pkgbox"></div>
+      <div class="guide" id="engineGuide"></div>
+    </div>
+  </div>
+
+  <!-- Visualization overlays panel -->
+  <div class="vizbar">
+    <div class="vizbar-header">
+      <span class="vizbar-title">Visualizations</span>
+      <button class="micro-btn" onclick="collapseAllViz(true)">Collapse all</button>
+      <button class="micro-btn" onclick="collapseAllViz(false)">Expand all</button>
+    </div>
+    <div class="viz-sec" onclick="toggleVizSec(this)">Sterimol<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
+    <div class="viz-body">
+      <div class="vizrow">
+        <label><input type="checkbox" id="vizSterimol" /> <b>Sterimol</b></label>
+        <select id="vizSterPair" title="which [origin, attached] pair to draw"></select>
+        <span class="small" id="vizSterReadout"></span>
+        <div id="sterPolar" class="polar"></div>
+      </div>
+    </div>
+    <div class="viz-sec" onclick="toggleVizSec(this)">Dipole<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
+    <div class="viz-body">
+      <div class="vizrow">
+        <label><input type="checkbox" id="vizDipole" /> <b>Dipole</b></label>
+        <label><input type="checkbox" id="vizDipBasis" checked /> local basis</label>
+        <span class="small" id="vizDipReadout">load a feather molecule (make_picker.py) for dipole + vibrations</span>
+      </div>
+      <div class="vizrow dipole-basis">
+        <span class="small">Basis atoms</span>
+        <span class="pill">origin midpoint</span><input type="text" id="basisOrigin" placeholder="1 or 1,2" style="width:96px" />
+        <span class="pill">direction midpoint</span><input type="text" id="basisY" placeholder="3 or 3,4" style="width:96px" />
+        <span class="pill">plane midpoint</span><input type="text" id="basisPlane" placeholder="5 or 5,6" style="width:96px" />
+        <button id="basisFromPick">Use dipole pick</button>
+      </div>
+    </div>
+    <div class="viz-sec" onclick="toggleVizSec(this)">Vibration<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
+    <div class="viz-body">
+      <div class="vizrow">
+        <select id="vizMode" style="max-width:230px"></select>
+        <button id="vizPlay">Play</button>
+        <label class="small">amp <input type="range" id="vizAmp" min="0.2" max="2.5" step="0.1" value="1.0" style="width:90px;vertical-align:middle"></label>
+        <label class="small"><input type="checkbox" id="vizArrows" /> arrows</label>
+      </div>
+    </div>
+    <div class="viz-sec" onclick="toggleVizSec(this)">Feature preview<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
+    <div class="viz-body">
+      <div class="vizrow" id="featureRow">
+        <button id="featAll" title="toggle all feature overlays">All</button>
+        <label class="small"><input type="checkbox" id="featCharges" /> charges</label>
+        <label class="small"><input type="checkbox" id="featBonds" /> bond length</label>
+        <label class="small"><input type="checkbox" id="featDq" /> Δcharge</label>
+        <label class="small"><input type="checkbox" id="featAngles" /> angle/dih.</label>
+        <label class="small"><input type="checkbox" id="featNpa" /> NPA</label>
+        <label class="small"><input type="checkbox" id="featVibr" /> vibr. pairs</label>
+        <label class="small"><input type="checkbox" id="featRing" /> ring</label>
+        <label class="small"><input type="checkbox" id="featDrop" /> drop</label>
+        <label class="small"><input type="checkbox" id="featSterimol" /> sterimol atoms</label>
+        <label class="small"><input type="checkbox" id="featDipoleAtoms" /> dipole atoms</label>
+        <label class="small"><input type="checkbox" id="featLabels" checked /> labels</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Output / export panel -->
+  <div class="panel" id="exportPanel">
+    <div class="sec-head collapsible" onclick="toggleSec(this)"><span class="sec-num">6</span>Export<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-body">
+      <div class="tabs">
+        <button data-tab="cfg" class="active">run_config.json</button>
+        <button data-tab="py">Python answers_dict</button>
+      </div>
+      <div class="out" id="outBox"></div>
+      <div class="row" style="margin-top:10px;">
+        <button class="ok" id="copyBtn">Copy</button>
+        <a class="dl" id="dlLink"><button class="primary">Save run_config.json</button></a>
+        <button id="resetBtn">Reset all</button>
+      </div>
+      <details style="margin-top:8px;">
+        <summary style="font-size:11px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:5px;">
+          <span style="font-size:9px;transition:transform .2s;">▶</span> How to use
+        </summary>
+        <div class="legend" style="margin-top:6px;">
+          <b>run_config.json</b> = the complete, ready-to-run config (dataset paths baked in
+          + your atom selections). Save it, then run:<br/>
+          <code id="runCmd">python descriptor_extractor.py --config run_config.json</code><br/>
+          <b>Python</b> tab = paste straight into a notebook as <code>answers_dict</code> instead.
+        </div>
+      </details>
+    </div>
+  </div>
+
+  </div><!-- /#rightCol -->
+</div><!-- /.wrap -->
+
+<!-- Modeling continues directly from descriptor extraction output. -->
+<div class="model-bar" id="modelBar">
+  <div class="model-head" onclick="toggleModelPanel()">
+    <span class="sec-num">7</span>
+    <b style="font-size:14px;">Modeling</b>
+    <span class="pill">M3 + BASSA</span>
+    <span class="small" style="flex:1;color:var(--muted)">Validate the extracted CSV, estimate the search, and generate the exact command</span>
+    <span id="modelChevron" style="color:var(--muted);font-size:12px;">&#9660; expand</span>
+  </div>
+  <div class="model-body" id="modelBody">
+    <div class="model-grid">
+      <div class="model-field"><label>Engine</label><select id="mdlEngine" onchange="mdlSync()"><option value="m3">M3 feature search</option><option value="bassa">BASSA Bayesian regression</option></select></div>
+      <div class="model-field" id="mdlTaskField"><label>Task</label><select id="mdlTask" onchange="mdlSync()"><option value="regression">Regression</option><option value="classification">Classification</option></select></div>
+      <div class="model-field wide"><label>Feature CSV</label><input id="mdlCsv" placeholder="C:\path\to\merged_features.csv" oninput="mdlInvalidate()" onblur="mdlValidate()" /></div>
+      <div class="model-field"><label>Target column</label><input id="mdlTarget" value="output" oninput="mdlInvalidate()" onblur="mdlValidate()" /></div>
+      <div class="model-field wide"><label>Output values to merge (optional)</label><textarea id="mdlOutputs" placeholder="Row order: 0.42, 0.55, 0.61&#10;or one value per line"></textarea></div>
+      <div class="model-field"><label>Merge mode</label><select id="mdlMergeMode" onchange="mdlSyncMerge()"><option value="row_order">Match CSV row order</option><option value="name_value">Match name,value pairs</option></select></div>
+      <div class="model-field" id="mdlNameColumnField" style="display:none"><label>Name column</label><input id="mdlNameColumn" placeholder="molecule" /></div>
+      <div class="model-field wide"><label>Merged CSV path (optional)</label><input id="mdlMergedPath" placeholder="Automatically: *_with_output.csv" /></div>
+      <div class="model-field m3-only"><label>Minimum features</label><input id="mdlMin" type="number" value="1" min="1" oninput="mdlEstimate()" /></div>
+      <div class="model-field m3-only"><label>Maximum features</label><input id="mdlMax" type="number" value="3" min="1" oninput="mdlEstimate()" /></div>
+      <div class="model-field m3-only"><label>Top models</label><input id="mdlTop" type="number" value="20" min="1" /></div>
+      <div class="model-field m3-only"><label>Threshold</label><input id="mdlThreshold" type="number" value="0.70" min="0" max="1" step="0.01" /></div>
+      <div class="model-field m3-only"><label>CPU jobs</label><input id="mdlJobs" type="number" value="1" min="1" /></div>
+      <div class="model-field m3-only"><label>Leave-out samples</label><input id="mdlLeave" placeholder="Mol_01, Mol_02" /></div>
+      <div class="model-field m3-only"><label>Parallel</label><label class="model-check"><input id="mdlParallel" type="checkbox" /> Use multiple CPU jobs</label></div>
+      <div class="model-field bassa-only" style="display:none"><label>Sampler iterations</label><input id="mdlIterations" type="number" value="5000" min="100" /></div>
+      <div class="model-field bassa-only" style="display:none"><label>Experiment name</label><input id="mdlExperiment" value="molfeatures_gui" /></div>
+      <div class="model-field bassa-only wide" style="display:none"><label>Output directory</label><input id="mdlBassaOut" value="bassa_runs" /></div>
+    </div>
+    <div class="model-actions">
+      <button onclick="mdlUseExtractionOutput()">Use extraction output</button>
+      <button onclick="mdlMergeOutputs()">Merge outputs into CSV</button>
+      <button class="primary" onclick="mdlValidate()">Verify CSV</button>
+      <button class="ok" onclick="mdlGenerateCommand()">Generate command</button>
+      <button onclick="mdlCopyCommand()">Copy command</button>
+      <button id="mdlRunBtn" onclick="mdlRun()">Run via server</button>
+      <span class="small" id="mdlServerState">Checking modeling server...</span>
+    </div>
+    <div class="model-status" id="mdlStatus"></div>
+    <div class="model-command" id="mdlCommand"></div>
+  </div>
+</div>
+
+<!-- ── Conformer Search ────────────────────────────────────────────── -->
+<div class="csearch-bar">
+  <div class="csearch-head" id="csearchHead" onclick="toggleCsearch()">
+    <b style="font-size:14px;">Conformer Search</b>
+    <span class="pill">AQME CSEARCH</span>
+    <span class="small" style="flex:1;color:var(--muted)">Generate an XYZ ensemble from SMILES &rarr; feeds rdkit_fp, mordred, rafbl, morfeus and any other xyz engine</span>
+    <span id="csearchChevron" style="color:var(--muted);font-size:12px;">▼ expand</span>
+  </div>
+  <div class="csearch-body" id="csearchBody">
+
+    <!-- col 1: SMILES input -->
+    <div>
+      <p class="cs-h2">1 &middot; SMILES input</p>
+      <div class="src-tabs">
+        <button id="srcFileBtn" class="active" onclick="setCsSrc('file')">CSV file</button>
+        <button id="srcPasteBtn" onclick="setCsSrc('paste')">Paste SMILES</button>
+      </div>
+
+      <div id="csSrcFile">
+        <div class="cs-field">
+          <label>CSV path</label>
+          <input id="csSmilesCsv" placeholder="C:\path\to\smiles.csv" oninput="csRefresh()" />
+        </div>
+        <div class="cs-row2">
+          <div class="cs-field"><label>Name column</label><input id="csNameCol" value="name" oninput="csRefresh()" /></div>
+          <div class="cs-field"><label>SMILES column</label><input id="csSmilesCol" value="smiles" oninput="csRefresh()" /></div>
+        </div>
+      </div>
+
+      <div id="csSrcPaste" style="display:none">
+        <div class="cs-field">
+          <label>Paste name, SMILES &mdash; one per line, comma or tab separated</label>
+          <textarea id="csPasteArea" placeholder="mol_A,c1ccccc1&#10;mol_B,CC(=O)O&#10;mol_C,CCO" oninput="csRefresh()"></textarea>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <a id="csCsvDlLink" download="smiles.csv"><button type="button" style="font-size:12px;padding:5px 13px;">&#8659; Save smiles.csv</button></a>
+          <span class="small">Save first, then fill the path below.</span>
+        </div>
+        <div class="cs-field">
+          <label>Saved CSV path</label>
+          <input id="csPasteCsvPath" placeholder="C:\path\to\smiles.csv" oninput="csRefresh()" />
+        </div>
+      </div>
+    </div>
+
+    <!-- col 2: settings -->
+    <div>
+      <p class="cs-h2">2 &middot; Settings</p>
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Engine</label>
+      <div class="prog-grid" id="csProgramGrid"></div>
+      <div class="cs-row3">
+        <div class="cs-field"><label>Conformers / mol</label><input id="csSample" type="number" value="10" min="1" max="500" oninput="csRefresh()" /></div>
+        <div class="cs-field">
+          <label>Keep</label>
+          <select id="csKeep" onchange="csRefresh()">
+            <option value="lowest">Lowest energy</option>
+            <option value="all">All conformers</option>
+          </select>
+        </div>
+        <div class="cs-field"><label>Charge</label><input id="csCharge" type="number" value="0" oninput="csRefresh()" /></div>
+      </div>
+      <div class="cs-field">
+        <label>Output XYZ directory</label>
+        <input id="csOutDir" placeholder="C:\path\to\csearch_xyz" oninput="csRefresh()" />
+      </div>
+    </div>
+
+    <!-- col 3: command + actions -->
+    <div>
+      <p class="cs-h2">3 &middot; Command</p>
+      <div class="cs-pre" id="csCmd"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="ok" id="csCopyBtn" onclick="csCopy()" style="font-size:13px;">Copy</button>
+        <button onclick="csApplyOut()" style="font-size:13px;" title="Wire the output dir into the run config as xyz_dir">Use as xyz_dir &#8594; config</button>
+      </div>
+      <div class="cs-note" id="csNote"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Conformer Viewer ──────────────────────────────────────────── -->
+<div class="cview-bar">
+  <div class="cview-head" id="cviewHead" onclick="toggleCview()">
+    <b style="font-size:14px;">Conformer Viewer</b>
+    <span class="pill">STACK &amp; COMPARE</span>
+    <span class="small" style="flex:1;color:var(--muted)">Load XYZ ensembles &rarr; Kabsch-align &rarr; overlay conformers with per-conformer RMSD</span>
+    <span id="cviewChevron" style="color:var(--muted);font-size:12px;">&#9660; expand</span>
+  </div>
+  <div class="cview-body" id="cviewBody">
+
+    <!-- controls strip -->
+    <div class="cvctrl-bar">
+      <div id="cvDropZone" onclick="$('cvFileIn').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="event.preventDefault();this.classList.remove('drag-over');cvLoadFileList(event.dataTransfer.files)">
+        &#8659; Drop XYZ / SDF files or click to load
+      </div>
+      <input type="file" id="cvFileIn" multiple accept=".xyz,.sdf,.mol" style="display:none"
+             onchange="cvLoadFileList(this.files)" />
+      <button onclick="cvLoadCurrent()" title="Load the molecule currently shown in the main picker as a conformer">Load current mol</button>
+      <label class="small" style="display:flex;align-items:center;gap:4px;">Style
+        <select id="cvStyle" onchange="cvRenderStack()">
+          <option value="line">Line</option>
+          <option value="stick">Stick</option>
+          <option value="ball_stick">Ball &amp; Stick</option>
+        </select>
+      </label>
+      <label class="small" style="display:flex;align-items:center;gap:4px;">Align by
+        <select id="cvAlignMode" onchange="cvRenderStack()">
+          <option value="benzene">Benzene ring (if present)</option>
+          <option value="heavy">Heavy atoms</option>
+          <option value="all">All atoms</option>
+          <option value="none">No alignment</option>
+        </select>
+      </label>
+      <label class="small" style="display:flex;align-items:center;gap:4px;">Spread
+        <input type="range" id="cvSpread" min="0" max="5" step="0.25" value="0"
+               oninput="$('cvSpreadVal').textContent=parseFloat(this.value).toFixed(2);cvRenderStack()"
+               style="vertical-align:middle;width:80px">
+        <span id="cvSpreadVal">0.00</span>&thinsp;&#8491;
+      </label>
+      <button class="ok" onclick="cvRenderStack()">Render</button>
+      <button onclick="cvClearAll()" style="color:#c0392b;" title="Remove all loaded conformers">Clear all</button>
+    </div>
+
+    <!-- list + viewer -->
+    <div class="cview-main">
+      <div class="cvlist-wrap">
+        <div id="cvList" class="cv-list">
+          <div class="cv-empty" style="height:200px">No conformers loaded yet.<br>Drop XYZ files above.</div>
+        </div>
+        <div id="cvStats" class="cv-stats"></div>
+      </div>
+      <div id="cvViewer3d" class="cv-viewer">
+        <div class="cv-empty">Viewer appears here after loading conformers and clicking Render.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------ *
+ * Field definitions.  short key -> { label, full (answers_dict key),
+ * size (atoms per group; 0 = variable / use Commit), kind }            *
+ * The `full` strings are byte-for-byte the keys get_molecules_features  *
+ * _set expects (from Practical_Notebook_Features.ipynb).               *
+ * ------------------------------------------------------------------ */
+const FIELDS = [
+  { key:"sterimol",             size:2, label:"Sterimol  [origin, attached]",
+    full:"Sterimol atoms - Primary axis along: \n example: 7,8" },
+  { key:"bond_length",          size:2, label:"Bond length  [a, b]",
+    full:"Bond_length - Atom pairs to calculate difference: \n example: 1,2 4,5" },
+  { key:"bond_angle",           size:0, label:"Bond angle/dihedral  [3 or 4 atoms]",
+    full:"Bond_angle - Atom triplets to calculate difference: \n example: 1,2,3 4,5,6" },
+  { key:"dipole",               size:3, label:"Dipole transform  [origin, y-axis, xy-plane]",
+    full:"Dipole atoms - indices for coordination transformation: \n example: 4,5,6 - origin, y-axis, new xy plane" },
+  { key:"charges",              size:1, label:"Charges  [single atoms]",
+    full:"charges values - Insert atoms to show charge: \n example: 1,2,3,4" },
+  { key:"charge_diff",          size:2, label:"Charge difference  [a, b]",
+    full:"charge_diff - Insert atoms to show charge difference: \n example: 1,2 3,4" },
+  { key:"npa",                  size:1, label:"NPA atoms  [single atoms]",
+    full:"NPA manipulation atoms - Insert atoms to show NPA: \n example: 1,2,4" },
+  { key:"stretching_vibration", size:2, label:"Stretching vibration  [bonded pair]",
+    full:"Stretching Vibration atoms- enter bonded atom pairs: \n example: 1,2 4,5" },
+  { key:"bending_vibration",    size:2, label:"Bending vibration  [pair w/ common atom]",
+    full:"Bending Vibration atoms - enter atom pairs that have a common atom: \n example: 4,7" },
+  { key:"ring_vibration",       size:1, label:"Ring vibration  [one ring atom]",
+    full:"Ring Vibration atoms - by order -> Pick one  atom from a six member ring\n example: 13" },
+  { key:"drop_atoms",           size:1, label:"Drop atoms  [single atoms]",
+    full:"drop_atoms - Atoms to drop: \n example: 1,2,3" },
+];
+// scalar threshold fields (kept in their own UI inputs)
+const THRESH = {
+  stretch_threshold: "Stretch Threshold",
+  bend_threshold:    "Bend Threshold",
+};
+// fields that are present in answers_dict but rarely picked visually
+const PASSTHROUGH = {
+  center_atoms_dipole: "Center_Atoms Dipole",
+  sub_atoms_npa:       "Sub-Atoms NPA",
+};
+
+/* morfeus_suite atom selections (separate from the DescriPytor answers_dict) */
+const MF_FIELDS = [
+  { key:"mf_sterimol",  size:2, label:"morfeus Sterimol  [origin, attached]" },
+  { key:"mf_bv_metal",  size:1, label:"morfeus Buried volume  [metal/anchor atom]" },
+  { key:"mf_cone_apex", size:1, label:"morfeus Cone angle  [apex atom]" },
+  { key:"mf_pyramid",   size:1, label:"morfeus Pyramidalization  [center atom]" },
+];
+
+/* Feature packages = the extraction engines, toggled on/off here.
+   descripytor_full is always on (its atoms are the answers_dict above);
+   the other 13 engines are listed below. Engines marked `derives` reuse the
+   atoms you already clicked, so ticking them is all that's needed.            */
+const PACKAGES = [
+  // --- DescriPytor native (atoms reused from your picks) ---
+  { key:"descripytor_steric", group:"DescriPytor (feather set)", label:"Sterimol table - uses your Sterimol pairs" },
+  { key:"xyz_sterimol",       group:"xyz set",                   label:"Sterimol - uses your Sterimol pairs" },
+  { key:"xyz_geometry",       group:"xyz set",                   label:"Angles / bond lengths - uses your Bond angle + Bond length picks" },
+  { key:"xyz_buried_volume",  group:"xyz set",                   label:"Buried volume - uses your morfeus BV metal pick" },
+  { key:"morfeus_sterimol",   group:"xyz set",                   label:"morfeus Sterimol cross-check - uses your Sterimol pairs" },
+  { key:"qm",                 group:"QM logs",                   label:"Gaussian-log descriptors - set log_dir in the config" },
+  // --- External descriptor packages (from the notebook) ---
+  { key:"morfeus_suite", group:"External", label:"morfeus suite (Sterimol, BuriedVol, ConeAngle, SASA, Dispersion)", atoms:true },
+  { key:"rdkit",         group:"External", label:"RDKit 2D descriptor list" },
+  { key:"rdkit_fp",      group:"External", label:"RDKit fingerprints (ECFP/FCFP/MACCS/AtomPair/Torsion/USRCAT)" },
+  { key:"mordred",       group:"External", label:"Mordred descriptors" },
+  { key:"deepchem",      group:"External", label:"DeepChem (circular FP + RDKit2D)" },
+  { key:"rafbl",         group:"External", label:"moltop topological (RAFBL)" },
+  { key:"aqme_qdescp",   group:"External", label:"AQME QDESCP (xTB / MORFEUS) - needs xTB" },
+];
+const packagesEnabled = {};
+PACKAGES.forEach(p => packagesEnabled[p.key] = false);
+let activeWorkflowPreset = "feather";
+
+const WORKFLOW_PRESETS = {
+  feather: {
+    label: "Feather only",
+    deriveXYZ: false,
+    engines: []
+  },
+  feather_xyz: {
+    label: "Feather + XYZ",
+    deriveXYZ: true,
+    engines: ["descripytor_steric", "xyz_sterimol", "xyz_geometry", "xyz_buried_volume", "morfeus_sterimol"]
+  },
+  external: {
+    label: "External packages",
+    deriveXYZ: true,
+    engines: ["rdkit", "rdkit_fp", "mordred", "rafbl", "morfeus_suite"]
+  },
+  logs: {
+    label: "Logs + feathers",
+    deriveXYZ: true,
+    engines: ["qm", "descripytor_steric", "xyz_sterimol", "xyz_geometry", "rdkit"]
+  }
+};
+
+const FIELD_GUIDES = {
+  sterimol: {
+    needs: ["feather or xyz", "2 atom indices"],
+    example: [[1, 23]],
+    explain: "Defines the Sterimol axis. Click the atom at the substituent/measurement origin first, then the attached atom that defines the axis direction.",
+    visual: "Tick the Sterimol overlay below the viewer to draw L, B1 and B5 for the selected pair."
+  },
+  bond_length: {
+    needs: ["feather or xyz", "2 atom indices"],
+    example: [[1, 2]],
+    explain: "Measures the distance between two atoms. Use bonded atoms for a bond length, or any two atoms for a through-space distance if that is chemically meaningful.",
+    visual: "The selected atoms are highlighted; use the labels in the 3D viewer to confirm the order."
+  },
+  bond_angle: {
+    needs: ["feather or xyz", "3 or 4 atom indices"],
+    example: [[23, 1, 3], [23, 1, 2, 3]],
+    explain: "Use three atoms for an angle A-B-C. Use four atoms for a dihedral A-B-C-D. This field is variable-length, so press Commit group after selecting 3 or 4 atoms.",
+    visual: "For angles, the middle atom is the vertex. For dihedrals, order matters."
+  },
+  dipole: {
+    needs: ["feather", "origin/direction/plane atom groups", "dipole data in feather"],
+    example: [[[23, 24], [1], [3, 4]]],
+    explain: "Defines the coordinate transform for dipole components. Each anchor can be a single atom or an atom group; groups use their midpoint/centroid.",
+    visual: "Type groups in the Dipole basis controls, for example origin 23,24 / direction 1 / plane 3,4, then tick Dipole and local basis."
+  },
+  charges: {
+    needs: ["feather", "1 or more atom indices", "charge table in feather"],
+    example: [[8], [1]],
+    explain: "Extracts charge values for selected atoms. Click each atom you want; single-atom fields auto-commit.",
+    visual: "Use labels to avoid off-by-one mistakes. Indices are 1-based."
+  },
+  charge_diff: {
+    needs: ["feather", "2 atom indices"],
+    example: [[8, 3], [8, 1]],
+    explain: "Computes charge differences between atom pairs. The order is preserved, so use the same order across molecules.",
+    visual: "Pick atom A then atom B for each difference."
+  },
+  npa: {
+    needs: ["feather", "1 or more atom indices", "NPA data in feather"],
+    example: [[1], [2], [4]],
+    explain: "Extracts/manipulates NPA values for selected atoms. Single atoms auto-commit.",
+    visual: "Choose chemically corresponding atoms across the set."
+  },
+  stretching_vibration: {
+    needs: ["feather", "2 bonded atom indices", "normal modes in feather"],
+    example: [[1, 2], [4, 5]],
+    explain: "Finds stretching vibrations associated with bonded atom pairs. Use the stretch threshold to define the frequency cutoff.",
+    visual: "If vibration data is embedded, select a normal mode and press Play under the viewer."
+  },
+  bending_vibration: {
+    needs: ["feather", "2 atom indices with a common neighbor", "normal modes in feather"],
+    example: [[4, 7]],
+    explain: "Finds bending vibrations for atom pairs that share a common atom. Use the bend threshold to tune the frequency cutoff.",
+    visual: "Use the vibration animation to inspect displacement directions."
+  },
+  ring_vibration: {
+    needs: ["feather", "one atom from a six-member ring", "normal modes in feather"],
+    example: [[13]],
+    explain: "Select one representative atom from a six-member ring to track ring vibration modes.",
+    visual: "Click an atom that is clearly part of the ring scaffold."
+  },
+  drop_atoms: {
+    needs: ["feather", "one or more atom indices"],
+    example: [[1], [2], [3]],
+    explain: "Excludes selected atoms from relevant DescriPytor operations.",
+    visual: "Use sparingly; this changes which atoms participate downstream."
+  },
+  mf_sterimol: {
+    needs: ["xyz", "2 atom indices", "morfeus-ml"],
+    example: [[6, 4]],
+    explain: "Morfeus Sterimol pair. This is independent of the DescriPytor Sterimol field and feeds the morfeus_suite engine.",
+    visual: "Tick morfeus_suite and Sterimol overlay to check the same pair visually."
+  },
+  mf_bv_metal: {
+    needs: ["xyz", "1 atom index", "morfeus-ml"],
+    example: [[18]],
+    explain: "Anchor atom for buried volume. Often a metal center, but can be any atom you want to use as the sphere center.",
+    visual: "Pick the central atom around which the buried volume sphere should be built."
+  },
+  mf_cone_apex: {
+    needs: ["xyz", "1 atom index", "morfeus-ml"],
+    example: [[12]],
+    explain: "Apex atom for cone angle. Choose the atom from which the cone should open.",
+    visual: "Usually the bound atom or metal-facing donor atom."
+  },
+  mf_pyramid: {
+    needs: ["xyz", "1 atom index", "morfeus-ml"],
+    example: [[5]],
+    explain: "Center atom for pyramidalization.",
+    visual: "Pick the atom whose out-of-plane distortion you want to quantify."
+  }
+};
+
+const ENGINE_GUIDES = {
+  descripytor_full: {
+    files: ["feather_dir with .feather files"],
+    indices: ["sterimol pairs", "bond lengths", "angles/dihedrals", "dipole transform", "charges/NPA", "vibration selections as needed"],
+    example: `"descripytor_full": {"enabled": true, "atoms": {"sterimol": [[1,23]], "bond_length": [[1,2]], "dipole": [[23,1,3]]}}`,
+    visual: "Best loaded with make_picker.py --feather-dir because dipole and vibration overlays are embedded."
+  },
+  descripytor_steric: {
+    files: ["feather_dir"],
+    indices: ["pairs: [[origin, attached], ...]"],
+    example: `"descripytor_steric": {"enabled": true, "pairs": [[1,23]], "prefix": "steric_"}`,
+    visual: "Uses the Sterimol pairs you pick in the main Sterimol field."
+  },
+  xyz_sterimol: {
+    files: ["xyz_dir with matching .xyz files"],
+    indices: ["pairs: [[origin, attached], ...]", "radii: CPK or bondi"],
+    example: `"xyz_sterimol": {"enabled": true, "pairs": [[6,4]], "radii": "CPK", "prefix": "xyz_"}`,
+    visual: "Load the same xyz with make_picker.py --xyz or --xyz-dir and tick Sterimol overlay."
+  },
+  xyz_geometry: {
+    files: ["xyz_dir"],
+    indices: ["angles: [[a,b,c]] or dihedrals [[a,b,c,d]]", "bond_lengths: [[a,b]]"],
+    example: `"xyz_geometry": {"enabled": true, "angles": [[2,1,5], [5,1,8,6]], "bond_lengths": [[1,5]]}`,
+    visual: "Use Bond length and Bond angle/dihedral fields."
+  },
+  xyz_buried_volume: {
+    files: ["xyz_dir"],
+    indices: ["metal_index: one atom index", "radius: sphere radius"],
+    example: `"xyz_buried_volume": {"enabled": true, "metal_index": 18, "radius": 3.5}`,
+    visual: "Use morfeus Buried volume [metal/anchor atom] field."
+  },
+  morfeus_sterimol: {
+    files: ["xyz_dir", "morfeus-ml"],
+    indices: ["pairs: [[origin, attached], ...]"],
+    example: `"morfeus_sterimol": {"enabled": true, "pairs": [[6,4]]}`,
+    visual: "Independent Sterimol cross-check from the xyz geometry."
+  },
+  morfeus_suite: {
+    files: ["xyz_dir", "morfeus-ml"],
+    indices: ["sterimol_pairs for sterimol", "metal_index for buried_volume", "cone_atoms for cone_angle", "pyramid_atoms for pyramidalization", "none for sasa/dispersion"],
+    example: `"morfeus_suite": {"enabled": true, "descriptors": ["sterimol","sasa","dispersion"], "sterimol_pairs": [[6,4]]}`,
+    visual: "Use the morfeus atom fields below the DescriPytor fields."
+  },
+  rdkit: {
+    files: ["xyz_dir", "rdkit + ase"],
+    indices: ["none"],
+    example: `"rdkit": {"enabled": true, "embed": true, "prefix": "rdkit_"}`,
+    visual: "SMILES are perceived from xyz automatically; no atom picking required."
+  },
+  rdkit_fp: {
+    files: ["xyz_dir", "rdkit + ase"],
+    indices: ["none"],
+    example: `"rdkit_fp": {"enabled": true, "n_bits": 256, "include_usrcat": true}`,
+    visual: "No atom picking. USRCAT uses generated 3D conformers from SMILES."
+  },
+  mordred: {
+    files: ["xyz_dir", "rdkit + ase + mordred"],
+    indices: ["none"],
+    example: `"mordred": {"enabled": true, "ignore_3d": true}`,
+    visual: "No atom picking required."
+  },
+  deepchem: {
+    files: ["xyz_dir", "deepchem"],
+    indices: ["none"],
+    example: `"deepchem": {"enabled": true, "n_bits": 256}`,
+    visual: "No atom picking required."
+  },
+  rafbl: {
+    files: ["xyz_dir", "moltop"],
+    indices: ["none"],
+    example: `"rafbl": {"enabled": true, "mult": 1.2, "prefix": "rafbl_"}`,
+    visual: "Graph/topological descriptors from xyz connectivity."
+  },
+  qm: {
+    files: ["log_dir with Gaussian .log files", "autoqchem"],
+    indices: ["none"],
+    example: `"qm": {"enabled": true, "log_dir": "C:\\\\path\\\\to\\\\gaussian_logs", "prefix": "qm_"}`,
+    visual: "Logs are not loaded into the picker; this engine runs during extraction."
+  },
+  aqme_qdescp: {
+    files: ["xyz_dir", "aqme", "working xTB executable"],
+    indices: ["optional qdescp_atoms such as ['P'] or ['C=O']; numeric picker indices are not required"],
+    example: `"aqme_qdescp": {"enabled": true, "level": "full", "atoms": [], "charge": 0, "mult": 1, "xtb_opt": true}`,
+    visual: "Use when you want xTB/MORFEUS molecular and atom-centered descriptors."
+  }
+};
+/* copy-paste install hint per engine (null = ships with DescriPytor) */
+const ENGINE_INSTALL = {
+  descripytor_full:   null,
+  descripytor_steric: null,
+  xyz_sterimol:       null,
+  xyz_geometry:       null,
+  xyz_buried_volume:  "pip install morfeus-ml",
+  morfeus_sterimol:   "pip install morfeus-ml",
+  morfeus_suite:      "pip install morfeus-ml",
+  rdkit:              "pip install rdkit ase",
+  rdkit_fp:           "pip install rdkit ase",
+  mordred:            "pip install rdkit ase mordred",
+  deepchem:           "pip install deepchem",
+  rafbl:              "pip install moltop networkx",
+  qm:                 "pip install autoqchem",
+  aqme_qdescp:        "pip install aqme   (+ a working xTB on PATH)"
+};
+/* engines that read .xyz (so feather-only sets need 'derive XYZ from feathers') */
+const XYZ_ENGINES = new Set(["xyz_sterimol", "xyz_geometry", "xyz_buried_volume",
+  "morfeus_sterimol", "morfeus_suite", "rdkit", "rdkit_fp", "mordred", "deepchem",
+  "rafbl", "aqme_qdescp"]);
+
+let activeEngineGuide = "descripytor_full";
+
+/* ------------------------------------------------------------------ */
+const state = {};
+[...FIELDS, ...MF_FIELDS].forEach(f => state[f.key] = []);   // each -> list of groups
+let activeField = FIELDS[0].key;
+let currentGroup = [];
+let viewer = null, lastModelXYZ = null, nAtoms = 0, lastClicked = null, lastModelName = null;
+let measureMode = false, measurePicks = [];
+let animating = false, animTimer = null, animPhase = 0, animLastFrame = 0;
+
+const $ = id => document.getElementById(id);
+
+/* ── Collapsible section toggles ── */
+function toggleSec(head) {
+  head.classList.toggle('closed');
+  const body = head.nextElementSibling;
+  if (body && body.classList.contains('sec-body')) body.classList.toggle('closed');
+}
+function toggleVizSec(sec) {
+  sec.classList.toggle('closed');
+  const body = sec.nextElementSibling;
+  if (body && body.classList.contains('viz-body')) body.classList.toggle('closed');
+}
+function collapseAllSecs(collapse) {
+  document.querySelectorAll('.sec-head.collapsible').forEach(h => {
+    h.classList.toggle('closed', collapse);
+    const b = h.nextElementSibling;
+    if (b && b.classList.contains('sec-body')) b.classList.toggle('closed', collapse);
+  });
+}
+function collapseAllViz(collapse) {
+  document.querySelectorAll('.viz-sec').forEach(s => {
+    s.classList.toggle('closed', collapse);
+    const b = s.nextElementSibling;
+    if (b && b.classList.contains('viz-body')) b.classList.toggle('closed', collapse);
+  });
+}
+
+/* ── Keyboard shortcuts ── */
+document.addEventListener('keydown', e => {
+  // don't fire when typing in an input/textarea/select
+  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    if (typeof commitGroup === 'function') commitGroup();
+  } else if (e.key === 'Escape') {
+    if (typeof clearGroup === 'function') clearGroup();
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    const fields = typeof allFields === 'function' ? allFields() : [];
+    if (!fields.length) return;
+    const idx = fields.findIndex(f => f.key === activeField);
+    const next = fields[(idx + 1) % fields.length];
+    if (typeof setActive === 'function') setActive(next.key);
+  } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    e.preventDefault();
+    if (typeof undoLastPick === 'function') undoLastPick();
+  } else if (e.key === 'r' || e.key === 'R') {
+    if (viewer) { viewer.zoomTo(); viewer.render(); }
+  } else if (e.key === 's' || e.key === 'S') {
+    $("screenshotBtn") && $("screenshotBtn").click();
+  } else if (e.key === 'm' || e.key === 'M') {
+    toggleMeasureMode();
+  }
+});
+
+/* ── Undo last atom pick ── */
+function undoLastPick() {
+  if (currentGroup.length > 0) {
+    currentGroup.pop();
+    if (typeof refresh === 'function') refresh();
+  }
+}
+
+/* ── Drag-and-drop XYZ onto main viewer ── */
+function handleMainDrop(e) {
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => { if (typeof initViewer === 'function') initViewer(ev.target.result, file.name); };
+  r.readAsText(file);
+}
+
+/* ── Molecule info badge ── */
+function updateMolInfoBadge(name, atomCount) {
+  const badge = document.getElementById('molInfoBadge');
+  if (!badge) return;
+  badge.style.display = 'flex';
+  badge.innerHTML = `<span class="mol-dot"></span><span>${name || 'molecule'}</span><span class="mol-count">${atomCount} atoms</span>`;
+}
+
+/* --- default demo molecule (caffeine) so the picker works on open --- */
+const DEMO_XYZ = `24
+caffeine (demo - load your own .xyz)
+N  1.3781  -0.0851   0.0000
+C  0.0431   0.3447   0.0000
+N -0.9377  -0.6069   0.0000
+C -0.6275  -1.9359   0.0000
+C  0.6855  -2.3328   0.0000
+C  1.7035  -1.4150   0.0000
+O -0.2766   1.5187   0.0000
+N  0.9136  -3.6939   0.0000
+C  2.2424  -3.6939   0.0000
+N  2.7884  -2.0926   0.0000
+C -2.3175  -0.1395   0.0000
+O  2.9504  -4.6669   0.0000
+C  4.2030  -1.6020   0.0000
+C  2.4630   0.8810   0.0000
+H -1.4575  -2.6260   0.0000
+H -2.4150   0.4810  -0.8910
+H -2.4150   0.4810   0.8910
+H -3.0420  -0.9510   0.0000
+H  4.2680  -0.5140   0.0000
+H  4.7060  -1.9750  -0.8910
+H  4.7060  -1.9750   0.8910
+H  3.4420   0.4010   0.0000
+H  2.3760   1.5090  -0.8910
+H  2.3760   1.5090   0.8910`;
+
+/* ------------------------------------------------------------------ *
+ * Molecule data (dipole + vibrations), embedded by make_picker.py.    *
+ * Geometry is parsed from the xyz; elements[] + baseCoords[] drive     *
+ * the overlays and the vibration animation.                            *
+ * ------------------------------------------------------------------ */
+let elements = [], baseCoords = [];
+let MOL_DATA = { dipole: null, modes: [] };
+try { const _d = `__MOL_DATA__`; if (_d.indexOf("__MOL") !== 0) MOL_DATA = JSON.parse(_d); } catch (e) {}
+
+// Bondi-ish van der Waals radii (Å) for Sterimol extents
+const VDW = { H:1.20, C:1.70, N:1.55, O:1.52, F:1.47, P:1.80, S:1.80,
+  Cl:1.75, Br:1.85, I:1.98, B:1.92, Si:2.10, Ni:1.63, Fe:1.56, Pd:1.63, default:1.70 };
+function vdw(el) { return VDW[el] || VDW.default; }
+
+/* ------------------------------------------------------------------ *
+ * Viewer                                                              *
+ * ------------------------------------------------------------------ */
+function parseXYZ(xyz) {
+  const lines = xyz.trim().split(/\r?\n/);
+  const n = parseInt(lines[0], 10) || 0;
+  elements = []; baseCoords = [];
+  for (let i = 2; i < 2 + n && i < lines.length; i++) {
+    const p = lines[i].trim().split(/\s+/);
+    if (p.length < 4) continue;
+    elements.push(p[0]);
+    baseCoords.push([+p[1], +p[2], +p[3]]);
+  }
+  nAtoms = elements.length;
+}
+function coordsToXYZ(coords) {
+  const out = [String(coords.length), "frame"];
+  for (let i = 0; i < coords.length; i++)
+    out.push(`${elements[i]} ${coords[i][0]} ${coords[i][1]} ${coords[i][2]}`);
+  return out.join("\n");
+}
+
+function dipoleVector() {
+  if (!MOL_DATA.dipole) return null;
+  return Array.isArray(MOL_DATA.dipole) ? MOL_DATA.dipole : (MOL_DATA.dipole.vector || null);
+}
+
+function dipoleTotal() {
+  const d = dipoleVector();
+  if (!d) return null;
+  const stored = Array.isArray(MOL_DATA.dipole) ? null : MOL_DATA.dipole.total;
+  const n = Number(stored);
+  return Number.isFinite(n) ? n : V.norm(d);
+}
+
+function initViewer(xyz, filename) {
+  lastModelXYZ = xyz;
+  parseXYZ(xyz);
+  const lines = xyz.trim().split(/\r?\n/);
+  const molComment = (lines[1] || '').trim();
+  const molName = filename
+    ? filename.replace(/\.xyz$/i, '')
+    : (molComment && molComment.length < 40 ? molComment : 'molecule');
+  lastModelName = molName;
+  const el = $("viewer");
+  el.innerHTML = "";
+  viewer = $3Dmol.createViewer(el, { backgroundColor: "white" });
+  buildSterPairOptions();
+  buildModeOptions();
+  buildScene(baseCoords, true);
+  if (typeof updateMolInfoBadge === 'function') updateMolInfoBadge(molName, nAtoms);
+}
+
+/* (re)build the whole scene for a set of coordinates (base or a vib frame) */
+function buildScene(coords, doZoom) {
+  if (!viewer) return;
+  viewer.removeAllModels();
+  viewer.removeAllShapes();
+  viewer.removeAllLabels();
+  viewer.addModel(coordsToXYZ(coords), "xyz");
+  viewer.setStyle({}, { stick:{ radius:0.13, colorscheme:"Jmol" }, sphere:{ scale:0.27, colorscheme:"Jmol" } });
+
+  // selection highlight: double-layer halo around active-field picks and last-clicked atom
+  (state[activeField] || []).flat().forEach(a => addHalo(coords[a - 1], "#3b9dff", 0.50, 0.45));
+  if (lastClicked) addHalo(coords[lastClicked - 1], "#ff9f0a", 0.56, 0.62);
+
+  if ($("labelToggle").checked && !animating) addIndexLabels(coords);
+  viewer.setClickable({}, true, atom => onAtomClick(atom.serial + 1));
+  viewer.setHoverable({}, true,
+    (atom, vw) => {
+      if (!atom.label) {
+        const idx = atom.serial + 1;
+        const x = atom.x.toFixed(3), y = atom.y.toFixed(3), z = atom.z.toFixed(3);
+        atom.label = vw.addLabel(
+          `#${idx} ${atom.elem}  (${x}, ${y}, ${z})`,
+          { position: atom, backgroundColor:"#1c1c1e", fontColor:"#f5f5f7",
+            fontSize:11, padding:5, borderRadius:6, inFront:true, showBackground:true });
+      }
+    },
+    (atom, vw) => { if (atom.label) { vw.removeLabel(atom.label); delete atom.label; } });
+
+  drawOverlays(coords);
+  drawMeasureOverlay(coords);
+  if (doZoom) viewer.zoomTo();
+  viewer.render();
+}
+
+function buildAnimScene(coords, mode) {
+  if (!viewer) return;
+  viewer.removeAllModels();
+  viewer.removeAllShapes();
+  viewer.removeAllLabels();
+  viewer.addModel(coordsToXYZ(coords), "xyz");
+  viewer.setStyle({}, { stick:{ radius:0.10 }, sphere:{ scale:0.21 } });
+  if ($("vizArrows").checked) drawModeArrows(coords, mode, 0.55);
+  viewer.render();
+}
+
+function addIndexLabels(coords) {
+  coords.forEach((c, i) => viewer.addLabel(String(i + 1), {
+    position:{ x:c[0], y:c[1], z:c[2] },
+    fontSize:10, fontColor:"#0b1f35", backgroundColor:"rgba(240,246,255,0.82)", backgroundOpacity:1, inFront:true
+  }));
+}
+
+/* clean rebuild of the static scene (clears stale shapes/labels) */
+function highlight() {
+  if (!viewer || animating) return;
+  buildScene(baseCoords, false);
+}
+
+/* ------------------------------------------------------------------ *
+ * Sterimol (computed in JS) + dipole overlays                         *
+ * ------------------------------------------------------------------ */
+const V = {
+  sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],
+  add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
+  mul:(a,s)=>[a[0]*s,a[1]*s,a[2]*s],
+  dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+  norm:a=>Math.hypot(a[0],a[1],a[2]),
+  unit:a=>{const n=Math.hypot(a[0],a[1],a[2])||1;return [a[0]/n,a[1]/n,a[2]/n];},
+  cross:(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]
+};
+
+/* Classic Sterimol from coords: L along origin->attached, B1=min caliper,
+   B5=max radial extent (atom centre projection + vdW radius). Also returns the
+   along-axis location of the B5 atom and a polar support map ext(theta).     */
+function computeSterimol(coords, originIdx, attIdx) {
+  const o = coords[originIdx - 1], att = coords[attIdx - 1];
+  const axis = V.unit(V.sub(att, o));
+  let t = Math.abs(axis[0]) > 0.9 ? [0,1,0] : [1,0,0];
+  const u = V.unit(V.cross(axis, t));
+  const w = V.unit(V.cross(axis, u));
+  let L = 0, B5 = 0, b5dir = [1,0], b5along = 0;
+  const radial = [];                     // {x, y, r} in the (u,w) plane (skip origin)
+  coords.forEach((c, i) => {
+    if (i === originIdx - 1) return;
+    const d = V.sub(c, o), r = vdw(elements[i]);
+    const along = V.dot(d, axis);
+    L = Math.max(L, along + r);
+    const x = V.dot(d, u), y = V.dot(d, w), rad = Math.hypot(x, y) + r;
+    if (rad > B5) { B5 = rad; b5dir = V.unit([x, y, 0]); b5along = along; }
+    radial.push({ x, y, r });
+  });
+  // polar support map ext(theta) = max over atoms of (proj on theta + r)
+  const polar = [];
+  for (let a = 0; a < 360; a += 4) {
+    const th = a * Math.PI / 180, dx = Math.cos(th), dy = Math.sin(th);
+    let mx = 0; radial.forEach(p => { mx = Math.max(mx, p.x*dx + p.y*dy + p.r); });
+    polar.push({ ang: th, ext: mx });
+  }
+  // B1 = min over half-plane directions of max(|proj|+r)
+  let B1 = Infinity, b1ang = 0;
+  for (let a = 0; a < 180; a += 1) {
+    const th = a * Math.PI / 180, dx = Math.cos(th), dy = Math.sin(th);
+    let mx = 0; radial.forEach(p => { mx = Math.max(mx, Math.abs(p.x*dx + p.y*dy) + p.r); });
+    if (mx < B1) { B1 = mx; b1ang = th; }
+  }
+  const b5ang = Math.atan2(b5dir[1], b5dir[0]);
+  const b5world = V.add(V.mul(u, b5dir[0]), V.mul(w, b5dir[1]));
+  const b1world = V.add(V.mul(u, Math.cos(b1ang)), V.mul(w, Math.sin(b1ang)));
+  return { o, axis, u, w, L, B1, B5, b5along, b5ang, b1ang,
+           b5world: V.unit(b5world), b1world: V.unit(b1world), polar };
+}
+
+function activeSterPair() {
+  const v = $("vizSterPair").value;
+  if (!v) return null;
+  return v.split("-").map(Number);
+}
+
+/* origin for the dipole arrow = the atoms you picked */
+function dipoleOrigin(coords) {
+  const dg = (state["dipole"] || []).find(g => g.length);   // dipole field: [origin, ...]
+  if (dg) return coords[dg[0] - 1];
+  const picks = (state[activeField] || []).flat();          // else: active field's atoms
+  if (picks.length) {
+    const c = [0,0,0];
+    picks.forEach(a => { const p = coords[a-1]; c[0]+=p[0]; c[1]+=p[1]; c[2]+=p[2]; });
+    return c.map(x => x / picks.length);
+  }
+  if (lastClicked) return coords[lastClicked - 1];           // else: last clicked
+  const c = coords.reduce((a,p)=>[a[0]+p[0],a[1]+p[1],a[2]+p[2]],[0,0,0]);
+  return c.map(x => x / coords.length);                      // else: molecular centroid
+}
+
+function parseAtomGroupText(s) {
+  return String(s || "")
+    .split(/[\s,;]+/)
+    .map(x => parseInt(x, 10))
+    .filter(x => Number.isInteger(x) && x >= 1 && x <= nAtoms);
+}
+
+function centroidForAtoms(coords, atoms) {
+  if (!atoms || !atoms.length) return null;
+  const c = [0, 0, 0];
+  atoms.forEach(a => {
+    const p = coords[a - 1];
+    c[0] += p[0]; c[1] += p[1]; c[2] += p[2];
+  });
+  return c.map(x => x / atoms.length);
+}
+
+function normalizeBasisGroups(value) {
+  if (!value) return null;
+  if (value.length === 3 && value.every(x => Array.isArray(x))) return value.map(g => g.map(Number));
+  if (value.length >= 3) return [[value[0]], [value[1]], [value[2]]];
+  return null;
+}
+
+function dipoleBasisSelection() {
+  const manual = [
+    parseAtomGroupText($("basisOrigin").value),
+    parseAtomGroupText($("basisY").value),
+    parseAtomGroupText($("basisPlane").value)
+  ];
+  if (manual.every(g => g.length)) return manual;
+  const picked = (state["dipole"] || []).find(g => g.length === 3);
+  return normalizeBasisGroups(picked);
+}
+
+function dipoleBasisForExport() {
+  const groups = dipoleBasisSelection();
+  if (!groups || !groups.every(g => g.length)) return null;
+  return groups.every(g => g.length === 1)
+    ? groups.map(g => g[0])
+    : groups.map(g => g.slice());
+}
+
+function computeDipoleBasis(coords) {
+  const groups = dipoleBasisSelection();
+  const d = dipoleVector();
+  if (!groups || !d) return null;
+  const o = centroidForAtoms(coords, groups[0]);
+  const yPoint = centroidForAtoms(coords, groups[1]);
+  const planePoint = centroidForAtoms(coords, groups[2]);
+  if (!o || !yPoint || !planePoint) return null;
+  const yAxis = V.unit(V.sub(yPoint, o));
+  const planeVec = V.sub(planePoint, o);
+  const xRaw = V.sub(planeVec, V.mul(yAxis, V.dot(planeVec, yAxis)));
+  if (V.norm(xRaw) < 1e-6) return null;
+  const xAxis = V.unit(xRaw);
+  const zAxis = V.unit(V.cross(xAxis, yAxis));
+  return {
+    atoms: groups, origin:o, xAxis, yAxis, zAxis,
+    components: [V.dot(d, xAxis), V.dot(d, yAxis), V.dot(d, zAxis)]
+  };
+}
+
+function syncBasisInputsFromPick() {
+  const picked = (state["dipole"] || []).find(g => g.length === 3);
+  if (!picked) return;
+  const groups = normalizeBasisGroups(picked);
+  if (!groups) return;
+  $("basisOrigin").value = groups[0].join(",");
+  $("basisY").value = groups[1].join(",");
+  $("basisPlane").value = groups[2].join(",");
+  refresh();
+}
+
+function basisPreviewObject() {
+  const b = computeDipoleBasis(baseCoords);
+  const total = dipoleTotal();
+  if (!b) return null;
+  return {
+    atoms: b.atoms,
+    axes: {
+      x: b.xAxis.map(x => Number(x.toFixed(6))),
+      y: b.yAxis.map(x => Number(x.toFixed(6))),
+      z: b.zAxis.map(x => Number(x.toFixed(6)))
+    },
+    dipole_components_xyz: b.components.map(x => Number(x.toFixed(6))),
+    total_dipole: total == null ? null : Number(total.toFixed(6))
+  };
+}
+
+function drawOverlays(coords) {
+  $("vizSterReadout").textContent = "";
+  if ($("vizSterimol").checked && activeSterPair()) {
+    const pair = activeSterPair();
+    const s = computeSterimol(coords, pair[0], pair[1]);
+    const arrowFrom = (start, dir, len, color, label) => {
+      const end = V.add(start, V.mul(dir, len));
+      viewer.addArrow({ start:{x:start[0],y:start[1],z:start[2]}, end:{x:end[0],y:end[1],z:end[2]},
+        radius:0.07, color, radiusRatio:2.4 });
+      _floatLabel(end, label, color);
+    };
+    const b5base = V.add(s.o, V.mul(s.axis, s.b5along));
+    arrowFrom(s.o,    s.axis,    s.L,  "#007aff", `L ${s.L.toFixed(2)}`);
+    arrowFrom(b5base, s.b5world, s.B5, "#ff3b30", `B5 ${s.B5.toFixed(2)}`);
+    arrowFrom(s.o,    s.b1world, s.B1, "#30d158", `B1 ${s.B1.toFixed(2)}`);
+    viewer.addSphere({ center:{x:b5base[0],y:b5base[1],z:b5base[2]}, radius:0.12, color:"#ff3b30" });
+    $("vizSterReadout").textContent = `L=${s.L.toFixed(2)}  B1=${s.B1.toFixed(2)}  B5=${s.B5.toFixed(2)} A`;
+    drawSterPolar(s);
+  } else {
+    clearSterPolar();
+  }
+
+  const d = dipoleVector();
+  if ($("vizDipole").checked && d) {
+    const total = dipoleTotal() ?? V.norm(d);
+    const o = dipoleOrigin(coords);
+    const scale = 1.4;
+    const end = [o[0] + d[0]*scale, o[1] + d[1]*scale, o[2] + d[2]*scale];
+    viewer.addSphere({ center:{x:o[0],y:o[1],z:o[2]}, radius:0.12, color:"#ffb000" });
+    viewer.addArrow({ start:{x:o[0],y:o[1],z:o[2]}, end:{x:end[0],y:end[1],z:end[2]},
+      radius:0.08, color:"#ffb000", radiusRatio:2.5 });
+    _floatLabel(end, `μ ${total.toFixed(2)}`, "#d97706");
+
+    const basis = computeDipoleBasis(coords);
+    if ($("vizDipBasis").checked && basis) {
+      const axisLen = Math.max(1.8, Math.min(3.2, (V.norm(d) || 1.4) * 1.4));
+      viewer.addSphere({ center:{x:basis.origin[0],y:basis.origin[1],z:basis.origin[2]}, radius:0.14, color:"#cfd8e3" });
+      const axisArrow = (dir, color, label) => {
+        const aEnd = V.add(basis.origin, V.mul(dir, axisLen));
+        viewer.addArrow({ start:{x:basis.origin[0],y:basis.origin[1],z:basis.origin[2]},
+          end:{x:aEnd[0],y:aEnd[1],z:aEnd[2]}, radius:0.06, color, radiusRatio:2.4 });
+        _floatLabel(aEnd, label, color);
+      };
+      axisArrow(basis.xAxis, "#007aff", "x'");
+      axisArrow(basis.yAxis, "#30d158", "y'");
+      axisArrow(basis.zAxis, "#ff3b30", "z'");
+      const labels = basis.atoms.map(g => `[${g.join(",")}]`).join(" ");
+      $("vizDipReadout").textContent =
+        `total=${total.toFixed(3)}  raw=(${d.map(x => x.toFixed(2)).join(", ")})  local=(${basis.components.map(x => x.toFixed(2)).join(", ")})  basis=${labels}`;
+    } else {
+      const why = !$("vizDipBasis").checked
+        ? "tick 'local basis' to draw x'/y'/z'"
+        : "local axes need 3 atoms — pick origin, y-axis, plane in the Dipole field (or fill the Basis atoms boxes)";
+      $("vizDipReadout").textContent = `total=${total.toFixed(3)}  raw=(${d.map(x => x.toFixed(2)).join(", ")}) — ${why}`;
+    }
+  }
+  drawFeaturePreview(coords);
+}
+
+/* ------------------------------------------------------------------ *
+ * Feature preview - draw every picked selection on the same molecule, *
+ * each category independently toggleable.                             *
+ * ------------------------------------------------------------------ */
+function _feat(id) { const e = $(id); return e && e.checked; }
+function _featLabels() { const e = $("featLabels"); return !e || e.checked; }
+function _mid(a, b) { return [(a[0]+b[0])/2, (a[1]+b[1])/2, (a[2]+b[2])/2]; }
+function _dist(a, b) { return V.norm(V.sub(a, b)); }
+function _angleDeg(a, b, c) {
+  const u = V.unit(V.sub(a, b)), v = V.unit(V.sub(c, b));
+  return Math.acos(Math.max(-1, Math.min(1, V.dot(u, v)))) * 180 / Math.PI;
+}
+function _dihedralDeg(p0, p1, p2, p3) {
+  const b1 = V.unit(V.sub(p2, p1));
+  const b0 = V.sub(p0, p1), b2 = V.sub(p3, p2);
+  const v = V.sub(b0, V.mul(b1, V.dot(b0, b1)));
+  const w = V.sub(b2, V.mul(b1, V.dot(b2, b1)));
+  return Math.atan2(V.dot(V.cross(b1, v), w), V.dot(v, w)) * 180 / Math.PI;
+}
+function addHalo(p, color, radius, alpha) {
+  if (!p) return;
+  // Outer soft glow — very large, low alpha (decorative)
+  viewer.addSphere({ center:{x:p[0],y:p[1],z:p[2]}, radius: radius * 1.55, color, alpha: 0.22 });
+  // Main ring — must be large enough to protrude well beyond Jmol atom sphere (~0.45 Å).
+  // High alpha so it wins the depth-test race against transparent objects.
+  viewer.addSphere({ center:{x:p[0],y:p[1],z:p[2]}, radius, color, alpha: Math.min(alpha, 0.92) });
+}
+function _floatLabel(pos, text, color) {
+  viewer.addLabel(text, {
+    position: {x:pos[0], y:pos[1], z:pos[2]},
+    fontSize: 14, fontColor: "#ffffff",
+    backgroundColor: color, backgroundOpacity: 0.92,
+    padding: 4, inFront: true, showBackground: true,
+  });
+}
+function _mark(idx, color, coords, label) {
+  const p = coords[idx - 1]; if (!p) return;
+  // radius 1.0 → ring extends ~0.5 Å beyond the atom surface, clearly visible
+  addHalo(p, color, 1.0, 0.88);
+  if (label) _floatLabel(p, label, color);
+}
+function _link(a, b, color, tag, coords) {
+  const p = coords[a - 1], q = coords[b - 1]; if (!p || !q) return;
+  addHalo(p, color, 0.92, 0.85);
+  addHalo(q, color, 0.92, 0.85);
+  viewer.addCylinder({ start:{x:p[0],y:p[1],z:p[2]}, end:{x:q[0],y:q[1],z:q[2]},
+    radius:0.07, color, alpha:0.90, fromCap:1, toCap:1 });
+  if (tag) { const m = _mid(p, q); _floatLabel(m, tag, color); }
+}
+
+function _labelAbove(pos, text, color) {
+  // offset label 0.9 Å above atom so it doesn't sit on top of the halo
+  _floatLabel([pos[0], pos[1], pos[2] + 0.9], text, color);
+}
+
+function drawFeaturePreview(coords) {
+  // Build legend for active features
+  const legendEl = document.getElementById('featLegend');
+  const legendItems = [];
+  const addLegend = (color, label) => legendItems.push(`<div class="feat-legend-row"><span class="feat-legend-dot" style="background:${color}"></span>${label}</div>`);
+
+  // charges — cyan halo + atom-index floating label
+  if (_feat("featCharges")) {
+    addLegend("#06b6d4", "Charges");
+    (state["charges"] || []).flat().forEach(a => { _mark(a, "#06b6d4", coords); _labelAbove(coords[a-1], `q ${a}`, "#0891b2"); });
+  }
+
+  // NPA — violet halo + label above
+  if (_feat("featNpa")) {
+    addLegend("#a855f7", "NPA");
+    (state["npa"] || []).flat().forEach(a => { _mark(a, "#a855f7", coords); _labelAbove(coords[a-1], `npa ${a}`, "#7c3aed"); });
+  }
+
+  // drop / ring — halo only
+  if (_feat("featDrop")) { addLegend("#94a3b8", "Drop atoms"); (state["drop_atoms"] || []).flat().forEach(a => _mark(a, "#94a3b8", coords)); }
+  if (_feat("featRing")) { addLegend("#2dd4bf", "Ring vib"); (state["ring_vibration"] || []).flat().forEach(a => _mark(a, "#2dd4bf", coords)); }
+
+  // bond lengths
+  if (_feat("featBonds")) {
+    addLegend("#3b9dff", "Bond length");
+    (state["bond_length"] || []).forEach(g => {
+      if (g.length >= 2) _link(g[0], g[1], "#3b9dff", _dist(coords[g[0]-1], coords[g[1]-1]).toFixed(3) + " Å", coords);
+    });
+  }
+
+  // charge diff
+  if (_feat("featDq")) {
+    addLegend("#f97316", "Δ charge");
+    (state["charge_diff"] || []).forEach(g => {
+      if (g.length >= 2) _link(g[0], g[1], "#f97316", `Δq ${g[0]}–${g[1]}`, coords);
+    });
+  }
+
+  // vibrations
+  if (_feat("featVibr")) {
+    addLegend("#f472b6", "Stretch vib"); addLegend("#a78bfa", "Bend vib");
+    (state["stretching_vibration"] || []).forEach(g => { if (g.length >= 2) _link(g[0], g[1], "#f472b6", `ν ${g[0]}-${g[1]}`, coords); });
+    (state["bending_vibration"] || []).forEach(g => { if (g.length >= 2) _link(g[0], g[1], "#a78bfa", `δ ${g[0]}-${g[1]}`, coords); });
+  }
+
+  // angles / dihedrals
+  if (_feat("featAngles")) {
+    addLegend("#22c55e", "Angle/dihedral");
+    (state["bond_angle"] || []).forEach(g => {
+      const flat = g.flat(Infinity);
+      if (flat.length < 3) return;
+      for (let i = 0; i < flat.length - 1; i++) {
+        const p = coords[flat[i]-1], q = coords[flat[i+1]-1]; if (!p||!q) continue;
+        addHalo(p, "#22c55e", 0.92, 0.82); addHalo(q, "#22c55e", 0.92, 0.82);
+        viewer.addCylinder({ start:{x:p[0],y:p[1],z:p[2]}, end:{x:q[0],y:q[1],z:q[2]}, radius:0.07, color:"#22c55e", alpha:0.88, fromCap:1, toCap:1 });
+      }
+      let val, vtx;
+      if (flat.length === 3) {
+        val = _angleDeg(coords[flat[0]-1], coords[flat[1]-1], coords[flat[2]-1]).toFixed(1) + "°";
+        vtx = coords[flat[1]-1];
+        addHalo(vtx, "#22c55e", 1.1, 0.88);
+      } else {
+        val = _dihedralDeg(coords[flat[0]-1], coords[flat[1]-1], coords[flat[2]-1], coords[flat[3]-1]).toFixed(1) + "°";
+        vtx = _mid(coords[flat[1]-1], coords[flat[2]-1]);
+      }
+      if (vtx) _labelAbove(vtx, val, "#16a34a");
+    });
+  }
+
+  // sterimol
+  if (_feat("featSterimol")) {
+    addLegend("#1d4ed8", "Sterimol");
+    pickedSterimolPairs().forEach(p => { _mark(p[0], "#1d4ed8", coords); _mark(p[1], "#60a5fa", coords); });
+  }
+
+  // dipole basis atoms
+  if (_feat("featDipoleAtoms")) {
+    addLegend("#eab308", "Dipole atoms");
+    (state["dipole"] || []).forEach(g => g.flat(Infinity).forEach(a => _mark(a, "#eab308", coords)));
+  }
+
+  // Update legend overlay
+  if (legendEl) {
+    if (legendItems.length) {
+      legendEl.style.display = 'flex';
+      legendEl.innerHTML = '<div class="feat-legend-title">Features</div>' + legendItems.join('');
+    } else {
+      legendEl.style.display = 'none';
+    }
+  }
+}
+
+/* 2-D Sterimol polar map (radial extent vs angle, B1/B5 marked) as inline SVG */
+function clearSterPolar() { const el = $("sterPolar"); if (el) el.innerHTML = ""; }
+function drawSterPolar(s) {
+  const el = $("sterPolar"); if (!el) return;
+  const size = 168, cx = size/2, cy = size/2, pad = 22;
+  const maxR = Math.max(s.B5, ...s.polar.map(p => p.ext)) || 1;
+  const sc = (size/2 - pad) / maxR;
+  const PX = (r, a) => [cx + r*sc*Math.cos(a), cy - r*sc*Math.sin(a)];
+  let poly = s.polar.map(p => { const [x,y] = PX(p.ext, p.ang); return `${x.toFixed(1)},${y.toFixed(1)}`; }).join(" ");
+  // concentric guide rings
+  let rings = "";
+  for (let k = 1; k <= 3; k++) { const rr = (size/2 - pad) * k/3; rings += `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="none" stroke="#c8d6e8" stroke-dasharray="3,3"/>`; }
+  const [b5x,b5y] = PX(s.B5, s.b5ang);
+  const [b1x,b1y] = PX(s.B1, s.b1ang);
+  const [b1x2,b1y2] = PX(s.B1, s.b1ang + Math.PI);
+  el.innerHTML =
+    `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`+
+    rings +
+    `<polygon points="${poly}" fill="rgba(59,157,255,0.18)" stroke="#3b9dff" stroke-width="1.2"/>`+
+    `<line x1="${b1x.toFixed(1)}" y1="${b1y.toFixed(1)}" x2="${b1x2.toFixed(1)}" y2="${b1y2.toFixed(1)}" stroke="#37c871" stroke-width="1.6"/>`+
+    `<line x1="${cx}" y1="${cy}" x2="${b5x.toFixed(1)}" y2="${b5y.toFixed(1)}" stroke="#ff6f6f" stroke-width="2"/>`+
+    `<circle cx="${cx}" cy="${cy}" r="2.4" fill="#e6edf3"/>`+
+    `<text x="${b5x.toFixed(1)}" y="${b5y.toFixed(1)}" fill="#ff6f6f" font-size="10">B5 ${s.B5.toFixed(2)}</text>`+
+    `<text x="${b1x.toFixed(1)}" y="${b1y.toFixed(1)}" fill="#37c871" font-size="10">B1 ${s.B1.toFixed(2)}</text>`+
+    `</svg><div class="small">Sterimol polar map — radial extent vs angle around L</div>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Vibration animation (atoms oscillate along their displacements)     *
+ * ------------------------------------------------------------------ */
+function currentMode() {
+  const i = parseInt($("vizMode").value, 10);
+  return (MOL_DATA.modes && MOL_DATA.modes[i]) ? MOL_DATA.modes[i] : null;
+}
+function displacedCoords(mode, s) {
+  const amp = parseFloat($("vizAmp").value) || 1;
+  return baseCoords.map((c, i) => {
+    const d = mode.disp[i] || [0, 0, 0];
+    return [c[0] + amp * s * d[0], c[1] + amp * s * d[1], c[2] + amp * s * d[2]];
+  });
+}
+function drawModeArrows(coords, mode, scaleFactor=1) {
+  if (!$("vizArrows").checked) return;
+  const amp = (parseFloat($("vizAmp").value) || 1) * scaleFactor;
+  coords.forEach((c, i) => {
+    const d = mode.disp[i] || [0, 0, 0];
+    if (Math.hypot(d[0], d[1], d[2]) < 0.02) return;
+    const e = [c[0] + amp * d[0], c[1] + amp * d[1], c[2] + amp * d[2]];
+    viewer.addArrow({ start:{x:c[0],y:c[1],z:c[2]}, end:{x:e[0],y:e[1],z:e[2]},
+      radius:0.04, color:"#c792ea", radiusRatio:2.5 });
+  });
+}
+function startAnim() {
+  const mode = currentMode();
+  if (!mode) return;
+  animating = true;
+  animPhase = 0;
+  animLastFrame = 0;
+  $("vizPlay").textContent = "Stop";
+  const step = ts => {
+    if (!animating) return;
+    if (ts - animLastFrame < 42) {
+      animTimer = requestAnimationFrame(step);
+      return;
+    }
+    animLastFrame = ts;
+    animPhase += 0.32;
+    buildAnimScene(displacedCoords(mode, Math.sin(animPhase)), mode);
+    animTimer = requestAnimationFrame(step);
+  };
+  animTimer = requestAnimationFrame(step);
+}
+
+function stopAnim() {
+  animating = false;
+  if (animTimer) {
+    cancelAnimationFrame(animTimer);
+    clearInterval(animTimer);
+    animTimer = null;
+  }
+  $("vizPlay").textContent = "Play";
+  buildScene(baseCoords, false);
+}
+
+function toggleAnim() { animating ? stopAnim() : startAnim(); }
+
+/* ------------------------------------------------------------------ *
+ * Option builders for the Visualize controls                          *
+ * ------------------------------------------------------------------ */
+function buildSterPairOptions() {
+  const sel = $("vizSterPair"); if (!sel) return;
+  const prev = sel.value;
+  const pairs = [];
+  (state["sterimol"] || []).forEach(g => { if (g.length >= 2) pairs.push(g[0] + "-" + g[1]); });
+  (state["mf_sterimol"] || []).forEach(g => { if (g.length >= 2) pairs.push(g[0] + "-" + g[1]); });
+  sel.innerHTML = "";
+  if (!pairs.length) {
+    const o = document.createElement("option");
+    o.value = ""; o.textContent = "(pick a Sterimol pair first)"; sel.appendChild(o);
+  } else {
+    [...new Set(pairs)].forEach(p => {
+      const o = document.createElement("option");
+      o.value = p; o.textContent = p.replace("-", " → "); sel.appendChild(o);
+    });
+    if (prev && pairs.includes(prev)) sel.value = prev;
+  }
+}
+function buildModeOptions() {
+  const sel = $("vizMode"); if (!sel) return;
+  const modes = MOL_DATA.modes || [];
+  sel.innerHTML = "";
+  if (!modes.length) {
+    const o = document.createElement("option"); o.value = ""; o.textContent = "(no vibration data)";
+    sel.appendChild(o);
+    ["vizMode", "vizPlay", "vizArrows", "vizAmp"].forEach(id => $(id).disabled = true);
+  } else {
+    modes.forEach((m, i) => {
+      const o = document.createElement("option"); o.value = i;
+      o.textContent = `${m.freq.toFixed(1)} cm⁻¹` + (m.ir != null ? `  (IR ${m.ir.toFixed(0)})` : "");
+      sel.appendChild(o);
+    });
+  }
+  if (!dipoleVector()) $("vizDipole").disabled = true;
+  if (dipoleVector() || modes.length) {
+    const total = dipoleTotal();
+    $("vizDipReadout").textContent = dipoleVector()
+      ? `dipole loaded${total == null ? "" : ` - total ${total.toFixed(3)}`} + ${modes.length} vibration modes`
+      : `${modes.length} vibration modes loaded`;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Picking logic                                                       *
+ * ------------------------------------------------------------------ */
+function allFields() { return [...FIELDS, ...MF_FIELDS]; }
+function fieldOf(key) { return allFields().find(x => x.key === key); }
+
+function onAtomClick(idx) {
+  if (measureMode) { onMeasurePick(idx); return; }
+  lastClicked = idx;
+  currentGroup.push(idx);
+  const f = fieldOf(activeField);
+  if (f.size > 0 && currentGroup.length >= f.size) commitGroup();
+  refresh();
+}
+
+/* ── Measurement mode ── */
+function toggleMeasureMode() {
+  measureMode = !measureMode;
+  measurePicks = [];
+  const btn = $("measureBtn");
+  btn.classList.toggle("active-mode", measureMode);
+  btn.textContent = measureMode ? "📐 Measuring…" : "📐 Measure";
+  updateMeasureReadout();
+  if (baseCoords) buildScene(baseCoords, false);
+}
+
+function clearMeasure() {
+  measurePicks = [];
+  updateMeasureReadout();
+  if (baseCoords) buildScene(baseCoords, false);
+}
+
+function onMeasurePick(idx) {
+  if (measurePicks.includes(idx)) return; // ignore re-click of same atom
+  measurePicks.push(idx);
+  if (measurePicks.length > 3) measurePicks = [idx]; // 4th click restarts
+  updateMeasureReadout();
+  if (baseCoords) buildScene(baseCoords, false);
+}
+
+function updateMeasureReadout() {
+  const el = $("measureReadout"), txt = $("msrText");
+  if (!el || !txt) return;
+  if (!measureMode && measurePicks.length === 0) { el.classList.remove("visible"); return; }
+  el.classList.add("visible");
+  if (measurePicks.length === 0) { txt.innerHTML = '<span class="msr-chip">Click an atom to start measuring</span>'; return; }
+  const labels = measurePicks.map(i => `<span class="msr-chip">#${i} ${elements && elements[i-1] ? elements[i-1] : ''}</span>`).join(' → ');
+  let result = '';
+  if (measurePicks.length >= 2 && baseCoords) {
+    const p = baseCoords[measurePicks[0]-1], q = baseCoords[measurePicks[1]-1];
+    if (p && q) result += `<span class="msr-chip">d = ${_dist(p,q).toFixed(4)} Å</span>`;
+  }
+  if (measurePicks.length === 3 && baseCoords) {
+    const a = baseCoords[measurePicks[0]-1], b = baseCoords[measurePicks[1]-1], c = baseCoords[measurePicks[2]-1];
+    if (a && b && c) result += `<span class="msr-chip">∠ = ${_angleDeg(a,b,c).toFixed(2)}°</span>`;
+  }
+  txt.innerHTML = labels + (result ? ' &nbsp;' + result : '');
+}
+
+function drawMeasureOverlay(coords) {
+  if (measurePicks.length === 0) return;
+  const MSR_COLOR = "#ff6b35";
+  // coords format: [x, y, z]
+  const pos = idx => { const p = coords[idx-1]; return p ? {x:p[0],y:p[1],z:p[2]} : null; };
+  measurePicks.forEach(idx => {
+    const c = pos(idx); if (!c) return;
+    viewer.addSphere({ center:c, radius:0.72, color:MSR_COLOR, alpha:0.28 });
+    viewer.addSphere({ center:c, radius:0.42, color:MSR_COLOR, alpha:0.85 });
+    viewer.addLabel(`#${idx}`, { position:{x:c.x, y:c.y, z:c.z+0.85},
+      fontSize:12, fontColor:"#fff", backgroundColor:MSR_COLOR, backgroundOpacity:0.93,
+      padding:3, inFront:true, showBackground:true });
+  });
+  if (measurePicks.length >= 2) {
+    const p = pos(measurePicks[0]), q = pos(measurePicks[1]);
+    if (p && q) {
+      viewer.addCylinder({ start:p, end:q, radius:0.055, color:MSR_COLOR, alpha:0.85, fromCap:1, toCap:1 });
+      const mid = {x:(p.x+q.x)/2, y:(p.y+q.y)/2, z:(p.z+q.z)/2+0.55};
+      const d = _dist(coords[measurePicks[0]-1], coords[measurePicks[1]-1]);
+      viewer.addLabel(`${d.toFixed(3)} Å`, { position:mid,
+        fontSize:12, fontColor:"#fff", backgroundColor:"#c0392b", backgroundOpacity:0.93,
+        padding:4, inFront:true, showBackground:true });
+    }
+  }
+  if (measurePicks.length === 3) {
+    const b = pos(measurePicks[1]), c3 = pos(measurePicks[2]);
+    if (b && c3) {
+      viewer.addCylinder({ start:b, end:c3, radius:0.055, color:MSR_COLOR, alpha:0.85, fromCap:1, toCap:1 });
+      const a = coords[measurePicks[0]-1], bv = coords[measurePicks[1]-1], cv = coords[measurePicks[2]-1];
+      if (a && bv && cv) {
+        viewer.addLabel(`${_angleDeg(a,bv,cv).toFixed(2)}°`,
+          { position:{x:b.x, y:b.y, z:b.z+0.85},
+            fontSize:12, fontColor:"#fff", backgroundColor:"#8e44ad", backgroundOpacity:0.93,
+            padding:4, inFront:true, showBackground:true });
+      }
+    }
+  }
+}
+
+function commitGroup() {
+  if (currentGroup.length === 0) return;
+  const committed = currentGroup.slice();
+  state[activeField].push(committed);
+  if (activeField === "dipole" && committed.length === 3) {
+    $("basisOrigin").value = committed[0];
+    $("basisY").value = committed[1];
+    $("basisPlane").value = committed[2];
+  }
+  currentGroup = [];
+  refresh();
+}
+
+function clearGroup() { currentGroup = []; refresh(); }
+
+function removeGroup(fkey, gi) { state[fkey].splice(gi, 1); refresh(); }
+
+/* ------------------------------------------------------------------ *
+ * Build the answers structures                                        *
+ * ------------------------------------------------------------------ */
+function singlesFlat(fkey) {                 // 1-atom fields -> flat list
+  return state[fkey].map(g => g[0]);
+}
+function compactAtoms() {
+  const a = {};
+  FIELDS.forEach(f => {
+    if (f.size === 1) a[f.key] = singlesFlat(f.key);
+    else              a[f.key] = state[f.key].map(g => g.slice());
+  });
+  const dipoleBasis = dipoleBasisForExport();
+  if (dipoleBasis) a.dipole = [dipoleBasis];
+  a.stretch_threshold = num($("stretchThr").value, 1600);
+  a.bend_threshold    = num($("bendThr").value, 3000);
+  Object.keys(PASSTHROUGH).forEach(k => a[k] = []);
+  return a;
+}
+function num(v, d) { const n = parseFloat(v); return isNaN(n) ? d : n; }
+
+function pyValue(v) {
+  if (Array.isArray(v)) return "[" + v.map(pyValue).join(", ") + "]";
+  return String(v);
+}
+function pythonAnswersDict() {
+  const a = compactAtoms();
+  const lines = ["answers_dict = {"];
+  // ordered exactly like the notebook
+  const order = [
+    ["ring_vibration", FIELDS.find(f=>f.key==="ring_vibration").full],
+    ["stretch_threshold", THRESH.stretch_threshold],
+    ["stretching_vibration", FIELDS.find(f=>f.key==="stretching_vibration").full],
+    ["bend_threshold", THRESH.bend_threshold],
+    ["bending_vibration", FIELDS.find(f=>f.key==="bending_vibration").full],
+    ["center_atoms_dipole", PASSTHROUGH.center_atoms_dipole],
+    ["dipole", FIELDS.find(f=>f.key==="dipole").full],
+    ["sub_atoms_npa", PASSTHROUGH.sub_atoms_npa],
+    ["npa", FIELDS.find(f=>f.key==="npa").full],
+    ["charges", FIELDS.find(f=>f.key==="charges").full],
+    ["charge_diff", FIELDS.find(f=>f.key==="charge_diff").full],
+    ["sterimol", FIELDS.find(f=>f.key==="sterimol").full],
+    ["drop_atoms", FIELDS.find(f=>f.key==="drop_atoms").full],
+    ["bond_length", FIELDS.find(f=>f.key==="bond_length").full],
+    ["bond_angle", FIELDS.find(f=>f.key==="bond_angle").full],
+  ];
+  order.forEach(([k, full]) => {
+    let val;
+    if (k === "stretch_threshold" || k === "bend_threshold") val = "[" + a[k] + "]";
+    else val = pyValue(a[k]);
+    const safe = full.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/"/g, '\\"');
+    lines.push('    "' + safe + '": ' + val + ",");
+  });
+  lines.push("}");
+  return lines.join("\n");
+}
+/* Dataset paths - replaced by make_picker.py when it embeds a real set.
+   If a placeholder is left untouched, the default is used.               */
+const RUN_PATHS = {
+  root_dir:    `__ROOT_DIR__`,
+  feather_dir: `__FEATHER_DIR__`,
+  xyz_dir:     `__XYZ_DIR__`,
+  output_csv:  `__OUTPUT_CSV__`,
+};
+function pathVal(s, d) { return (s && s.indexOf("__") !== 0) ? s : d; }
+
+/* morfeus_suite atom params from the MF_FIELDS picks */
+function morfeusConfig() {
+  const pairs   = state["mf_sterimol"].map(g => g.slice());
+  const metal   = state["mf_bv_metal"].map(g => g[0]);
+  const cone    = state["mf_cone_apex"].map(g => g[0]);
+  const pyr     = state["mf_pyramid"].map(g => g[0]);
+  const desc = ["sasa", "dispersion"];
+  if (pairs.length) desc.unshift("sterimol");
+  if (metal.length) desc.push("buried_volume");
+  if (cone.length)  desc.push("cone_angle");
+  if (pyr.length)   desc.push("pyramidalization");
+  return {
+    enabled: packagesEnabled["morfeus_suite"],
+    descriptors: desc,
+    sterimol_pairs: pairs,
+    metal_index: metal.length ? metal : null,
+    cone_atoms: cone.length ? cone : null,
+    pyramid_atoms: pyr.length ? pyr : null,
+    bv_radius: 3.5,
+    prefix: ""
+  };
+}
+
+/* atom selections reused by several engines */
+function pickedSterimolPairs() {
+  const out = [];
+  (state["sterimol"] || []).forEach(g => { if (g.length >= 2) out.push([g[0], g[1]]); });
+  (state["mf_sterimol"] || []).forEach(g => { if (g.length >= 2) out.push([g[0], g[1]]); });
+  return out;
+}
+function pickedBondLengths() { return (state["bond_length"] || []).filter(g => g.length >= 2).map(g => g.slice(0, 2)); }
+function pickedAngles()      { return (state["bond_angle"] || []).filter(g => g.length >= 3).map(g => g.slice()); }
+function pickedMetal()       { return (state["mf_bv_metal"] || []).map(g => g[0]); }
+
+function runConfigObject() {
+  const sterPairs = pickedSterimolPairs();
+  const metal = pickedMetal();
+  const engines = {
+    descripytor_full: {
+      enabled: true,
+      save_as: true,
+      csv_file_name: "descripytor_full_features",
+      prefix: "",
+      atoms: compactAtoms()
+    },
+    // DescriPytor native — atoms reused from your picks
+    descripytor_steric: { enabled: packagesEnabled["descripytor_steric"], pairs: sterPairs, prefix: "steric_" },
+    xyz_sterimol:       { enabled: packagesEnabled["xyz_sterimol"], pairs: sterPairs, radii: "CPK", prefix: "xyz_" },
+    xyz_geometry:       { enabled: packagesEnabled["xyz_geometry"], angles: pickedAngles(), bond_lengths: pickedBondLengths(), prefix: "geom_" },
+    xyz_buried_volume:  { enabled: packagesEnabled["xyz_buried_volume"], metal_index: metal.length ? metal[0] : 1, radius: 3.5, prefix: "bv_" },
+    morfeus_sterimol:   { enabled: packagesEnabled["morfeus_sterimol"], pairs: sterPairs, prefix: "" },
+    qm:                 { enabled: packagesEnabled["qm"], log_dir: "C:\\path\\to\\your\\gaussian_logs", prefix: "qm_" },
+    // External packages
+    morfeus_suite: morfeusConfig(),
+    rdkit:       { enabled: packagesEnabled["rdkit"],       embed: true,                       prefix: "rdkit_" },
+    rdkit_fp:    { enabled: packagesEnabled["rdkit_fp"],    n_bits: 256, include_usrcat: true, prefix: "" },
+    mordred:     { enabled: packagesEnabled["mordred"],     ignore_3d: true,                   prefix: "" },
+    deepchem:    { enabled: packagesEnabled["deepchem"],    n_bits: 256,                       prefix: "" },
+    rafbl:       { enabled: packagesEnabled["rafbl"],       mult: 1.2,                         prefix: "rafbl_" },
+    aqme_qdescp: { enabled: packagesEnabled["aqme_qdescp"], level: "full", atoms: [], charge: 0, mult: 1, xtb_opt: true, nprocs: 1, prefix: "aqme_" }
+  };
+  return {
+    workflow_preset: activeWorkflowPreset || "custom",
+    root_dir:    pathVal(RUN_PATHS.root_dir, ""),
+    feather_dir: pathVal(RUN_PATHS.feather_dir, "C:\\path\\to\\your\\feathers"),
+    xyz_dir:     pathVal(RUN_PATHS.xyz_dir, "C:\\path\\to\\your\\xyz"),
+    derive_xyz_from_feathers: $("useFeatherXyz") ? $("useFeatherXyz").checked : false,
+    derived_xyz_dir: null,
+    output_csv:  pathVal(RUN_PATHS.output_csv, "merged_features.csv"),
+    atoms_file:  null,
+    visualization: { dipole_basis_preview: basisPreviewObject() },
+    engines
+  };
+}
+function runConfigJSON() {
+  return JSON.stringify(runConfigObject(), null, 2);
+}
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, ch => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  }[ch]));
+}
+
+function guideTags(items, cls) {
+  return (items || []).map(x => `<span class="tag ${cls || ""}">${esc(x)}</span>`).join("");
+}
+
+function addExampleGroups(fkey) {
+  const g = FIELD_GUIDES[fkey];
+  if (!g || !g.example) return;
+  const maxIdx = Math.max(...g.example.flat(Infinity).filter(n => typeof n === "number"));
+  if (nAtoms && maxIdx > nAtoms) {
+    alert(`This example uses atom index ${maxIdx}, but the loaded molecule only has ${nAtoms} atoms.\n` +
+          `It's just a placeholder — click atoms in the 3D view to build this field instead.`);
+    return;
+  }
+  state[fkey] = g.example.map(x => Array.isArray(x) ? x.slice() : x);
+  currentGroup = [];
+  setActive(fkey);
+}
+
+function renderFieldGuide() {
+  const el = $("fieldGuide");
+  if (!el) return;
+  const f = fieldOf(activeField);
+  const g = FIELD_GUIDES[activeField] || {};
+  const example = g.example ? JSON.stringify(g.example) : "[]";
+  const sizeText = f.size === 0 ? "variable size; click atoms then Commit group" :
+                   `${f.size} atom${f.size === 1 ? "" : "s"}; auto-commits`;
+  el.innerHTML = `
+    <h3>${esc(f.label)}</h3>
+    <div>${guideTags(g.needs, "needs-ok")}</div>
+    <p>${esc(g.explain || "Pick atoms in the 3D viewer for this field.")}</p>
+    <div class="guide-grid">
+      <div class="guide-card"><b>Input shape</b><div>${esc(sizeText)}</div></div>
+      <div class="guide-card"><b>Example</b><div><code>${esc(example)}</code></div></div>
+    </div>
+    <p class="small">${esc(g.visual || "")}</p>
+    ${g.example ? `<button class="exampleBtn" id="fieldExampleBtn">Use example</button>` : ""}
+  `;
+  const btn = $("fieldExampleBtn");
+  if (btn) btn.onclick = () => addExampleGroups(activeField);
+}
+
+function renderEngineGuide() {
+  const el = $("engineGuide");
+  if (!el) return;
+  const g = ENGINE_GUIDES[activeEngineGuide] || ENGINE_GUIDES.descripytor_full;
+  const enabled = activeEngineGuide === "descripytor_full" ? true : !!packagesEnabled[activeEngineGuide];
+  const install = ENGINE_INSTALL[activeEngineGuide];
+  const deriveOn = $("useFeatherXyz") && $("useFeatherXyz").checked;
+
+  // contextual notes tied to the current workflow state
+  let notes = "";
+  if (XYZ_ENGINES.has(activeEngineGuide) && !deriveOn)
+    notes += `<div class="guide-note">Reads <code>.xyz</code>. If your set is feather-only, tick <b>derive XYZ from feathers</b> in the workflow box (step 1) or set <code>xyz_dir</code> in the config.</div>`;
+  if (activeEngineGuide === "qm")
+    notes += `<div class="guide-note">The picker can't browse Gaussian logs — set <code>log_dir</code> in the exported config before running.</div>`;
+  if (activeEngineGuide === "aqme_qdescp")
+    notes += `<div class="guide-note">Slowest engine: every structure is xTB-optimised. Needs a working <code>xtb</code> on PATH.</div>`;
+
+  el.innerHTML = `
+    <h3>Engine guide: ${esc(activeEngineGuide)}</h3>
+    <div>${guideTags(enabled ? ["enabled"] : ["disabled"], enabled ? "needs-ok" : "needs-warn")}</div>
+    <div class="guide-grid">
+      <div class="guide-card"><b>Files needed</b><div>${(g.files || []).map(esc).join("<br>") || "none"}</div></div>
+      <div class="guide-card"><b>Indices / inputs</b><div>${(g.indices || []).map(esc).join("<br>") || "none"}</div></div>
+    </div>
+    ${install ? `<div class="install-line"><b>Install</b> <code>${esc(install)}</code></div>` : ""}
+    ${notes}
+    <p>${esc(g.visual || "")}</p>
+    <div class="guide-card"><b>Config example</b><div><code>${esc(g.example || "")}</code></div></div>
+  `;
+}
+
+function applyWorkflowPreset(key) {
+  const preset = WORKFLOW_PRESETS[key] || WORKFLOW_PRESETS.feather;
+  activeWorkflowPreset = key;
+  const enabled = new Set(preset.engines || []);
+  PACKAGES.forEach(p => packagesEnabled[p.key] = enabled.has(p.key));
+  if ($("useFeatherXyz")) $("useFeatherXyz").checked = !!preset.deriveXYZ;
+  activeEngineGuide = preset.engines[0] || "descripytor_full";
+  refresh();
+}
+
+function renderWorkflowPresets() {
+  document.querySelectorAll("#workflowPresets .preset-card").forEach(btn => {
+    const active = btn.dataset.preset === activeWorkflowPreset;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * UI refresh                                                          *
+ * ------------------------------------------------------------------ */
+let outTab = "cfg";
+function refresh() {
+  // current group box
+  const cgEl = $("currentGroup");
+  const cgText = currentGroup.length ? "[" + currentGroup.join(", ") + "]" : "(empty)";
+  cgEl.querySelector('.chip-dot').nextSibling
+    ? cgEl.querySelector('.chip-dot').nextSibling.textContent = cgText
+    : cgEl.appendChild(document.createTextNode(cgText));
+  cgEl.classList.toggle("has-data", currentGroup.length > 0);
+  const f = fieldOf(activeField);
+  $("groupHint").textContent = f.size > 0
+    ? `auto-commits at ${f.size} atom${f.size>1?"s":""}`
+    : "variable size - click Commit when done";
+  $("fieldDesc").textContent = f.label;
+  renderFieldGuide();
+
+  // selections table (DescriPytor fields, then morfeus atom fields)
+  const tb = $("selTable").querySelector("tbody");
+  tb.innerHTML = "";
+  const rowFor = fl => {
+    const tr = document.createElement("tr");
+    tr.className = "selrow" + (fl.key === activeField ? " field-active" : "");
+    const groups = fl.size === 1 ? singlesFlat(fl.key).map(x => [x]) : state[fl.key];
+    const chips = groups.map((g, gi) =>
+      `<span class="chip">${fl.size===1? g[0] : "["+g.join(",")+"]"}<span class="x" onclick="event.stopPropagation(); removeGroup('${fl.key}',${gi})">&times;</span></span>`
+    ).join("");
+    const active = fl.key === activeField;
+    tr.innerHTML = `<td>${active ? "▸ " : ""}${fl.label}</td>`+
+                   `<td><div class="chips">${chips||'<span class="small">-</span>'}</div></td>`+
+                   `<td class="small">${active ? "picking" : "click"}</td>`;
+    tr.onclick = () => setActive(fl.key);   // whole row is clickable
+    return tr;
+  };
+  FIELDS.forEach(fl => tb.appendChild(rowFor(fl)));
+  const sep = document.createElement("tr");
+  sep.innerHTML = `<td colspan="3" class="small" style="padding-top:10px;color:var(--accent)">morfeus_suite atoms (only used if that package is on)</td>`;
+  tb.appendChild(sep);
+  MF_FIELDS.forEach(fl => tb.appendChild(rowFor(fl)));
+
+  // package checkboxes + sterimol pair options
+  renderWorkflowPresets();
+  renderPackages();
+  renderEngineGuide();
+  buildSterPairOptions();
+
+  // export box
+  $("outBox").textContent = outTab === "py" ? pythonAnswersDict() : runConfigJSON();
+  const blob = new Blob([runConfigJSON()], { type:"application/json" });
+  $("dlLink").href = URL.createObjectURL(blob);
+  $("dlLink").download = "run_config.json";
+
+  highlight();
+}
+
+function setActive(k) {
+  activeField = k;
+  currentGroup = [];
+  $("fieldSelect").value = k;
+  refresh();
+}
+window.removeGroup = removeGroup;
+window.setActive = setActive;
+
+/* ------------------------------------------------------------------ *
+ * Wiring                                                              *
+ * ------------------------------------------------------------------ */
+function buildFieldSelect() {
+  const s = $("fieldSelect");
+  const add = (f, group) => {
+    const o = document.createElement("option");
+    o.value = f.key; o.textContent = (group ? "morfeus: " : "") + f.label; s.appendChild(o);
+  };
+  FIELDS.forEach(f => add(f, false));
+  MF_FIELDS.forEach(f => add(f, true));
+  s.onchange = () => setActive(s.value);
+}
+
+function renderPackages() {
+  const box = $("pkgBox");
+  if (box.dataset.built) {           // build checkboxes once, then just sync
+    PACKAGES.forEach(p => {
+      const c = $("pkg_" + p.key);
+      if (!c) return;
+      c.checked = packagesEnabled[p.key];
+      c.closest(".pkgrow").classList.toggle("active-guide", p.key === activeEngineGuide);
+    });
+    return;
+  }
+  box.innerHTML = "";
+  const base = document.createElement("label");
+  base.className = "pkgrow active-guide";
+  base.textContent = "Always on: DescriPytor full feature extraction";
+  base.title = "Click for the DescriPytor full input guide.";
+  base.onclick = () => {
+    activeEngineGuide = "descripytor_full";
+    document.querySelectorAll(".pkgrow").forEach(x => x.classList.remove("active-guide"));
+    base.classList.add("active-guide");
+    renderEngineGuide();
+  };
+  box.appendChild(base);
+  let lastGroup = null;
+  PACKAGES.forEach(p => {
+    if (p.group && p.group !== lastGroup) {
+      const h = document.createElement("div");
+      h.className = "pkggroup"; h.textContent = p.group;
+      box.appendChild(h); lastGroup = p.group;
+    }
+    const id = "pkg_" + p.key;
+    const lab = document.createElement("label");
+    lab.className = "pkgrow";
+    if (p.key === activeEngineGuide) lab.classList.add("active-guide");
+    lab.title = "Click row for the input guide; tick the box to enable this engine.";
+    lab.innerHTML = `<input type="checkbox" id="${id}" ${packagesEnabled[p.key] ? "checked" : ""}/> ${p.label}`;
+    box.appendChild(lab);
+    lab.onclick = e => {
+      activeEngineGuide = p.key;
+      document.querySelectorAll(".pkgrow").forEach(x => x.classList.remove("active-guide"));
+      lab.classList.add("active-guide");
+      if (e.target.tagName !== "INPUT") renderEngineGuide();
+    };
+    lab.querySelector("input").onchange = e => {
+      packagesEnabled[p.key] = e.target.checked;
+      activeWorkflowPreset = "";
+      activeEngineGuide = p.key;
+      refresh();
+    };
+  });
+  box.dataset.built = "1";
+}
+
+$("commitBtn").onclick = commitGroup;
+$("undoPickBtn").onclick = undoLastPick;
+$("clearGroupBtn").onclick = clearGroup;
+$("stretchThr").oninput = refresh;
+$("bendThr").oninput = refresh;
+$("labelToggle").onchange = () => highlight();
+$("useFeatherXyz").onchange = () => { activeWorkflowPreset = ""; refresh(); };
+$("basisFromPick").onclick = syncBasisInputsFromPick;
+["basisOrigin", "basisY", "basisPlane"].forEach(id => $(id).oninput = () => { refresh(); });
+document.querySelectorAll("#workflowPresets .preset-card").forEach(btn =>
+  btn.onclick = () => applyWorkflowPreset(btn.dataset.preset));
+$("resetBtn").onclick = () => {
+  [...FIELDS, ...MF_FIELDS].forEach(f => state[f.key] = []);
+  PACKAGES.forEach(p => packagesEnabled[p.key] = false);
+  activeWorkflowPreset = "feather";
+  if ($("useFeatherXyz")) $("useFeatherXyz").checked = false;
+  ["basisOrigin", "basisY", "basisPlane"].forEach(id => $(id).value = "");
+  currentGroup = []; lastClicked = null; refresh();
+};
+$("fileInput").onchange = e => {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => initViewer(ev.target.result, file.name);
+  r.readAsText(file);
+};
+$("pasteBtn").onclick = () => {
+  const t = prompt("Paste an XYZ block (line1=atom count, line2=comment, then 'El x y z'):");
+  if (t && t.trim()) initViewer(t);
+};
+document.querySelectorAll(".tabs button").forEach(b =>
+  b.onclick = () => {
+    document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("active"));
+    b.classList.add("active"); outTab = b.dataset.tab; refresh();
+  });
+$("copyBtn").onclick = () => {
+  navigator.clipboard.writeText($("outBox").textContent).then(
+    () => { $("copyBtn").textContent = "Copied!"; setTimeout(()=>$("copyBtn").textContent="Copy", 1200); });
+};
+
+$("measureBtn").onclick = () => toggleMeasureMode();
+
+$("screenshotBtn").onclick = () => {
+  if (!viewer) return;
+  const uri = viewer.pngURI();
+  const a = document.createElement("a");
+  a.href = uri;
+  a.download = (lastModelName || "molecule") + "_view.png";
+  a.click();
+};
+
+/* Visualize controls */
+$("vizSterimol").onchange = () => highlight();
+$("vizSterPair").onchange = () => highlight();
+$("vizDipole").onchange   = () => highlight();
+$("vizDipBasis").onchange = () => highlight();
+$("vizArrows").onchange   = () => { if (!animating) highlight(); };
+$("vizAmp").oninput       = () => {};
+$("vizMode").onchange     = () => { if (animating) { stopAnim(); startAnim(); } };
+$("vizPlay").onclick      = toggleAnim;
+
+/* Feature preview toggles */
+const FEATURE_TOGGLES = ["featCharges","featBonds","featDq","featAngles","featNpa",
+  "featVibr","featRing","featDrop","featSterimol","featDipoleAtoms","featLabels"];
+FEATURE_TOGGLES.forEach(id => { const el = $(id); if (el) el.onchange = () => highlight(); });
+$("featAll").onclick = () => {
+  const main = FEATURE_TOGGLES.filter(id => id !== "featLabels");
+  const turnOn = !main.every(id => $(id).checked);   // if any off -> turn all on
+  main.forEach(id => $(id).checked = turnOn);
+  highlight();
+};
+
+/* ------------------------------------------------------------------ *
+ * Conformer Search panel                                              *
+ * ------------------------------------------------------------------ */
+let csearchOpen = false;
+let csSrc = 'file';
+let csProgram = 'rdkit';
+
+const CS_PROGRAMS = [
+  { key:'rdkit',     label:'RDKit',      desc:'Fast 3D embedding. No extra install beyond rdkit.' },
+  { key:'summ',      label:'Summ',       desc:'Systematic OPLS torsion scan (AQME full install).' },
+  { key:'fullmonte', label:'FullMonte',  desc:'Monte Carlo torsional (AQME full install).' },
+  { key:'crest',     label:'CREST',      desc:'GFN2-xTB iMTD-GC — highest quality, slowest.' },
+];
+
+function toggleCsearch() {
+  csearchOpen = !csearchOpen;
+  $('csearchBody').classList.toggle('open', csearchOpen);
+  $('csearchHead').classList.toggle('open', csearchOpen);
+  $('csearchChevron').textContent = csearchOpen ? '▲ collapse' : '▼ expand';
+  if (csearchOpen) csRefresh();
+}
+
+function setCsSrc(src) {
+  csSrc = src;
+  $('csSrcFile').style.display  = src === 'file'  ? '' : 'none';
+  $('csSrcPaste').style.display = src === 'paste' ? '' : 'none';
+  $('srcFileBtn').classList.toggle('active', src === 'file');
+  $('srcPasteBtn').classList.toggle('active', src === 'paste');
+  csRefresh();
+}
+
+function buildCsProgramGrid() {
+  const box = $('csProgramGrid');
+  if (box.dataset.built) return;
+  CS_PROGRAMS.forEach(p => {
+    const card = document.createElement('button');
+    card.className = 'prog-card' + (p.key === csProgram ? ' active' : '');
+    card.id = 'csprog_' + p.key;
+    card.type = 'button';
+    card.innerHTML = `<b>${p.label}</b><span>${p.desc}</span>`;
+    card.onclick = () => {
+      csProgram = p.key;
+      document.querySelectorAll('#csProgramGrid .prog-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      csRefresh();
+    };
+    box.appendChild(card);
+  });
+  box.dataset.built = '1';
+}
+
+function csRefresh() {
+  buildCsProgramGrid();
+  const outDir = $('csOutDir').value.trim() || 'csearch_xyz';
+  const sample = parseInt($('csSample').value, 10) || 10;
+  const keep   = $('csKeep').value;
+  const charge = parseInt($('csCharge').value, 10) || 0;
+
+  let csvPath, nameCol = 'name', smilesCol = 'smiles', pasteCount = 0;
+  if (csSrc === 'file') {
+    csvPath    = $('csSmilesCsv').value.trim()  || 'smiles.csv';
+    nameCol    = $('csNameCol').value.trim()    || 'name';
+    smilesCol  = $('csSmilesCol').value.trim()  || 'smiles';
+  } else {
+    csvPath = $('csPasteCsvPath').value.trim() || 'smiles.csv';
+    const raw = ($('csPasteArea').value || '').trim().split(/\r?\n/).filter(l => l.trim());
+    pasteCount = raw.length;
+    if (pasteCount) {
+      const csvText = 'name,smiles\n' + raw.map(l => {
+        const sep = l.includes('\t') ? '\t' : ',';
+        const parts = l.split(sep);
+        return parts.length >= 2 ? `${parts[0].trim()},${parts.slice(1).join(',').trim()}` : l.trim();
+      }).join('\n');
+      const blob = new Blob([csvText], { type: 'text/csv' });
+      $('csCsvDlLink').href = URL.createObjectURL(blob);
+    }
+  }
+
+  const q = s => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+  const lines = [
+    'python descriptor_extractor.py',
+    `  --csearch ${q(csvPath)}`,
+    `  --csearch-out ${q(outDir)}`,
+    `  --name-col ${nameCol}`,
+    `  --smiles-col ${smilesCol}`,
+    `  --csearch-program ${csProgram}`,
+    `  --csearch-sample ${sample}`,
+    `  --keep ${keep}`,
+  ];
+  if (charge !== 0) lines.push(`  --charge ${charge}`);   // future flag placeholder
+  $('csCmd').textContent = lines.join(' \\\n');
+
+  let note = '';
+  if (csSrc === 'paste' && pasteCount) {
+    note = `<b>${pasteCount} molecules</b> ready. Download <code>smiles.csv</code>, fill its path above, then copy the command.<br>`;
+  }
+  note += `After the run: click <b>Use as xyz_dir → config</b> to wire <code>${outDir}</code> into the exported run_config, ` +
+    `then enable <b>rdkit_fp</b>, <b>mordred</b>, <b>rafbl</b>, or any other xyz engine in the Feature packages panel.`;
+  $('csNote').innerHTML = note;
+}
+
+function csCopy() {
+  navigator.clipboard.writeText($('csCmd').textContent).then(() => {
+    $('csCopyBtn').textContent = 'Copied!';
+    setTimeout(() => $('csCopyBtn').textContent = 'Copy', 1300);
+  });
+}
+
+function csApplyOut() {
+  const outDir = $('csOutDir').value.trim();
+  if (!outDir || outDir === 'csearch_xyz') { alert('Set a specific output XYZ directory first.'); return; }
+  RUN_PATHS.xyz_dir = outDir;
+  if ($('useFeatherXyz')) $('useFeatherXyz').checked = false;
+  refresh();
+  $('csNote').innerHTML = `<b>Done.</b> <code>${outDir}</code> is now the <code>xyz_dir</code> in your run_config. ` +
+    `Enable the xyz engines in the Feature packages panel and export the config.`;
+}
+
+/* ================================================================== *
+ * Conformer Viewer                                                    *
+ * ================================================================== */
+let cvOpen = false;
+let cvConformers = [];   // {name, src, frame, atoms, energy, color, on, rmsd}
+let cvViewer3d   = null;
+
+const CV_COLORS = [
+  '#e74c3c','#3498db','#27ae60','#f39c12','#9b59b6',
+  '#1abc9c','#e67e22','#2980b9','#8e44ad','#16a085',
+  '#d35400','#2c3e50','#c0392b','#2ecc71','#f1c40f',
+  '#7f8c8d','#e91e63','#00bcd4','#4caf50','#ff5722'
+];
+
+const CV_COVALENT = { H:0.31, B:0.85, C:0.76, N:0.71, O:0.66, F:0.57,
+  P:1.07, S:1.05, CL:1.02, BR:1.20, I:1.39 };
+function cvCovR(el) { return CV_COVALENT[String(el).toUpperCase()] || 0.77; }
+
+/* ── XYZ parser ─────────────────────────────────────────────────── */
+function parseMultiXyz(text, srcName) {
+  const lines = text.split(/\r?\n/);
+  const frames = [];
+  let i = 0;
+  while (i < lines.length) {
+    while (i < lines.length && !lines[i].trim()) i++;
+    if (i >= lines.length) break;
+    const n = parseInt(lines[i].trim(), 10);
+    if (!isFinite(n) || n <= 0) { i++; continue; }
+    const comment = (lines[i+1] || '').trim();
+    const atoms = [];
+    for (let k = 0; k < n; k++) {
+      const parts = (lines[i+2+k] || '').trim().split(/\s+/);
+      if (parts.length < 4) continue;
+      atoms.push([parts[0], parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])]);
+    }
+    if (atoms.length === n) {
+      const eMatch = comment.match(/[-+]?\d+\.\d{4,}/);
+      frames.push({ src: srcName, frame: frames.length, atoms, comment,
+        energy: eMatch ? parseFloat(eMatch[0]) : null,
+        name: srcName + (frames.length > 0 ? ' #' + frames.length : '') });
+    }
+    i += 2 + n;
+  }
+  return frames;
+}
+
+/* ── Bond graph + benzene ring detection ────────────────────────── */
+function cvBondGraph(atoms, scale) {
+  const g = atoms.map(() => []);
+  for (let i = 0; i < atoms.length; i++) {
+    const ri = cvCovR(atoms[i][0]);
+    for (let j = i+1; j < atoms.length; j++) {
+      const rj = cvCovR(atoms[j][0]);
+      const dx = atoms[i][1]-atoms[j][1], dy = atoms[i][2]-atoms[j][2], dz = atoms[i][3]-atoms[j][3];
+      if (dx*dx+dy*dy+dz*dz <= (scale*(ri+rj))**2) { g[i].push(j); g[j].push(i); }
+    }
+  }
+  return g;
+}
+
+function cvFindBenzene(atoms) {
+  const g = cvBondGraph(atoms, 1.25);
+  const cycles = new Set();
+  function dfs(start, cur, path, depth) {
+    if (depth === 6) {
+      if (g[cur].includes(start)) {
+        const c = [...path]; let best = null;
+        for (let r = 0; r < 2; r++) { c.reverse(); for (let k = 0; k < 6; k++) { const rot = c.slice(k).concat(c.slice(0,k)); const key = rot.join(','); if (!best || key < best) best = key; } }
+        cycles.add(best);
+      }
+      return;
+    }
+    for (const nb of g[cur]) {
+      if (nb < start) continue;
+      if (path.includes(nb)) continue;
+      dfs(start, nb, [...path, nb], depth+1);
+    }
+  }
+  for (let s = 0; s < atoms.length; s++) dfs(s, s, [s], 1);
+  for (const key of cycles) {
+    const ring = key.split(',').map(Number);
+    if (ring.every(i => atoms[i][0].toUpperCase() === 'C')) return ring;
+  }
+  return null;
+}
+
+/* ── Alignment indices ──────────────────────────────────────────── */
+function cvAlignIndices(refAtoms, mobAtoms, mode) {
+  if (mode === 'none' || refAtoms.length !== mobAtoms.length) return null;
+  if (mode === 'benzene') {
+    const ring = cvFindBenzene(refAtoms);
+    if (ring && ring.every(i => refAtoms[i] && mobAtoms[i] &&
+        refAtoms[i][0].toUpperCase() === mobAtoms[i][0].toUpperCase())) return ring;
+    if (mode === 'benzene') {
+      // fallback to heavy
+      return refAtoms.map((_,i)=>i).filter(i => refAtoms[i][0] !== 'H' && mobAtoms[i] && refAtoms[i][0] === mobAtoms[i][0]);
+    }
+  }
+  if (mode === 'heavy')
+    return refAtoms.map((_,i)=>i).filter(i => refAtoms[i][0].toUpperCase() !== 'H' && mobAtoms[i] && refAtoms[i][0].toUpperCase() === mobAtoms[i][0].toUpperCase());
+  return refAtoms.map((_,i)=>i).filter(i => mobAtoms[i] && refAtoms[i][0].toUpperCase() === mobAtoms[i][0].toUpperCase());
+}
+
+/* ── 3×3 Jacobi eigendecomposition ─────────────────────────────── */
+function jacobi3(A) {
+  let a = [A[0].slice(), A[1].slice(), A[2].slice()];
+  let V = [[1,0,0],[0,1,0],[0,0,1]];
+  for (let iter = 0; iter < 100; iter++) {
+    let maxV = 0, p = 0, q = 1;
+    for (let ii = 0; ii < 3; ii++) for (let jj = ii+1; jj < 3; jj++)
+      if (Math.abs(a[ii][jj]) > maxV) { maxV = Math.abs(a[ii][jj]); p = ii; q = jj; }
+    if (maxV < 1e-14) break;
+    const theta = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+    const t = (theta >= 0 ? 1 : -1) / (Math.abs(theta) + Math.sqrt(theta*theta + 1));
+    const c = 1/Math.sqrt(1+t*t), s = t*c;
+    const app=a[p][p], aqq=a[q][q], apq=a[p][q];
+    a[p][p] = c*c*app - 2*s*c*apq + s*s*aqq;
+    a[q][q] = s*s*app + 2*s*c*apq + c*c*aqq;
+    a[p][q] = a[q][p] = 0;
+    for (let r = 0; r < 3; r++) {
+      if (r===p||r===q) continue;
+      const arp=a[r][p], arq=a[r][q];
+      a[r][p]=a[p][r]= c*arp - s*arq;
+      a[r][q]=a[q][r]= s*arp + c*arq;
+    }
+    for (let r = 0; r < 3; r++) {
+      const vrp=V[r][p], vrq=V[r][q];
+      V[r][p] = c*vrp - s*vrq; V[r][q] = s*vrp + c*vrq;
+    }
+  }
+  return { vals:[a[0][0],a[1][1],a[2][2]], vecs:V };
+}
+
+function mat3mul(A, B) {
+  const C=[[0,0,0],[0,0,0],[0,0,0]];
+  for (let i=0;i<3;i++) for (let j=0;j<3;j++) for (let k=0;k<3;k++) C[i][j]+=A[i][k]*B[k][j];
+  return C;
+}
+function mat3T(M) { return [[M[0][0],M[1][0],M[2][0]],[M[0][1],M[1][1],M[2][1]],[M[0][2],M[1][2],M[2][2]]]; }
+function mat3det(M) {
+  return M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])
+        -M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])
+        +M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]);
+}
+
+/* ── Kabsch alignment ───────────────────────────────────────────── */
+function kabschAlign(mobile, reference, indices) {
+  const n = indices.length;
+  const ref = indices.map(i=>[reference[i][1],reference[i][2],reference[i][3]]);
+  const mob = indices.map(i=>[mobile[i][1],mobile[i][2],mobile[i][3]]);
+  const refC=[0,0,0], mobC=[0,0,0];
+  for (const p of ref) { refC[0]+=p[0]; refC[1]+=p[1]; refC[2]+=p[2]; }
+  for (const p of mob) { mobC[0]+=p[0]; mobC[1]+=p[1]; mobC[2]+=p[2]; }
+  for (let k=0;k<3;k++) { refC[k]/=n; mobC[k]/=n; }
+  const ref0=ref.map(p=>[p[0]-refC[0],p[1]-refC[1],p[2]-refC[2]]);
+  const mob0=mob.map(p=>[p[0]-mobC[0],p[1]-mobC[1],p[2]-mobC[2]]);
+
+  // H = mob0^T @ ref0
+  const H=[[0,0,0],[0,0,0],[0,0,0]];
+  for (let k=0;k<n;k++) for (let i=0;i<3;i++) for (let j=0;j<3;j++) H[i][j]+=mob0[k][i]*ref0[k][j];
+
+  // H^T H for eigenvectors (right singular vectors = V)
+  const HtH=[[0,0,0],[0,0,0],[0,0,0]];
+  for (let i=0;i<3;i++) for (let j=0;j<3;j++) for (let k=0;k<3;k++) HtH[i][j]+=H[k][i]*H[k][j];
+
+  const {vals, vecs} = jacobi3(HtH);
+  const order = [0,1,2].sort((a,b) => vals[b]-vals[a]);
+  const Vm=[[0,0,0],[0,0,0],[0,0,0]];
+  for (let r=0;r<3;r++) for (let c=0;c<3;c++) Vm[r][c]=vecs[r][order[c]];
+  const S=order.map(i=>Math.sqrt(Math.max(0,vals[i])));
+
+  // U = H @ V / S (column by column)
+  const HV=mat3mul(H,Vm);
+  const U=[[0,0,0],[0,0,0],[0,0,0]];
+  for (let i=0;i<3;i++) for (let j=0;j<3;j++) U[i][j]= S[j]>1e-10 ? HV[i][j]/S[j] : 0;
+  if (S[2]<1e-10) { // degenerate: set U col 2 = cross(U col0, U col1)
+    U[0][2]=U[1][0]*U[2][1]-U[2][0]*U[1][1];
+    U[1][2]=U[2][0]*U[0][1]-U[0][0]*U[2][1];
+    U[2][2]=U[0][0]*U[1][1]-U[1][0]*U[0][1];
+  }
+
+  // R = V @ U^T; fix reflection
+  let R=mat3mul(Vm, mat3T(U));
+  if (mat3det(R)<0) { for (let r=0;r<3;r++) Vm[r][2]*=-1; R=mat3mul(Vm,mat3T(U)); }
+
+  // Apply rotation to all mobile atoms
+  const aligned=mobile.map(atom=>{
+    const x=atom[1]-mobC[0], y=atom[2]-mobC[1], z=atom[3]-mobC[2];
+    return [atom[0], R[0][0]*x+R[0][1]*y+R[0][2]*z+refC[0],
+                     R[1][0]*x+R[1][1]*y+R[1][2]*z+refC[1],
+                     R[2][0]*x+R[2][1]*y+R[2][2]*z+refC[2]];
+  });
+
+  // RMSD on alignment atoms
+  let sq=0;
+  for (const i of indices) { const dx=aligned[i][1]-reference[i][1],dy=aligned[i][2]-reference[i][2],dz=aligned[i][3]-reference[i][3]; sq+=dx*dx+dy*dy+dz*dz; }
+  return { aligned, rmsd: Math.sqrt(sq/n) };
+}
+
+/* ── PDB formatter ──────────────────────────────────────────────── */
+const CV_CHAINS='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+function atomsToPdb(atoms, chainId) {
+  const lines=[];
+  atoms.forEach((a,i)=>{
+    const el=String(a[0]).padStart(2,' ');
+    const serial=String(i+1).padStart(5,' ');
+    const x=a[1].toFixed(3).padStart(8,' '), y=a[2].toFixed(3).padStart(8,' '), z=a[3].toFixed(3).padStart(8,' ');
+    lines.push(`HETATM${serial} ${el.trimStart().padEnd(4,' ')} MOL ${chainId}   1    ${x}${y}${z}  1.00  0.00          ${el.trim().padStart(2,' ')}`);
+  });
+  lines.push('TER\nEND');
+  return lines.join('\n')+'\n';
+}
+
+/* ── UI helpers ─────────────────────────────────────────────────── */
+function toggleCview() {
+  cvOpen=!cvOpen;
+  $('cviewBody').classList.toggle('open', cvOpen);
+  $('cviewHead').classList.toggle('open', cvOpen);
+  $('cviewChevron').textContent = cvOpen ? '▲ collapse' : '▼ expand';
+}
+
+function cvUpdateList() {
+  const el=$('cvList');
+  if (!cvConformers.length) {
+    el.innerHTML='<div class="cv-empty" style="height:200px">No conformers loaded yet.<br>Drop XYZ files above.</div>';
+    $('cvStats').className='cv-stats'; return;
+  }
+  el.innerHTML='';
+  cvConformers.forEach((c,i)=>{
+    const div=document.createElement('div');
+    div.className='cv-item'+(c.on?' cv-on':'');
+    const eStr=c.energy!=null ? c.energy.toFixed(6) : '';
+    const rmsdStr=c.rmsd!=null ? `<span class="cv-rmsd" style="color:${c.color}">RMSD ${c.rmsd.toFixed(3)}&thinsp;Å</span>` : (i===0?'<span class="cv-rmsd">reference</span>':'');
+    div.innerHTML=`
+      <div class="cv-dot" style="background:${c.color}"></div>
+      <div class="cv-info">
+        <div class="cv-name" title="${c.src} frame ${c.frame}">${c.name}</div>
+        <div class="cv-meta">${c.atoms.length} atoms${eStr?' &middot; E='+eStr:''}</div>
+      </div>
+      ${rmsdStr}`;
+    div.onclick=()=>{ c.on=!c.on; cvUpdateList(); cvRenderStack(); };
+    el.appendChild(div);
+  });
+}
+
+function cvClearAll() {
+  cvConformers=[];
+  if (cvViewer3d) { try { cvViewer3d.clear(); cvViewer3d.render(); } catch(e){} cvViewer3d=null; }
+  $('cvViewer3d').innerHTML='<div class="cv-empty">Viewer appears here after loading conformers and clicking Render.</div>';
+  cvUpdateList();
+}
+
+function cvLoadCurrent() {
+  if (!lastModelXYZ) { alert('No molecule loaded in the main picker yet.'); return; }
+  const frames=parseMultiXyz(lastModelXYZ, 'current');
+  if (!frames.length) return;
+  frames.forEach(f=>{ f.name='current mol'; cvConformers.push({...f, color:CV_COLORS[cvConformers.length%CV_COLORS.length], on:true, rmsd:null}); });
+  cvUpdateList();
+}
+
+/* ── SDF parser — returns same [{atoms,energy,name,frame}] as parseMultiXyz ── */
+function parseSdf(text, srcName) {
+  const frames = [];
+  const records = text.split(/\$\$\$\$/).map(s => s.trim()).filter(Boolean);
+  records.forEach((rec, ri) => {
+    const lines = rec.split(/\r?\n/);
+    const molName = (lines[0] || '').trim() || `${srcName}_${ri + 1}`;
+    // Line 3 (index 3) is the counts line: aaabbblll...
+    const counts = lines[3] || '';
+    const nAtoms = parseInt(counts.slice(0, 3), 10);
+    if (!nAtoms || isNaN(nAtoms)) return;
+    const atoms = [];
+    // Energy from property block: look for "> <Energy>" or similar, or use 0
+    let energy = null;
+    for (let i = 4 + nAtoms; i < lines.length; i++) {
+      const m = lines[i].match(/>\s*<[Ee]nerg/);
+      if (m && lines[i + 1]) { energy = parseFloat(lines[i + 1]); break; }
+    }
+    for (let i = 0; i < nAtoms; i++) {
+      const l = lines[4 + i] || '';
+      // SDF atom line: x(10) y(10) z(10) el(3) ...
+      const x = parseFloat(l.slice(0, 10));
+      const y = parseFloat(l.slice(10, 20));
+      const z = parseFloat(l.slice(20, 30));
+      const el = l.slice(31, 34).trim();
+      if (!el || isNaN(x)) return;
+      atoms.push([el, x, y, z]);
+    }
+    if (atoms.length === nAtoms)
+      frames.push({ atoms, energy, name: molName, frame: ri, src: srcName });
+  });
+  return frames;
+}
+
+function cvLoadFileList(files) {
+  let pending = files.length;
+  Array.from(files).forEach(file => {
+    const r = new FileReader();
+    r.onload = ev => {
+      const isSdf = /\.sdf$/i.test(file.name) || /\.mol$/i.test(file.name);
+      const baseName = file.name.replace(/\.(xyz|sdf|mol)$/i, '');
+      const frames = isSdf
+        ? parseSdf(ev.target.result, baseName)
+        : parseMultiXyz(ev.target.result, baseName);
+      frames.forEach(f => {
+        cvConformers.push({...f, color: CV_COLORS[cvConformers.length % CV_COLORS.length], on: true, rmsd: null});
+      });
+      pending--;
+      if (!pending) { cvUpdateList(); cvRenderStack(); }
+    };
+    r.readAsText(file);
+  });
+}
+
+/* ── Render ─────────────────────────────────────────────────────── */
+function cvRenderStack() {
+  const active=cvConformers.filter(c=>c.on);
+  if (!active.length) {
+    if (cvViewer3d) { try{cvViewer3d.clear();cvViewer3d.render();}catch(e){} }
+    $('cvStats').className='cv-stats';
+    return;
+  }
+
+  const div=$('cvViewer3d');
+  if (!cvViewer3d) {
+    div.innerHTML='';
+    cvViewer3d=$3Dmol.createViewer(div, {backgroundColor:'white'});
+  } else {
+    cvViewer3d.clear();
+  }
+
+  const mode = ($('cvAlignMode')||{value:'benzene'}).value;
+  const style = ($('cvStyle')||{value:'line'}).value;
+  const spread = parseFloat(($('cvSpread')||{value:'0'}).value)||0;
+
+  const ref=active[0];
+  const refAtoms=ref.atoms;
+  ref.rmsd=null;
+
+  // Center reference
+  const cx=refAtoms.reduce((s,a)=>s+a[1],0)/refAtoms.length;
+  const cy=refAtoms.reduce((s,a)=>s+a[2],0)/refAtoms.length;
+  const cz=refAtoms.reduce((s,a)=>s+a[3],0)/refAtoms.length;
+  const centeredRef=refAtoms.map(a=>[a[0],a[1]-cx,a[2]-cy,a[3]-cz]);
+
+  const statsLines=[];
+  active.forEach((c, mi)=>{
+    let displayAtoms;
+    if (mi===0) {
+      displayAtoms=centeredRef;
+    } else {
+      const indices = cvAlignIndices(refAtoms, c.atoms, mode);
+      if (indices && indices.length>=3) {
+        const {aligned,rmsd}=kabschAlign(c.atoms, refAtoms, indices);
+        c.rmsd=rmsd;
+        displayAtoms=aligned.map(a=>[a[0],a[1]-cx,a[2]-cy,a[3]-cz]);
+        statsLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${c.name}</b>: RMSD ${rmsd.toFixed(4)}&thinsp;Å (${indices.length} align atoms)`);
+      } else {
+        c.rmsd=null;
+        displayAtoms=c.atoms.map(a=>[a[0],a[1]-cx,a[2]-cy,a[3]-cz]);
+        statsLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${c.name}</b>: not aligned (atom count or element mismatch)`);
+      }
+    }
+
+    // X-spread offset
+    const n=active.length;
+    const xOff=(mi-(n-1)/2)*spread;
+    const spreadAtoms=displayAtoms.map(a=>[a[0],a[1]+xOff,a[2],a[3]]);
+
+    const chainId=CV_CHAINS[mi] || 'A';
+    const pdb=atomsToPdb(spreadAtoms, chainId);
+    cvViewer3d.addModel(pdb,'pdb');
+
+    const col=c.color;
+    if (style==='line') {
+      cvViewer3d.setStyle({model:mi},{line:{color:col,linewidth:3}});
+    } else if (style==='stick') {
+      cvViewer3d.setStyle({model:mi},{stick:{color:col,radius:0.12}});
+    } else {
+      cvViewer3d.setStyle({model:mi},{stick:{color:col,radius:0.10},sphere:{color:col,scale:0.22}});
+    }
+  });
+
+  cvViewer3d.zoomTo();
+  cvViewer3d.render();
+
+  cvUpdateList();
+  const stats=$('cvStats');
+  if (statsLines.length) {
+    stats.innerHTML='<b>Alignment vs. first conformer</b><br>'+statsLines.join('<br>');
+    stats.className='cv-stats visible';
+  } else {
+    stats.className='cv-stats';
+  }
+}
+
+/* ── File drag init ─────────────────────────────────────────────── */
+document.addEventListener('dragover', e=>e.preventDefault());
+document.addEventListener('drop', e=>e.preventDefault());
+
+/* ================================================================== *
+ * Modeling: validates the descriptor CSV through gui_server.py and   *
+ * prepares the same M3 settings for command-line or direct execution. *
+ * ================================================================== */
+const MODEL_SERVER = location.port === "7432" ? location.origin : "http://127.0.0.1:7432";
+let mdlReady = false;
+let mdlFeatureCount = 0;
+let mdlServerOnline = false;
+
+function toggleModelPanel() {
+  const open = $("modelBody").classList.toggle("open");
+  $("modelChevron").textContent = open ? "▲ collapse" : "▼ expand";
+  if (open && !$("mdlCsv").value.trim()) mdlUseExtractionOutput();
+}
+
+function mdlStatus(message, kind="warn") {
+  const box = $("mdlStatus");
+  box.textContent = message;
+  box.className = `model-status visible ${kind}`;
+}
+
+function mdlInvalidate() {
+  mdlReady = false;
+  $("mdlStatus").className = "model-status";
+}
+
+function mdlSync() {
+  const bassa = $("mdlEngine").value === "bassa";
+  document.querySelectorAll(".m3-only").forEach(el => el.style.display = bassa ? "none" : "");
+  document.querySelectorAll(".bassa-only").forEach(el => el.style.display = bassa ? "" : "none");
+  $("mdlTaskField").style.display = bassa ? "none" : "";
+  $("mdlRunBtn").textContent = bassa ? "Run BASSA via server" : "Run M3 via server";
+  $("mdlCommand").className = "model-command";
+}
+
+function mdlSyncMerge() {
+  $("mdlNameColumnField").style.display = $("mdlMergeMode").value === "name_value" ? "" : "none";
+}
+
+function mdlUseExtractionOutput() {
+  const output = runConfigObject().output_csv || "merged_features.csv";
+  $("mdlCsv").value = output;
+  mdlInvalidate();
+  mdlStatus(`Using extraction output: ${output}`, "warn");
+}
+
+function mdlChoose(n, k) {
+  if (k < 0 || k > n) return 0;
+  k = Math.min(k, n-k);
+  let value = 1;
+  for (let i=1; i<=k; i++) value = value * (n-k+i) / i;
+  return Math.round(value);
+}
+
+function mdlComboCount() {
+  const lo = Math.max(1, parseInt($("mdlMin").value,10) || 1);
+  const hi = Math.min(mdlFeatureCount, parseInt($("mdlMax").value,10) || lo);
+  let total = 0;
+  for (let k=lo; k<=hi; k++) total += mdlChoose(mdlFeatureCount,k);
+  return total;
+}
+
+function mdlEstimate() {
+  if (!mdlFeatureCount || $("mdlEngine").value !== "m3") return;
+  const count = mdlComboCount();
+  const kind = count > 100000 ? "warn" : "ok";
+  mdlStatus(`${count.toLocaleString()} M3 feature combinations from ${mdlFeatureCount} numeric descriptors. ${count > 100000 ? "Reduce maximum features before a long run." : "Search size is reasonable."}`, kind);
+}
+
+async function mdlValidate() {
+  const csv = $("mdlCsv").value.trim();
+  const target = $("mdlTarget").value.trim() || "output";
+  if (!csv) { mdlStatus("Choose a feature CSV or use the extraction output first.","bad"); return false; }
+  mdlStatus("Checking CSV and target column...","warn");
+  try {
+    const response = await fetch(`${MODEL_SERVER}/model/dataset`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({features_csv:csv,target})
+    });
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || "CSV validation failed");
+    mdlReady = !!data.ready;
+    mdlFeatureCount = data.feature_count || 0;
+    if (!data.target_found) mdlStatus(`CSV loaded (${data.rows} rows), but target column '${target}' is missing.`,"bad");
+    else if (!data.target_numeric) mdlStatus(`Target column '${target}' exists but is not numeric.`,"bad");
+    else if (!data.ready) mdlStatus("CSV needs attention: add numeric descriptors and remove duplicate columns.","bad");
+    else {
+      const missing = data.target_missing ? `, ${data.target_missing} missing target values` : "";
+      mdlStatus(`CSV ready: ${data.rows} rows, ${data.feature_count} numeric descriptors, target '${target}'${missing}.`,"ok");
+      mdlEstimate();
+    }
+    return mdlReady;
+  } catch (error) {
+    mdlReady = false;
+    mdlStatus(`Could not verify CSV: ${error.message}. Start M2_data_extractor\\gui_server.py.`,"bad");
+    return false;
+  }
+}
+
+async function mdlMergeOutputs() {
+  if (!mdlServerOnline) {
+    mdlStatus("Start gui_server.py before merging output values.","bad");
+    return;
+  }
+  const source = $("mdlCsv").value.trim();
+  const outputs = $("mdlOutputs").value.trim();
+  if (!source || !outputs) {
+    mdlStatus("Choose the descriptor CSV and paste output values first.","bad");
+    return;
+  }
+  mdlStatus("Merging outputs into a new modeling CSV...","warn");
+  try {
+    const response = await fetch(`${MODEL_SERVER}/model/merge-outputs`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        features_csv:source,
+        outputs,
+        target:$("mdlTarget").value.trim() || "output",
+        mode:$("mdlMergeMode").value,
+        name_column:$("mdlNameColumn").value.trim(),
+        output_csv:$("mdlMergedPath").value.trim()
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || data.error) {
+      const detail = data.missing_names?.length ? ` Missing: ${data.missing_names.join(", ")}` : "";
+      throw new Error((data.error || "Merge failed") + detail);
+    }
+    $("mdlCsv").value = data.output_csv;
+    $("mdlMergedPath").value = data.output_csv;
+    mdlReady = false;
+    mdlStatus(`Merged ${data.rows} output values into '${data.target}'. Saved: ${data.output_csv}`,"ok");
+    await mdlValidate();
+  } catch (error) { mdlStatus(`Could not merge outputs: ${error.message}`,"bad"); }
+}
+
+function mdlQuote(value) { return `'${String(value).replace(/'/g,"''")}'`; }
+function mdlList(id) { return $(id).value.split(",").map(v=>v.trim()).filter(Boolean); }
+
+function mdlPayload() {
+  return {
+    engine:$("mdlEngine").value, task:$("mdlTask").value,
+    features_csv:$("mdlCsv").value.trim(), target:$("mdlTarget").value.trim() || "output",
+    min_features:Number($("mdlMin").value), max_features:Number($("mdlMax").value),
+    top_n:Number($("mdlTop").value), threshold:Number($("mdlThreshold").value),
+    n_jobs:Number($("mdlJobs").value), parallel:$("mdlParallel").checked,
+    leave_out:mdlList("mdlLeave"), sampler_iterations:Number($("mdlIterations").value),
+    experiment_name:$("mdlExperiment").value.trim(), project_path:$("mdlBassaOut").value.trim()
+  };
+}
+
+function mdlGenerateCommand() {
+  const p = mdlPayload();
+  if (!p.features_csv) { mdlStatus("Choose a feature CSV first.","bad"); return; }
+  if (p.engine === "bassa") {
+    $("mdlCommand").textContent = "BASSA is run through the modeling server with the settings above. Install it with: pip install bassa-reg";
+  } else {
+    const root = pathVal(RUN_PATHS.root_dir,"..\\..");
+    const script = root.replace(/[\\/]$/,"") + "\\__main__.py";
+    const parts = ["python",mdlQuote(script),"model","--mode",p.task,"--features_csv",mdlQuote(p.features_csv),"--y_value",mdlQuote(p.target),"--min-features",p.min_features,"--max-features",p.max_features,"--top-n",p.top_n,"--threshold",p.threshold,"--n_jobs",p.n_jobs];
+    if (p.parallel || p.n_jobs > 1) parts.push("--bool-parallel");
+    if (p.leave_out.length) parts.push("--leave-out",...p.leave_out.map(mdlQuote));
+    $("mdlCommand").textContent = parts.join(" ");
+  }
+  $("mdlCommand").className = "model-command visible";
+}
+
+async function mdlCopyCommand() {
+  if (!$("mdlCommand").textContent.trim()) mdlGenerateCommand();
+  await navigator.clipboard.writeText($("mdlCommand").textContent);
+  mdlStatus("Modeling command copied.","ok");
+}
+
+async function mdlRun() {
+  if (!mdlServerOnline) { mdlStatus("Start gui_server.py before running a model.","bad"); return; }
+  if (!mdlReady && !await mdlValidate()) return;
+  const p = mdlPayload();
+  const count = p.engine === "m3" ? mdlComboCount() : 0;
+  if (count > 100000 && !confirm(`Evaluate ${count.toLocaleString()} feature combinations?`)) return;
+  $("mdlRunBtn").disabled = true;
+  mdlStatus(p.engine === "bassa" ? "BASSA is sampling models..." : "M3 is evaluating feature combinations...","warn");
+  try {
+    const response = await fetch(`${MODEL_SERVER}/model/run`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)});
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || "Modeling failed");
+    mdlStatus(data.message || `Modeling complete. Output: ${data.run_directory || data.project_path || "run directory"}`,"ok");
+  } catch (error) { mdlStatus(`Modeling failed: ${error.message}`,"bad"); }
+  finally { $("mdlRunBtn").disabled = false; }
+}
+
+async function mdlPingServer() {
+  try {
+    const response = await fetch(`${MODEL_SERVER}/status`,{signal:AbortSignal.timeout(1800)});
+    const data = await response.json();
+    mdlServerOnline = !!data.ok;
+    $("mdlServerState").textContent = mdlServerOnline ? `Server connected · ${data.cpu_count || 1} CPU cores${data.bassa_available ? " · BASSA ready" : ""}` : "Modeling server unavailable";
+    $("mdlJobs").max = data.cpu_count || 1;
+  } catch (_) { mdlServerOnline=false; $("mdlServerState").textContent="Server offline · commands still available"; }
+}
+
+/* ================================================================== *
+ * Boot.  __XYZ_DATA__ is replaced by the Python helper when it embeds  *
+ * a real molecule; otherwise the demo molecule is used.               *
+ * ================================================================== */
+const EMBEDDED_XYZ = `__XYZ_DATA__`;
+buildFieldSelect();
+const _isDemo = EMBEDDED_XYZ.indexOf("__XYZ" + "_DATA__") === 0;
+initViewer(_isDemo ? DEMO_XYZ : EMBEDDED_XYZ, _isDemo ? 'caffeine (demo)' : null);
+refresh();
+mdlSync();
+mdlSyncMerge();
+mdlPingServer();
+</script>
+</body>
+</html>

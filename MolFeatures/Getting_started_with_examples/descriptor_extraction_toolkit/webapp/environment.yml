@@ -1,0 +1,39 @@
+name: descripytor-webapp
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - streamlit>=1.30
+  - flask
+  - flask-cors
+  - pandas
+  - pyarrow
+  - numpy<2
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - pillow
+  - plotly
+  - tqdm
+  - joblib
+  - statsmodels
+  - seaborn
+  - psutil
+  - pymc
+  - arviz
+  - networkx
+  - igraph
+  - dash
+  - ipywidgets
+  - chardet
+  - py3dmol
+  - rdkit
+  - ase
+  - morfeus-ml
+  - xtb
+  - crest
+  - pip:
+      - bassa-reg
+      - aqme
+      - mordred

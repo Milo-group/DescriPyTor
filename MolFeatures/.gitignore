@@ -1,0 +1,66 @@
+# Python caches and build outputs
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments and local configuration
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Notebook/editor state
+.ipynb_checkpoints/
+.history/
+.vscode/
+.idea/
+
+# Generated MolFeatures outputs
+runs/
+work/*
+!work/.gitkeep
+MolAlign/runs/
+**/runs/
+**/xyz_files/
+**/aqme_qdescp/
+**/QDESCP/
+**/CSEARCH/
+**/*_work/
+**/*_cache/
+**/*_sterimol.csv
+**/*_correlation_table.csv
+**/results_*.db
+**/results_*.sqlite
+**/results_*.csv
+**/regression_results.txt
+*.feather
+*.sdf
+*.mol2
+*.mp4
+*.avi
+*.mov
+
+# Local operating-system files
+Desktop - Shortcut.lnk
+Thumbs.db
+.DS_Store
+
+# Large or local research artifacts that should be reviewed before publishing
+*.log
+*.cube
+*.chk
+*.fchk
+*.wfn
+*.wfx
+*.out
+*.gjf
+*.com

@@ -1,0 +1,22 @@
+# Web app
+streamlit>=1.30
+
+# Core toolkit
+pandas
+pyarrow            # read .feather
+
+# Optional descriptor-engine deps (install the ones you want to expose online).
+# Engines whose deps are missing simply skip themselves with a message.
+# rdkit
+# ase
+# mordred
+# deepchem
+# morfeus-ml
+# moltop
+# networkx
+# autoqchem        # qm engine (Gaussian logs)
+# aqme             # aqme_qdescp / csearch  (also needs a working xTB binary on PATH)
+
+# NOTE: the DescriPytor package itself is NOT on PyPI - it must be present on the
+# server at the "MolFeatures root" you set in the app sidebar (the same folder the
+# notebooks use).
