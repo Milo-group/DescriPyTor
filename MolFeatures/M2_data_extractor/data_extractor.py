@@ -16,8 +16,15 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
     # Now you can import from the parent directory
     from gaussian_handler import feather_file_handler, save_to_feather
-    from MolAlign.renumbering import batch_renumbering
-    from utils import visualize
+    # NOTE: MolAlign.renumbering (needs torch) and utils.visualize (needs
+    # dash/ipywidgets) are NOT imported here anymore - they're only used by
+    # get_renumbering_dict() and the visualize_*/get_dipole_gaussian_df_single
+    # methods respectively, both opt-in features most callers (including the
+    # webapp's basic "load a feather set" path) never touch. Importing them
+    # eagerly meant torch/dash/ipywidgets were hard requirements just to open
+    # a feather file. They're now imported lazily inside those specific
+    # methods instead - see _import_batch_renumbering() and _import_visualize()
+    # below.
     from utils.help_functions import *
     from utils.help_functions import json_file_handler  # structured-JSON loader
     # from utils.rdkit_utils import xyz_list_to_mols, visualize_mols, mols_to_fingerprint_df
@@ -25,11 +32,24 @@ try:
     from extractor_utils.bond_angle_length_utils import *
     from extractor_utils.dipole_utils import *
     from extractor_utils.vibrations_utils import *
-    
-except ImportError:
+
+except ImportError as _abs_import_err:
+    # The relative-import fallback below only works if this module was loaded
+    # as part of the MolFeatures.M2_data_extractor package. The webapp (and
+    # anything else that does sys.path.append(...) + "from data_extractor
+    # import Molecules") loads this as a bare top-level module instead, so
+    # __package__ is empty and every relative import here will unconditionally
+    # raise "attempted relative import with no known parent package" -
+    # completely masking whatever the *real* problem was above. Only attempt
+    # the relative fallback when it can actually work, and otherwise re-raise
+    # the original error so the real missing/broken dependency is visible.
+    if not __package__:
+        raise ImportError(
+            "data_extractor.py's absolute imports failed and it isn't loaded as "
+            "a package, so the relative-import fallback can't run either. "
+            f"Original error: {_abs_import_err}"
+        ) from _abs_import_err
     from .gaussian_handler import feather_file_handler, save_to_feather
-    from ..MolAlign.renumbering import batch_renumbering
-    from ..utils import visualize
     from ..utils.help_functions import *
     from ..utils.help_functions import json_file_handler  # structured-JSON loader
     # from ..utils.rdkit_utils import xyz_list_to_mols, visualize_mols, mols_to_fingerprint_df
@@ -37,7 +57,37 @@ except ImportError:
     from .extractor_utils.bond_angle_length_utils import *
     from .extractor_utils.dipole_utils import *
     from .extractor_utils.vibrations_utils import *
-    
+
+
+def _import_batch_renumbering():
+    """
+    Lazy import of MolAlign.renumbering.batch_renumbering - only needed by
+    get_renumbering_dict(). Isolated here so the rest of data_extractor.py
+    (feather loading, descriptor extraction, etc.) never needs torch.
+    """
+    try:
+        from MolAlign.renumbering import batch_renumbering
+    except ImportError:
+        if not __package__:
+            raise
+        from ..MolAlign.renumbering import batch_renumbering
+    return batch_renumbering
+
+
+def _import_visualize():
+    """
+    Lazy import of utils.visualize - only needed by the visualize_* / optional
+    dipole-visualization methods. Isolated here so basic feather loading and
+    descriptor extraction never need dash/ipywidgets.
+    """
+    try:
+        from utils import visualize
+    except ImportError:
+        if not __package__:
+            raise
+        from ..utils import visualize
+    return visualize
+
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -641,6 +691,7 @@ class Molecule:
         """
         Visualizes the molecule using the `visualize` module.
         """
+        visualize = _import_visualize()
         if vector is not None:
             visualize.show_single_molecule(molecule_name=self.molecule_name, xyz_df=self.xyz_df, dipole_df=vector,origin=[0,0,0])
         else:
@@ -1087,6 +1138,7 @@ class Molecule:
                     pass
 
                 # 4) Visualize: dipole_df is already in the same LOCAL frame ג†’ no basis needed
+                visualize = _import_visualize()
                 visualize.show_single_molecule(
                     molecule_name=self.molecule_name,
                     xyz_df=xyz_df,
@@ -2166,7 +2218,8 @@ class Molecules():
 
 
     def get_renumbering_dict(self):
-        
+
+        batch_renumbering = _import_batch_renumbering()
         self.export_all_xyz()
         os.chdir('xyz_files')
         self.renumbering_list, target_idx = batch_renumbering(os.getcwd())

@@ -443,11 +443,16 @@ ENGINES = {
 # --------------------------------------------------------------------------- #
 # 3.  Runner
 # --------------------------------------------------------------------------- #
-def run_from_config(config) -> pd.DataFrame:
+def run_from_config(config, stop_check=None) -> pd.DataFrame:
     """
     Run all enabled engines described in `config` (a dict or path to a JSON
     file) and return the merged features DataFrame.  Also writes the merged
     CSV if config['output_csv'] is set.
+
+    stop_check : optional callable, checked before each engine starts.  If it
+    returns truthy, the run stops early (whatever engines already finished are
+    still merged and returned/written) - used by the webapp's Cancel button.
+    Cancellation is only checked *between* engines, not mid-engine.
     """
     if isinstance(config, (str, Path)):
         with open(config, "r", encoding="utf-8") as f:
@@ -472,6 +477,10 @@ def run_from_config(config) -> pd.DataFrame:
 
     results = []
     for name, ecfg in engines_cfg.items():
+        if stop_check is not None and stop_check():
+            print(f"\n[stop] cancelled before engine '{name}' - "
+                 f"merging {len(results)} engine(s) that already finished.")
+            break
         if not ecfg.get("enabled", True):
             print(f"[skip] {name} (disabled)")
             continue

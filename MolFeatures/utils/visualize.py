@@ -11,9 +11,17 @@ from matplotlib.patches import Patch
 # Add the parent directory to the sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
-    from utils  import help_functions as hf
-except Exception as e :
-    from .utils import help_functions as hf
+    from utils import help_functions as hf
+except Exception:
+    # NOTE: this used to say "from .utils import help_functions as hf", which is
+    # a bug - it looked for a submodule literally named "utils" INSIDE this same
+    # "utils" package (i.e. utils.utils), which doesn't exist, so it always
+    # raised ModuleNotFoundError itself. That masked whatever the real import
+    # problem was and, when this module is reached via data_extractor.py's own
+    # try/except fallback, produced a confusing "attempted relative import with
+    # no known parent package" error instead. The correct relative import is a
+    # plain sibling-module import: "from . import help_functions".
+    from . import help_functions as hf
 # Now you can import from the parent directory
 
 

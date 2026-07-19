@@ -1,19 +1,21 @@
 
 import os
-os.chdir(r'C:\Users\edens\Desktop\DescriPytor\DescriPyTor-main\MolFeatures\MolAlign')
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import pandas as pd
 from tqdm import tqdm
 import argparse
 
-
-
-from gaussian_handler import *
-
-
-
-from df_funs import xyz_to_df
-from RDKIT_utils import *
-from MCS_optimization import *
+try:
+    from .gaussian_handler import *
+    from .df_funs import xyz_to_df
+    from .RDKIT_utils import *
+    from .MCS_optimization import *
+except ImportError:
+    from gaussian_handler import *
+    from df_funs import xyz_to_df
+    from RDKIT_utils import *
+    from MCS_optimization import *
 
 from itertools import combinations
 import math
@@ -22,7 +24,6 @@ import math
 from datetime import datetime
 
 
-print(os.getcwd())
 def add_unumbered(MCSandCoords_map, mol2):
 
     mol2_atoms = mol2.GetAtoms()

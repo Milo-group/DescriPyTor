@@ -1653,11 +1653,19 @@ class LinearRegressionModel:
         """
 
         # ----------------------- 1) Ensure fitted (or fit now) -----------------------
+        # NOTE: self.model (the plain sklearn estimator) and self.theta (this class's
+        # own ridge-regression coefficients, set by self.fit() and consumed by
+        # self.predict() below) are two separate fitted states. Refitting only
+        # self.model here used to leave self.theta stale/unset, which made the
+        # self.predict() call further down crash with "matmul: ... has 0 dimensions"
+        # whenever self.theta was still None - so both must be kept in sync.
         must_refit = (X_train is not None) and (y_train is not None)
         if must_refit:
             Xt = X_train.to_numpy() if hasattr(X_train, "to_numpy") else np.asarray(X_train)
             yt = np.asarray(y_train).ravel()
-            self.model.fit(Xt, yt)          # fit now
+            self.fit(Xt, yt)                # refit theta (used by self.predict())
+            if self.model_type.lower() != "linear":
+                self.model.fit(Xt, yt)      # keep the sklearn estimator (e.g. Lasso) in sync too
             # Optionally keep for future checks
             self.X_, self.y_ = Xt, yt
         else:
@@ -1670,6 +1678,16 @@ class LinearRegressionModel:
                 else:
                     raise NotFittedError(
                         "This estimator is not fitted yet. Provide X_train,y_train or fit before calling predict_for_leftout."
+                    )
+            if self.theta is None:
+                # self.model was fitted above (or already fit), but self.predict()
+                # below needs self.theta specifically - refit it too if possible.
+                if hasattr(self, "X_") and hasattr(self, "y_"):
+                    self.fit(self.X_, self.y_)
+                else:
+                    raise NotFittedError(
+                        "This estimator's ridge coefficients (theta) are not fitted yet. "
+                        "Provide X_train,y_train or call fit() before calling predict_for_leftout."
                     )
 
         # ----------------------- 2) Align columns/schema -----------------------

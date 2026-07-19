@@ -4,6 +4,8 @@ channels:
 dependencies:
   - python=3.11
   - pip
+  - tk           # M3_modeler/modeling.py does `from tkinter import filedialog, messagebox`
+                 # at import time - without this, importing it (Modeling tab) crashes.
   - streamlit>=1.30
   - flask
   - flask-cors
@@ -23,7 +25,8 @@ dependencies:
   - pymc
   - arviz
   - networkx
-  - igraph
+  - python-igraph
+  - umap-learn    # Results tab: PCA/UMAP scatter of the merged feature set
   - dash
   - ipywidgets
   - chardet
@@ -33,6 +36,12 @@ dependencies:
   - morfeus-ml
   - xtb
   - crest
+  # NOTE: no torch/pytorch here on purpose. MolAlign.renumbering (the only
+  # thing in this toolkit that needs it, via RDKIT_utils/df_funs/rotations)
+  # is only imported lazily inside data_extractor.py's get_renumbering_dict(),
+  # which nothing in the webapp calls - so feather loading etc. don't need
+  # torch at all. Add "pytorch-cpu" here only if you specifically need
+  # get_renumbering_dict()'s xyz-renumbering feature.
   - pip:
       - bassa-reg
       - aqme

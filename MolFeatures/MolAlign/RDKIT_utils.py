@@ -16,8 +16,18 @@ except ImportError:
     from rotations import *
 from PIL import Image
 import io
-import torch
-import torch.nn.functional as F
+try:
+    import torch
+    import torch.nn.functional as F
+except Exception:
+    # torch isn't in the default DescriPytor environment (environment.yml has no
+    # torch/pytorch entry) - only a handful of rotation/MCS-distance helpers in
+    # this file need it. Keep the rest of the module (and anything that just
+    # needs batch_renumbering/df_to_mol) importable without it; those specific
+    # torch-based helpers will raise a clear AttributeError if actually called
+    # without torch installed, instead of this whole module failing to import.
+    torch = None
+    F = None
 
 import itertools
 import copy

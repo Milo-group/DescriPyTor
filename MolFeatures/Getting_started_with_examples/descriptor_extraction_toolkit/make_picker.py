@@ -71,6 +71,249 @@ def read_xyz_text(path: str) -> str:
         return f.read().strip()
 
 
+# --------------------------------------------------------------------------- #
+# 2D bond-graph (igraph) - an atom-numbered diagram to read off indices from,
+# meant to sit next to the 3D picker rather than replace it.
+# --------------------------------------------------------------------------- #
+COVALENT_RADII = {  # Angstrom, Cordero et al. (rounded) - good enough for a bond-perception cutoff
+    "H": 0.31, "HE": 0.28, "LI": 1.28, "BE": 0.96, "B": 0.84, "C": 0.76, "N": 0.71,
+    "O": 0.66, "F": 0.57, "NE": 0.58, "NA": 1.66, "MG": 1.41, "AL": 1.21, "SI": 1.11,
+    "P": 1.07, "S": 1.05, "CL": 1.02, "AR": 1.06, "K": 2.03, "CA": 1.76, "SC": 1.70,
+    "TI": 1.60, "V": 1.53, "CR": 1.39, "MN": 1.39, "FE": 1.32, "CO": 1.26, "NI": 1.24,
+    "CU": 1.32, "ZN": 1.22, "GA": 1.22, "GE": 1.20, "AS": 1.19, "SE": 1.20, "BR": 1.20,
+    "KR": 1.16, "RB": 2.20, "SR": 1.95, "PD": 1.39, "AG": 1.45, "CD": 1.44, "SN": 1.39,
+    "SB": 1.39, "I": 1.39, "XE": 1.40, "CS": 2.44, "BA": 2.15, "PT": 1.36, "AU": 1.36,
+    "HG": 1.32, "PB": 1.46,
+}
+DEFAULT_COVALENT_RADIUS = 0.75
+
+
+def _parse_xyz_atoms(xyz_text: str):
+    """Return (elements, coords) from an XYZ-block string."""
+    lines = [ln for ln in xyz_text.splitlines() if ln.strip()]
+    if not lines:
+        return [], []
+    try:
+        n = int(lines[0].split()[0])
+    except (ValueError, IndexError):
+        n = None
+    body = lines[2:] if n is not None else lines
+    elements, coords = [], []
+    for ln in body:
+        parts = ln.split()
+        if len(parts) < 4:
+            continue
+        try:
+            x, y, z = float(parts[1]), float(parts[2]), float(parts[3])
+        except ValueError:
+            continue
+        elements.append(parts[0])
+        coords.append((x, y, z))
+        if n is not None and len(elements) >= n:
+            break
+    return elements, coords
+
+
+def _infer_bonds(elements, coords, tolerance: float = 1.3):
+    """Pairwise distance + covalent-radius cutoff bond perception (0-indexed pairs)."""
+    bonds = []
+    radii = [COVALENT_RADII.get(el.strip().upper(), DEFAULT_COVALENT_RADIUS) for el in elements]
+    n = len(coords)
+    for i in range(n):
+        xi, yi, zi = coords[i]
+        for j in range(i + 1, n):
+            xj, yj, zj = coords[j]
+            d2 = (xi - xj) ** 2 + (yi - yj) ** 2 + (zi - zj) ** 2
+            cutoff = (radii[i] + radii[j]) * tolerance
+            if d2 <= cutoff * cutoff:
+                bonds.append((i, j))
+    return bonds
+
+
+def graph2d_png_base64(xyz_text: str) -> str:
+    """
+    Build an atom-numbered 2D bond-graph from an XYZ block using igraph for the
+    graph/layout and matplotlib for rendering, so it can sit next to the 3D
+    picker as a quick "which number is which atom" reference.
+
+    Returns a bare base64 PNG string (no `data:image/...` prefix), or "" if
+    igraph/matplotlib aren't available or the xyz can't be parsed.
+    """
+    try:
+        import base64
+        import io
+        import igraph as ig
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except Exception as e:  # noqa
+        print(f"[picker] 2D graph view unavailable ({e}); needs python-igraph + matplotlib.")
+        return ""
+
+    elements, coords = _parse_xyz_atoms(xyz_text)
+    if not elements:
+        return ""
+
+    bonds = _infer_bonds(elements, coords)
+    g = ig.Graph(n=len(elements), edges=bonds)
+    layout = g.layout("kk") if bonds else g.layout("circle")
+    xs = [p[0] for p in layout]
+    ys = [p[1] for p in layout]
+
+    fig, ax = plt.subplots(figsize=(5.2, 5.2), dpi=120)
+    for (i, j) in bonds:
+        ax.plot([xs[i], xs[j]], [ys[i], ys[j]], color="#8a94a6", linewidth=1.6, zorder=1)
+    ax.scatter(xs, ys, s=380, color="#eef2f8", edgecolors="#2a3644", linewidths=1.3, zorder=2)
+    for idx, (x, y, el) in enumerate(zip(xs, ys, elements), start=1):
+        ax.annotate(f"{idx}\n{el}", (x, y), ha="center", va="center", fontsize=8, fontweight="bold", zorder=3)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    fig.tight_layout()
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", transparent=True)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+# --------------------------------------------------------------------------- #
+# RDKit structure + fingerprint helpers (2D depiction, scope grids, Morgan bits).
+# Shared by the webapp's Tab 1 "structure & fingerprint viewer" and "Build scope
+# page" button. Bond perception reuses the same rdDetermineBonds approach as
+# feature_packages.extract_smiles, but works straight off an xyz-block string
+# (no ase/file round-trip needed) and returns an actual Mol, not just a SMILES.
+# --------------------------------------------------------------------------- #
+def rdkit_mol_from_xyz(xyz_text: str, charges=(0, 1, -1, 2, -2), remove_hs: bool = True):
+    """
+    Perceive bonds/valences for an xyz-block string and return a sanitized
+    RDKit Mol with 2D depiction coordinates, or None if perception fails or
+    RDKit isn't installed.
+    """
+    try:
+        from rdkit import Chem, RDLogger
+        from rdkit.Chem import AllChem, rdDetermineBonds
+        RDLogger.DisableLog("rdApp.*")
+    except Exception as e:  # noqa
+        print(f"[picker] rdkit unavailable ({e})")
+        return None
+
+    try:
+        base = Chem.MolFromXYZBlock(xyz_text)
+    except Exception as e:  # noqa
+        print(f"[picker] MolFromXYZBlock failed: {e}")
+        return None
+    if base is None:
+        return None
+
+    mol = None
+    last_err = None
+    for charge in charges:
+        try:
+            import copy
+            candidate = copy.deepcopy(base)
+            rdDetermineBonds.DetermineBonds(candidate, charge=charge)
+            Chem.SanitizeMol(candidate)
+            mol = candidate
+            break
+        except Exception as e:  # noqa
+            last_err = e
+    if mol is None:
+        print(f"[picker] bond perception failed for all charge guesses: {last_err}")
+        return None
+
+    if remove_hs:
+        try:
+            mol = Chem.RemoveHs(mol)
+        except Exception:
+            pass
+    try:
+        AllChem.Compute2DCoords(mol)
+    except Exception as e:  # noqa
+        print(f"[picker] 2D coordinate generation failed: {e}")
+    return mol
+
+
+def mol_structure_png_base64(mol, size=(320, 280), highlight_atoms=None) -> str:
+    """2D structure depiction of an RDKit Mol as a bare base64 PNG string."""
+    try:
+        import base64
+        import io
+        from rdkit.Chem import Draw
+    except Exception as e:  # noqa
+        print(f"[picker] structure image unavailable ({e})")
+        return ""
+    try:
+        img = Draw.MolToImage(mol, size=size, highlightAtoms=highlight_atoms or [])
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception as e:  # noqa
+        print(f"[picker] structure image render failed: {e}")
+        return ""
+
+
+def morgan_fingerprint_bits(mol, n_bits: int = 256, radius: int = 2):
+    """
+    Compute an ECFP-style Morgan fingerprint and return
+    (sorted list of "on" bit indices, bitInfo dict) for visualization.
+    bitInfo maps bit_id -> [(atom_idx, radius), ...] as required by DrawMorganBit.
+    """
+    from rdkit.Chem import rdMolDescriptors
+
+    bit_info = {}
+    fp = rdMolDescriptors.GetMorganFingerprintAsBitVect(
+        mol, radius, nBits=n_bits, bitInfo=bit_info)
+    on_bits = sorted(fp.GetOnBits())
+    return on_bits, bit_info
+
+
+def fingerprint_bit_png_base64(mol, bit_id: int, bit_info: dict, size=(300, 300)) -> str:
+    """Render the substructure responsible for one Morgan fingerprint bit."""
+    try:
+        import base64
+        import io
+        from rdkit.Chem import Draw
+    except Exception as e:  # noqa
+        print(f"[picker] fingerprint bit image unavailable ({e})")
+        return ""
+    try:
+        img = Draw.DrawMorganBit(mol, bit_id, bit_info, useSVG=False)
+        if hasattr(img, "save"):  # PIL Image
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            data = buf.getvalue()
+        else:  # some rdkit versions return raw PNG bytes directly
+            data = img
+        return base64.b64encode(data).decode("ascii")
+    except Exception as e:  # noqa
+        print(f"[picker] fingerprint bit render failed for bit {bit_id}: {e}")
+        return ""
+
+
+def scope_grid_png_bytes(entries, mols_per_row: int = 4, sub_img_size=(260, 230)) -> bytes:
+    """
+    Build a "scope page"-style grid image: one 2D structure + legend per cell.
+
+    entries: list of (mol, legend_str). Mols that are None are skipped.
+    Returns PNG bytes, or b"" if nothing could be rendered.
+    """
+    from rdkit.Chem import Draw
+
+    pairs = [(m, lg) for m, lg in entries if m is not None]
+    if not pairs:
+        return b""
+    mols = [m for m, _ in pairs]
+    legends = [lg for _, lg in pairs]
+    img = Draw.MolsToGridImage(
+        mols, molsPerRow=mols_per_row, subImgSize=sub_img_size,
+        legends=legends, returnPNG=False,
+    )
+    import io
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def molecule_payload(mol) -> dict:
     """
     Pull dipole vector + vibrational modes off a DescriPytor Molecule so the
@@ -149,6 +392,9 @@ def write_picker(xyz_text, out_html=None, open_browser=True, paths=None, mol_dat
     template = TEMPLATE.read_text(encoding="utf-8")
     html = template.replace("__XYZ_DATA__", _js_escape(xyz_text))
     html = html.replace("__MOL_DATA__", _js_escape(_json.dumps(mol_data or {"dipole": None, "modes": []})))
+    graph2d_b64 = graph2d_png_base64(xyz_text) if xyz_text else ""
+    html = html.replace("__GRAPH2D_IMG__", graph2d_b64)
+    html = html.replace("__GRAPH2D_DISPLAY__", "" if graph2d_b64 else "none")
 
     paths = paths or {}
     for placeholder, key in (

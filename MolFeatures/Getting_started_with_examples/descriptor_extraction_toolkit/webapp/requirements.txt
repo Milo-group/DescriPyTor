@@ -16,6 +16,29 @@ pyarrow            # read .feather
 # networkx
 # autoqchem        # qm engine (Gaussian logs)
 # aqme             # aqme_qdescp / csearch  (also needs a working xTB binary on PATH)
+# torch            # only needed for data_extractor.py's get_renumbering_dict()
+#                  # (MolAlign.renumbering) - not used by feather loading, tab 1,
+#                  # or any of the descriptor engines. Lazily imported, so it's
+#                  # only required if you actually call that method.
+# dash             # only needed for utils.visualize's dipole plotting helpers -
+#                  # also lazily imported and unused by the rest of the webapp.
+
+# utils/help_functions.py (imported eagerly - core dependency, NOT optional)
+# needs plotly + ipywidgets at module level:
+# plotly
+# ipywidgets
+
+# Modeling tab (page 4) + picker 2D graph view
+# scikit-learn statsmodels    # M3 linear/lasso feature-combination search
+# python-igraph               # NOTE: pip name is "python-igraph"; `import igraph` after install.
+#                              # The conda-forge package literally named "igraph" is the C library
+#                              # only and will NOT give you `import igraph` - use "python-igraph".
+# bassa-reg                   # BASSA Bayesian regression engine
+
+# Results tab: PCA/UMAP scatter of the merged feature set
+# scikit-learn      # PCA + StandardScaler/SimpleImputer (also needed by M3 above)
+# umap-learn        # UMAP option; PCA still works without it
+# plotly            # interactive scatter (st.plotly_chart)
 
 # NOTE: the DescriPytor package itself is NOT on PyPI - it must be present on the
 # server at the "MolFeatures root" you set in the app sidebar (the same folder the

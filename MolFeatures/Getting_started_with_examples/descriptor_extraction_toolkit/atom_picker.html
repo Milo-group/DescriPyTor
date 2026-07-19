@@ -66,12 +66,26 @@
   header .hint { color:rgba(60,60,67,.60); font-size:12px; line-height:1.4; flex:1; }
 
   /* ── Wrap layout ── */
+  /* Narrower minmax floors than before so the 3D view and the selection panel
+     stay side by side at the widths a Streamlit-embedded iframe actually gets
+     (previously required ~820px combined before wrapping to one column). */
   .wrap {
     display:grid;
-    grid-template-columns:minmax(440px,1.3fr) minmax(380px,1fr);
-    gap:18px; padding:20px 20px 8px; align-items:start;
+    grid-template-columns:minmax(300px,1.15fr) minmax(290px,1fr);
+    gap:16px; padding:20px 20px 8px; align-items:start;
   }
+  /* Manual layout modes (cycled via the "Layout" button in the header) */
+  .wrap.layout-wide-viewer { grid-template-columns:minmax(300px,1.8fr) minmax(260px,.8fr); }
+  .wrap.layout-wide-panel  { grid-template-columns:minmax(260px,.8fr) minmax(300px,1.6fr); }
+  .wrap.layout-stack       { grid-template-columns:1fr; }
+  .wrap.layout-stack #rightCol { max-height:none; overflow-y:visible; padding-right:0; }
   #leftCol  { display:flex; flex-direction:column; gap:10px; }
+  #graph2dCard {
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
+    box-shadow:var(--shadow-xs); padding:10px 12px;
+  }
+  .graph2d-head { font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
+  #graph2dImg { display:block; width:100%; max-height:320px; object-fit:contain; }
   #rightCol { display:flex; flex-direction:column; gap:14px; max-height:calc(100vh - 74px); overflow-y:auto; padding-right:4px; }
   #rightCol::-webkit-scrollbar { width:4px; }
   #rightCol::-webkit-scrollbar-track { background:transparent; }
@@ -442,10 +456,12 @@
   .flow-step strong { color:var(--text); font-weight:650; }
 
   /* ── Responsive ── */
-  @media (max-width:1100px) {
-    .wrap { grid-template-columns:1fr; padding:14px; }
+  /* Only collapse to one column on genuinely small (phone-width) viewports -
+     everything above this stays side by side (see .wrap rule above). */
+  @media (max-width:680px) {
+    .wrap { grid-template-columns:1fr !important; padding:14px; }
     #rightCol { max-height:none; overflow-y:visible; padding-right:0; }
-    #viewer-card { min-height:420px; height:56vh; }
+    #viewer-card { min-height:360px; height:48vh; }
   }
   @media (max-width:520px) { .preset-grid { grid-template-columns:1fr; } }
 
@@ -618,9 +634,10 @@
 <header>
   <h1>DescriPytor &middot; Visual Workflow</h1>
   <span class="hint">Pick atoms in 3D, extract descriptors, validate the feature CSV, then prepare or run M3/BASSA modeling.</span>
+  <button class="micro-btn" id="layoutToggleBtn" title="Cycle how the 3D view and the selection panel share the page" onclick="cycleLayout()">Layout: Balanced</button>
 </header>
 
-<div class="wrap">
+<div class="wrap" id="mainWrap">
   <!-- Left column: pure 3D viewer -->
   <div id="leftCol">
     <div id="viewer-card"
@@ -639,11 +656,16 @@
         <button class="micro-btn" id="measureBtn" title="Measurement mode (M) — click 2 atoms for distance, 3 for angle">📐 Measure</button>
         <button class="micro-btn" id="recenterBtn" title="Recenter view (R)" onclick="if(viewer){viewer.zoomTo();viewer.render();}">⊙ Recenter</button>
         <button class="micro-btn" id="screenshotBtn" title="Download PNG screenshot">⬇ Screenshot</button>
+        <button class="micro-btn" id="graph2dToggleBtn" title="Show/hide a 2D atom-numbered bond graph (igraph) next to the 3D view">Show 2D graph</button>
       </div>
       <div id="measureReadout">
         <span id="msrText"></span>
         <button class="msr-clear" onclick="clearMeasure()">✕ Clear</button>
       </div>
+    </div>
+    <div id="graph2dCard" style="display:__GRAPH2D_DISPLAY__">
+      <div class="graph2d-head">2D bond graph (igraph) — atom numbers for reference</div>
+      <img id="graph2dImg" src="data:image/png;base64,__GRAPH2D_IMG__" alt="2D atom-numbered bond graph" />
     </div>
   </div>
 
@@ -692,6 +714,12 @@
         <button id="undoPickBtn" title="Undo last atom pick (Ctrl+Z)">↩ Undo</button>
         <button id="clearGroupBtn">Clear group</button>
         <span class="small" id="groupHint"></span>
+      </div>
+      <div class="row">
+        <label>Or type atom numbers</label>
+        <input type="text" id="typedAtoms" placeholder="e.g. 3,5 or 12 14 16" style="width:160px" />
+        <button id="addTypedAtomsBtn" title="Add these atom indices to the current field, same as clicking them in 3D">Add</button>
+        <span class="small" id="typedAtomsHint">1-indexed, comma or space separated.</span>
       </div>
     </div>
 
@@ -811,49 +839,11 @@
   </div><!-- /#rightCol -->
 </div><!-- /.wrap -->
 
-<!-- Modeling continues directly from descriptor extraction output. -->
-<div class="model-bar" id="modelBar">
-  <div class="model-head" onclick="toggleModelPanel()">
-    <span class="sec-num">7</span>
-    <b style="font-size:14px;">Modeling</b>
-    <span class="pill">M3 + BASSA</span>
-    <span class="small" style="flex:1;color:var(--muted)">Validate the extracted CSV, estimate the search, and generate the exact command</span>
-    <span id="modelChevron" style="color:var(--muted);font-size:12px;">&#9660; expand</span>
-  </div>
-  <div class="model-body" id="modelBody">
-    <div class="model-grid">
-      <div class="model-field"><label>Engine</label><select id="mdlEngine" onchange="mdlSync()"><option value="m3">M3 feature search</option><option value="bassa">BASSA Bayesian regression</option></select></div>
-      <div class="model-field" id="mdlTaskField"><label>Task</label><select id="mdlTask" onchange="mdlSync()"><option value="regression">Regression</option><option value="classification">Classification</option></select></div>
-      <div class="model-field wide"><label>Feature CSV</label><input id="mdlCsv" placeholder="C:\path\to\merged_features.csv" oninput="mdlInvalidate()" onblur="mdlValidate()" /></div>
-      <div class="model-field"><label>Target column</label><input id="mdlTarget" value="output" oninput="mdlInvalidate()" onblur="mdlValidate()" /></div>
-      <div class="model-field wide"><label>Output values to merge (optional)</label><textarea id="mdlOutputs" placeholder="Row order: 0.42, 0.55, 0.61&#10;or one value per line"></textarea></div>
-      <div class="model-field"><label>Merge mode</label><select id="mdlMergeMode" onchange="mdlSyncMerge()"><option value="row_order">Match CSV row order</option><option value="name_value">Match name,value pairs</option></select></div>
-      <div class="model-field" id="mdlNameColumnField" style="display:none"><label>Name column</label><input id="mdlNameColumn" placeholder="molecule" /></div>
-      <div class="model-field wide"><label>Merged CSV path (optional)</label><input id="mdlMergedPath" placeholder="Automatically: *_with_output.csv" /></div>
-      <div class="model-field m3-only"><label>Minimum features</label><input id="mdlMin" type="number" value="1" min="1" oninput="mdlEstimate()" /></div>
-      <div class="model-field m3-only"><label>Maximum features</label><input id="mdlMax" type="number" value="3" min="1" oninput="mdlEstimate()" /></div>
-      <div class="model-field m3-only"><label>Top models</label><input id="mdlTop" type="number" value="20" min="1" /></div>
-      <div class="model-field m3-only"><label>Threshold</label><input id="mdlThreshold" type="number" value="0.70" min="0" max="1" step="0.01" /></div>
-      <div class="model-field m3-only"><label>CPU jobs</label><input id="mdlJobs" type="number" value="1" min="1" /></div>
-      <div class="model-field m3-only"><label>Leave-out samples</label><input id="mdlLeave" placeholder="Mol_01, Mol_02" /></div>
-      <div class="model-field m3-only"><label>Parallel</label><label class="model-check"><input id="mdlParallel" type="checkbox" /> Use multiple CPU jobs</label></div>
-      <div class="model-field bassa-only" style="display:none"><label>Sampler iterations</label><input id="mdlIterations" type="number" value="5000" min="100" /></div>
-      <div class="model-field bassa-only" style="display:none"><label>Experiment name</label><input id="mdlExperiment" value="molfeatures_gui" /></div>
-      <div class="model-field bassa-only wide" style="display:none"><label>Output directory</label><input id="mdlBassaOut" value="bassa_runs" /></div>
-    </div>
-    <div class="model-actions">
-      <button onclick="mdlUseExtractionOutput()">Use extraction output</button>
-      <button onclick="mdlMergeOutputs()">Merge outputs into CSV</button>
-      <button class="primary" onclick="mdlValidate()">Verify CSV</button>
-      <button class="ok" onclick="mdlGenerateCommand()">Generate command</button>
-      <button onclick="mdlCopyCommand()">Copy command</button>
-      <button id="mdlRunBtn" onclick="mdlRun()">Run via server</button>
-      <span class="small" id="mdlServerState">Checking modeling server...</span>
-    </div>
-    <div class="model-status" id="mdlStatus"></div>
-    <div class="model-command" id="mdlCommand"></div>
-  </div>
-</div>
+<!-- The old in-picker Modeling panel (M3/BASSA controls posted to a /model/*
+     backend that gui_server.py never implemented) has been removed entirely.
+     Real, working M3 + BASSA modeling (feature-combination search, full
+     reports, BASSA plots) lives in the Streamlit web app's own
+     "5 · Modeling" tab, right after Results. -->
 
 <!-- ── Conformer Search ────────────────────────────────────────────── -->
 <div class="csearch-bar">
@@ -2059,6 +2049,36 @@ function onAtomClick(idx) {
   refresh();
 }
 
+/* ------------------------------------------------------------------ *
+ * Typed atom-number entry (alternative to clicking in the 3D view)   *
+ * ------------------------------------------------------------------ */
+function addTypedAtoms() {
+  const input = $("typedAtoms");
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) return;
+  const nAtoms = (baseCoords && baseCoords.length) || (elements && elements.length) || null;
+  const tokens = raw.split(/[\s,]+/).filter(Boolean);
+  const hint = $("typedAtomsHint");
+  const bad = [];
+  const good = [];
+  tokens.forEach(t => {
+    const n = parseInt(t, 10);
+    if (!Number.isFinite(n) || String(n) !== t.trim().replace(/^\+/, "") || n < 1 || (nAtoms && n > nAtoms)) {
+      bad.push(t);
+    } else {
+      good.push(n);
+    }
+  });
+  if (bad.length) {
+    if (hint) hint.textContent = "Ignored invalid/out-of-range: " + bad.join(", ") + (nAtoms ? (" (1-" + nAtoms + ")") : "");
+  } else if (hint) {
+    hint.textContent = "1-indexed, comma or space separated.";
+  }
+  good.forEach(idx => onAtomClick(idx));
+  input.value = "";
+}
+
 /* ── Measurement mode ── */
 function toggleMeasureMode() {
   measureMode = !measureMode;
@@ -2535,6 +2555,8 @@ function renderPackages() {
 $("commitBtn").onclick = commitGroup;
 $("undoPickBtn").onclick = undoLastPick;
 $("clearGroupBtn").onclick = clearGroup;
+$("addTypedAtomsBtn").onclick = addTypedAtoms;
+$("typedAtoms").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addTypedAtoms(); } });
 $("stretchThr").oninput = refresh;
 $("bendThr").oninput = refresh;
 $("labelToggle").onchange = () => highlight();
@@ -2573,6 +2595,32 @@ $("copyBtn").onclick = () => {
 
 $("measureBtn").onclick = () => toggleMeasureMode();
 
+/* ------------------------------------------------------------------ *
+ * Layout toggle: cycle how leftCol (3D view) and rightCol (controls) *
+ * share the page - useful when the embedding iframe is narrow.       *
+ * ------------------------------------------------------------------ */
+const LAYOUT_MODES = [
+  { cls: "", label: "Layout: Balanced" },
+  { cls: "layout-wide-viewer", label: "Layout: Wide 3D view" },
+  { cls: "layout-wide-panel", label: "Layout: Wide controls" },
+  { cls: "layout-stack", label: "Layout: Stacked" },
+];
+let layoutModeIdx = 0;
+function applyLayoutMode() {
+  const wrap = $("mainWrap");
+  const btn = $("layoutToggleBtn");
+  if (!wrap) return;
+  LAYOUT_MODES.forEach(m => { if (m.cls) wrap.classList.remove(m.cls); });
+  const mode = LAYOUT_MODES[layoutModeIdx];
+  if (mode.cls) wrap.classList.add(mode.cls);
+  if (btn) btn.textContent = mode.label;
+}
+function cycleLayout() {
+  layoutModeIdx = (layoutModeIdx + 1) % LAYOUT_MODES.length;
+  applyLayoutMode();
+}
+applyLayoutMode();
+
 $("screenshotBtn").onclick = () => {
   if (!viewer) return;
   const uri = viewer.pngURI();
@@ -2581,6 +2629,28 @@ $("screenshotBtn").onclick = () => {
   a.download = (lastModelName || "molecule") + "_view.png";
   a.click();
 };
+
+/* 2D bond-graph (igraph) toggle - hidden by default so the 3D view + controls
+   stay the primary side-by-side layout; click to bring it up alongside them. */
+(function () {
+  const card = $("graph2dCard");
+  const btn = $("graph2dToggleBtn");
+  const img = $("graph2dImg");
+  if (!card || !btn) return;
+  const srcAttr = (img && img.getAttribute("src")) || "";
+  const hasImage = srcAttr.indexOf("__GRAPH2D_IMG__") === -1 && srcAttr.length > "data:image/png;base64,".length;
+  card.style.display = "none";
+  if (!hasImage) {
+    btn.disabled = true;
+    btn.title = "No 2D graph available for this molecule (needs python-igraph on the server).";
+  } else {
+    btn.onclick = () => {
+      const showing = card.style.display !== "none";
+      card.style.display = showing ? "none" : "block";
+      btn.textContent = showing ? "Show 2D graph" : "Hide 2D graph";
+    };
+  }
+})();
 
 /* Visualize controls */
 $("vizSterimol").onchange = () => highlight();
@@ -3330,9 +3400,9 @@ buildFieldSelect();
 const _isDemo = EMBEDDED_XYZ.indexOf("__XYZ" + "_DATA__") === 0;
 initViewer(_isDemo ? DEMO_XYZ : EMBEDDED_XYZ, _isDemo ? 'caffeine (demo)' : null);
 refresh();
-mdlSync();
-mdlSyncMerge();
-mdlPingServer();
+// Modeling panel was removed (see the "Modeling" section above) - its former
+// boot calls (mdlSync/mdlSyncMerge/mdlPingServer) targeted elements that no
+// longer exist, so they're intentionally not called here anymore.
 </script>
 </body>
 </html>
