@@ -110,83 +110,34 @@ Gaussian and Open Babel are external programs and are not installed by pip.
 
 | | Best for | Start with |
 |---|---|---|
-| **Desktop GUI** | Loading a feather set, clicking through descriptor prompts, saving a reusable input file | `python __main__.py gui` |
-| **3D atom picker** | Choosing atoms visually, live Sterimol/dipole/vibration overlays, driving extraction + modeling from one page | [`Getting_started_with_examples/descriptor_extraction_toolkit/`](Getting_started_with_examples/descriptor_extraction_toolkit/README.md) |
-| **CLI / notebooks** | Reproducible batch runs, scripting, HPC | `python __main__.py --help` |
+| **3D atom picker** | Choosing atoms visually, live Sterimol/dipole/vibration overlays, driving extraction + modeling from one page | [`descriptor_extraction_toolkit/`](Getting_started_with_examples/descriptor_extraction_toolkit/README.md) |
+| **CLI** | Reproducible batch runs, scripting, HPC | `python __main__.py --help` |
+| **Notebooks / Python API** | Exploratory analysis, custom pipelines | [`Getting_started_with_examples/`](Getting_started_with_examples/README.md) |
 
 ---
 
 ## Feature extraction
 
-### Desktop GUI
+### Getting your molecules in
+
+Extraction reads one `.feather` per molecule — geometry, charges, dipoles and vibrations in
+a single file. If you have Gaussian logs, convert them first:
 
 ```bash
-python __main__.py gui
+python __main__.py logs_to_feather
 ```
 
 <p align="center">
-  <img src="docs/images/gui_main.png" width="760" alt="Molecule Data Extractor main window: buttons for browsing a feather directory, filtering molecules, extracting features, modeling, and exporting DataFrames or xyz files."><br>
-  <em>The main window. Every action logs to the right-hand pane, which you can save as text.</em>
+  <img src="docs/images/logs_to_feather.jpg" width="820" alt="Terminal running the logs_to_feather subcommand: it prompts for a log directory and reports the feather file it saved."><br>
+  <em>Point it at a directory of <code>.log</code> files; it writes the feather set.</em>
 </p>
 
-**Load molecules.** *Browse for Feather Files Directory* reads every `.feather` in a folder
-and reports what loaded:
+Loading a set reports exactly what made it through, so a malformed log is visible immediately
+rather than silently missing from your feature matrix:
 
 ```text
 Molecules initialized : ['basic', 'm_Br', 'm_Cl', 'm_F', ... , 'p_tfm']
 Failed to load Molecules: []
-```
-
-If you only have Gaussian logs, convert them first with **File Handler → Log to Feather**,
-or from the command line:
-
-<p align="center">
-  <img src="docs/images/logs_to_feather.jpg" width="820" alt="Terminal running the logs_to_feather subcommand: it prompts for a log directory and reports the feather file it saved."><br>
-  <em>One <code>.feather</code> per molecule — geometry, charges, dipoles and vibrations in a single file.</em>
-</p>
-
-**Look before you pick.** *Visualize Molecules* opens an interactive viewer with atom
-indices, bond lengths and the dipole vector — this is how you find the index numbers the
-extractor asks for.
-
-<p align="center">
-  <img src="docs/images/molvisualizer.png" width="700" alt="Interactive molecule viewer with numbered atoms and a side menu toggling atom indices, bond lengths, and the dipole vector."><br>
-  <em>Atom indices are 1-based throughout, matching Gaussian.</em>
-</p>
-
-**Fill in the descriptors you want.** *Extract Features* opens one prompt per descriptor
-family, each with an example of the expected input. Leave a field blank to skip it.
-
-<p align="center">
-  <img src="docs/images/gui_questions.png" width="700" alt="Feature extraction window listing every descriptor family with an input box and worked example: ring vibration, stretching, bending, dipole, NPA, charges, Sterimol, bond length, bond angle."><br>
-  <em>Only the fields you fill get computed.</em>
-</p>
-
-*Choose Parameters* sets the radii system used for Sterimol — **Pyykkö** covalent radii
-(defined for every element), **bondi**, or **CPK/VDW** (a subset of elements) — and whether
-to append isotropic polarizability and energy.
-
-<p align="center">
-  <img src="docs/images/feature_extraction_choose_parameters.png" width="640" alt="The Parameters popup over the feature extraction window, with a radii dropdown offering bondi, CPK and Pyykko, and a True/False dropdown for isotropic values."><br>
-  <em>Radii system and isotropic toggle, applied to every molecule in the set.</em>
-</p>
-
-**Save input** writes your indices to a JSON file; **Load input** replays it, so a run is
-reproducible and a second dataset costs no re-typing. **Submit** prints the feature matrix
-to the dashboard and writes a `.csv`.
-
-<p align="center">
-  <img src="docs/images/input_example.png" width="520" alt="A saved input JSON file mapping each descriptor prompt to the atom indices chosen."><br>
-  <em>A saved input file — hand-editable. An example ships in <code>Getting_started_with_examples/feather_example/</code>.</em>
-</p>
-
-Already have an input file? Skip the GUI:
-
-```bash
-python __main__.py extractor \
-  --input Getting_started_with_examples/feather_example/input_example.json \
-  --output feature_set \
-  --feather_directory Getting_started_with_examples/feather_example
 ```
 
 ### 3D atom picker
@@ -205,6 +156,21 @@ slider, and stacks conformer ensembles with per-conformer RMSD:
 <p align="center">
   <img src="docs/images/conformer-viewer.png" width="900" alt="Conformer viewer showing six overlaid conformers in different colors with energies and RMSD values against the reference conformer."><br>
   <em>Kabsch-aligned conformer overlay, aligned on a chosen substructure.</em>
+</p>
+
+The picker exports your selections as JSON. That file is the reproducible record of a run —
+hand-editable, and replayable against a different molecule set without re-picking anything:
+
+```bash
+python __main__.py extractor \
+  --input Getting_started_with_examples/feather_example/input_example.json \
+  --output feature_set \
+  --feather_directory Getting_started_with_examples/feather_example
+```
+
+<p align="center">
+  <img src="docs/images/input_example.png" width="520" alt="A saved input JSON file mapping each descriptor prompt to the atom indices chosen."><br>
+  <em>An example ships in <code>Getting_started_with_examples/feather_example/</code>.</em>
 </p>
 
 ### Data prep and pre-flight check
@@ -373,13 +339,6 @@ sample in question — which is why it is the number worth reading.
 - Results persist to SQLite per dataset, so runs are incremental and reproducible.
 - The top 5 models are written to a PDF report automatically.
 
-Candidate models are ranked so you can see which descriptors keep earning their place:
-
-<p align="center">
-  <img src="docs/images/bassa-plot.jpeg" width="520" alt="Bar chart of three candidate models with R-squared 0.925, 0.918 and 0.901, and a dot matrix below showing which of features s1-s4 each model uses."><br>
-  <em>Model R² against the feature subset used — a two-feature model within noise of the best.</em>
-</p>
-
 Every top model gets a PDF report, and these pages are generated for it automatically — no
 extra flags:
 
@@ -417,12 +376,8 @@ Each model can also be decomposed per sample, so a prediction is auditable rathe
 </p>
 
 Bayesian model averaging (BASSA, spike-and-slab priors) is available through the toolkit GUI
-for feature-inclusion probabilities rather than a single winning subset:
-
-<p align="center">
-  <img src="docs/images/bassa-markov-chain.png" width="760" alt="MCMC trace showing which of ten features are included at each of 8000 iterations; two features are included almost always, the rest sporadically."><br>
-  <em>MCMC inclusion trace — s1 and s2 are in nearly every sampled model.</em>
-</p>
+when you want feature-inclusion probabilities across many models rather than a single winning
+subset.
 
 Python API and full reference: [M3_modeler/README.md](M3_modeler/README.md).
 
@@ -433,7 +388,7 @@ Python API and full reference: [M3_modeler/README.md](M3_modeler/README.md).
 ```text
 python __main__.py {gui,model,extractor,logs_to_feather,cube,sterimol}
 
-  gui               Desktop GUI
+  gui               Legacy desktop app (superseded by the 3D atom picker)
   model             Regression or classification model search
   extractor         Extract a feature set from a saved input JSON
   logs_to_feather   Convert Gaussian .log files to .feather
@@ -466,8 +421,8 @@ the electronic environment instead of being read off a table:
 |---|---|:--:|---|
 | `-m`, `--mode` | `regression` \| `classification` | **yes** | Task; sets metrics and thresholds |
 | `-f`, `--features_csv` | path | **yes** | Descriptor CSV |
-| `-t`, `--target_csv` | path | **yes** | Target/label CSV |
-| `-y`, `--y_value` | str | **yes** | Target column name, also used to name outputs |
+| `-t`, `--target_csv` | path | no | Target/label CSV. Omit for one-CSV mode, where the target is a column of the features CSV |
+| `-y`, `--y_value` | str | no | Target column name, also used to name outputs |
 | `-j`, `--n_jobs` | int | no | Cores; `-1` = all. Defaults to `$NSLOTS` or all cores |
 | `--min-features` / `--max-features` | int | no | Bounds on subset size |
 | `--top-n` | int | no | How many top models to keep |
