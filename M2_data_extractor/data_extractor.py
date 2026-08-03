@@ -1132,24 +1132,33 @@ class Molecule:
         # Optional visualization
         if visualize_bool:
             try:
-                # 1) Get transformed coords (LOCAL frame)
-                # Coordinate visualization helper supports grouped origin and
-                # point direction/plane. Use the first atom of grouped y/plane
-                # for the optional molecule-frame preview; numeric extraction
-                # above uses the full centroids.
+                # 1) Build the preview frame on the SAME origin the numbers
+                # used, so the drawn arrow and the reported components agree.
+                # calc_new_base_atoms reads a list in slot 0 as "origin =
+                # centroid of these atoms" and indexes coordinates 0-based,
+                # hence _to0 on every selector - the same convention
+                # calc_dipole_gaussian applies.
+                # Grouped y/plane selectors collapse to their first atom for the
+                # preview only; the numbers above use the full centroids.
                 y_vis = y_idx[0] if isinstance(y_idx, (list, tuple)) else y_idx
                 plane_vis = plane_idx[0] if isinstance(plane_idx, (list, tuple)) else plane_idx
-                xyz_df = self.get_coordination_transformation_df([*origin_set, y_vis, plane_vis])
 
-                # 2) Compute origin IN THE SAME FRAME AS xyz_df
-                if isinstance(xyz_df, (pd.DataFrame,)) and {"x", "y", "z"}.issubset(xyz_df.columns):
-                    origin_idx = _to0(origin_set)
-                    origin_point = xyz_df.loc[origin_idx, ["x", "y", "z"]].to_numpy().mean(axis=0)
+                if center_atoms is not None and len(np.atleast_1d(center_atoms)) > 0:
+                    origin_grp = [int(i) for i in np.atleast_1d(_to0(center_atoms))]
                 else:
-                    # If the helper returns something else but is already centered ג†’ use (0,0,0)
-                    origin_point = np.zeros(3)
+                    origin_grp = [int(i) for i in np.atleast_1d(_to0(origin_set))]
+                origin_world = np.asarray(self.coordinates_array)[origin_grp].mean(axis=0)
 
-                print(f"[DEBUG] Visualization origin point (LOCAL): {origin_point}")
+                transformed = calc_coordinates_transformation(
+                    np.asarray(self.coordinates_array),
+                    [origin_grp, int(_to0([y_vis])[0]), int(_to0([plane_vis])[0])],
+                    origin=origin_world,
+                )
+                xyz_df = self.xyz_df.copy()
+                xyz_df[["x", "y", "z"]] = transformed
+
+                # 2) That frame is centred on origin_grp by construction.
+                origin_point = np.zeros(3)
 
                 # 3) (Nice-to-have) attach coords for auto-scaling downstream
                 try:

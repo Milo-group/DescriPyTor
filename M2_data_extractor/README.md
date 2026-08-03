@@ -191,6 +191,9 @@ The same argument is on `get_dipole_gaussian_df_single` and on the batch
 `Molecules.get_dipole_dict(...)`, where it applies to every molecule in the set. In the
 feature-set call it is the **`Center_Atoms`** entry.
 
+`visualize_bool=True` draws the molecule in that same frame, so the arrow you see and the
+components you get are measured from the same origin.
+
 ### Vibrations
 
 ```python
