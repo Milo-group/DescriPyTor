@@ -1,37 +1,9 @@
-# Core: feature extraction + modeling
-numpy<2
-pandas
-pyarrow
-scipy
-scikit-learn
-statsmodels
-matplotlib
-seaborn
-plotly
-adjustText
-tqdm
-joblib
-psutil
-chardet
-igraph
-networkx
-rdkit
-morfeus-ml
-shap
-pymc
-arviz
-pillow
-
-# Notebooks and the desktop/web GUIs
-ipywidgets
-ipykernel
-dash
-customtkinter
-flask
-flask-cors
-
-# Optional, installed only if you need them:
-#   torch                 MolAlign atom renumbering
-#   streamlit umap-learn  Streamlit extraction app (webapp/)
-#   mordred deepchem ase  extra descriptor engines
-#   aqme autoqchem        xTB / Gaussian-log engines (also need xTB)
+# Dependencies are declared once, in pyproject.toml.
+# This file exists so `pip install -r requirements.txt` keeps working;
+# it installs DescriPyTor in editable mode along with everything it needs.
+#
+# Optional extras, if you want them:
+#   pip install -e ".[align]"     torch, for MolAlign atom renumbering
+#   pip install -e ".[webapp]"    streamlit + umap-learn
+#   pip install -e ".[engines]"   mordred, deepchem, ase
+-e .

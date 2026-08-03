@@ -1,0 +1,38 @@
+# Distribution compose file - for someone who received a pre-built image
+# (descripytor-webapp.tar.gz) instead of the full source tree.
+#
+# Recipient setup (only needs Docker Desktop installed):
+#   1. docker load -i descripytor-webapp.tar.gz
+#   2. mkdir work                        (drop your .feather molecule files in here)
+#   3. docker compose -f docker-compose.distribute.yml up
+#   4. open http://localhost:8503
+#
+# Unlike docker-compose.yml, this does NOT bind-mount source code over the
+# image (no ".:/workspace/descripytor" mount). The code is already baked
+# into the image (Dockerfile COPYs it in at build time) and DESCRIPYTOR_ROOT
+# is already set to /workspace/descripytor as an image-level ENV, so the
+# app's root field defaults correctly with no source folder needed on the
+# recipient's machine. Only ./work is mounted, as the place to put molecule
+# data in and get results out (point the app's feather-loading fields at
+# /work/... inside the container).
+
+services:
+  descripytor-webapp:
+    image: descripytor-webapp:latest
+    ports:
+      - "${DESCRIPYTOR_HOST_PORT:-8503}:8501"
+    environment:
+      STREAMLIT_SERVER_ADDRESS: 0.0.0.0
+      STREAMLIT_SERVER_PORT: "8501"
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+    volumes:
+      - ./work:/work
+      - descripytor-streamlit-cache:/home/mambauser/.streamlit
+    stdin_open: true
+    tty: true
+
+volumes:
+  descripytor-streamlit-cache:

@@ -10,6 +10,7 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+*.whl
 get-pip.py
 
 # Virtual environments and local configuration

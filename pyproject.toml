@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "DescripyTor"
+version = "0.1.0"
+description = "Molecular feature extraction, alignment, and modeling tools."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Eden Specktor", email = "edenpsec@post.bgu.ac.il" }]
+
+# numpy<2 is required: the RDKit and PyArrow builds used here fail against 2.x.
+dependencies = [
+    "numpy<2",
+    "pandas",
+    "pyarrow",
+    "scipy",
+    "scikit-learn",
+    "statsmodels",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "adjustText",
+    "tqdm",
+    "joblib",
+    "psutil",
+    "chardet",
+    "igraph",
+    "networkx",
+    "rdkit",
+    "morfeus-ml",
+    "shap",
+    "pymc",
+    "arviz",
+    "pillow",
+    "ipywidgets",
+    "ipykernel",
+    "dash",
+    "customtkinter",
+    "flask",
+    "flask-cors",
+]
+
+[project.optional-dependencies]
+dev = ["build>=1.2", "pytest>=7", "ruff>=0.5"]
+# MolAlign atom renumbering
+align = ["torch"]
+# Streamlit extraction web app
+webapp = ["streamlit", "umap-learn"]
+# Extra descriptor engines in the extraction toolkit
+engines = ["mordred", "deepchem", "ase"]
+
+[project.urls]
+Repository = "https://github.com/Milo-group/DescriPyTor"
+
+[tool.setuptools]
+include-package-data = true
+
+# The package now lives at the repository root, so name the packages
+# explicitly rather than globbing - otherwise the example and doc folders
+# get swept into the distribution.
+[tool.setuptools.packages.find]
+include = [
+    "M1_pre_calculations*",
+    "M2_data_extractor*",
+    "M3_modeler*",
+    "MolAlign*",
+    "utils*",
+]
+exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*"]
+
+[tool.setuptools.package-data]
+"M2_data_extractor" = ["*.html"]

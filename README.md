@@ -77,19 +77,21 @@ Create an environment (Python 3.9–3.11) and install:
 
 ```bash
 conda create -n descripytor python=3.10 && conda activate descripytor
-pip install -r requirements.txt
+pip install -e .
 ```
 
 `numpy<2` is pinned: RDKit and PyArrow builds commonly used here fail against NumPy 2.x.
+(`pip install -r requirements.txt` does the same thing — dependencies are declared once, in
+`pyproject.toml`.)
 
 Optional extras, only if you need the feature they unlock:
 
 | Install | Unlocks |
 |---|---|
-| `torch` | MolAlign automatic atom renumbering (see note below) |
-| `streamlit umap-learn` | the Streamlit extraction web app |
-| `mordred deepchem ase` | extra descriptor engines in the toolkit |
-| `aqme autoqchem` (+ xTB) | xTB / Gaussian-log descriptor engines |
+| `pip install -e ".[align]"` | `torch`, for MolAlign automatic atom renumbering |
+| `pip install -e ".[webapp]"` | Streamlit extraction web app |
+| `pip install -e ".[engines]"` | mordred, deepchem, ase — extra descriptor engines |
+| `pip install aqme autoqchem` (+ xTB) | xTB / Gaussian-log descriptor engines |
 
 For `torch`, pick the build that matches your machine:
 
@@ -504,6 +506,20 @@ docker compose up --build
 Put input files in `work/` — it is mounted at `/work` inside the container, so use paths
 like `/work/features.csv` in the GUI. Anything written to `/work` shows up there too.
 
+**Sharing it with someone who has no source tree.** Save the built image and hand it over
+with `docker-compose.distribute.yml`; they need only Docker Desktop:
+
+```bash
+docker save descripytor-webapp:latest | gzip > descripytor-webapp.tar.gz
+# on their machine:
+docker load -i descripytor-webapp.tar.gz
+mkdir work                                    # their .feather files go here
+docker compose -f docker-compose.distribute.yml up
+```
+
+That compose file mounts only `work/` — the code is already baked into the image, so nothing
+is bind-mounted over it.
+
 Setup from scratch (WSL2, Docker Desktop): [DOCKER_QUICKSTART.md](Getting_started_with_examples/descriptor_extraction_toolkit/webapp/DOCKER_QUICKSTART.md).
 
 ---
@@ -533,6 +549,7 @@ Deeper documentation:
 ## Repository layout
 
 ```text
+pyproject.toml                  Package metadata and dependencies (single source of truth)
 __main__.py                     CLI entry point
 M1_pre_calculations/            Prepare and submit calculations (SMILES to xyz, .com files)
 M2_data_extractor/              Descriptor extraction; Molecules / Molecule
