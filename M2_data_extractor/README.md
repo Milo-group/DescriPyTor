@@ -213,6 +213,7 @@ when filters eliminate everything, which keeps table shapes aligned.
 ```python
 mol.get_coordinates_mean_point([1,2,3])                 # centroid
 mol.get_coordination_transformation_df([1,2,3])         # frame transform
+mol.get_coordination_transformation_df([1,2,3], origin=[4,5,6])   # centred elsewhere
 mol.renumber_atoms({old: new, ...})                     # rebuilds everything consistently
 mol.swap_atom_pair((1, 2))
 mol.write_xyz_file(); mol.write_csv_files()

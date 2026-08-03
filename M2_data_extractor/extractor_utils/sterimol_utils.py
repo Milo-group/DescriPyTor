@@ -478,14 +478,23 @@ def b1s_for_loop_function(degree_list, plane):
 def preform_coordination_transformation(xyz_df, indices=None, origin=None):
     """
     Perform a coordination transformation on the xyz DataFrame.
-    
+
     Parameters
     ----------
     xyz_df : pd.DataFrame
         DataFrame containing columns 'x', 'y', 'z'.
     indices : array-like, optional
-        Atom indices to use for the new basis. If None, default indices [1,2,3] are used.
-    
+        Atom indices defining the new basis. If None, [1,2,3] is used.
+    origin : array-like, optional
+        Atom indices whose centroid becomes the new origin. If None, the first
+        entry of `indices` is used, which is calc_coordinates_transformation's
+        default.
+
+        Note: this argument used to take the centroid of `indices` rather than
+        of `origin`, so it acted as a flag ("centre on the base atoms") instead
+        of naming the atoms to centre on. Callers that relied on that are
+        responsible for passing the atoms they actually want.
+
     Returns
     -------
     xyz_copy : pd.DataFrame
@@ -493,17 +502,17 @@ def preform_coordination_transformation(xyz_df, indices=None, origin=None):
     """
     xyz_copy = xyz_df.copy()
     coordinates = np.array(xyz_copy[['x', 'y', 'z']].values)
-    if origin is not None:
-       
-        geometric_origin=np.mean(xyz_df.iloc[indices][['x','y','z']].values,axis=0)
+
+    if origin is not None and len(np.atleast_1d(origin)) > 0:
+        origin_idx = [int(i) for i in np.atleast_1d(origin)]
+        geometric_origin = np.mean(xyz_df.iloc[origin_idx][['x', 'y', 'z']].values, axis=0)
     else:
-        geometric_origin=None
-    if indices is None:
-        transformed = calc_coordinates_transformation(coordinates, [1,2,3], origin=geometric_origin)
-    else:
-   
-        transformed = calc_coordinates_transformation(coordinates, indices, origin=geometric_origin)
-    
+        geometric_origin = None
+
+    basis_indices = [1, 2, 3] if indices is None else indices
+    transformed = calc_coordinates_transformation(coordinates, basis_indices,
+                                                  origin=geometric_origin)
+
     xyz_copy[['x', 'y', 'z']] = transformed
     return xyz_copy
 

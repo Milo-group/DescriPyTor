@@ -909,6 +909,8 @@ class Molecule:
 
         Args:
             base_atoms_indices (List[int]): The indices of the base atoms to use for the transformation.
+            origin (List[int], optional): Atom indices whose centroid becomes the
+                new origin. Defaults to the first base atom.
 
         Returns:
             pd.DataFrame: A new DataFrame with the transformed coordinates.
@@ -941,7 +943,19 @@ class Molecule:
         if sub_atoms ==[]:
             sub_atoms = None
         # Get the transformed coordinates DataFrame for the given atoms.
-        df_trans = self.get_coordination_transformation_df(atoms,sub_atoms)
+        #
+        # This used to pass sub_atoms into the `origin` slot. Because that
+        # argument took the centroid of `indices` rather than of `origin`, its
+        # only effect was to switch the origin from "first base atom" to
+        # "centroid of the base atoms" whenever sub_atoms was supplied. Now
+        # that `origin` names the atoms to centre on, ask for that explicitly
+        # so NPA values are byte-for-byte what they were.
+        #
+        # The flip itself is almost certainly unintended - the origin should
+        # not depend on whether you selected a subset - but changing it moves
+        # published NPA numbers, so it is left as-is deliberately.
+        origin_atoms = atoms if sub_atoms is not None else None
+        df_trans = self.get_coordination_transformation_df(atoms, origin=origin_atoms)
         # If sub_atoms is provided, select only those rows.
         if sub_atoms is not None:
             df_subset = df_trans.loc[sub_atoms, ['x', 'y', 'z']].astype(float)
