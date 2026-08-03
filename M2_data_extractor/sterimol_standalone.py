@@ -337,7 +337,7 @@ def calc_coordinates_transformation(coordinates_array: npt.ArrayLike, base_atoms
         xyz molecule array
     base_atoms_indices: list of nums
         indices of new atoms to shift coordinates by.
-    origin: in case you want to change the origin of the new basis, middle of the ring for example. used in npa_df
+    origin: in case you want to change the origin of the new basis, middle of the ring for example.
     returns:
         transformed xyz molecule dataframe
     -------
@@ -374,54 +374,6 @@ def preform_coordination_transformation(xyz_df, indices=None):
         xyz_copy[['x','y','z']]=calc_coordinates_transformation(coordinates, indices)
  
     return xyz_copy
-
-def calc_npa_charges(coordinates_array: npt.ArrayLike,charge_array: npt.ArrayLike,  geom_transform_indices=None):##added option for subunits
-    """
-    a function that recives coordinates and npa charges, transform the coordinates
-    by the new base atoms and calculates the dipole in each axis
-    
-    Parameters
-    ---------
-    coordinates_array: np.array
-        contains x y z atom coordinates
-        
-    charge_array: np.array
-        array of npa charges
-    base_atoms_indices:list
-        3/4 atom indices for coordinates transformation
-        
-    optional-sub_atoms:list
-        calculate npa charges from a set of sub_atoms instead of all atoms.       
-    Returns:
-    -------
-    dipole_df=calc_npa_charges(coordinates_array,charges,base_atoms_indices,sub_atoms)
-    Output:
-    dipole_df : pd.DataFrame
-        output:            dip_x     dip_y     dip_z     total
-                       0  0.097437 -0.611775  0.559625  0.834831
-    """
-    # what is NPA here??
-    # indices=adjust_indices(base_atoms_indices)
-    # transformed_coordinates=calc_coordinates_transformation(coordinates_array, indices)
-    # if sub_atoms:
-    #     atom_mask=sub_atoms
-    # else:
-    #     atom_mask=range(len(charge_array))
-    # atom_mask=range(charge_array) if sub_atoms==None else sub_atoms
-#TODO: Add option for sub_atoms!
-    # Apply geometric transformation if specified
-    # print(geom_transform_indices)
-    if geom_transform_indices is not None:
-        geometric_center = np.mean(coordinates_array[geom_transform_indices], axis=0)
-        coordinates_array -= geometric_center
-
-    dipole_xyz = np.vstack([(row[0] * row[1])for row in
-                            list(zip(coordinates_array, charge_array))])
-    dipole_vector=np.sum(dipole_xyz,axis=0)
-    array_dipole=np.hstack([dipole_vector,np.linalg.norm(dipole_vector)])
-    dipole_df=pd.DataFrame(array_dipole,index=XYZConstants.DIPOLE_COLUMNS.value).T
- 
-    return dipole_df
 
 def calc_dipole_gaussian(coordinates_array, gauss_dipole_array, base_atoms_indices ,geometric_transformation_indices=None):
     """

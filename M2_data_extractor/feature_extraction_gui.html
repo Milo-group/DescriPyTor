@@ -2730,23 +2730,6 @@
             <div></div>
           </div>
 
-          <!-- NPA charges -->
-          <div class="fs-feature-row">
-            <label class="toggle" style="margin-top:2px;"><input type="checkbox" id="fs-npa" onchange="fsSyncCount()"/><span class="slider"></span></label>
-            <div class="fs-feat-meta">
-              <span class="fs-feat-name">NPA charges</span>
-              <span class="fs-feat-badge charge">charge</span>
-            </div>
-            <div class="fs-feat-inputs disabled" id="fs-npa-inputs">
-              <label>Atom indices (sub_atoms)</label>
-              <input type="text" id="fs-npa-val" placeholder="e.g.  3 5 7 9"/>
-              <span class="hint">Natural Population Analysis — space-separated 1-based indices</span>
-              <button class="btn btn-secondary btn-icon fs-pick-btn" id="fs-pick-btn-npa"
-                onclick="fsStartPicking('npa','fs-npa-val',1,'NPA charges')">⊕ Pick atoms</button>
-            </div>
-            <div></div>
-          </div>
-
           <!-- Dipole -->
           <div class="fs-feature-row">
             <label class="toggle" style="margin-top:2px;"><input type="checkbox" id="fs-dipole" onchange="fsSyncCount()" checked/><span class="slider"></span></label>
@@ -3103,7 +3086,7 @@ python scan_feathers.py --dir /your/feather/dir --out molecules_dataset.json</pr
               <td>Single atom</td>
               <td><code>N</code></td>
               <td><code>3</code> or <code>3 5 7 9</code></td>
-              <td>NPA charges, NBO charges</td>
+              <td>NBO / Hirshfeld / CM5 charges</td>
             </tr>
             <tr>
               <td>Atom pair</td>
@@ -3173,14 +3156,6 @@ python scan_feathers.py --dir /your/feather/dir --out molecules_dataset.json</pr
               <p><strong>Input:</strong> atom triplets + threshold (default 200 cm⁻¹)<br>
               <code>1-2-3 4-5-6</code></p>
               <div class="out-cols">Output columns: <code>bend_1-2-3</code>, <code>bend_4-5-6</code> (cm⁻¹)</div>
-            </div>
-
-            <div class="guide-feat-card">
-              <h4><span class="badge-charge">charge</span> NPA Charges</h4>
-              <p>Natural Population Analysis charges for specified atoms. Requires NBO output in the Gaussian log.</p>
-              <p><strong>Input:</strong> atom indices (sub_atoms)<br>
-              <code>3 5 7 9</code></p>
-              <div class="out-cols">Output columns: per-atom NPA charge values</div>
             </div>
 
             <div class="guide-feat-card">
@@ -3434,11 +3409,11 @@ df = mols.<span class="fn">get_molecules_features_set</span>(
           <h4 style="font-size:12px;font-weight:700;margin-bottom:8px;">Atom Selector tab — selection modes</h4>
           <table class="guide-fmt-table">
             <tr><th>Mode</th><th>Colour</th><th>Purpose</th></tr>
-            <tr><td>Origin</td><td style="color:#5b8af5">blue</td><td>Starting atom for Sterimol / dipole / NPA — defines the bond origin</td></tr>
+            <tr><td>Origin</td><td style="color:#5b8af5">blue</td><td>Starting atom for Sterimol / dipole — defines the bond origin</td></tr>
             <tr><td>Direction</td><td style="color:#3ecf8e">green</td><td>Atom the bond points toward — defines the Sterimol axis</td></tr>
             <tr><td>From-Dir</td><td style="color:#f0c040">yellow</td><td>Third atom needed to define the reference plane for B1</td></tr>
             <tr><td>Drop atoms</td><td style="color:#e05252">red</td><td>Atoms excluded from the Sterimol calculation (e.g. leaving groups, spectators)</td></tr>
-            <tr><td>Charge atoms</td><td style="color:#cc88ff">purple</td><td>Atoms whose NBO/NPA charges are retrieved</td></tr>
+            <tr><td>Charge atoms</td><td style="color:#cc88ff">purple</td><td>Atoms whose charges are retrieved</td></tr>
           </table>
         </div>
       </div>
@@ -3471,7 +3446,7 @@ df = mols.<span class="fn">get_molecules_features_set</span>(
           </div>
           <div class="guide-warn">
             <span>⚠️</span>
-            <div><strong>NPA vs NBO charges</strong> — NPA (Natural Population Analysis, key <code>sub_atoms</code>) and NBO (Natural Bond Orbital, key <code>charges</code>) are different charge schemes both requiring NBO analysis in Gaussian (<code>pop=nbo</code>). Hirshfeld and CM5 charges come from a Multiwfn post-processing step.</div>
+            <div><strong>Charge schemes</strong> — the <code>charges</code> feature reports every scheme present in the log. NBO and NPA values both require NBO analysis in Gaussian (<code>pop=nbo</code>); Hirshfeld and CM5 come from a Multiwfn post-processing step.</div>
           </div>
         </div>
       </div>
@@ -5868,7 +5843,7 @@ function fsMiniRefreshHighlights() {
 }
 
 function fsSyncCount() {
-  const ids = ['fs-ring','fs-stretch','fs-bend','fs-npa','fs-dipole',
+  const ids = ['fs-ring','fs-stretch','fs-bend','fs-dipole',
                'fs-charges','fs-chargediff','fs-sterimol','fs-bondangle','fs-bondlength'];
   let count = 0;
   ids.forEach(id => {
@@ -5954,11 +5929,6 @@ function buildEntryWidgets() {
       const t = document.getElementById('fs-bend-thresh')?.value;
       if (t) w['bend'] = t;
     }
-  }
-
-  if (document.getElementById('fs-npa')?.checked) {
-    const v = document.getElementById('fs-npa-val')?.value.trim();
-    if (v) { w['npa'] = v; w['sub_atoms'] = v; }
   }
 
   if (document.getElementById('fs-dipole')?.checked) {

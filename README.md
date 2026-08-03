@@ -61,8 +61,8 @@ centroid, `ŷ` points at your y-atom, and `x̂` is whatever is left of the plane
 </p>
 
 That is `_build_basis` in [`dipole_utils.py`](M2_data_extractor/extractor_utils/dipole_utils.py),
-and every descriptor with a direction in it — dipole components, NPA, ring vibrations — is
-read off in that frame.
+and every descriptor with a direction in it — dipole components, ring vibrations — is read
+off in that frame.
 
 ---
 
@@ -163,14 +163,14 @@ hand-editable, and replayable against a different molecule set without re-pickin
 
 ```bash
 python __main__.py extractor \
-  --input Getting_started_with_examples/feather_example/input_example.json \
+  --input Getting_started_with_examples/input_example.json \
   --output feature_set \
   --feather_directory Getting_started_with_examples/feather_example
 ```
 
 <p align="center">
   <img src="docs/images/input_example.png" width="520" alt="A saved input JSON file mapping each descriptor prompt to the atom indices chosen."><br>
-  <em>An example ships in <code>Getting_started_with_examples/feather_example/</code>.</em>
+  <em>An example ships as <code>Getting_started_with_examples/input_example.json</code>.</em>
 </p>
 
 ### Data prep and pre-flight check
@@ -247,10 +247,9 @@ Full class reference: [M2_data_extractor/README.md](M2_data_extractor/README.md)
 |---|---|---|
 | **Sterimol** | `[origin, attached]` atom pair | `L`, `B1`, `B5` — steric length and the narrow/wide widths |
 | **Cube Sterimol** | a density `.cube` file | Sterimol from the real electron density, so radii respond to stereoelectronics |
-| **Charges** | single atoms | NBO / Hirshfeld / CM5 / NPA values per atom |
+| **Charges** | single atoms | NBO / Hirshfeld / CM5 values per atom |
 | **Charge difference** | atom pair `[a, b]` | `q_a − q_b`, per charge scheme |
 | **Dipole** | `[origin(s), y-axis, xy-plane]` | dipole components in your transformed frame, plus total |
-| **NPA** | base trio (+ optional sub-atoms) | natural population analysis in a local frame |
 | **Bond length / angle** | pairs, triads, or quartets | distances, angles, dihedrals |
 | **Stretching vibration** | a bonded pair | frequency and amplitude of the mode aligned with that bond |
 | **Bending vibration** | two atoms sharing a center | frequency and amplitude of the strongest bending mode |
@@ -487,7 +486,7 @@ Start in `Getting_started_with_examples/`:
 |---|---|
 | `Practical_Notebook_Features.ipynb` | Feature extraction end to end |
 | `Practical_Notebook_Modeling.ipynb` | Model search, validation, reporting |
-| `feather_example/` | 26 substituted molecules, plus `input_example.json` |
+| `feather_example/` | 26 substituted molecules |
 | `modeling_example/` | Ready-made linear and logistic datasets |
 | `cube_example/` | Density cubes for cube Sterimol |
 | `descriptor_extraction_toolkit/` | The 3D picker, multi-engine extraction, BASSA |

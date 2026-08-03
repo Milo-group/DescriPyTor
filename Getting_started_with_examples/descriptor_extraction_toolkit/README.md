@@ -67,7 +67,7 @@ has `"enabled"` plus its own settings:
 
 | Engine | Package / call | Set | Config |
 |--------|----------------|-----|--------|
-| `descripytor_full` | `Molecules.get_molecules_features_set` | feather | `atoms` (the picker output: IR, NPA, dipole, charges, sterimol, bonds, angles) |
+| `descripytor_full` | `Molecules.get_molecules_features_set` | feather | `atoms` (the picker output: IR, dipole, charges, sterimol, bonds, angles) |
 | `descripytor_steric` | `Molecules.get_sterimol_dict` | feather | `pairs` |
 | `xyz_sterimol` | `Molecules_xyz.get_sterimol_df` | xyz | `pairs`, `radii` (`CPK`/`bondi`) |
 | `xyz_geometry` | `Molecules_xyz.get_angles_df` / `get_bond_lengths_df` | xyz | `angles`, `bond_lengths` |

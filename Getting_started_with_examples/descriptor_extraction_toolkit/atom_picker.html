@@ -797,7 +797,6 @@
         <label class="small"><input type="checkbox" id="featBonds" /> bond length</label>
         <label class="small"><input type="checkbox" id="featDq" /> Δcharge</label>
         <label class="small"><input type="checkbox" id="featAngles" /> angle/dih.</label>
-        <label class="small"><input type="checkbox" id="featNpa" /> NPA</label>
         <label class="small"><input type="checkbox" id="featVibr" /> vibr. pairs</label>
         <label class="small"><input type="checkbox" id="featRing" /> ring</label>
         <label class="small"><input type="checkbox" id="featDrop" /> drop</label>
@@ -1008,8 +1007,6 @@ const FIELDS = [
     full:"charges values - Insert atoms to show charge: \n example: 1,2,3,4" },
   { key:"charge_diff",          size:2, label:"Charge difference  [a, b]",
     full:"charge_diff - Insert atoms to show charge difference: \n example: 1,2 3,4" },
-  { key:"npa",                  size:1, label:"NPA atoms  [single atoms]",
-    full:"NPA manipulation atoms - Insert atoms to show NPA: \n example: 1,2,4" },
   { key:"stretching_vibration", size:2, label:"Stretching vibration  [bonded pair]",
     full:"Stretching Vibration atoms- enter bonded atom pairs: \n example: 1,2 4,5" },
   { key:"bending_vibration",    size:2, label:"Bending vibration  [pair w/ common atom]",
@@ -1027,7 +1024,6 @@ const THRESH = {
 // fields that are present in answers_dict but rarely picked visually
 const PASSTHROUGH = {
   center_atoms_dipole: "Center_Atoms Dipole",
-  sub_atoms_npa:       "Sub-Atoms NPA",
 };
 
 /* morfeus_suite atom selections (separate from the DescriPytor answers_dict) */
@@ -1123,12 +1119,6 @@ const FIELD_GUIDES = {
     explain: "Computes charge differences between atom pairs. The order is preserved, so use the same order across molecules.",
     visual: "Pick atom A then atom B for each difference."
   },
-  npa: {
-    needs: ["feather", "1 or more atom indices", "NPA data in feather"],
-    example: [[1], [2], [4]],
-    explain: "Extracts/manipulates NPA values for selected atoms. Single atoms auto-commit.",
-    visual: "Choose chemically corresponding atoms across the set."
-  },
   stretching_vibration: {
     needs: ["feather", "2 bonded atom indices", "normal modes in feather"],
     example: [[1, 2], [4, 5]],
@@ -1182,7 +1172,7 @@ const FIELD_GUIDES = {
 const ENGINE_GUIDES = {
   descripytor_full: {
     files: ["feather_dir with .feather files"],
-    indices: ["sterimol pairs", "bond lengths", "angles/dihedrals", "dipole transform", "charges/NPA", "vibration selections as needed"],
+    indices: ["sterimol pairs", "bond lengths", "angles/dihedrals", "dipole transform", "charges", "vibration selections as needed"],
     example: `"descripytor_full": {"enabled": true, "atoms": {"sterimol": [[1,23]], "bond_length": [[1,2]], "dipole": [[23,1,3]]}}`,
     visual: "Best loaded with make_picker.py --feather-dir because dipole and vibration overlays are embedded."
   },
@@ -1823,11 +1813,6 @@ function drawFeaturePreview(coords) {
     (state["charges"] || []).flat().forEach(a => { _mark(a, "#06b6d4", coords); _labelAbove(coords[a-1], `q ${a}`, "#0891b2"); });
   }
 
-  // NPA — violet halo + label above
-  if (_feat("featNpa")) {
-    addLegend("#a855f7", "NPA");
-    (state["npa"] || []).flat().forEach(a => { _mark(a, "#a855f7", coords); _labelAbove(coords[a-1], `npa ${a}`, "#7c3aed"); });
-  }
 
   // drop / ring — halo only
   if (_feat("featDrop")) { addLegend("#94a3b8", "Drop atoms"); (state["drop_atoms"] || []).flat().forEach(a => _mark(a, "#94a3b8", coords)); }
@@ -2216,8 +2201,6 @@ function pythonAnswersDict() {
     ["bending_vibration", FIELDS.find(f=>f.key==="bending_vibration").full],
     ["center_atoms_dipole", PASSTHROUGH.center_atoms_dipole],
     ["dipole", FIELDS.find(f=>f.key==="dipole").full],
-    ["sub_atoms_npa", PASSTHROUGH.sub_atoms_npa],
-    ["npa", FIELDS.find(f=>f.key==="npa").full],
     ["charges", FIELDS.find(f=>f.key==="charges").full],
     ["charge_diff", FIELDS.find(f=>f.key==="charge_diff").full],
     ["sterimol", FIELDS.find(f=>f.key==="sterimol").full],

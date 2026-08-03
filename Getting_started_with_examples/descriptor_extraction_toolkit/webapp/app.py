@@ -1050,7 +1050,7 @@ with tab_run:
 
             # ---- 1. Core DescriPytor descriptor set ---------------------- #
             use_full = st.checkbox(
-                "DescriPytor full descriptor set (IR, NPA, dipole, charges, sterimol, bond "
+                "DescriPytor full descriptor set (IR, dipole, charges, sterimol, bond "
                 "length/angle…)", value=True, key="grp_full")
             if use_full:
                 with st.expander("Atom selections (descripytor_full)", expanded=True):

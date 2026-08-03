@@ -59,42 +59,6 @@ def calc_basis_vector(origin, y: ArrayLike, coplane: ArrayLike):
 
 
 
-def calc_npa_charges(coordinates_array: npt.ArrayLike,charge_array: npt.ArrayLike):##added option for subunits
-    """
-    a function that recives coordinates and npa charges, transform the coordinates
-    by the new base atoms and calculates the dipole in each axis
-    
-    Parameters
-    ---------
-    coordinates_array: np.array
-        contains x y z atom coordinates
-        
-    charge_array: np.array
-        array of npa charges
-    base_atoms_indices:list
-        3/4 atom indices for coordinates transformation
-        
-    optional-sub_atoms:list
-        calculate npa charges from a set of sub_atoms instead of all atoms.       
-    Returns:
-    -------
-    dipole_df=calc_npa_charges(coordinates_array,charges,base_atoms_indices,sub_atoms)
-    Output:
-    dipole_df : pd.DataFrame
-        output:            dip_x     dip_y     dip_z     total
-                       0  0.097437 -0.611775  0.559625  0.834831
-    """
-
-    
-    dipole_xyz = np.vstack([(row[0] * row[1])for row in
-                            list(zip(coordinates_array, charge_array))])
-    dipole_vector=np.sum(dipole_xyz,axis=0)
-    array_dipole=np.hstack([dipole_vector,np.linalg.norm(dipole_vector)])
-
-    dipole_df=pd.DataFrame(array_dipole,index=XYZConstants.DIPOLE_COLUMNS.value).T
- 
-    return dipole_df
-
 # def calc_dipole_gaussian(coordinates_array, gauss_dipole_array, base_atoms_indices, origin):
 #     """
 #     A function that receives coordinates and gaussian dipole, transforms the coordinates

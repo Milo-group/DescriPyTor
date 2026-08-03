@@ -95,8 +95,6 @@ ANSWERS_KEYS = {
     "bending_vibration": "Bending Vibration atoms - enter atom pairs that have a common atom: \n example: 4,7",
     "center_atoms_dipole": "Center_Atoms Dipole",
     "dipole": "Dipole atoms - indices for coordination transformation: \n example: 4,5,6 - origin, y-axis, new xy plane",
-    "sub_atoms_npa": "Sub-Atoms NPA",
-    "npa": "NPA manipulation atoms - Insert atoms to show NPA: \n example: 1,2,4",
     "charges": "charges values - Insert atoms to show charge: \n example: 1,2,3,4",
     "charge_diff": "charge_diff - Insert atoms to show charge difference: \n example: 1,2 3,4",
     "sterimol": "Sterimol atoms - Primary axis along: \n example: 7,8",
@@ -259,7 +257,7 @@ def _natural_sort(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def engine_descripytor_full(ctx: ExtractionContext, ecfg: dict) -> pd.DataFrame:
-    """Full DescriPytor descriptor set (IR, NPA, dipole, charges, sterimol...)."""
+    """Full DescriPytor descriptor set (IR, dipole, charges, sterimol...)."""
     mols = ctx.feather_mols
     answers = build_answers_dict(ecfg.get("atoms", {}))
     out_dir = ecfg.get("out_dir")
@@ -552,8 +550,6 @@ def build_template_config() -> dict:
                     "bending_vibration": [],
                     "center_atoms_dipole": [],
                     "dipole": [[23, 1, 3], [2, 1, 23]],
-                    "sub_atoms_npa": [],
-                    "npa": [],
                     "charges": [8, 1],
                     "charge_diff": [[8, 3], [8, 1]],
                     "sterimol": [[1, 23], [1, 3]],

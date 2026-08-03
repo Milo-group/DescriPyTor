@@ -56,7 +56,6 @@ features = molset.get_molecules_features_set(
         'Ring':        '[[8],[14]]',
         'Stretching':  '[[1,2],[3,4]]',
         'Bending':     '[[1,2],[3,4]]',
-        'NPA':         '[1,2,3]',
         'Dipole':      '[[1,2,3], 5, 6]',
         'Charges':     '[3,5,7,9]',
         'Charge-Diff': '[[1,2],[3,4]]',
@@ -92,7 +91,6 @@ reported too, and the populated one wins.
 | `Ring` | one ring atom per group | cross/para ring-mode frequencies and angles |
 | `Stretching` | bonded pairs | frequency and amplitude along each bond |
 | `Bending` | pairs sharing a centre | strongest bending mode |
-| `NPA` | base trio (+ `Sub-Atoms`) | natural population analysis in a local frame |
 | `Dipole` | `[origin(s), y-atom, plane-atom]` | dipole components in the transformed frame |
 | `Charges` | single atoms | one column per charge scheme |
 | `Charge-Diff` | pairs `[a,b]` | `q_a − q_b` per scheme |
@@ -101,9 +99,8 @@ reported too, and the populated one wins.
 | `Bond-Length` | pairs | distances |
 
 Auxiliary keys tune the above rather than adding columns: `Stretch` and `Upper-Stretch`
-(frequency window), `Bend` (threshold), `Drop-Atoms` (exclude from Sterimol), `Sub-Atoms`
-(extra NPA centres), `Center_Atoms` (move the dipole frame's origin — see
-[Dipoles](#dipoles)).
+(frequency window), `Bend` (threshold), `Drop-Atoms` (exclude from Sterimol),
+`Center_Atoms` (move the dipole frame's origin — see [Dipoles](#dipoles)).
 
 `parameters` takes `Radii` (`'CPK'`, `'bondi'`, `'Pyykko'`) and `Isotropic` — when true,
 polarizability and energy are appended per molecule. Steps you leave out are skipped, and a
@@ -121,7 +118,6 @@ a column block per molecule.
 
 ```python
 molset.get_sterimol_dict([[1,6],[3,4]], radii='CPK', drop_atoms=None)
-molset.get_npa_dict([1,2,3], sub_atoms=[5,6,7])
 molset.get_ring_vibration_dict([[8],[14]], freq_min=1550, freq_max=1700)
 molset.get_dipole_dict([[1,2,3], 5, 6])
 molset.get_bond_angle_dict([1,2,3])

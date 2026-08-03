@@ -339,7 +339,7 @@ def features_set():
       dir_path        – absolute path to the directory of .feather files
       root            – MolFeatures root to add to sys.path (optional)
       entry_widgets   – dict of string values: {ring, stretching, stretch,
-                        upper_stretch, bending, bend, sub_atoms, npa, dipole,
+                        upper_stretch, bending, bend, dipole,
                         charges, charge_diff, sterimol, drop_atoms,
                         bond_angle, bond_length}
       parameters      – {Radii, Isotropic}  (optional, defaults used if absent)

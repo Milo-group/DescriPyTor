@@ -71,7 +71,7 @@ python __main__.py extractor \
   --feather_directory Getting_started_with_examples/feather_example
 ```
 
-You get a CSV with ring and bending vibrations, dipole components, NPA, charges, charge
+You get a CSV with ring and bending vibrations, dipole components, charges, charge
 differences, Sterimol, bond lengths and angles — plus a correlation table.
 
 The file is hand-editable. Each key selects an extractor by the descriptor name it starts

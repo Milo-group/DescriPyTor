@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import os
 if not os.environ.get("MPLBACKEND"):
     os.environ["MPLBACKEND"] = "Agg"
@@ -290,7 +290,7 @@ class MoleculeApp:
         self.method_var.trace_add("write", lambda *args: self.open_param_window())
 
         self.method_menu = OptionMenu(self.sidebar_frame_left, self.method_var, "Windows Command",
-                                    "get_sterimol_dict", "get_npa_dict", "get_stretch_dict", "get_ring_dict",
+                                    "get_sterimol_dict", "get_stretch_dict", "get_ring_dict",
                                     "get_dipole_dict", "get_bond_angle_dict", "get_bond_length_dict",
                                     "get_charge_dict", "get_charge_diff_dict", "get_bending_dict")
         self.method_menu.grid(row=3, column=0, padx=20, pady=10)
@@ -742,7 +742,7 @@ class MoleculeApp:
             )
 
             # Default loading of entry value
-            if question in loaded_entries and not question.startswith("NPA manipulation"):
+            if question in loaded_entries:
                 entry.delete(0, 'end')
                 entry.insert(0, loaded_entries[question])
 
@@ -783,9 +783,6 @@ class MoleculeApp:
         if question.startswith("Dipole atoms"):
             self._add_center_atoms_entry(frame_q, entry_widgets, loaded_entries)
             Button(frame_q, text="Show", command=self._visualize_dipole).pack(side="left", padx=5)
-        elif question.startswith("NPA manipulation"):
-            self._add_sub_atoms_entry(frame_q, entry_widgets, loaded_entries)
-            self._load_entry(entry, loaded_entries, question)
         elif question.startswith("Ring Vibration atoms"):
             Button(frame_q, text="Show", command=lambda: self.open_image(r"pictures\rings.png")).pack(side="left", padx=5)
         elif question.startswith("Stretching Vibration atoms"):
@@ -809,13 +806,6 @@ class MoleculeApp:
         e.pack(side="left", padx=5)
         entry_widgets["Center_Atoms"] = e
         self._load_entry(e, loaded_entries, "Center_Atoms")
-
-    def _add_sub_atoms_entry(self, frame, entry_widgets, loaded_entries):
-        Label(frame, text="Sub-Atoms:").pack(side="left", padx=5)
-        e = Entry(frame, width=10)
-        e.pack(side="left", padx=5)
-        entry_widgets["Sub-Atoms"] = e
-        self._load_entry(e, loaded_entries, "Sub_Atoms")
 
     def _add_threshold_entry(self, key, frame, entry_widgets, loaded_entries, default):
         Label(frame, text="Threshold:").pack(side="left", padx=5)
@@ -1011,8 +1001,6 @@ class MoleculeApp:
                 "Bend Threshold - default is 1600 ",
                 "Center Atoms Dipole - indices to move Geometric Center: \n example 1,2,3,4,5,6 - move to Ring Center",
                 "Dipole atoms - indices for coordination transformation: \n example: 4,5,6 - origin, y-axis, new xy plane",
-                "Sub-Atoms NPA - Insert atoms to show NPA: \n example: 1,2,3,4,5,6",
-                "NPA atoms - Insert atoms to show NPA: \n example: 1,2,4",
                 "charges values - Insert atoms to show charge: \n example: 1,2,3,4",
                 "charge_difference - Insert atoms to show charge difference: \n example: 1,2 3,4",
                 "Sterimol atoms - Primary axis along: \n example: 7,8",
@@ -1275,8 +1263,6 @@ class MoleculeApp:
             self.show_result(f"Use as Command Line:\n")
         elif selected_method == "get_sterimol_dict":
             self.show_result(f"Method: {(self.molecules.molecules[0].get_sterimol.__doc__)}\n)")
-        elif selected_method == "get_npa_dict":
-            self.show_result(f"Method: {(self.molecules.molecules[0].get_npa_df.__doc__)}\n)")
         elif selected_method == "get_stretch_dict":
             self.show_result(f"Method: {self.molecules.molecules[0].get_stretch_vibration.__doc__}\n)")
         elif selected_method == "get_ring_dict":
@@ -1310,8 +1296,6 @@ class MoleculeApp:
             
         elif method == "get_sterimol_dict":
             self.get_sterimol(params)
-        elif method == "get_npa_dict":
-            self.get_npa(params)
         elif method == "get_stretch_dict":
             self.get_stretch(params)
         elif method == "get_ring_dict":
@@ -1352,12 +1336,6 @@ class MoleculeApp:
         base_atoms = convert_to_list_or_nested_list(base_atoms_str)
         sterimol_data = self.molecules.get_sterimol_dict(base_atoms)
         self.show_result(f"Sterimol values:\n {sterimol_data}\n")
-
-    def get_npa(self,base_atoms_str):
-        if base_atoms_str:
-            base_atoms = convert_to_list_or_nested_list(base_atoms_str)
-            npa_data = self.molecules.get_npa_dict(base_atoms)
-            self.show_result(f"NPA Charges:\n {npa_data}\n")
 
     def get_stretch(self,base_atoms_str):
         if base_atoms_str:

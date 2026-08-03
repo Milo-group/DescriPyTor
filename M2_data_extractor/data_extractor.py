@@ -1,4 +1,4 @@
-﻿import pandas as pd
+import pandas as pd
 import numpy as np
 import os
 import re
@@ -233,8 +233,6 @@ FEATURE_SET_ALIASES = {
     'bending': 'bending',
     'bend threshold': 'bend',
     'bend': 'bend',
-    'npa': 'npa',
-    'sub atoms': 'sub_atoms',
     'dipole': 'dipole',
     'charges values': 'charges',
     'charge values': 'charges',
@@ -921,96 +919,6 @@ class Molecule:
     ## not working after renumbering for some reason
     
     
-    def get_npa_df_single(self, atoms: List[int], sub_atoms: Optional[List[int]] = None, type='nbo') -> pd.DataFrame:
-        """
-        Calculates the NPA charges for a single group of atoms.
-        
-        Parameters
-        ----------
-        atoms : List[int]
-            The indices of the base atoms used to perform the coordination transformation.
-        sub_atoms : Optional[List[int]]
-            If provided, only these atom indices (rows) will be taken from the transformed coordinates.
-            Otherwise, all atoms (rows) are used.
-        type : str, optional
-            Type of charge dictionary to use (default 'nbo').
-        
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with the calculated NPA charges, renamed by the base atoms.
-        """
-        if sub_atoms ==[]:
-            sub_atoms = None
-        # Get the transformed coordinates DataFrame for the given atoms.
-        #
-        # This used to pass sub_atoms into the `origin` slot. Because that
-        # argument took the centroid of `indices` rather than of `origin`, its
-        # only effect was to switch the origin from "first base atom" to
-        # "centroid of the base atoms" whenever sub_atoms was supplied. Now
-        # that `origin` names the atoms to centre on, ask for that explicitly
-        # so NPA values are byte-for-byte what they were.
-        #
-        # The flip itself is almost certainly unintended - the origin should
-        # not depend on whether you selected a subset - but changing it moves
-        # published NPA numbers, so it is left as-is deliberately.
-        origin_atoms = atoms if sub_atoms is not None else None
-        df_trans = self.get_coordination_transformation_df(atoms, origin=origin_atoms)
-        # If sub_atoms is provided, select only those rows.
-        if sub_atoms is not None:
-            df_subset = df_trans.loc[sub_atoms, ['x', 'y', 'z']].astype(float)
-        else:
-            df_subset = df_trans[['x', 'y', 'z']].astype(float)
-        coordinates_array = np.array(df_subset)
-        
-        # Get the charges from the charge dictionary.
-        charges = np.array(self.charge_dict[type])
-
-        # Calculate the NPA charges (assuming calc_npa_charges is defined elsewhere)
-        npa_df = calc_npa_charges(coordinates_array, charges)
-        npa_df = npa_df.rename(index={0: f'NPA_{atoms[0]}-{atoms[1]}-{atoms[2]}'})
-        return npa_df
-
-    def get_npa_df(self, base_atoms_indices: List[int], sub_atoms: Optional[List[int]] = None, type='nbo') -> pd.DataFrame:
-        """
-        Returns a DataFrame with the NPA charges calculated based on the specified base atoms 
-        and optionally only the sub atoms.
-        
-        Parameters
-        ----------
-        base_atoms_indices : List[int] or List[List[int]]
-            The indices of the base atoms (or groups of atoms) to use for the NPA calculation.
-        sub_atoms : Optional[List[int]] or Optional[List[List[int]]]
-            The indices of the sub atoms to use for the NPA calculation. If provided, only these rows 
-            will be taken from the transformed coordinates.
-        type : str, optional
-            Type of charge dictionary to use (default 'nbo').
-        
-        Returns
-        -------
-        pd.DataFrame
-            A DataFrame with the calculated NPA charges.
-        """
-        # If the second element is a list, then base_atoms_indices is a list of groups.
-        if isinstance(base_atoms_indices[1], list):
-            # If sub_atoms is provided as a list of lists, then zip them.
-            if sub_atoms and isinstance(sub_atoms[0], list):
-                npa_list = [
-                    self.get_npa_df_single(atoms, sub_atoms=sub_group, type=type)
-                    for atoms, sub_group in zip(base_atoms_indices, sub_atoms)
-                ]
-            else:
-                # Otherwise, pass the same sub_atoms list to each group.
-                npa_list = [
-                    self.get_npa_df_single(atoms, sub_atoms=sub_atoms, type=type)
-                    for atoms in base_atoms_indices
-                ]
-            npa_df = pd.concat(npa_list, axis=0)
-        else:
-            npa_df = self.get_npa_df_single(base_atoms_indices, sub_atoms=sub_atoms, type=type)
-        return npa_df
-    
-   
     # def get_dipole_gaussian_df_single(self, atoms, visualize_bool: bool = False) -> pd.DataFrame:
     #     """
     #     atoms can be any of:
@@ -1752,41 +1660,6 @@ class Molecules():
                 pass
         return dict_to_horizontal_df(sterimol_dict)
     
-    def get_npa_dict(self,atom_indices,sub_atoms=None):
-        """
-        Returns a dictionary with the Natural Population Analysis (NPA) charges calculated for the specified base atoms and sub atoms.
-
-        Args:
-            base_atoms (List[int]): The indices of the base atoms to use for the NPA calculation.
-            sub_atoms (Union[List[int], None], optional): The indices of the sub atoms to use for the NPA calculation. Defaults to None.
-        
-        Returns:
-            Dict[str, pd.DataFrame]: A dictionary where each key is a molecule name and each value is a DataFrame with the NPA charges.
-        
-        input example: molecules.get_npa_dict([1, 2, 3], [5, 6, 7])
-        output example: 
-        Results for LS1716_optimized:
-                    dip_x     dip_y     dip_z  total_dipole
-            NPA_1-2-3  0.092108  0.181346 -0.300763      0.363082
-            NPA_5-6-7  0.191986  0.297839  0.079456      0.363153
-
-        Results for LS1717_optimized:
-                    dip_x     dip_y     dip_z  total_dipole
-            NPA_1-2-3  0.126370  0.271384  0.354595      0.464065
-            NPA_5-6-7  0.225257  0.399616 -0.069960      0.464035
-        """
-        
-        npa_dict={}
-        for molecule in self.molecules:
-            try:
-                npa_dict[molecule.molecule_name]=molecule.get_npa_df(atom_indices,sub_atoms)
-            except Exception as e:
-                print(f'Error: {molecule.molecule_name} npa could not be processed: {e}')
-                log_exception("get_npa_dict")
-                pass
-
-        return dict_to_horizontal_df(npa_dict)
-
     def get_ring_vibration_dict(self, ring_atom_indices, freq_min=1550, freq_max=1700):
         """
         Parameters
@@ -2184,7 +2057,6 @@ class Molecules():
             ('ring', lambda a: self.get_ring_vibration_dict(a)),
             ('stretching', lambda a: self.get_stretch_vibration_dict(a, answers.get('stretch', [None])[0], answers.get('upper_stretch', [None])[0])),
             ('bending', lambda a: self.get_bend_vibration_dict(a, answers.get('bend', [None])[0])),
-            ('npa', lambda a: self.get_npa_dict(a, sub_atoms=answers.get('sub_atoms', []))),
             ('dipole', lambda a: self.get_dipole_dict(a, center_atoms=answers.get('center_atoms') or None)),
             ('charges', lambda a: self.get_charge_df_dict(a)),
             ('charge_diff', lambda a: self.get_charge_diff_df_dict(a)),
