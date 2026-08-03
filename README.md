@@ -205,7 +205,51 @@ slider, and stacks conformer ensembles with per-conformer RMSD:
   <em>Kabsch-aligned conformer overlay, aligned on a chosen substructure.</em>
 </p>
 
+### Data prep and pre-flight check
+
+Before a long run, `data_gathering_validation.html` assembles the whole command sequence for
+you. Pick a starting point — existing feathers, Gaussian logs, or a SMILES CSV — fill in the
+paths, and it writes out the exact commands to copy, including a dependency check:
+
+```bash
+python _dx_check.py --config run_config.json --install-report
+```
+
+That reports which optional engines are actually importable in your environment, so a
+six-hour extraction doesn't die on a missing package at hour five.
+
 Full instructions: [descriptor_extraction_toolkit/README.md](Getting_started_with_examples/descriptor_extraction_toolkit/README.md).
+
+### Beyond the built-in descriptors
+
+The toolkit can run external descriptor packages in the same pass and merge everything into
+one CSV, each engine namespaced by a `prefix` so columns never collide. Every engine is
+optional and skips itself with a one-line message if its package is missing, so a run never
+dies on a dependency:
+
+| Engine | Gives you | Needs |
+|---|---|---|
+| `descripytor_full` / `_steric` | the built-in descriptor set above | — |
+| `xyz_sterimol`, `xyz_geometry`, `xyz_buried_volume` | Sterimol, angles, bond lengths and buried volume from bare `.xyz` | — |
+| `morfeus_suite` | Sterimol, buried volume, cone angle, SASA, dispersion, pyramidalization | `morfeus-ml` |
+| `rdkit`, `rdkit_fp` | full 2D descriptor list; ECFP/FCFP/MACCS/AtomPair/Torsion + USRCAT | `rdkit` |
+| `mordred` | Mordred 2D/3D descriptors | `mordred` |
+| `deepchem` | CircularFingerprint + RDKitDescriptors | `deepchem` |
+| `qm` | Gaussian-log descriptors via autoqchem | `autoqchem` |
+| `aqme_qdescp` | xTB/MORFEUS table: IP, EA, HOMO–LUMO, FOD, dispersion, … | `aqme` + xTB |
+
+```bash
+python descriptor_extractor.py --config my_run.json
+```
+
+**Starting from SMILES.** AQME CSEARCH turns a SMILES CSV into a conformer ensemble, so the
+pipeline can begin without any structures at all:
+
+```bash
+python descriptor_extractor.py --csearch molecules.csv --csearch-out xyz_out \
+    --name-col name --smiles-col smiles --csearch-program rdkit \
+    --csearch-sample 10 --keep lowest
+```
 
 ### Python API
 
@@ -334,7 +378,36 @@ Candidate models are ranked so you can see which descriptors keep earning their 
   <em>Model R² against the feature subset used — a two-feature model within noise of the best.</em>
 </p>
 
-And each model can be decomposed per sample, so a prediction is auditable rather than opaque:
+Every top model gets a PDF report, and these pages are generated for it automatically — no
+extra flags:
+
+```text
+runs/<dataset>_<target>_<date>/
+  db/    results_<dataset>.csv, .db     every model scored, for incremental reruns
+  figs/  coefficients, parity, SHAP, sanity checks, diagnostics
+  pdf/   <dataset>_top_models_report.pdf
+  logs/  regression_results.txt
+```
+
+**Sanity checks that try to break your model.** The report refits the model against
+deliberately corrupted data — targets shuffled (Y-randomization), descriptors shuffled
+globally and one feature at a time, and a one-hot baseline that knows only substituent
+identity. A real model has to beat all of them.
+
+<p align="center">
+  <img src="docs/images/sanity-checks-yscramble.png" width="640" alt="Histogram of RMSD from models fitted to randomly shuffled targets, clustered near 0.50, with the real model's RMSD marked at 0.351 far to the left, plus one-hot and X-shuffle baselines."><br>
+  <em>The real model (red, 0.351) sits clear of the Y-randomized distribution (~0.50). If it landed inside that histogram, the model is fitting noise.</em>
+</p>
+
+**Feature attribution.** SHAP values show which descriptor pushed which sample, and in which
+direction:
+
+<p align="center">
+  <img src="docs/images/shap-beeswarm.png" width="760" alt="SHAP beeswarm for the top three features: total dipole, dipole z and stretch amplitude, with individual substituents labelled at the extremes of each row."><br>
+  <em>Named outliers make it obvious which substituents drive the model.</em>
+</p>
+
+Each model can also be decomposed per sample, so a prediction is auditable rather than opaque:
 
 <p align="center">
   <img src="docs/images/model-components-chart.png" width="900" alt="Stacked contribution chart across 18 substituents, showing how the dipole, CM5 charge and O-C bond length terms each push the prediction above or below the intercept, with measured values as open circles and predictions as diamonds."><br>
