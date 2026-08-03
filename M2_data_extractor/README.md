@@ -70,9 +70,22 @@ features = molset.get_molecules_features_set(
 )
 ```
 
-**Keys are matched on their first word**, lowercased with hyphens turned into underscores —
-so `'Bond-Angle'` and `'Bond-Angle [1,2,3]'` both resolve to `bond_angle`. That is why the
-picker can use descriptive labels and still hit the right extractor.
+**Keys are matched on the longest descriptor name they start with**, ignoring case,
+punctuation and any trailing help text. So all of these reach `bond_length`:
+
+```text
+'Bond-Length'   'Bond length  [a, b]'   'Bond_length - Atom pairs to calculate difference: …'
+```
+
+That is why the picker can use long descriptive labels and still hit the right extractor.
+A label that matches nothing is **reported**, not silently dropped — if you see
+
+```text
+Warning: ignoring unrecognized feature-set entry 'Wibble atoms' - no descriptor matches it.
+```
+
+then that field contributed no columns. Two labels resolving to the same descriptor are
+reported too, and the populated one wins.
 
 | Key | Expects | Produces |
 |---|---|---|

@@ -1,6 +1,7 @@
 ﻿import pandas as pd
 import numpy as np
 import os
+import re
 import sys
 import math
 from enum import Enum
@@ -211,6 +212,57 @@ def _validate_and_build_maps(
 
     return old_to_new, new_to_old
 
+
+
+# Field labels carry their own help text ("Bond_length - Atom pairs to
+# calculate difference: \n example: 1,2 4,5"), so a label is matched by the
+# longest alias it starts with. Matching on the first word alone is not enough:
+# "charge values" and "charge difference" both start with "charge", and
+# "Bond length" and "Bond Angle" both start with "bond".
+FEATURE_SET_ALIASES = {
+    'ring vibration': 'ring',
+    'ring': 'ring',
+    'stretching vibration': 'stretching',
+    'stretching': 'stretching',
+    'strech vibration': 'stretching',        # historical typo in saved inputs
+    'strech': 'stretching',
+    'stretch threshold': 'stretch',
+    'stretch': 'stretch',
+    'upper stretch': 'upper_stretch',
+    'bending vibration': 'bending',
+    'bending': 'bending',
+    'bend threshold': 'bend',
+    'bend': 'bend',
+    'npa': 'npa',
+    'sub atoms': 'sub_atoms',
+    'dipole': 'dipole',
+    'charges values': 'charges',
+    'charge values': 'charges',
+    'charges': 'charges',
+    'charge difference': 'charge_diff',
+    'charge diff': 'charge_diff',
+    'sterimol': 'sterimol',
+    'bond angle': 'bond_angle',
+    'bond length': 'bond_length',
+    'drop atoms': 'drop_atoms',
+    # Sent by the atom picker but not consumed here; listed so it resolves
+    # quietly instead of being reported as unrecognized.
+    'center atoms': 'center_atoms',
+}
+
+
+def resolve_feature_key(label: str) -> Optional[str]:
+    """
+    Map a feature-set entry label onto its canonical key.
+
+    Returns None when nothing matches, so the caller can say so rather than
+    dropping the field. See FEATURE_SET_ALIASES for why this is prefix-based.
+    """
+    normalized = re.sub(r'[^a-z0-9]+', ' ', str(label).lower()).strip()
+    for alias in sorted(FEATURE_SET_ALIASES, key=len, reverse=True):
+        if normalized == alias or normalized.startswith(alias + ' '):
+            return FEATURE_SET_ALIASES[alias]
+    return None
 
 
 def _reindex_like(obj: Union[pd.Series, pd.DataFrame], order: np.ndarray) -> Union[pd.Series, pd.DataFrame]:
@@ -2038,12 +2090,30 @@ class Molecules():
         if parameters is None:
             parameters = {'Radii': 'CPK', 'Isotropic': True}
 
+        seen_labels = {}
         for param_name, entry in entry_widgets.items():
-            key = param_name.split()[0].lower().replace('-', '_')
+            key = resolve_feature_key(param_name)
             try:
-                answers[key] = entry.get()
+                value = entry.get()
             except AttributeError:
-                answers[key] = entry
+                value = entry
+
+            if key is None:
+                print(f"Warning: ignoring unrecognized feature-set entry {param_name!r} "
+                      f"- no descriptor matches it. Recognized prefixes: "
+                      f"{', '.join(sorted(set(FEATURE_SET_ALIASES.values())))}")
+                continue
+
+            # Two labels resolving to the same descriptor used to overwrite each
+            # other silently; keep the one that actually carries atoms and say so.
+            if key in answers and answers[key] not in ('', None, []):
+                if value in ('', None, []):
+                    continue
+                print(f"Warning: {param_name!r} and {seen_labels[key]!r} both map to "
+                      f"'{key}'; using {param_name!r}.")
+
+            answers[key] = value
+            seen_labels[key] = param_name
 
         if answers_list is not None:
             answers_list = answers_list  # placeholder

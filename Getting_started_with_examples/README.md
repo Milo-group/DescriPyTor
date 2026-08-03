@@ -74,9 +74,10 @@ python __main__.py extractor \
 You get a CSV with ring and bending vibrations, dipole components, NPA, charges, charge
 differences, Sterimol, bond lengths and angles — plus a correlation table.
 
-The file is hand-editable. Each key's **first word** selects the extractor (`Sterimol…` →
-sterimol, `Bond_length…` → bond_length), and the value is the atom indices, 1-based. Change
-the numbers, rerun, compare.
+The file is hand-editable. Each key selects an extractor by the descriptor name it starts
+with — `Sterimol…`, `Bond_length…`, `Charge difference…` — and the value is the atom indices,
+1-based. Change the numbers, rerun, compare. A key that matches no descriptor is reported on
+the console rather than ignored, so a typo can't quietly cost you a column.
 
 ### 2. Model a dataset
 
