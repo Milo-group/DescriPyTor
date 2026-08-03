@@ -122,6 +122,11 @@ class GeneralConstants(Enum):
 }
     
 
+# Points sampled per atom circle when building the xz plane. plot_b1_visualization
+# slices the plane back into circles with this number, so the two must agree.
+STERIMOL_CIRCLE_POINTS = 100
+
+
 def generate_circle(center_x, center_y, radius, n_points=20):
     """
     Generate circle coordinates given a center and radius.
@@ -800,7 +805,8 @@ def get_b1s_list(extended_df, scans=1, plot_result=False):
     circles = []
 
     for _, row in extended_df.iterrows():
-        circle_points = generate_circle(row["x"], row["z"], row["radius"], n_points=100)
+        circle_points = generate_circle(row["x"], row["z"], row["radius"],
+                                        n_points=STERIMOL_CIRCLE_POINTS)
         circles.append(circle_points)
 
     original_plane_xz = np.vstack(circles)
@@ -870,20 +876,29 @@ def calc_sterimol(bonded_atoms_df, extended_df, visualize_bool=False):
 
     return result_df
 
-def get_sterimol_df(coordinates_df, bonds_df, base_atoms, connected_from_direction, 
-                    radii='CPK', sub_structure=True, drop_atoms=None, visualize_bool=False, mode='all'):
+def prepare_sterimol_inputs(coordinates_df, bonds_df, base_atoms, connected_from_direction,
+                            radii='CPK', sub_structure=True, drop_atoms=None, mode='all'):
+    """
+    Align the molecule to the Sterimol frame and build the two tables the
+    Sterimol calculation runs on.
+
+    Returns
+    -------
+    (bonded_atoms_df, extended_df, base_atoms)
+        base_atoms is returned because dropping atoms renumbers it.
+    """
     # Drop atoms and update indices
     if drop_atoms is not None:
-  
+
         drop_atoms_adjusted = adjust_indices(drop_atoms)
         coordinates_df = coordinates_df.drop(drop_atoms_adjusted)
         coordinates_df = coordinates_df.reset_index(drop=True)
-        
+
         # Create a mapping from old to new indices
         old_to_new = {old_idx: new_idx for new_idx, old_idx in enumerate(sorted(coordinates_df.index))}
         # Map bonds_df to new indices, drop any bonds involving dropped atoms
         mask = ~bonds_df[0].isin(drop_atoms) & ~bonds_df[1].isin(drop_atoms)
-  
+
         bonds_df = bonds_df[mask].copy()
         bonds_df[0] = bonds_df[0].map(old_to_new)
         bonds_df[1] = bonds_df[1].map(old_to_new)
@@ -892,7 +907,7 @@ def get_sterimol_df(coordinates_df, bonds_df, base_atoms, connected_from_directi
         base_atoms = [old_to_new[a] for a in base_atoms if a in old_to_new]
         if connected_from_direction is not None:
             connected_from_direction = [old_to_new[a] for a in connected_from_direction if a in old_to_new]
-    
+
     bonds_direction = adjust_indices(direction_atoms_for_sterimol(bonds_df, base_atoms))
     if isinstance(base_atoms[0], list):
         base_atoms=base_atoms[0]
@@ -901,18 +916,59 @@ def get_sterimol_df(coordinates_df, bonds_df, base_atoms, connected_from_directi
     if len(bonds_direction) != 3:
         raise ValueError("Bonds direction must contain exactly 3 atoms, check molecule connectivity.")
     new_coordinates_df = preform_coordination_transformation(coordinates_df, bonds_direction)
-    
+
     if sub_structure:
         if connected_from_direction is None:
             connected_from_direction = get_molecule_connections(bonds_df, base_atoms[0], base_atoms[1], mode=mode)
     else:
         connected_from_direction = None
-  
+
     bonded_atoms_df = get_specific_bonded_atoms_df(bonds_df, connected_from_direction, new_coordinates_df)
     extended_df = get_extended_df_for_sterimol(new_coordinates_df, bonds_df, radii)
+
+    return bonded_atoms_df, extended_df, base_atoms
+
+
+def get_sterimol_df(coordinates_df, bonds_df, base_atoms, connected_from_direction,
+                    radii='CPK', sub_structure=True, drop_atoms=None, visualize_bool=False, mode='all'):
+    bonded_atoms_df, extended_df, base_atoms = prepare_sterimol_inputs(
+        coordinates_df, bonds_df, base_atoms, connected_from_direction,
+        radii=radii, sub_structure=sub_structure, drop_atoms=drop_atoms, mode=mode)
 
     sterimol_df = calc_sterimol(bonded_atoms_df, extended_df, visualize_bool)
     sterimol_df = sterimol_df.rename(index={0: str(base_atoms[0]) + '-' + str(base_atoms[1])})
     sterimol_df = sterimol_df.round(4)
 
     return sterimol_df
+
+
+def get_sterimol_plot_data(coordinates_df, bonds_df, base_atoms, connected_from_direction=None,
+                           radii='CPK', sub_structure=True, drop_atoms=None, mode='all'):
+    """
+    The two inputs the steriplots need, from the same pipeline get_sterimol_df runs.
+
+    Returns
+    -------
+    (edited_coordinates_df, best_plane)
+        edited_coordinates_df : substructure atoms in the Sterimol frame, with
+            'atom', 'x', 'y', 'z', 'radius' and 'B5' - indexed 1-based to match
+            the atom numbering shown to users.
+        best_plane : (n_atoms * 100, 2) array of sampled vdW circles in the xz
+            plane, rotated to the angle that minimises B1.
+
+    Pass these to plot_b1_visualization(best_plane, edited_coordinates_df) and
+    plot_L_B5_plane(edited_coordinates_df, ...).
+    """
+    bonded_atoms_df, extended_df, _ = prepare_sterimol_inputs(
+        coordinates_df, bonds_df, base_atoms, connected_from_direction,
+        radii=radii, sub_structure=sub_structure, drop_atoms=drop_atoms, mode=mode)
+
+    edited_coordinates_df, index_list = filter_atoms_for_sterimol(bonded_atoms_df, extended_df)
+    b1s, _, planes, _ = get_b1s_list(edited_coordinates_df)
+    best_idx = int(np.argmin(b1s))
+
+    # match calc_sterimol's visualize path: label rows with 1-based atom numbers
+    edited_coordinates_df = edited_coordinates_df.copy()
+    edited_coordinates_df.index = [i + 1 for i in index_list]
+
+    return edited_coordinates_df, planes[best_idx]

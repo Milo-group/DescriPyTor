@@ -211,8 +211,8 @@ def _sterimol_plots(mol, base_atoms, radii, sub_structure, drop_atoms, mode,
     import matplotlib.pyplot as plt
 
     from extractor_utils.sterimol_utils import (
-        get_extended_df_for_sterimol,
-        preform_coordination_transformation,
+        STERIMOL_CIRCLE_POINTS,
+        get_sterimol_plot_data,
     )
     from utils.visualize import plot_b1_visualization, plot_L_B5_plane
 
@@ -225,16 +225,20 @@ def _sterimol_plots(mol, base_atoms, radii, sub_structure, drop_atoms, mode,
     )
     st_result = {k: float(v) for k, v in st_df.iloc[:, 0].items()}
 
-    extended_df = get_extended_df_for_sterimol(
-        mol.coordinates_df, mol.bonds_df, radii=radii
-    )
-    rotated_df, rotated_plane = preform_coordination_transformation(
-        extended_df, indices=base_atoms
+    # Same pipeline get_sterimol_df runs, so the plots show the geometry the
+    # numbers above came from.
+    rotated_df, rotated_plane = get_sterimol_plot_data(
+        mol.coordinates_df, mol.bonds_df, base_atoms,
+        radii=radii, sub_structure=sub_structure,
+        drop_atoms=drop_atoms or None, mode=mode,
     )
 
     fig_endon = plot_b1_visualization(
         rotated_plane, rotated_df,
-        sterimol_df=st_df, n_points=n_points, title=endon_title,
+        sterimol_df=st_df,
+        # the plane was sampled at this rate; plot_b1_visualization slices it
+        # back into circles, so it must not use the caller's n_points here
+        n_points=STERIMOL_CIRCLE_POINTS, title=endon_title,
     )
     endon_b64 = _fig_to_b64(fig_endon, dpi)
     plt.close(fig_endon)
