@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Sequence, Tuple
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -149,10 +149,11 @@ def calc_dipole_gaussian(
     coordinates_array: np.ndarray,
     gauss_dipole_array,
     base_atoms_indices: Sequence,
+    center_atoms: Optional[Sequence] = None,
 ) -> pd.DataFrame:
     """
     Transform Gaussian dipole(s) into a molecular frame defined by base_atoms_indices.
-    
+
     Semantics (R-equivalent):
       - len==3: [origin_atom, y_atom, plane_atom]
       - len>=4: [origin_set..., y_atom, plane_atom]  (origin = centroid(origin_set)
@@ -167,6 +168,13 @@ def calc_dipole_gaussian(
         Dipole as [dx, dy, dz, total] or [[...], ...]. If 'total' missing, it is computed.
     base_atoms_indices : sequence
         Indices defining origin/y/plane per semantics above. Supports 1- or 0-based.
+    center_atoms : sequence, optional
+        Atoms whose centroid becomes the frame origin, replacing the origin implied
+        by base_atoms_indices. The y and plane selectors still come from
+        base_atoms_indices, so this moves where the axes are anchored without
+        changing which atoms define their directions - e.g. keep a substituent
+        direction as y but anchor at a ring centroid. Leave as None to keep the
+        origin from base_atoms_indices.
 
     Returns
     -------
@@ -253,9 +261,13 @@ def calc_dipole_gaussian(
             g = g[:, :4]
         return pd.DataFrame(g, columns=['dipole_x','dipole_y','dipole_z','total'])
 
-    # -------- build basis from base_atoms_indices only --------
+    # -------- build basis --------
     origin_set, y_sel, plane_sel = _parse_base(base_atoms_indices)
-    origin_pt = coords[origin_set].mean(axis=0)         # centroid of origin set
+    if center_atoms is not None and len(np.atleast_1d(center_atoms)) > 0:
+        # Explicit centre overrides the origin implied by base_atoms_indices.
+        origin_pt = _centroid_selector(coords, center_atoms)
+    else:
+        origin_pt = coords[origin_set].mean(axis=0)     # centroid of origin set
     basis = _build_basis(coords, origin_pt, y_sel, plane_sel)  # rows: X,Y,Z
 
     # -------- rotate dipole(s) --------

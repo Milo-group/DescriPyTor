@@ -102,7 +102,8 @@ reported too, and the populated one wins.
 
 Auxiliary keys tune the above rather than adding columns: `Stretch` and `Upper-Stretch`
 (frequency window), `Bend` (threshold), `Drop-Atoms` (exclude from Sterimol), `Sub-Atoms`
-(extra NPA centres).
+(extra NPA centres), `Center_Atoms` (move the dipole frame's origin — see
+[Dipoles](#dipoles)).
 
 `parameters` takes `Radii` (`'CPK'`, `'bondi'`, `'Pyykko'`) and `Isotropic` — when true,
 polarizability and energy are appended per molecule. Steps you leave out are skipped, and a
@@ -171,11 +172,24 @@ mol.get_charge_diff_df([[1,2],[3,4]], type='all') # labelled diff_i-j
 ```python
 # base spec is one of: [o, y, plane] · [o1, o2, …, y, plane] · [[o1, o2, …], y, plane]
 mol.get_dipole_gaussian_df([[1,2,3], 5, 6], visualize_bool=True)
+
+# anchor the frame somewhere else while keeping the same axis directions
+mol.get_dipole_gaussian_df([[1,2,3], 5, 6], center_atoms=[1,2,3,4,5,6])
 ```
 
 The origin is the centroid of the origin set; `ŷ` points at the y-atom; `x̂` is the
 plane-atom direction with its `ŷ` component removed (Gram–Schmidt). Components are reported
 in that frame, which is what makes them comparable across a series.
+
+**`center_atoms`** moves the origin to the centroid of the atoms you name, while `ŷ` and the
+plane atom still come from the base spec. Because both axes are measured *from* the origin,
+moving it re-aims them — this is how you get a ring-centred frame while a substituent still
+sets the y direction. Columns from a run with a centre are suffixed (`…_c{1,2,3}`) so they
+don't collide with the uncentred ones. Omit it, or pass `[]`, for the original behaviour.
+
+The same argument is on `get_dipole_gaussian_df_single` and on the batch
+`Molecules.get_dipole_dict(...)`, where it applies to every molecule in the set. In the
+feature-set call it is the **`Center_Atoms`** entry.
 
 ### Vibrations
 

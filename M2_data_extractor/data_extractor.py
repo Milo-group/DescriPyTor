@@ -245,9 +245,8 @@ FEATURE_SET_ALIASES = {
     'bond angle': 'bond_angle',
     'bond length': 'bond_length',
     'drop atoms': 'drop_atoms',
-    # Sent by the atom picker but not consumed here; listed so it resolves
-    # quietly instead of being reported as unrecognized.
     'center atoms': 'center_atoms',
+    'indices to move center': 'center_atoms',   # older desktop-GUI wording
 }
 
 
@@ -1076,13 +1075,17 @@ class Molecule:
 
     #     return dipole_df
 
-    def get_dipole_gaussian_df_single(self, atoms, visualize_bool: bool = False) -> pd.DataFrame:
+    def get_dipole_gaussian_df_single(self, atoms, visualize_bool: bool = False,
+                                      center_atoms=None) -> pd.DataFrame:
         """
         atoms can be:
         - [o, y, plane]
         - [o1, o2, ..., y, plane]
         - [[o1, o2, ...], y, plane]
         - [[o1, o2, ...], [y1, y2, ...], [p1, p2, ...]]
+
+        center_atoms, if given, moves the frame origin to the centroid of those
+        atoms while the axes keep their directions from `atoms`.
         """
         # --- helpers (local) ---
         def _parse_base(group):
@@ -1106,16 +1109,20 @@ class Molecule:
 
         origin_set, y_idx, plane_idx = _parse_base(atoms)
 
-        # Compute dipole (uses new calc_dipole_gaussian WITHOUT origin)
         dipole_df = calc_dipole_gaussian(self.coordinates_array,
                                         np.array(self.gauss_dipole_df),
-                                        atoms)
+                                        atoms,
+                                        center_atoms=center_atoms)
 
         # Nice index label (support origin-set)
         if len(origin_set) == 1:
             label = f"dipole_{origin_set[0]}-{_label_part(y_idx)}-{_label_part(plane_idx)}"
         else:
             label = f"dipole_{{{','.join(map(str, origin_set))}}}-{_label_part(y_idx)}-{_label_part(plane_idx)}"
+        # Distinguish columns that used a different centre, otherwise two runs
+        # over the same base atoms collide when concatenated side by side.
+        if center_atoms is not None and len(np.atleast_1d(center_atoms)) > 0:
+            label += f"_c{_label_part(list(np.atleast_1d(center_atoms)))}"
 
         try:
             dipole_df = dipole_df.rename(index={0: label})
@@ -1166,10 +1173,13 @@ class Molecule:
         return dipole_df
 
 
-    def get_dipole_gaussian_df(self, base_atoms_indices, visualize_bool: bool = False) -> pd.DataFrame:
+    def get_dipole_gaussian_df(self, base_atoms_indices, visualize_bool: bool = False,
+                               center_atoms=None) -> pd.DataFrame:
         """
         Accepts either a single group:       [[1,2,3], 5, 6]  or  [1,2,3, 5, 6]  or  [1, 5, 6]
         Or multiple groups:                  [ [[1,2,3],5,6], [ [4,7],10,11 ], [2,8,9,12] ]
+
+        center_atoms applies to every group.
         """
         def _is_group_like(x):
             return isinstance(x, (list, tuple)) and len(x) >= 3
@@ -1177,13 +1187,15 @@ class Molecule:
         # Multiple groups if the top-level contains only group-like items
         if isinstance(base_atoms_indices, (list, tuple)) and all(_is_group_like(g) for g in base_atoms_indices):
             dipole_list = [
-                self.get_dipole_gaussian_df_single(g, visualize_bool=visualize_bool)
+                self.get_dipole_gaussian_df_single(g, visualize_bool=visualize_bool,
+                                                   center_atoms=center_atoms)
                 for g in base_atoms_indices
             ]
             return pd.concat(dipole_list, axis=0)
 
         # Otherwise treat as a single group (including [[1,2,3],5,6])
-        return self.get_dipole_gaussian_df_single(base_atoms_indices, visualize_bool=visualize_bool)
+        return self.get_dipole_gaussian_df_single(base_atoms_indices, visualize_bool=visualize_bool,
+                                                  center_atoms=center_atoms)
 
 
 
@@ -1808,7 +1820,7 @@ class Molecules():
         return dict_to_horizontal_df(ring_dict)
     
 
-    def get_dipole_dict(self, atom_indices, visualize_bool: bool = False):
+    def get_dipole_dict(self, atom_indices, visualize_bool: bool = False, center_atoms=None):
         """
         Returns a wide (horizontal) DataFrame aggregating dipole results for each molecule.
 
@@ -1822,6 +1834,9 @@ class Molecules():
             Or a list of such groups: [ [...], [...], ... ]
         visualize_bool : bool
             Whether to visualize per-molecule dipole.
+        center_atoms : sequence, optional
+            Atoms whose centroid becomes the frame origin, in place of the origin
+            implied by atom_indices. Applied to every molecule in the set.
 
         Returns
         -------
@@ -1831,7 +1846,8 @@ class Molecules():
         dipole_dict = {}
         for molecule in self.molecules:
             try:
-                df = molecule.get_dipole_gaussian_df(atom_indices, visualize_bool=visualize_bool)
+                df = molecule.get_dipole_gaussian_df(atom_indices, visualize_bool=visualize_bool,
+                                                     center_atoms=center_atoms)
                 # If you want to match older prints that used 'total_dipole', uncomment next line:
                 # df = df.rename(columns={'total': 'total_dipole'})
                 dipole_dict[molecule.molecule_name] = df
@@ -2146,7 +2162,7 @@ class Molecules():
             ('stretching', lambda a: self.get_stretch_vibration_dict(a, answers.get('stretch', [None])[0], answers.get('upper_stretch', [None])[0])),
             ('bending', lambda a: self.get_bend_vibration_dict(a, answers.get('bend', [None])[0])),
             ('npa', lambda a: self.get_npa_dict(a, sub_atoms=answers.get('sub_atoms', []))),
-            ('dipole', lambda a: self.get_dipole_dict(a)),
+            ('dipole', lambda a: self.get_dipole_dict(a, center_atoms=answers.get('center_atoms') or None)),
             ('charges', lambda a: self.get_charge_df_dict(a)),
             ('charge_diff', lambda a: self.get_charge_diff_df_dict(a)),
             ('sterimol', lambda a: self.get_sterimol_dict(a, radii=radii, drop_atoms=answers.get('drop_atoms', []))),

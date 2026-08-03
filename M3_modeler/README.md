@@ -7,7 +7,7 @@ A comprehensive package for developing, evaluating, and applying machine‑learn
 ## Table of Contents
 
 * [Features](#features)
-* [Installation](#installation)
+* [Installation](../README.md#install)
 * [Data Expectations](#data-expectations)
 * [Quick Start](#quick-start)
 
