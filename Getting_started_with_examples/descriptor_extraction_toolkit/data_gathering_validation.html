@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DescriPytor - Data Prep</title>
+<style>
+  :root { --bg:#f5f7fb; --panel:#fff; --line:#dbe3ee; --text:#17202a; --muted:#66778d; --blue:#007aff; --green:#30d158; --orange:#ff9f0a; --shadow:0 24px 60px rgba(28,39,54,.12); }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:var(--text); background:linear-gradient(180deg,#fbfcff,#edf3fa); }
+  header { position:sticky; top:0; z-index:2; padding:18px 24px; display:flex; justify-content:space-between; gap:16px; align-items:center; border-bottom:1px solid var(--line); background:rgba(255,255,255,.78); backdrop-filter:saturate(180%) blur(18px); }
+  h1 { margin:0; font-size:19px; letter-spacing:0; }
+  .sub { color:var(--muted); font-size:13px; line-height:1.45; }
+  main { display:grid; grid-template-columns:minmax(330px,.9fr) minmax(380px,1.1fr); gap:16px; padding:18px; }
+  section { background:rgba(255,255,255,.84); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); padding:16px; }
+  h2 { margin:0 0 12px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#516173; }
+  label { display:block; margin:10px 0 5px; color:var(--muted); font-size:12px; }
+  input, select, textarea { width:100%; min-height:36px; border:1px solid var(--line); border-radius:11px; padding:8px 10px; font:inherit; color:var(--text); background:#fff; }
+  textarea { min-height:96px; resize:vertical; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .check { display:flex; gap:8px; align-items:center; margin:10px 0; color:var(--text); font-size:13px; }
+  .check input { width:auto; min-height:auto; }
+  button { border:1px solid transparent; background:linear-gradient(180deg,#168cff,#0067db); color:#fff; border-radius:999px; padding:8px 13px; font-weight:650; cursor:pointer; }
+  button.secondary { background:#fff; color:var(--text); border-color:var(--line); }
+  pre { margin:10px 0 0; background:#111923; color:#eaf2ff; border-radius:14px; padding:14px; overflow:auto; font-size:12px; line-height:1.45; }
+  .cards { display:grid; gap:10px; }
+  .workflow-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+  .workflow-card { text-align:left; min-height:64px; border:1px solid var(--line); background:#fff; color:var(--text); border-radius:14px; box-shadow:none; padding:10px; }
+  .workflow-card b { display:block; font-size:13px; margin-bottom:4px; color:#17202a; }
+  .workflow-card span { display:block; font-size:11.5px; line-height:1.35; color:var(--muted); font-weight:400; }
+  .workflow-card.active { border-color:var(--blue); background:#eef7ff; box-shadow:0 5px 18px rgba(0,122,255,.12); }
+  .flow-strip { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 12px; }
+  .flow-step { display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line); background:#f7fbff; color:#516173; border-radius:999px; padding:4px 8px; font-size:11.5px; }
+  .flow-step strong { color:#17202a; font-weight:650; }
+  .card { border:1px solid var(--line); border-radius:14px; padding:12px; background:#fbfdff; }
+  .card b { color:#0b63ce; font-size:13px; }
+  .card p { color:#526376; font-size:13px; line-height:1.45; margin:6px 0 0; }
+  .pill { display:inline-flex; border:1px solid var(--line); border-radius:999px; padding:3px 8px; font-size:11px; color:#516173; background:#f3f7fb; margin:4px 4px 0 0; }
+  @media (max-width:900px) { main { grid-template-columns:1fr; padding:12px; } header { align-items:flex-start; flex-direction:column; } }
+  @media (max-width:520px) { .workflow-grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Data Gathering & Validation</h1>
+    <div class="sub">Prepare Gaussian logs, feathers, XYZ files, conformers, and the picker run config from one quiet control surface.</div>
+  </div>
+  <button class="secondary" onclick="copyCommands()">Copy commands</button>
+</header>
+<main>
+  <section>
+    <h2>1 &middot; Workflow</h2>
+    <div class="flow-strip">
+      <span class="flow-step"><strong>1</strong> choose workflow</span>
+      <span class="flow-step"><strong>2</strong> set paths</span>
+      <span class="flow-step"><strong>3</strong> prepare data</span>
+      <span class="flow-step"><strong>4</strong> validate</span>
+    </div>
+    <div class="workflow-grid" id="prepWorkflows">
+      <button class="workflow-card active" data-workflow="feather"><b>Feather only</b><span>Use existing feathers and run DescriPytor.</span></button>
+      <button class="workflow-card" data-workflow="feather_xyz"><b>Feather + XYZ</b><span>Derive XYZ and add geometry/external descriptors.</span></button>
+      <button class="workflow-card" data-workflow="logs"><b>Logs -> feathers</b><span>Convert Gaussian logs, validate, then pick atoms.</span></button>
+      <button class="workflow-card" data-workflow="smiles"><b>SMILES/conformers</b><span>Start from SMILES CSV and create XYZ candidates.</span></button>
+    </div>
+
+    <h2>2 &middot; Paths</h2>
+    <label>MolFeatures root</label>
+    <input id="rootDir" value="" placeholder="DescriPyTor repository root (blank = auto-detect)" />
+    <div class="row">
+      <div>
+        <label>Gaussian log directory</label>
+        <input id="logDir" placeholder="C:\path\to\logs" />
+      </div>
+      <div>
+        <label>Feather directory</label>
+        <input id="featherDir" placeholder="C:\path\to\feathers" />
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>XYZ directory</label>
+        <input id="xyzDir" placeholder="C:\path\to\xyz" />
+      </div>
+      <div>
+        <label>Output CSV</label>
+        <input id="outputCsv" value="merged_features.csv" />
+      </div>
+    </div>
+
+    <h2 style="margin-top:16px;">3 &middot; Actions</h2>
+    <label class="check"><input id="logsToFeathers" type="checkbox" /> convert logs to feathers first</label>
+    <label class="check"><input id="deriveXyz" type="checkbox" /> derive XYZ files from feathers for XYZ engines</label>
+    <label class="check"><input id="runPicker" type="checkbox" checked /> launch atom picker after preparation</label>
+    <label class="check"><input id="validate" type="checkbox" checked /> run lightweight validation/check script</label>
+    <label>Optional SMILES CSV for conformer search</label>
+    <input id="smilesCsv" placeholder="C:\path\to\smiles.csv" />
+  </section>
+
+  <section>
+    <h2>4 &middot; Generated Commands</h2>
+    <div class="cards">
+      <div class="card"><b>Logs -> feathers</b><p>Uses the existing <code>logs_to_feather</code> function from <code>M2_data_extractor.feather_extractor</code>. This is the correct bridge when you only have Gaussian logs.</p></div>
+      <div class="card"><b>Feathers -> XYZ</b><p>The descriptor extractor can now export <code>mol.xyz_df</code> to generated XYZ files and use them for xyz/RDKit/morfeus engines.</p></div>
+      <div class="card"><b>Conformer search</b><p>Kept as an explicit prep step because it depends on your chosen SMILES CSV and engine settings.</p></div>
+    </div>
+    <pre id="commands"></pre>
+  </section>
+
+  <section>
+    <h2>5 &middot; Validation Checklist</h2>
+    <div class="card">
+      <span class="pill">same molecule names</span><span class="pill">same atom order</span><span class="pill">1-based indices</span>
+      <p>Feather, XYZ, and log-derived tables merge by molecule name. Atom selections must refer to the same ordering as the displayed structure.</p>
+    </div>
+    <div class="card">
+      <span class="pill">freq job</span><span class="pill">NBO/pop data</span><span class="pill">dipole</span>
+      <p>Vibrations, charges/NPA, and dipole features only appear when the Gaussian log actually contains those blocks.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>6 &middot; Notes</h2>
+    <textarea id="notes">Recommended flow:
+1. Convert logs to feathers when needed.
+2. Open one representative feather in the atom picker.
+3. Pick atom groups and save run_config.json.
+4. Run descriptor_extractor.py with derive_xyz_from_feathers enabled if you do not maintain a separate xyz_dir.</textarea>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let activePrepWorkflow = "feather";
+const PREP_WORKFLOWS = {
+  feather: { logs:false, derive:false, picker:true, validate:true },
+  feather_xyz: { logs:false, derive:true, picker:true, validate:true },
+  logs: { logs:true, derive:true, picker:true, validate:true },
+  smiles: { logs:false, derive:false, picker:false, validate:true }
+};
+function q(s) { return `"${String(s || "").replace(/"/g, '\\"')}"`; }
+function setChecked(id, value) { $(id).checked = !!value; }
+function applyPrepWorkflow(key) {
+  const wf = PREP_WORKFLOWS[key] || PREP_WORKFLOWS.feather;
+  activePrepWorkflow = key;
+  setChecked("logsToFeathers", wf.logs);
+  setChecked("deriveXyz", wf.derive);
+  setChecked("runPicker", wf.picker);
+  setChecked("validate", wf.validate);
+  if (key === "smiles" && !$("xyzDir").value.trim()) $("xyzDir").value = "xyz_from_smiles";
+  renderPrepWorkflowButtons();
+  refresh();
+}
+function renderPrepWorkflowButtons() {
+  document.querySelectorAll("#prepWorkflows .workflow-card").forEach(btn => {
+    const active = btn.dataset.workflow === activePrepWorkflow;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+function commands() {
+  const root = $("rootDir").value.trim() || "C:\\path\\to\\DescriPyTor";
+  const logDir = $("logDir").value.trim();
+  const featherDir = $("featherDir").value.trim() || (logDir ? logDir.replace(/[\\/]$/, "") + "\\feather_files" : "C:\\path\\to\\feathers");
+  const xyzDir = $("xyzDir").value.trim() || "C:\\path\\to\\xyz";
+  const out = $("outputCsv").value.trim() || "merged_features.csv";
+  const lines = [
+    `cd "${root}\\Getting_started_with_examples\\descriptor_extraction_toolkit"`,
+    `conda activate mol_ml`
+  ];
+  if (activePrepWorkflow === "smiles" || $("smilesCsv").value.trim()) {
+    const smi = $("smilesCsv").value.trim() || "C:\\path\\to\\smiles.csv";
+    lines.push(`python descriptor_extractor.py --csearch ${q(smi)} --csearch-out ${q(xyzDir)} --name-col name --smiles-col smiles --csearch-program rdkit --csearch-sample 10 --keep lowest`);
+  }
+  if ($("logsToFeathers").checked) {
+    lines.push(`python -c "import sys; sys.path += [r'${root}', r'${root}\\M2_data_extractor']; from feather_extractor import logs_to_feather; logs_to_feather(r'${logDir}', r'${featherDir}')"`);
+  }
+  if ($("runPicker").checked) lines.push(`python make_picker.py --feather-dir ${q(featherDir)} --index 0`);
+  if ($("validate").checked) {
+    lines.push(`python _dx_check.py --config run_config.json`);
+    lines.push(`python _dx_check.py --config run_config.json --install-report`);
+  }
+  lines.push(`python descriptor_extractor.py --config run_config.json`);
+  lines.push("");
+  lines.push("Config switches to keep in run_config.json:");
+  lines.push(`"feather_dir": ${JSON.stringify(featherDir)},`);
+  lines.push(`"xyz_dir": ${JSON.stringify(xyzDir)},`);
+  lines.push(`"derive_xyz_from_feathers": ${$("deriveXyz").checked ? "true" : "false"},`);
+  lines.push(`"output_csv": ${JSON.stringify(out)}`);
+  if ($("smilesCsv").value.trim()) {
+    lines.push("");
+    lines.push("Conformer search input noted:");
+    lines.push($("smilesCsv").value.trim());
+  }
+  return lines.join("\n");
+}
+function refresh() { $("commands").textContent = commands(); }
+function copyCommands() { navigator.clipboard.writeText(commands()); }
+document.querySelectorAll("#prepWorkflows .workflow-card").forEach(btn =>
+  btn.addEventListener("click", () => applyPrepWorkflow(btn.dataset.workflow)));
+document.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", () => {
+  if (el.type !== "checkbox") refresh();
+}));
+document.querySelectorAll("input[type=checkbox]").forEach(el => el.addEventListener("change", () => {
+  activePrepWorkflow = "";
+  renderPrepWorkflowButtons();
+  refresh();
+}));
+renderPrepWorkflowButtons();
+refresh();
+</script>
+</body>
+</html>

@@ -1,684 +1,489 @@
-# MolFeatures
+# DescriPyTor
 
-**A Python package for computational chemists - designed for easy, chemical intuition based molecular feature extraction.**
-This package is modeled after the R package *MoleculaR*.
-For detailed guides and documentation, see [MoleculaR's web page](https://barkais.github.io/).
+**Chemical-intuition-based molecular feature extraction and modeling, for computational chemists.**
 
----
+DescriPyTor turns quantum-chemistry output into descriptors *you choose* — pick the atoms
+that matter mechanistically, get a model-ready feature matrix, then search for the linear or
+classification model that explains your measured outcome.
 
-## Installation
+Modeled after the R package *MoleculaR* ([docs](https://barkais.github.io/)).
 
-1. **Clone or download the repository** and extract it.
-2. **Create a new environment** (recommended, via conda or pip):
-
-   ```bash
-   conda create -n molfeatures python=3.10
-   conda activate molfeatures
-   ```
-
-   or
-
-   ```bash
-   python -m venv molfeatures
-   source molfeatures/bin/activate   # Linux/Mac
-   molfeatures\Scripts\activate      # Windows
-   ```
-3. **Install dependencies**:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-   Alternatively, run:
-
-   ```bash
-   python install_packages.py
-   ```
+<p align="center">
+  <img src="docs/images/pipeline-overview.png" width="620" alt="From SMILES or structure, through conformer search and DFT, to a feature matrix and a cross-validated model."><br>
+  <em>The full pipeline: structure in, descriptors out, model at the end.</em>
+</p>
 
 ---
 
-## Examples
+## Contents
 
-For hands-on examples, see the **`Getting_started_with_examples`** directory inside **MolFeatures**.
-
-## Exploring available options :
-Type the following command inside MolFeatures to see all options -
-```bash
-python __main__.py
-
-usage: __main__.py [-h] {gui,model,feature_extraction,logs_to_feather,cube,sterimol} ...
-
-MolFeatures Package
-
-positional arguments:
-  {gui,model,feature_extraction,logs_to_feather,cube,sterimol}
-    gui                 Run the GUI app
-    model               Run regression or classification
-    feature_extraction  Run feature extraction - complete set - from input file
-    logs_to_feather     Convert log files to feather files
-    cube                Calculates cube sterimol from cube files
-    sterimol            Calculate sterimol values from xyz files
-
-optional arguments:
-  -h, --help            show this help message and exit
-```
-
-
-
-## Recomended : Work with the jupyter notebooks to learn more about feature extraction and modeling - go to Getting_started_with_examples
-
-
-# Feature Extraction: `Molecules` and `Molecule`
-
-This document explains the feature‑extraction layer used to turn quantum‑chemistry outputs and geometries into model‑ready descriptors. It focuses on the **`Molecules`** batch orchestration class and uses **`Molecule`** methods where needed.
+- [Why it looks like this](#why-it-looks-like-this)
+- [Install](#install)
+- [The three ways to use it](#the-three-ways-to-use-it)
+- [Feature extraction](#feature-extraction)
+  - [Descriptor families](#descriptor-families)
+- [Modeling](#modeling)
+- [Command-line reference](#command-line-reference)
+- [Molecular alignment and renumbering](#molecular-alignment-and-renumbering)
+- [Docker](#docker)
+- [Examples and further reading](#examples-and-further-reading)
+- [Repository layout](#repository-layout)
 
 ---
 
-## Overview
+## Why it looks like this
 
-* **Input**: a directory of per‑molecule **`.feather`** files (produced by your Gaussian/processing pipeline).
-* **Core classes**:
+Generic descriptor packages hand you thousands of columns and leave interpretation to the
+model. DescriPyTor goes the other way: you cut the molecule where the chemistry happens,
+put every structure in a common reference frame, and read off a handful of descriptors
+whose meaning you already understand.
 
-  * **`Molecules`** — loads many molecules, provides batch extractors that return wide, analysis‑ready DataFrames.
-  * **`Molecule`** — wraps one molecule’s geometry, connectivity, charges, dipoles, vibrations, etc., and exposes descriptor calculators.
-* **Output**: horizontally concatenated DataFrames (per descriptor family) keyed by molecule name, plus optional visualizations and per‑molecule exports.
+<p align="center">
+  <img src="docs/images/feature-concept-blackboard.png" width="720" alt="Three panels: trimming a symmetric molecule to its unique fragment, aligning conformers, and labelling the chosen descriptors (Sterimol, dipole, charge difference, angle)."><br>
+  <em>Trim by symmetry → align to a shared frame → pick the descriptors that mean something.</em>
+</p>
 
-> **Indexing note:** Most public methods accept human‑friendly **1‑based** atom indices; internally, indices are normalized (via `adjust_indices`) to match underlying arrays.
+Alignment is what makes descriptors comparable across a series. Every molecule is rotated
+and translated onto the same origin and axes, so a "dipole along x" means the same thing in
+every row of your table.
 
----
+<p align="center">
+  <img src="docs/images/aligned-common-frame.png" width="680" alt="Three substituted benzenes each with local axes, rotated and translated onto one common ring-centered frame."><br>
+  <em>Ring center or nuclear-charge center as origin; substituent direction fixes the axes.</em>
+</p>
 
-## `Molecules`: batch orchestrator
+You give it three selections and it builds the frame by Gram–Schmidt: the origin is a
+centroid, `ŷ` points at your y-atom, and `x̂` is whatever is left of the plane atom once its
+`ŷ` component is subtracted off.
 
-### Construction
+<p align="center">
+  <img src="docs/animations/frame.svg" width="760" alt="Animation: the origin is set to the centroid of the chosen atoms, y is normalized toward the y-atom, and x is obtained by removing the y-component from the plane-atom vector.">
+</p>
 
-```python
-from data_extractor import Molecules
-
-molset = Molecules("/path/to/feather_dir", threshold=1.82)
-```
-
-* Scans the directory for `*.feather`, creates a `Molecule` for each.
-* Tracks which files loaded successfully (`success_molecules`) and which failed (`failed_molecules`).
-* `threshold` controls the **distance cutoff** used to infer connectivity (bonds) for all created molecules.
-
-### Selection & export helpers
-
-```python
-molset.filter_molecules([0, 3, 5])      # keep a subset by position
-molset.export_all_xyz()                 # write per‑molecule XYZ files to ./xyz_files
-molset.extract_all_dfs()                # write each molecule’s internal DataFrames as CSVs
-molset.visualize_molecules([0, 1])      # quick 3D previews
-molset.visualize_smallest_molecule()    # pick smallest by atom count and visualize
-```
-
-### Batch descriptor extractors (wide tables)
-
-Each method iterates over all loaded molecules, calls the respective `Molecule` method, and returns a **horizontally concatenated** DataFrame (one block per molecule). Typical usage:
-
-```python
-# Sterimol on atom pairs [[1,6], [3,4]] using CPK radii
-steri = molset.get_sterimol_dict([[1,6],[3,4]], radii='CPK')
-
-# NPA on base trio [1,2,3] (optionally also sub‑atoms)
-npa = molset.get_npa_dict([1,2,3], sub_atoms=[5,6,7])
-
-# Ring vibrations on para/cross pattern seeds
-rings = molset.get_ring_vibration_dict([[8],[14]]])
-
-# Dipoles for base specs (single or multiple groups)
-dips = molset.get_dipole_dict([[1,2,3], 5, 6])  # origin set [1,2,3], y=5, plane=6
-
-# Bond metrics
-angles = molset.get_bond_angle_dict([1,2,3])
-lengths = molset.get_bond_length_dict([[1,2],[3,4]])
-
-# Vibrational descriptors
-stretch = molset.get_stretch_vibration_dict([[1,2],[3,4]], threshold=3000)
-bend    = molset.get_bend_vibration_dict([[1,2],[3,4]],  threshold=1300)
-
-# Charges & differences (supports multiple charge types)
-charges     = molset.get_charge_df_dict([3,5,7,9])          # type='all' inside
-charge_diff = molset.get_charge_diff_df_dict([[1,2],[3,4]]) # type='all' by default
-```
-
-**Return shape:** A wide table where each molecule contributes a column block. When a molecule’s computation fails, it is skipped (and a message is logged/printed).
-
-### Turn GUI inputs into a feature set: `get_molecules_features_set(...)`
-
-This convenience routine consumes text‑box‑like inputs (strings or widgets), parses them into lists of atom indices, runs the requested extractors, and returns a single **feature matrix** (`res_df`).
-
-```python
-res = molset.get_molecules_features_set(entries={
-    'Ring':        '[[8],[14]]',
-    'Stretching':  '[[1,2],[3,4]]',
-    'Bending':     '[[1,2],[3,4]]',
-    'NPA':         '[1,2,3]',
-    'Dipole':      '[[1,2,3], 5, 6]',
-    'Charges':     '[3,5,7,9]',
-    'Charge-Diff': '[[1,2],[3,4]]',
-    'Sterimol':    '[[1,6],[3,4]]',
-    'Bond-Angle':  '[1,2,3]',
-    'Bond-Length': '[[1,2],[3,4]]',
-}, parameters={'Radii': 'CPK', 'Isotropic': True}, save_as=True,
-   csv_file_name='features_csv')
-```
-
-* Parses strings like `'[[1,6],[3,4]]'` into nested lists automatically.
-* Runs only the steps for which you provided inputs (ring, stretching, bending, NPA, dipole, charges, charge\_diff, sterimol, bond\_angle, bond\_length).
-* When `Isotropic=True`, appends **polarizability** and **energy** per molecule.
-* Produces an interactive correlation heatmap and a CSV with highly correlated pairs.
-* If `save_as=True`, writes `features_csv.csv` and `features_csv_correlation_table.csv`.
+That is `_build_basis` in [`dipole_utils.py`](M2_data_extractor/extractor_utils/dipole_utils.py),
+and every descriptor with a direction in it — dipole components, NPA, ring vibrations — is
+read off in that frame.
 
 ---
 
-## `Molecule`: per‑molecule descriptors
-
-### Initialization
-
-```python
-mol = Molecule("/path/to/LS1716_optimized.feather", threshold=1.82)
-```
-
-* Loads the `.feather` through your `feather_file_handler` (no need to change CWD manually; class handles it).
-* Populates:
-
-  * **Geometry**: `xyz_df` (atom, x, y, z), `coordinates_array`.
-  * **Connectivity**: `bonds_df` (inferred via distance cutoff), `atype_list` (atom types).
-  * **Quantum outputs**: `gauss_dipole_df`, `polarizability_df`, `info_df`, `energy_value`, `charge_dict`, `vibration_dict` (plus `vibration_mode_dict`).
-* The `threshold` controls bond detection; increase slightly for longer bonds, decrease for stricter graphs.
-
-### Core utilities
-
-* **Renumber atoms**: `renumber_atoms({old: new, ...})`
-  Rebuilds `xyz_df`, connectivity, types, and reindexes `charge_dict`/`vibration_dict` to match the new order. A helper `reindex_vibration_dict()` is available when you have a `new_index_order` prepared.
-
-* **Export & visualize**:
-  `write_xyz_file()` → write per‑molecule XYZ;
-  `write_csv_files()` → dump all internal DataFrames;
-  `visualize_molecule(vector=None)` → 3D viewer (optionally override dipole vector).
-
-* **Descriptor summary**:
-  `get_molecule_descriptors_df()` → concatenates energy, Gaussian dipole, and Sterimol into one small table and sorts by `energy_value`.
-
-### Sterimol
-
-```python
-mol.get_sterimol(base_atoms=None, radii='CPK', sub_structure=True, drop_atoms=None, mode='all')
-```
-
-* If `base_atoms=None`, an automatic base is detected.
-* Accepts either a **single pair** `[i,j]` or a **list of pairs** `[[i,j], [k,l], ...]` and concatenates results.
-* `process_sterimol_atom_group(...)` is the worker that computes Sterimol for one pair.
-
-### Charges (NBO/Hirshfeld/CM5…)
-
-```python
-mol.get_charge_df([3,5,7,9], type='all')             # dict of DataFrames per charge type
-mol.get_charge_df([3,5,7,9], type=['nbo','cm5'])     # select types
-
-# Differences per pair (single or many)
-mol.get_charge_diff_df([[1,2],[3,4]], type='all')
-```
-
-* `type='all'` returns a dictionary of DataFrames for every available type in `charge_dict` (silently skips missing types).
-* Differences compute `atom_i − atom_j` per mode and label the columns as `diff_i-j`.
-
-### Dipoles (Gaussian‑based)
-
-```python
-# Atoms can be one of:
-#   [o, y, plane]
-#   [o1, o2, ..., y, plane]
-#   [[o1, o2, ...], y, plane]
-
-df = mol.get_dipole_gaussian_df([ [1,2,3], 5, 6 ], visualize_bool=True)
-```
-
-* Flexible “R‑style” base specification: single origin, multiple origins, or an explicit list of origins.
-* Returns a one‑row DataFrame per spec; `get_dipole_gaussian_df(...)` handles a **list of specs** and concatenates rows.
-* Optional visualization uses the centroid of the origin set as the vector origin.
-
-### Bond metrics
-
-```python
-ang = mol.get_bond_angle([1,2,3])
-len1 = mol.get_bond_length([1,2])
-lenN = mol.get_bond_length([[1,2],[3,4]])
-```
-
-### Vibrational descriptors
-
-**Stretch (pair‑aligned; typical high‑frequency cut)**
-
-```python
-vst = mol.get_stretch_vibration([1,2], threshold=3000)
-# or many: mol.get_stretch_vibration([[1,2],[3,4]], threshold=3000)
-```
-
-* Validates that the pair is bonded.
-* Computes dot‑product‑based alignment per mode, selects the maximum within the threshold.
-
-**Bend (pair with common center)**
-
-```python
-vbd = mol.get_bend_vibration([1,2], threshold=1300)
-```
-
-* Builds a local adjacency, finds a shared center, then uses cross‑product magnitudes to identify the strongest bending mode.
-
-**Ring vibrations (para / cross analysis)**
-
-```python
-rings = mol.get_ring_vibrations([[1,4],[2,5]], return_nan_on_empty=True)
-```
-
-* Resolves a benzene‑like pattern around the provided seed(s).
-* Returns `cross`, `cross_angle`, `para`, `para_angle`. If filters eliminate everything and `return_nan_on_empty=True`, a NaN row is returned (instead of `None`).
-
-### Geometry transforms and helpers
-
-* `get_coordinates_mean_point([i,j,k])` → centroid of selected atoms.
-* `get_coordination_transformation_df([i,j,k], origin=None)` → axis transform (e.g., for frame‑aligned analyses).
-* `swap_atom_pair((i,j))` → swap coordinates of two atoms (useful for quick what‑ifs).
-
----
-
-## Practical tips
-
-* **Indexing**: You can pass 1‑based indices; the code standardizes them internally. When you rename or reorder atoms, re‑extract descriptors to ensure consistency.
-* **Connectivity cutoff**: If bonds are missing/extra, adjust `threshold` in the constructor (default 1.82 Å).
-* **Robustness**: Most batch methods skip failing molecules and continue, printing a helpful message.
-* **Correlations**: Use the GUI aggregator (`get_molecules_features_set`) to quickly assemble a matrix and auto‑inspect highly correlated features before modeling.
-
----
-
-## Minimal end‑to‑end example
-
-```python
-molset = Molecules("./mols", threshold=1.82)
-
-# Extract a compact, model‑ready feature set
-feat = molset.get_molecules_features_set(
-    entries={
-        'Sterimol': '[[1,6],[3,4]]',
-        'Stretching': '[[1,2],[3,4]]',
-        'Bond-Angle': '[1,2,3]',
-        'Dipole': '[[1,2,3], 5, 6]'
-    },
-    parameters={'Radii': 'CPK', 'Isotropic': True},
-    save_as=True,
-    csv_file_name='molecule_features'
-)
-
-print(feat.shape)
-```
-
-# M3 Modeler — Machine Learning for Molecular Modeling
-
-A comprehensive package for developing, evaluating, and applying machine‑learning models to molecular datasets. Supports both **regression** and **classification** with specialized tools for **feature selection**, **model evaluation**, **predictive analysis**, and dataset **balancing/sampling**.
-
----
-
-## Table of Contents
-
-* [Features](#features)
-* [Installation](#installation)
-* [Data Expectations](#data-expectations)
-* [Quick Start](#quick-start)
-
-  * [Command Line](#command-line)
-  * [Python API](#python-api)
-* [Cross-Validation Methods](#cross-validation-methods)
-* [Core Classes](#core-classes)
-
-  * [LinearRegressionModel](#linearregressionmodel)
-  * [ClassificationModel](#classificationmodel)
-  * [OrdinalLogisticRegression](#ordinallogisticregression)
-* [Feature Selection Functions](#feature-selection-functions)
-* [Utility Functions](#utility-functions)
-* [Database Integration](#database-integration)
-* [Similarity & Stratified Sampling](#similarity--stratified-sampling)
-* [Reports & Visualizations](#reports--visualizations)
-* [Recipes](#recipes)
-* [Troubleshooting](#troubleshooting)
-* [FAQ](#faq)
-* [License](#license)
-
----
-
-## Features
-
-**Regression**
-
-* Robust evaluation: R², Q², MAE, RMSD with repeated CV (K‑fold / LOO / repeated holdout).
-* Exhaustive feature subset search (bounded by `min_features`/`max_features`).
-* Prediction intervals and coefficient statistics.
-* Multicollinearity checks (VIF) + diagnostics.
-* Resilient to missing and non‑numeric features (coercion + safe dropping).
-
-**Classification**
-
-* Metrics: Accuracy, F1, McFadden’s R².
-* Stratified K‑fold (class‑aware) CV; automatic adjustment for small datasets.
-* Class balancing via stratified sampling & similarity‑based sampling.
-
-**Common**
-
-* Results persisted to SQLite for reproducibility and incremental runs.
-* Compact PDF dashboards (coefficients, CV metrics, VIF, diagnostics; similarity plots before/after sampling).
-
----
-
-
-## Data Expectations
-
-You can work in **one‑CSV** or **two‑CSV** mode.
-
-* **One CSV**: First column is a sample identifier (e.g., `Name`). Remaining columns contain numeric **features** and a single **target** column.
-* **Two CSVs**: One file for features (rows = samples, columns = descriptors) and one for target/labels. Rows must align or include a join key.
-
-**Tidy tips**
-
-* Non‑numeric feature columns are coerced when possible; all‑NaN or constant columns are dropped.
-* If you plan to use `--leave-out`, ensure the identifier column exists and matches your samples.
-
----
-
-## Quick Start
-
-### Command Line
+## Install
 
 ```bash
-python __main__.py model\
-  --mode {regression|classification} \
-  --features_csv path/to/features.csv \
-  --target_csv path/to/targets.csv \
-  --y_value EXPERIMENT_TAG \
-  --n_jobs -1 \
-  --min-features 1 \
-  --max-features 5 \
-  --top-n 20 \
-  --bool-parallel \
-  --threshold 0.5 \
-  --leave-out SAMPLE_A SAMPLE_B
+git clone https://github.com/Milo-group/DescriPyTor.git
+cd DescriPyTor
 ```
 
-**Arguments**
-
-| Flag                   | Type / Choices                   | Required | Description                                                                            |
-| ---------------------- | -------------------------------- | -------: | -------------------------------------------------------------------------------------- |
-| `-h`, `--help`         | —                                |       No | Show help and exit.                                                                    |
-| `-m`, `--mode`         | `regression` \| `classification` |  **Yes** | Task to run; affects metrics and thresholds.                                           |
-| `-f`, `--features_csv` | path                             |  **Yes** | Path to CSV with input features (descriptors).                                         |
-| `-t`, `--target_csv`   | path                             |  **Yes** | Path to CSV with targets/labels.                                                       |
-| `-y`, `--y_value`      | str                              |  **Yes** | Tag/slug used to name outputs (plots, DB).                                             |
-| `-j`, `--n_jobs`       | int                              |       No | CPU cores. `-1` = all. Defaults to `$NSLOTS` or all cores.                             |
-| `--min-features`       | int                              |       No | Minimum features per model.                                                            |
-| `--max-features`       | int                              |       No | Maximum features per model.                                                            |
-| `--top-n`              | int                              |       No | Number of top models to keep/evaluate.                                                 |
-| `--bool-parallel`      | flag                             |       No | Enable parallel evaluation (honors `--n_jobs`).                                        |
-| `--threshold`          | float                            |       No | Initial quality cutoff. **Regression**: min R². **Classification**: min McFadden’s R². |
-| `--leave-out`          | list\[str]                       |       No | Space‑separated sample IDs to exclude from fitting/evaluation.                         |
-
-**Examples**
-
-Regression
+Create an environment (Python 3.9–3.11) and install:
 
 ```bash
-python __main__.py.py \
-  --mode regression \
-  --features_csv data/x_features.csv \
-  --target_csv data/y_targets.csv \
-  --y_value yield \
-  --min-features 1 --max-features 3 \
-  --top-n 10 \
-  --threshold 0.6
+conda create -n descripytor python=3.10 && conda activate descripytor
+pip install -r requirements.txt
 ```
 
-Classification
+`numpy<2` is pinned: RDKit and PyArrow builds commonly used here fail against NumPy 2.x.
+
+Optional extras, only if you need the feature they unlock:
+
+| Install | Unlocks |
+|---|---|
+| `torch` | MolAlign automatic atom renumbering (see note below) |
+| `streamlit umap-learn` | the Streamlit extraction web app |
+| `mordred deepchem ase` | extra descriptor engines in the toolkit |
+| `aqme autoqchem` (+ xTB) | xTB / Gaussian-log descriptor engines |
+
+For `torch`, pick the build that matches your machine:
 
 ```bash
-python __main__.py model \
-  --mode classification \
-  --features_csv data/x_features.csv \
-  --target_csv data/classes.csv \
-  --y_value enantio_select \
-  --min-features 1 --max-features 4 \
-  --top-n 20 \
-  --threshold 0.5 \
-  --bool-parallel --n_jobs -1 \
-  --leave-out LS1714 LS2008
+# with an NVIDIA GPU
+pip install torch --index-url https://download.pytorch.org/whl/cu121
+# CPU only
+pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
+
+Gaussian and Open Babel are external programs and are not installed by pip.
+
+---
+
+## The three ways to use it
+
+| | Best for | Start with |
+|---|---|---|
+| **Desktop GUI** | Loading a feather set, clicking through descriptor prompts, saving a reusable input file | `python __main__.py gui` |
+| **3D atom picker** | Choosing atoms visually, live Sterimol/dipole/vibration overlays, driving extraction + modeling from one page | [`Getting_started_with_examples/descriptor_extraction_toolkit/`](Getting_started_with_examples/descriptor_extraction_toolkit/README.md) |
+| **CLI / notebooks** | Reproducible batch runs, scripting, HPC | `python __main__.py --help` |
+
+---
+
+## Feature extraction
+
+### Desktop GUI
+
+```bash
+python __main__.py gui
+```
+
+<p align="center">
+  <img src="docs/images/gui_main.png" width="760" alt="Molecule Data Extractor main window: buttons for browsing a feather directory, filtering molecules, extracting features, modeling, and exporting DataFrames or xyz files."><br>
+  <em>The main window. Every action logs to the right-hand pane, which you can save as text.</em>
+</p>
+
+**Load molecules.** *Browse for Feather Files Directory* reads every `.feather` in a folder
+and reports what loaded:
+
+```text
+Molecules initialized : ['basic', 'm_Br', 'm_Cl', 'm_F', ... , 'p_tfm']
+Failed to load Molecules: []
+```
+
+If you only have Gaussian logs, convert them first with **File Handler → Log to Feather**,
+or from the command line:
+
+<p align="center">
+  <img src="docs/images/logs_to_feather.jpg" width="820" alt="Terminal running the logs_to_feather subcommand: it prompts for a log directory and reports the feather file it saved."><br>
+  <em>One <code>.feather</code> per molecule — geometry, charges, dipoles and vibrations in a single file.</em>
+</p>
+
+**Look before you pick.** *Visualize Molecules* opens an interactive viewer with atom
+indices, bond lengths and the dipole vector — this is how you find the index numbers the
+extractor asks for.
+
+<p align="center">
+  <img src="docs/images/molvisualizer.png" width="700" alt="Interactive molecule viewer with numbered atoms and a side menu toggling atom indices, bond lengths, and the dipole vector."><br>
+  <em>Atom indices are 1-based throughout, matching Gaussian.</em>
+</p>
+
+**Fill in the descriptors you want.** *Extract Features* opens one prompt per descriptor
+family, each with an example of the expected input. Leave a field blank to skip it.
+
+<p align="center">
+  <img src="docs/images/gui_questions.png" width="700" alt="Feature extraction window listing every descriptor family with an input box and worked example: ring vibration, stretching, bending, dipole, NPA, charges, Sterimol, bond length, bond angle."><br>
+  <em>Only the fields you fill get computed.</em>
+</p>
+
+*Choose Parameters* sets the radii system used for Sterimol — **Pyykkö** covalent radii
+(defined for every element), **bondi**, or **CPK/VDW** (a subset of elements) — and whether
+to append isotropic polarizability and energy.
+
+<p align="center">
+  <img src="docs/images/feature_extraction_choose_parameters.png" width="640" alt="The Parameters popup over the feature extraction window, with a radii dropdown offering bondi, CPK and Pyykko, and a True/False dropdown for isotropic values."><br>
+  <em>Radii system and isotropic toggle, applied to every molecule in the set.</em>
+</p>
+
+**Save input** writes your indices to a JSON file; **Load input** replays it, so a run is
+reproducible and a second dataset costs no re-typing. **Submit** prints the feature matrix
+to the dashboard and writes a `.csv`.
+
+<p align="center">
+  <img src="docs/images/input_example.png" width="520" alt="A saved input JSON file mapping each descriptor prompt to the atom indices chosen."><br>
+  <em>A saved input file — hand-editable. An example ships in <code>Getting_started_with_examples/feather_example/</code>.</em>
+</p>
+
+Already have an input file? Skip the GUI:
+
+```bash
+python __main__.py extractor \
+  --input Getting_started_with_examples/feather_example/input_example.json \
+  --output feature_set \
+  --feather_directory Getting_started_with_examples/feather_example
+```
+
+### 3D atom picker
+
+The browser-based picker is the richer path: click atoms in 3D, watch the descriptor
+you're defining get drawn live, then export a ready-to-run config.
+
+<p align="center">
+  <img src="docs/images/atom-picker.png" width="900" alt="Browser atom picker: a 3D molecule with Sterimol L/B1/B5 arrows, dipole vector and transformation axes on the left; a scrollable list of descriptor fields with committed atom groups on the right."><br>
+  <em>Pick a field, click atoms, see the vectors. Pairs and triplets auto-commit.</em>
+</p>
+
+It also overlays the molecular dipole, animates normal modes with a playable amplitude
+slider, and stacks conformer ensembles with per-conformer RMSD:
+
+<p align="center">
+  <img src="docs/images/conformer-viewer.png" width="900" alt="Conformer viewer showing six overlaid conformers in different colors with energies and RMSD values against the reference conformer."><br>
+  <em>Kabsch-aligned conformer overlay, aligned on a chosen substructure.</em>
+</p>
+
+Full instructions: [descriptor_extraction_toolkit/README.md](Getting_started_with_examples/descriptor_extraction_toolkit/README.md).
 
 ### Python API
 
-Regression
-
 ```python
-from M3_modeler.modeling import LinearRegressionModel
+from M2_data_extractor.data_extractor import Molecules
 
-csvs = {
-    "features_csv_filepath": "data/Train.csv",
-    "target_csv_filepath": ""  # leave empty in one‑CSV mode
-}
-model = LinearRegressionModel(csvs, process_method="one csv", y_value="pIC50",
-                              min_features_num=1, max_features_num=3)
+molset = Molecules("Getting_started_with_examples/feather_example", threshold=1.82)
 
-model.search_models(top_n=10, threshold=0.6, bool_parallel=True)
-# Predict on left‑out set (after leave_out_samples(...))
-pred, intervals = model.predict_for_leftout(return_interval=True)
+features = molset.get_molecules_features_set(
+    entry_widgets={
+        "Sterimol":    "[[1, 6], [3, 4]]",
+        "Stretching":  "[[1, 2], [3, 4]]",
+        "Bond-Angle":  "[1, 2, 3]",
+        "Dipole":      "[[1, 2, 3], 5, 6]",
+    },
+    parameters={"Radii": "CPK", "Isotropic": True},
+    save_as=True,
+    csv_file_name="molecule_features",
+)
 ```
 
-Classification
+Full class reference: [M2_data_extractor/README.md](M2_data_extractor/README.md).
 
-```python
-from M3_modeler.modeling import ClassificationModel
+### Descriptor families
 
-csvs = {
-    "features_csv_filepath": "data/Train.csv",
-    "target_csv_filepath": ""
-}
-clf = ClassificationModel(csvs, process_method="one csv", output_name="class",
-                          min_features_num=1, max_features_num=4)
+| Family | What you give it | What you get |
+|---|---|---|
+| **Sterimol** | `[origin, attached]` atom pair | `L`, `B1`, `B5` — steric length and the narrow/wide widths |
+| **Cube Sterimol** | a density `.cube` file | Sterimol from the real electron density, so radii respond to stereoelectronics |
+| **Charges** | single atoms | NBO / Hirshfeld / CM5 / NPA values per atom |
+| **Charge difference** | atom pair `[a, b]` | `q_a − q_b`, per charge scheme |
+| **Dipole** | `[origin(s), y-axis, xy-plane]` | dipole components in your transformed frame, plus total |
+| **NPA** | base trio (+ optional sub-atoms) | natural population analysis in a local frame |
+| **Bond length / angle** | pairs, triads, or quartets | distances, angles, dihedrals |
+| **Stretching vibration** | a bonded pair | frequency and amplitude of the mode aligned with that bond |
+| **Bending vibration** | two atoms sharing a center | frequency and amplitude of the strongest bending mode |
+| **Ring vibration** | one ring atom | `cross` / `para` frequencies and angles for a benzene-like ring |
+| **Buried volume, cone angle, SASA, dispersion** | metal/apex atom | via the Morfeus suite in the toolkit |
 
-# Optionally downsample class 1 by similarity (drop indices from class=1)
-drop_pos = clf.simi_sampler_(class_label=1, compare_with=0, plot=True, sample_size=40)
+**Sterimol, in pictures.** `L` runs along the bond axis; `B1` and `B5` are the smallest and
+largest perpendicular extents of the van der Waals envelope.
 
-clf.search_models(top_n=20, mcfadden_threshold=0.5)
+<p align="center">
+  <img src="docs/images/sterimol-3d-view.png" width="620" alt="A molecule with the Sterimol L axis drawn as a black arrow along the primary bond, B1 in blue to the nearest atom and B5 in red to the furthest, with a swept envelope."><br>
+  <em>Side view: L along the axis, B1 and B5 perpendicular to it.</em>
+</p>
+
+`B5` is one number — the furthest any atom reaches from the axis, plus its radius. `B1` is
+a search: rotate a supporting line all the way around the cross-section and keep the angle
+where it sits closest.
+
+<p align="center">
+  <img src="docs/animations/sterimol.svg" width="760" alt="Animation: a supporting line sweeps 360 degrees around the substituent cross-section while a plot traces its distance from the axis; the minimum of that curve is B1.">
+</p>
+
+The traced curve is exactly what `scan_b1_over_angles` tabulates in
+[`sterimol_utils.py`](M2_data_extractor/extractor_utils/sterimol_utils.py) — B1 is its
+minimum, which is why B1 and B5 are rarely perpendicular.
+
+You can measure against the whole molecule's envelope, or against just the substructure
+hanging off your chosen bond — the two answers differ, and the choice is yours
+(`sub_structure`, `drop_atoms`).
+
+<p align="center">
+  <img src="docs/images/sterimol-end-on-global.png" width="400" alt="End-on Sterimol view using the global projection: the substructure atoms are highlighted green against the full molecule's grey envelope, B1 = 2.08 A."> <img src="docs/images/sterimol-end-on-local.png" width="400" alt="End-on Sterimol view using local slices: only the slices at the B1 and B5 heights are drawn, giving B1 = 1.68 A."><br>
+  <em>Left: global projection over the full envelope (B1 = 2.08 Å). Right: local slices at the relevant heights (B1 = 1.68 Å).</em>
+</p>
+
+**Picking the right vibration.** A Gaussian frequency job gives you every normal mode; only
+one of them is *your* bond stretching. Each mode is scored by how much of its displacement
+lies along the bond, and the best scorer inside a frequency window wins.
+
+<p align="center">
+  <img src="docs/animations/vibration.svg" width="760" alt="Animation: each normal mode's displacement vectors are projected onto the bond axis, giving a score per mode; a cursor scans the modes and the highest-scoring one inside the frequency window is selected.">
+</p>
+
+The score is `|dᵃ·û| + |dᵇ·û|` — `calc_vibration_dot_product` in
+[`vibrations_utils.py`](M2_data_extractor/extractor_utils/vibrations_utils.py). The window
+matters: a C–H stretch at 3055 cm⁻¹ can out-score your carbonyl if you let it.
+
+**Ring positions.** Ring vibration descriptors need one ring atom; the primary/ortho/meta/para
+pattern is resolved for you.
+
+<p align="center">
+  <img src="docs/images/rings.png" width="640" alt="Two numbered aromatic rings with primary, ortho, meta and para positions color-coded and labelled."><br>
+  <em>Give it the primary atom; it finds the rest.</em>
+</p>
+
+---
+
+## Modeling
+
+Model search is exhaustive over feature subsets, scored with leakage-free cross-validation:
+scaling is fit inside each fold, never on the full set.
+
+```bash
+python __main__.py model \
+  --mode regression \
+  --features_csv path/to/features.csv \
+  --target_csv path/to/targets.csv \
+  --y_value output \
+  --min-features 1 --max-features 4 \
+  --top-n 20 --threshold 0.70 \
+  --bool-parallel --n_jobs -1
+```
+
+<p align="center">
+  <img src="docs/animations/crossval.svg" width="760" alt="Animation: five folds each hold out a different fifth of the samples; the held-out predictions accumulate into one out-of-fold vector, which Q-squared is then computed from.">
+</p>
+
+With a few dozen molecules and thousands of candidate subsets, a model can fit beautifully
+and mean nothing. Q² is computed only from predictions made by models that never saw the
+sample in question — which is why it is the number worth reading.
+
+- **Regression** — R², Q² (from out-of-fold predictions), MAE, RMSD; prediction intervals;
+  VIF multicollinearity checks.
+- **Classification** — accuracy, F1, McFadden's R²; stratified K-fold; class balancing by
+  stratified or similarity-based sampling.
+- Results persist to SQLite per dataset, so runs are incremental and reproducible.
+- The top 5 models are written to a PDF report automatically.
+
+Candidate models are ranked so you can see which descriptors keep earning their place:
+
+<p align="center">
+  <img src="docs/images/bassa-plot.jpeg" width="520" alt="Bar chart of three candidate models with R-squared 0.925, 0.918 and 0.901, and a dot matrix below showing which of features s1-s4 each model uses."><br>
+  <em>Model R² against the feature subset used — a two-feature model within noise of the best.</em>
+</p>
+
+And each model can be decomposed per sample, so a prediction is auditable rather than opaque:
+
+<p align="center">
+  <img src="docs/images/model-components-chart.png" width="900" alt="Stacked contribution chart across 18 substituents, showing how the dipole, CM5 charge and O-C bond length terms each push the prediction above or below the intercept, with measured values as open circles and predictions as diamonds."><br>
+  <em>Per-substituent breakdown: which descriptor moved which prediction, and by how much.</em>
+</p>
+
+Bayesian model averaging (BASSA, spike-and-slab priors) is available through the toolkit GUI
+for feature-inclusion probabilities rather than a single winning subset:
+
+<p align="center">
+  <img src="docs/images/bassa-markov-chain.png" width="760" alt="MCMC trace showing which of ten features are included at each of 8000 iterations; two features are included almost always, the rest sporadically."><br>
+  <em>MCMC inclusion trace — s1 and s2 are in nearly every sampled model.</em>
+</p>
+
+Python API and full reference: [M3_modeler/README.md](M3_modeler/README.md).
+
+---
+
+## Command-line reference
+
+```text
+python __main__.py {gui,model,extractor,logs_to_feather,cube,sterimol}
+
+  gui               Desktop GUI
+  model             Regression or classification model search
+  extractor         Extract a feature set from a saved input JSON
+  logs_to_feather   Convert Gaussian .log files to .feather
+  cube              Sterimol from density cube files
+  sterimol          Sterimol from plain .xyz files
+```
+
+Every subcommand takes `-h`.
+
+**Sterimol from bare XYZ** — no logs or feather files needed:
+
+```bash
+python __main__.py sterimol
+```
+
+<p align="center">
+  <img src="docs/images/sterimol_cmd.jpg" width="820" alt="Terminal session running the sterimol subcommand and printing a table of L, B1 and B5 values per molecule."><br>
+</p>
+
+**Cube Sterimol** — same idea, but radii come from the electron density, so they respond to
+the electronic environment instead of being read off a table:
+
+<p align="center">
+  <img src="docs/images/cube_sterimol.jpg" width="820" alt="Terminal session running the cube subcommand over density cube files and printing the resulting Sterimol values."><br>
+</p>
+
+**Model search arguments**
+
+| Flag | Type | Required | Description |
+|---|---|:--:|---|
+| `-m`, `--mode` | `regression` \| `classification` | **yes** | Task; sets metrics and thresholds |
+| `-f`, `--features_csv` | path | **yes** | Descriptor CSV |
+| `-t`, `--target_csv` | path | **yes** | Target/label CSV |
+| `-y`, `--y_value` | str | **yes** | Target column name, also used to name outputs |
+| `-j`, `--n_jobs` | int | no | Cores; `-1` = all. Defaults to `$NSLOTS` or all cores |
+| `--min-features` / `--max-features` | int | no | Bounds on subset size |
+| `--top-n` | int | no | How many top models to keep |
+| `--bool-parallel` | flag | no | Parallel evaluation |
+| `--threshold` | float | no | Quality cutoff: min R² (regression) or McFadden's R² (classification) |
+| `--leave-out` | list | no | Sample IDs held out entirely, for external validation |
+
+---
+
+## Molecular alignment and renumbering
+
+`MolAlign/` matches atom numbering across a series so descriptors line up row to row. It
+finds a maximum common substructure, then optimizes the atom mapping. Needs `torch`:
+
+```bash
+pip install torch
+python MolAlign/renumbering.py --help
+```
+
+The renumbering hook is imported lazily, so nothing else in DescriPyTor requires torch.
+
+---
+
+## Docker
+
+Reproducible Linux environment with RDKit, Morfeus, AQME, Mordred, xTB and the app, from
+the repository root:
+
+```bash
+docker compose up --build
+```
+
+- Atom picker + modeling GUI: <http://localhost:7432/visual>
+- Streamlit extraction app: <http://localhost:8503>
+
+Put input files in `work/` — it is mounted at `/work` inside the container, so use paths
+like `/work/features.csv` in the GUI. Anything written to `/work` shows up there too.
+
+Setup from scratch (WSL2, Docker Desktop): [DOCKER_QUICKSTART.md](Getting_started_with_examples/descriptor_extraction_toolkit/webapp/DOCKER_QUICKSTART.md).
+
+---
+
+## Examples and further reading
+
+Start in `Getting_started_with_examples/`:
+
+| File | What it covers |
+|---|---|
+| `Practical_Notebook_Features.ipynb` | Feature extraction end to end |
+| `Practical_Notebook_Modeling.ipynb` | Model search, validation, reporting |
+| `feather_example/` | 26 substituted molecules, plus `input_example.json` |
+| `modeling_example/` | Ready-made linear and logistic datasets |
+| `cube_example/` | Density cubes for cube Sterimol |
+| `descriptor_extraction_toolkit/` | The 3D picker, multi-engine extraction, BASSA |
+
+Deeper documentation:
+
+- [M2_data_extractor/README.md](M2_data_extractor/README.md) — `Molecules` / `Molecule` API
+- [M3_modeler/README.md](M3_modeler/README.md) — modeling classes, CV, sampling, reports
+- [descriptor_extraction_toolkit/README.md](Getting_started_with_examples/descriptor_extraction_toolkit/README.md) — picker, engines, config format
+- [MolFeatures_Tutorial.md](Getting_started_with_examples/descriptor_extraction_toolkit/MolFeatures_Tutorial.md) — guided walkthrough
+
+---
+
+## Repository layout
+
+```text
+__main__.py                     CLI entry point
+M1_pre_calculations/            Prepare and submit calculations (SMILES to xyz, .com files)
+M2_data_extractor/              Descriptor extraction; Molecules / Molecule
+M3_modeler/                     Regression and classification model search
+MolAlign/                       Alignment and atom renumbering
+utils/                          Shared file handling, geometry, visualization
+Getting_started_with_examples/  Notebooks, example data, the 3D picker toolkit, webapp
+docs/images/                    Screenshots and figures used by this README
+docs/animations/                Animated SVGs, and the script that generates them
+work/                           Docker-visible scratch folder
+```
+
+Atom indices are **1-based** everywhere, matching Gaussian.
+
+The four animated figures are generated, not drawn — the geometry in them is computed by
+`docs/animations/build_animations.py` from the same formulas the extractors use, so they
+cannot silently drift away from the code:
+
+```bash
+python docs/animations/build_animations.py
 ```
 
 ---
 
-## Cross-Validation Methods
+## License
 
-This project provides several cross-validation (CV) strategies designed for honest estimates of generalization performance and to prevent data leakage. All preprocessing that can leak signal (e.g., standardization) is fit only on the training fold and applied to the validation fold.
-
-### Shared Principles
-
-* No leakage: scaling/transformations are fit on the train split of each fold, then applied to the validation split.
-* Out-of-fold (OOF) predictions: for each sample, we collect predictions from the fold where that sample was in validation. These OOF predictions are used to compute global metrics (e.g., Q²).
-* Aggregation: per-fold metrics are summarized (mean/median and optionally stdev). Global metrics like Q² are computed from OOF predictions.
-* Small datasets: when the dataset is very small, the workflow can fall back to Leave-One-Out CV (LOOCV) automatically.
-* Left-out set vs CV: any explicit left-out samples you provide are held out entirely and not used in CV. They can be evaluated later with `predict_for_leftout`.
-
-### Regression CV
-
-* **K-Fold CV**
-  Split the data into K folds; iterate K times, each time training on K−1 folds and validating on the remaining fold. Collect OOF predictions to compute:
-
-  * **Q²** = 1 − SSE\_OOF / SST, where SSE\_OOF = sum((y − yhat\_OOF)^2) over all samples and SST = sum((y − mean(y))^2).
-  * **R², MAE, RMSD**: reported per fold and summarized across folds.
-
-* **Leave-One-Out CV (LOOCV)**
-  A special case of K-Fold with K = N (one sample per validation split). Provides low-bias estimates for tiny datasets but is computationally heavier.
-
-* **Repeated Holdout / Shuffle-Split (optional)**
-  Multiple random train/validation splits (e.g., 80/20) can be run and aggregated. Useful for stress-testing stability when K-Fold may be brittle on small N.
-
-### Classification CV
-
-* **Stratified K-Fold CV**
-  Preserves class proportions in each fold. Useful for imbalanced datasets and multi-class problems. Metrics collected per fold include:
-
-  * Accuracy and F1 (macro or weighted depending on configuration),
-  * McFadden’s R² (pseudo-R² derived from per-fold log-likelihoods),
-    which are then summarized across folds.
-
-* **Edge cases / small classes**
-  The number of folds may be reduced automatically to avoid empty class folds. When extremely small, LOOCV-like behavior is used.
-
-> Tip: For reproducibility, set a fixed random seed where applicable. For highly imbalanced data, consider pairing Stratified K-Fold with the built-in similarity-based sampling or stratified sampling utilities before CV.
-
-## Core Classes
-
-### `LinearRegressionModel`
-
-* Calculates **R², Q², MAE, RMSD** with robust cross‑validation (LOO / K‑fold / repeated holdout).
-* Exhaustive **feature subset search** (bounded by `min_features_num`/`max_features_num`).
-* **Prediction intervals** and coefficient statistics for interpretability.
-* **Multicollinearity** detection via VIF; diagnostics and (optional) pruning.
-* Robust to missing values and non‑numeric columns.
-* Proper scaling performed **inside each fold** to avoid leakage.
-
-### `ClassificationModel`
-
-* Metrics: **Accuracy, F1, McFadden’s R²** (per‑fold; aggregated).
-* **Stratified K‑fold** with class‑aware fold generation; automatic adjustments for small classes.
-* **Class balancing** via:
-
-  * Stratified sampling (preserve class ratios).
-  * **Similarity‑based sampling** to obtain a diverse subset within a class.
-
-### `OrdinalLogisticRegression`
-
-A scikit‑learn‑style wrapper around `statsmodels`’ `OrderedModel` that supports:
-
-* `fit`, `predict`, and `predict_proba` APIs.
-* Different link functions (logit, probit, etc.).
-* Ordered categorical targets.
-
----
-
-## Feature Selection Functions
-
-* `fit_and_evaluate_single_combination_regression(X, y, features, ...)`
-
-  > Evaluate one feature combination for regression; returns metrics, coefficients, and diagnostics.
-
-* `fit_and_evaluate_single_combination_classification(X, y, features, ...)`
-
-  > Evaluate one feature combination for classification; returns metrics (Accuracy, F1, McFadden’s R²), confusion matrix, etc.
-
-* `search_models(top_n, threshold, ...)` (method on both classes)
-
-  > Exhaustive search over feature combinations with caching, pruning via threshold, and optional parallelism.
-
----
-
-## Utility Functions
-
-* `check_linear_regression_assumptions(X, y)`
-
-  > Statistical tests: Durbin–Watson, Breusch–Pagan, Shapiro–Wilk, plus Q–Q plots.
-
-* `_sort_results(results_df)`
-
-  > Sorts model results by performance (Q², then R² for regression; McFadden’s R² for classification).
-
-* `_compute_vif(X)`
-
-  > Variance Inflation Factor to flag multicollinearity.
-
----
-
-## Database Integration
-
-* `insert_result_into_db_regression(model_info, metrics, ...)`
-* `insert_result_into_db_classification(model_info, metrics, ...)`
-* `load_results_from_db(db_path, table)`
-
-> Results are persisted to a SQLite DB per dataset, enabling incremental runs and reproducible top‑N selection.
-
----
-
-## Similarity & Stratified Sampling
-
-* `simi_sampler(data, class_label, compare_with=0, sample_size=K, return_kind="pos")`
-
-  > Compute cosine‑like similarity on scaled features; **keep K** evenly spaced over the similarity range within `class_label` and **drop the rest**. Returns indices to **drop** (or names/labels if requested).
-
-* `ClassificationModel.simi_sampler_(class_label, compare_with=0, plot=True, sample_size=None)`
-
-  > Convenience wrapper that runs the sampler and **applies the drop** (only within the target class). Plots “before vs after” with dropped points marked.
-
-* `stratified_sampling_with_plots(data, plot, sample_size)`
-
-  > Create a balanced dataset with optional class distribution plots.
-
-**Tip:** Ensure the sampler uses/reset index (`reset_index(drop=True)`) so positional indices align with your working `X`/`y`.
-
----
-
-## Reports & Visualizations
-
-Each top model can generate a compact PDF “summary dashboard” including:
-
-* Coefficients table (with signs and magnitudes),
-* VIF table and multicollinearity warnings,
-* Cross‑validation metrics table (per fold and aggregated),
-* For classification: confusion matrix/ROC/PR as configured,
-* For sampling: similarity scatter **before vs after** (dropped points highlighted).
-
-> The table renderer (`_safe_table`) auto‑wraps and shrinks to fit, preferring readability and preventing unreadably tiny text.
-
----
-
-## Recipes
-
-**Balance a specific class by similarity, then search**
-
-```python
-clf = ClassificationModel(csvs, process_method="one csv", output_name="class",
-                          min_features_num=1, max_features_num=4)
-# Drop within class=1, keep 10 most representative across similarity
-clf.simi_sampler_(class_label=1, compare_with=0, sample_size=10, plot=True)
-clf.search_models(top_n=30, mcfadden_threshold=0.5)
-```
-
-**Hold out a list of samples by ID, train on the rest, then predict**
-
-```python
-model.leave_out_samples(["Mol_0012", "Mol_0345"], keep_only=False)
-model.search_models(top_n=10, threshold=0.65)
-pred, intervals = model.predict_for_leftout(return_interval=True)
-```
-
----
-
-## Troubleshooting
-
-* **“dtype='numeric' is not compatible with arrays of bytes/strings”**
-  Your routine expects numeric arrays but received strings (e.g., class labels). Coerce features/targets with `pd.to_numeric(..., errors='coerce')` (regression) or skip numeric plots in classification.
-
-* **SHAP error with KernelExplainer**
-  Pass a **DataFrame** with real column names to SHAP; ensure `X` is numeric (coerce and drop NaNs) and call with `X` (not just a list of feature names).
-
-* **Similarity sampler dropped nothing**
-  If `sample_size >= #rows in class_label`, nothing is dropped. Reduce `sample_size`. Also ensure `class_label` dtype matches (`1` vs `'1'`).
-
-* **Tables in PDF are tiny**
-  Use the updated `_safe_table` (targets nearly full axes width; enlarges figure before shrinking text). Give the table a generous subplot or reduce `max_rows`/`max_cols`.
-
----
-
-## FAQ
-
-**Q: Does `simi_sampler` remove from the compared class or the target class?**
-A: It removes **from `class_label`** only. `compare_with` chooses the similarity axis (self‑similarity when 0).
-
-**Q: What does `sample_size` mean in `simi_sampler`?**
-A: The number of samples to **keep** within `class_label`, evenly spread across the similarity range; the rest are dropped.
-
-**Q: How do I apply drops only inside one class?**
-A: Build a mask: keep all rows from other classes, then either keep or drop the selected positions inside `class_label` only.
-
+MIT.

@@ -1,4 +1,68 @@
+# Python caches and build outputs
 __pycache__/
-*.pyc
-.claude/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
 get-pip.py
+
+# Virtual environments and local configuration
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Notebook/editor state
+.ipynb_checkpoints/
+.history/
+.vscode/
+.idea/
+.claude/
+
+# Generated DescriPyTor outputs
+runs/
+work/*
+!work/.gitkeep
+**/runs/
+**/xyz_files/
+**/aqme_qdescp/
+**/QDESCP/
+**/CSEARCH/
+**/*_work/
+**/*_cache/
+**/*_sterimol.csv
+**/*_correlation_table.csv
+**/results_*.db
+**/results_*.sqlite
+**/results_*.csv
+**/regression_results.txt
+Getting_started_with_examples/descriptor_extraction_toolkit/run_config.json
+Getting_started_with_examples/descriptor_extraction_toolkit/atom_picker_loaded.html
+*.sdf
+*.mol2
+*.mp4
+*.avi
+*.mov
+
+# Local operating-system files
+Desktop - Shortcut.lnk
+Thumbs.db
+.DS_Store
+
+# Quantum-chemistry inputs/outputs: too large to commit.
+# The curated sets under Getting_started_with_examples/ are tracked already.
+*.log
+*.chk
+*.fchk
+*.wfn
+*.wfx
+*.out
+*.gjf
+*.com
