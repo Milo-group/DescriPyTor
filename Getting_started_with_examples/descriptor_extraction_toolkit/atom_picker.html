@@ -21,7 +21,7 @@
     --ok:      var(--green);
     --warn:    var(--orange);
     --text:    #1C1C1E;
-    --muted:   rgba(60,60,67,.55);
+    --muted:   #4a4a4f;
     --line:    var(--border);
     --panel:   var(--surface);
     --shadow-xs: 0 1px 3px rgba(0,0,0,.05);
@@ -59,13 +59,144 @@
   }
   header h1 {
     margin:0; font-size:15px; font-weight:700; letter-spacing:-.02em;
-    background:linear-gradient(128deg,#007AFF 0%,#5E5CE6 100%);
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-    background-clip:text;
+    color:#0055CC;
+    background:none;
+    -webkit-text-fill-color:unset;
   }
   header .hint { color:rgba(60,60,67,.60); font-size:12px; line-height:1.4; flex:1; }
+  .tour-start-btn {
+    margin-left:auto; font-size:12px; font-weight:650; font-family:inherit;
+    padding:6px 14px; border-radius:999px; cursor:pointer;
+    color:#fff; border:none;
+    background:linear-gradient(180deg,#3b9bff,#007AFF);
+    box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 4px 12px rgba(0,122,255,.28);
+  }
+  .tour-start-btn:hover { filter:brightness(1.06); }
+  #tourRoot {
+    position:fixed; inset:0; z-index:10000; pointer-events:none;
+  }
+  #tourRoot.open { display:block; }
+  #tourRoot[hidden] { display:none !important; }
+  #tourRing {
+    position:fixed; pointer-events:none; z-index:1;
+    border:3px solid #007AFF;
+    box-shadow:0 0 0 8px rgba(0,122,255,.22), 0 0 0 9999px rgba(12,18,32,.55);
+    animation:tourPulse 1.6s ease-in-out infinite;
+  }
+  #tourRing.pill { border-radius:999px; }
+  #tourRing.round { border-radius:22px; }
+  #tourRing.circle { border-radius:50%; }
+  @keyframes tourPulse {
+    0%,100% { box-shadow:0 0 0 8px rgba(0,122,255,.22), 0 0 0 9999px rgba(12,18,32,.55); }
+    50% { box-shadow:0 0 0 14px rgba(0,122,255,.10), 0 0 0 9999px rgba(12,18,32,.50); }
+  }
+  #tourSvg { position:fixed; inset:0; width:100%; height:100%; z-index:2; pointer-events:none; overflow:visible; }
+  #tourCard {
+    position:fixed; z-index:3; pointer-events:auto;
+    width:min(360px, calc(100vw - 28px));
+    background:#fff; border-radius:18px; padding:16px 18px 14px;
+    box-shadow:0 22px 60px rgba(0,0,0,.24), 0 2px 8px rgba(0,0,0,.08);
+    border:1px solid rgba(0,122,255,.18);
+  }
+  .tour-kicker {
+    font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+    color:#007AFF; margin-bottom:4px;
+  }
+  #tourCard h3 { margin:0 0 8px; font-size:16.5px; letter-spacing:-.02em; }
+  #tourCard p { margin:0 0 14px; font-size:13.5px; line-height:1.5; color:rgba(60,60,67,.78); }
+  .tour-nav { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .tour-dots { display:flex; gap:5px; flex:1; min-width:60px; }
+  .tour-dot { width:7px; height:7px; border-radius:50%; background:#d4d8e0; }
+  .tour-dot.on { background:#007AFF; }
+  .tour-dot.done { background:#8fbeff; }
+  #tourSkipBtn, #tourBackBtn, #tourNextBtn {
+    font-family:inherit; font-size:12.5px; border-radius:999px; cursor:pointer;
+    padding:6px 12px; border:1px solid rgba(0,0,0,.10); background:#f4f6fa; color:#1c1c1e;
+  }
+  #tourSkipBtn { background:transparent; border-color:transparent; color:#3a3a40; }
+  button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible {
+    outline:3px solid rgba(0,122,255,.55); outline-offset:2px;
+  }
+  .sr-only {
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #tourRing { animation:none; }
+    .status-chip.has-data { animation:none; }
+  }
+  .vizbar.collapsed #vizbarBody { display:none; }
+  .vizbar.collapsed .vizbar-header { border-bottom:0; margin-bottom:0; padding-bottom:0; }
+  .vizbar-title-btn {
+    font:inherit; font-size:10.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.09em; color:var(--muted); background:none; border:0; box-shadow:none;
+    padding:0; min-height:0; cursor:pointer; flex:1; text-align:left;
+  }
+  .vizbar-title-btn:hover { transform:none; box-shadow:none; color:var(--blue); }
+  details.mini-fold {
+    margin-top:10px; border:1px solid rgba(0,0,0,.07); border-radius:10px; padding:6px 10px;
+    background:rgba(255,255,255,.55);
+  }
+  details.mini-fold > summary {
+    cursor:pointer; font-size:11.5px; font-weight:600; color:var(--muted); user-select:none;
+  }
+  #tourNextBtn {
+    color:#fff; border:none; font-weight:650;
+    background:linear-gradient(180deg,#3b9bff,#007AFF);
+  }
+  #tourBackBtn[disabled] { opacity:.4; cursor:default; }
+  #tourNextBtn[disabled] {
+    opacity:.45; cursor:not-allowed; filter:grayscale(.25);
+    background:#9aa3b2; box-shadow:none;
+  }
+  #tourWait {
+    margin:-6px 0 14px; font-size:12.5px; line-height:1.45;
+    color:#c2410c; font-weight:650; border-radius:8px; padding:4px 8px;
+  }
+  #tourWait[hidden] { display:none !important; }
+  @keyframes tourWaitFlash {
+    0%,100% { background:transparent; }
+    50% { background:#ffedd5; }
+  }
+  #tourWait.tour-wait-flash { animation:tourWaitFlash .45s ease; }
 
-  /* ── Wrap layout ── */
+  .numbering-banner {
+    margin-top:8px; padding:8px 10px; border-radius:10px;
+    border:1px solid rgba(180,83,9,.28); background:#fff7ed;
+    font-size:12.5px; line-height:1.45; color:#9a3412;
+    display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;
+  }
+  .numbering-banner.idle {
+    border-color:rgba(0,0,0,.10); background:#f7f8fb; color:#415165;
+  }
+  .numbering-banner.ok {
+    border-color:rgba(22,163,74,.28); background:#f0fdf4; color:#166534;
+  }
+  .numbering-banner.busy {
+    border-color:rgba(180,83,9,.22); background:#fffbeb; color:#92400e;
+  }
+  .numbering-banner button {
+    font-size:12px; padding:4px 10px; border-radius:999px;
+  }
+  .numbering-banner .work-progress { flex:1 1 100%; margin-top:2px; }
+  .work-progress {
+    width:100%; height:8px; border-radius:999px;
+    background:rgba(0,0,0,.08); overflow:hidden; margin-top:8px;
+  }
+  .work-progress[hidden] { display:none !important; }
+  .work-progress-bar {
+    height:100%; width:0%; border-radius:999px;
+    background:linear-gradient(90deg,#5eb0ff,#007AFF);
+    transition:width .18s ease;
+  }
+  .work-progress.indeterminate .work-progress-bar {
+    width:36%;
+    animation:workSlide 1.15s ease-in-out infinite;
+  }
+  @keyframes workSlide {
+    0% { transform:translateX(-120%); }
+    100% { transform:translateX(320%); }
+  }
   /* Narrower minmax floors than before so the 3D view and the selection panel
      stay side by side at the widths a Streamlit-embedded iframe actually gets
      (previously required ~820px combined before wrapping to one column). */
@@ -258,6 +389,29 @@
   }
   .sec-body.closed { max-height:0 !important; opacity:0; margin-bottom:0; pointer-events:none; }
 
+  .advanced-box {
+    margin-top:16px;
+    border:1px solid rgba(0,0,0,.08);
+    border-radius:12px;
+    padding:4px 12px 10px;
+    background:rgba(255,255,255,.62);
+  }
+  .advanced-box > summary {
+    cursor:pointer;
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--muted);
+    padding:10px 0;
+    list-style:none;
+  }
+  .advanced-box > summary::-webkit-details-marker { display:none; }
+  .advanced-box > summary::before { content:"▸ "; }
+  .advanced-box[open] > summary::before { content:"▾ "; }
+  #layoutToggleBtn { display:none; }
+  button.primary-save { font-size:14px; font-weight:650; padding:8px 16px; }
+
   /* ── Vizbar header ── */
   .vizbar-header {
     display:flex; align-items:center; gap:8px;
@@ -316,14 +470,14 @@
   a.dl { text-decoration:none; }
 
   /* ── Inputs / selects ── */
-  select, input[type=number], textarea {
+  select, input[type=number], input[type=text], textarea {
     font-family:inherit; font-size:13px; color:var(--text);
     background:rgba(255,255,255,.88);
     border:1px solid rgba(0,0,0,.10);
     border-radius:10px; padding:7px 10px; min-height:34px;
     outline:none; transition:border-color .15s,box-shadow .15s;
   }
-  select:focus, input[type=number]:focus, textarea:focus {
+  select:focus, input[type=number]:focus, input[type=text]:focus, textarea:focus {
     border-color:rgba(0,122,255,.45);
     box-shadow:0 0 0 3.5px rgba(0,122,255,.13);
   }
@@ -349,6 +503,7 @@
     box-shadow:0 2px 10px rgba(0,106,227,.32),inset 0 1px 0 rgba(255,255,255,.18);
   }
   button.primary:hover { box-shadow:0 6px 22px rgba(0,106,227,.42),inset 0 1px 0 rgba(255,255,255,.18); }
+  button.primary:disabled, button:disabled { opacity:.55; cursor:wait; }
   button.ok {
     background:linear-gradient(180deg,#35D267 0%,#1CB04A 100%);
     color:#fff; border-color:transparent;
@@ -378,7 +533,52 @@
     min-width:120px; min-height:30px; display:inline-flex; align-items:center; color:var(--text);
   }
 
-  /* ── Output box ── */
+  .extract-table-wrap {
+    display:none;
+    margin-top:10px;
+    max-height:340px;
+    overflow:auto;
+    border:1px solid rgba(0,0,0,.08);
+    border-radius:var(--r);
+    background:rgba(255,255,255,.88);
+    box-shadow:inset 0 1px 4px rgba(0,0,0,.04);
+  }
+  .extract-table-wrap table.extract-table {
+    border-collapse:collapse;
+    border-spacing:0;
+    width:max-content;
+    min-width:100%;
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:11px;
+  }
+  .extract-table-wrap table.extract-table th,
+  .extract-table-wrap table.extract-table td {
+    padding:4px 8px;
+    border-bottom:1px solid rgba(0,0,0,.06);
+    border-right:1px solid rgba(0,0,0,.05);
+    white-space:nowrap;
+    text-align:right;
+  }
+  .extract-table-wrap table.extract-table th:first-child,
+  .extract-table-wrap table.extract-table td:first-child {
+    text-align:left;
+    position:sticky;
+    left:0;
+    background:#f4f7fb;
+    font-weight:600;
+  }
+  .model-panel {
+    margin-top:0;
+    padding:12px 4px 4px;
+  }
+  .model-panel .small { margin:0 0 10px; line-height:1.45; }
+  .extract-table-wrap table.extract-table thead th {
+    position:sticky;
+    top:0;
+    background:#eef3f9;
+    z-index:1;
+  }
+  .extract-table-wrap table.extract-table thead th:first-child { z-index:2; }
   .out {
     background:rgba(246,249,253,.98); border:1px solid rgba(0,0,0,.07);
     border-radius:var(--r); padding:12px;
@@ -633,9 +833,11 @@
 <body>
 <header>
   <h1>DescriPyTor &middot; Visual Workflow</h1>
-  <span class="hint">Pick atoms in 3D, extract descriptors, validate the feature CSV, then prepare or run M3/BASSA modeling.</span>
-  <button class="micro-btn" id="layoutToggleBtn" title="Cycle how the 3D view and the selection panel share the page" onclick="cycleLayout()">Layout: Balanced</button>
+  <span class="hint">Load a structure, click the atoms that matter, extract the CSV, then Model.</span>
+  <button type="button" class="tour-start-btn" id="startTourBtn" title="Guided walkthrough: Load → Pick → Extract → Model">Tutorial</button>
+  <button class="micro-btn" type="button" id="layoutToggleBtn" title="Cycle how the 3D view and the selection panel share the page" onclick="cycleLayout()">Layout: Balanced</button>
 </header>
+<div id="a11yStatus" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
 <div class="wrap" id="mainWrap">
   <!-- Left column: pure 3D viewer -->
@@ -648,15 +850,18 @@
       <div id="molInfoBadge" class="mol-info-badge" style="display:none"></div>
       <div id="featLegend" class="feat-legend" style="display:none"></div>
       <div class="viewer-toolbar">
-        <label style="font-size:12.5px;font-weight:500;color:#415165;">Load structure:</label>
-        <input type="file" id="fileInput" accept=".xyz" />
-        <button id="pasteBtn">Paste XYZ&hellip;</button>
-        <label><input type="checkbox" id="labelToggle" /> index labels</label>
+        <span id="fileInputWrap" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <label for="fileInput" style="font-size:12.5px;font-weight:500;color:#415165;">Load structure:</label>
+        <input type="file" id="fileInput" accept=".xyz,.feather,.ftr" />
+        <button type="button" id="loadExampleMolBtn" title="Load the bundled unsubstituted product (unsub.feather) into the 3D view">Load unsub.feather</button>
+        </span>
+        <button type="button" id="pasteBtn">Paste XYZ&hellip;</button>
+        <label for="labelToggle"><input type="checkbox" id="labelToggle" checked /> index labels</label>
         <span style="flex:1"></span>
-        <button class="micro-btn" id="measureBtn" title="Measurement mode (M) — click 2 atoms for distance, 3 for angle">📐 Measure</button>
-        <button class="micro-btn" id="recenterBtn" title="Recenter view (R)" onclick="if(viewer){viewer.zoomTo();viewer.render();}">⊙ Recenter</button>
-        <button class="micro-btn" id="screenshotBtn" title="Download PNG screenshot">⬇ Screenshot</button>
-        <button class="micro-btn" id="graph2dToggleBtn" title="Show/hide a 2D atom-numbered bond graph (igraph) next to the 3D view">Show 2D graph</button>
+        <button class="micro-btn" type="button" id="measureBtn" aria-label="Measure distances and angles" title="Measurement mode (M) — click 2 atoms for distance, 3 for angle">Measure</button>
+        <button class="micro-btn" type="button" id="recenterBtn" aria-label="Recenter view" title="Recenter view (R)">Recenter</button>
+        <button class="micro-btn" type="button" id="screenshotBtn" aria-label="Download PNG screenshot" title="Download PNG screenshot">Screenshot</button>
+        <button class="micro-btn" type="button" id="graph2dToggleBtn" title="Show/hide a 2D atom-numbered bond graph next to the 3D view">Show 2D graph</button>
       </div>
       <div id="measureReadout">
         <span id="msrText"></span>
@@ -664,7 +869,7 @@
       </div>
     </div>
     <div id="graph2dCard" style="display:__GRAPH2D_DISPLAY__">
-      <div class="graph2d-head">2D bond graph (igraph) — atom numbers for reference</div>
+      <div class="graph2d-head">2D bond graph — atom numbers for reference</div>
       <img id="graph2dImg" src="data:image/png;base64,__GRAPH2D_IMG__" alt="2D atom-numbered bond graph" />
     </div>
   </div>
@@ -674,13 +879,211 @@
 
   <!-- Selection / features panel -->
   <div class="panel" id="featuresPanel">
+    <div class="panel-actions" style="margin:0 0 10px;justify-content:flex-start;">
+      <button class="micro-btn" type="button" id="hideExtrasBtn" title="Collapse visualizations, the pick table, and config output">Hide extras</button>
+      <button class="micro-btn" type="button" id="showExtrasBtn" title="Expand visualizations and extra panels">Show extras</button>
+    </div>
+    <div class="sec-head collapsible" id="loadSecHead" onclick="toggleSec(this)" role="button" tabindex="0" aria-expanded="true"><span class="sec-num">1</span>Load<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-body">
+      <div class="small">Use <b>Choose File</b> on the 3D view (<code>.xyz</code> or <code>.feather</code>), drop a file on the molecule, or paste XYZ. The bundled example is the unsubstituted Baptiste product (<code>unsub.feather</code>). Atom numbers are <b>1-based</b> (Gaussian style).</div>
+      <div class="row" style="margin-top:8px;align-items:center;">
+        <label for="featherDirInput">Feather folder</label>
+        <input type="text" id="featherDirInput" placeholder="C:\path\to\your\feathers" style="flex:1;min-width:160px" autocomplete="off" />
+        <button type="button" id="browseFeatherDirBtn" title="Open a native folder dialog on this computer">Browse…</button>
+        <button type="button" id="useExampleFeathersBtn" title="Use the 18 Baptiste products that ship with DescriPyTor">Use example set</button>
+        <button type="button" id="applyExamplePicksBtn" title="Load the notebook atom picks for the Baptiste set">Apply example picks</button>
+      </div>
+      <div class="small" id="featherDirHint">Extraction runs on every <code>.feather</code> in this folder. The 3D view is only for picking atoms.</div>
+      <div id="numberingBanner" class="numbering-banner idle">
+        <span id="numberingMsg">Optional: check that picked atoms are the same element in every file. This loads the whole folder, so it only runs when you ask.</span>
+        <button type="button" id="checkNumberingBtn">Check numbering</button>
+        <button type="button" id="viewNumberingBtn">View in Conformer Viewer</button>
+        <div class="work-progress" id="numberingProgress" hidden role="progressbar" aria-label="Numbering check progress">
+          <div class="work-progress-bar" id="numberingProgressBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec-head collapsible" id="pickSecHead" onclick="toggleSec(this)" role="button" tabindex="0" aria-expanded="true"><span class="sec-num">2</span>Pick atoms<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-body">
+      <div class="row">
+        <label for="fieldSelect">Active field</label>
+        <select id="fieldSelect"></select>
+        <span class="small" id="fieldDesc"></span>
+      </div>
+      <div class="guide" id="fieldGuide"></div>
+      <div class="row" id="commitRow">
+        <span id="buildingGroupLabel">Building group</span>
+        <span class="status-chip" id="currentGroup" aria-labelledby="buildingGroupLabel"><span class="chip-dot"></span>(empty)</span>
+        <button type="button" id="commitBtn">Commit group</button>
+        <button type="button" id="undoPickBtn" title="Undo last atom pick (Ctrl+Z)">Undo</button>
+        <button type="button" id="clearGroupBtn">Clear group</button>
+        <span class="small" id="groupHint"></span>
+      </div>
+      <div class="row">
+        <label for="typedAtoms">Or type atom numbers</label>
+        <input type="text" id="typedAtoms" placeholder="e.g. 3,5 or 12 14 16" style="width:160px" autocomplete="off" />
+        <button type="button" id="addTypedAtomsBtn" title="Add these atom indices to the current field, same as clicking them in 3D">Add</button>
+        <span class="small" id="typedAtomsHint">1-indexed, comma or space separated. Alt+Right / Alt+Left cycles the active field.</span>
+      </div>
+      <details class="mini-fold" id="selTableFold">
+        <summary>Picked groups table</summary>
+      <table id="selTable" style="margin-top:8px">
+        <thead><tr><th style="width:38%">field</th><th>groups</th><th style="width:46px"></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </details>
+    </div>
+
+  <div class="vizbar collapsed" id="vizbar">
+    <div class="vizbar-header">
+      <button type="button" class="vizbar-title-btn" id="vizbarToggle" aria-expanded="false" aria-controls="vizbarBody">Visualizations</button>
+      <button class="micro-btn" type="button" onclick="event.stopPropagation(); collapseAllViz(true)">Collapse all</button>
+      <button class="micro-btn" type="button" onclick="event.stopPropagation(); collapseAllViz(false)">Expand all</button>
+    </div>
+    <div id="vizbarBody">
+    <div class="viz-sec closed" onclick="toggleVizSec(this)">Sterimol<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
+    <div class="viz-body closed">
+      <div class="vizrow">
+        <label><input type="checkbox" id="vizSterimol" /> <b>Sterimol</b></label>
+        <select id="vizSterPair" title="which [origin, attached] pair to draw"></select>
+        <span class="small" id="vizSterReadout"></span>
+        <div id="sterPolar" class="polar"></div>
+      </div>
+    </div>
+    <div class="viz-sec closed" onclick="toggleVizSec(this)">Dipole<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
+    <div class="viz-body closed">
+      <div class="vizrow">
+        <label><input type="checkbox" id="vizDipole" /> <b>Dipole</b></label>
+        <label><input type="checkbox" id="vizDipBasis" checked /> local basis</label>
+        <span class="small" id="vizDipReadout">load a feather molecule (make_picker.py) for dipole + vibrations</span>
+      </div>
+      <div class="vizrow dipole-basis">
+        <span class="small">Basis atoms</span>
+        <span class="pill">origin midpoint</span><input type="text" id="basisOrigin" placeholder="1 or 1,2" style="width:96px" />
+        <span class="pill">direction midpoint</span><input type="text" id="basisY" placeholder="3 or 3,4" style="width:96px" />
+        <span class="pill">plane midpoint</span><input type="text" id="basisPlane" placeholder="5 or 5,6" style="width:96px" />
+        <button id="basisFromPick">Use dipole pick</button>
+      </div>
+    </div>
+    <div class="viz-sec closed" onclick="toggleVizSec(this)">Vibration<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
+    <div class="viz-body closed">
+      <div class="vizrow">
+        <select id="vizMode" style="max-width:230px"></select>
+        <button id="vizPlay">Play</button>
+        <label class="small">amp <input type="range" id="vizAmp" min="0.2" max="2.5" step="0.1" value="1.0" style="width:90px;vertical-align:middle"></label>
+        <label class="small"><input type="checkbox" id="vizArrows" /> arrows</label>
+      </div>
+    </div>
+    <div class="viz-sec closed" onclick="toggleVizSec(this)">Feature preview<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
+    <div class="viz-body closed">
+      <div class="vizrow" id="featureRow">
+        <button id="featAll" title="toggle all feature overlays">All</button>
+        <label class="small"><input type="checkbox" id="featCharges" /> charges</label>
+        <label class="small"><input type="checkbox" id="featBonds" /> bond length</label>
+        <label class="small"><input type="checkbox" id="featDq" /> Δcharge</label>
+        <label class="small"><input type="checkbox" id="featAngles" /> angle/dih.</label>
+        <label class="small"><input type="checkbox" id="featVibr" /> vibr. pairs</label>
+        <label class="small"><input type="checkbox" id="featRing" /> ring</label>
+        <label class="small"><input type="checkbox" id="featDrop" /> drop</label>
+        <label class="small"><input type="checkbox" id="featSterimol" /> sterimol atoms</label>
+        <label class="small"><input type="checkbox" id="featDipoleAtoms" /> dipole atoms</label>
+        <label class="small"><input type="checkbox" id="featLabels" checked /> labels</label>
+      </div>
+    </div>
+    </div>
+  </div>
+
+    <div class="sec-head collapsible" id="extractSecHead" onclick="toggleSec(this)" role="button" tabindex="0" aria-expanded="true"><span class="sec-num">3</span>Extract<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-body">
+      <div class="row" style="margin-top:2px;">
+        <button class="primary primary-save" type="button" id="extractBtn">Extract CSV</button>
+        <button type="button" id="downloadCsvBtn" disabled>Download CSV</button>
+        <a class="dl" id="dlLink"><button type="button">Save picks</button></a>
+        <button class="ok" type="button" id="copyBtn">Copy</button>
+        <button type="button" id="resetBtn">Reset all</button>
+      </div>
+      <div id="extractResultBlock">
+      <div class="small" id="extractStatus" style="margin-top:8px;" role="status"></div>
+      <div class="work-progress" id="extractProgress" hidden role="progressbar" aria-label="Extraction progress">
+        <div class="work-progress-bar" id="extractProgressBar"></div>
+      </div>
+      <div class="extract-table-wrap" id="extractTableWrap">
+        <table class="extract-table" id="extractTable"></table>
+      </div>
+      </div>
+      <details class="mini-fold" id="configFold">
+        <summary>Config output</summary>
+      <div class="tabs" style="margin-top:10px;" role="tablist">
+        <button type="button" data-tab="cfg" class="active" role="tab" aria-selected="true">run_config.json</button>
+        <button type="button" data-tab="py" role="tab" aria-selected="false">Python answers_dict</button>
+        <button type="button" data-tab="model" id="modelTabBtn" role="tab" aria-selected="false">Model</button>
+      </div>
+      <div class="out" id="outBox"></div>
+      <div id="modelPanel" class="model-panel" style="display:none">
+        <p class="small">After Extract CSV: choose a numeric column as the output, or paste measured values (one per row, or <code>name,value</code>). Ordinary least squares searches 1–3 feature combinations and reports R² and leave-one-out Q².</p>
+        <div class="model-grid" style="grid-template-columns:repeat(2,minmax(150px,1fr));">
+          <div class="model-field">
+            <label for="lrTargetCol">Target column (from the CSV)</label>
+            <select id="lrTargetCol"></select>
+          </div>
+          <div class="model-field">
+            <label for="lrNewCol">New column name if pasting</label>
+            <input id="lrNewCol" type="text" value="output" placeholder="output" />
+          </div>
+          <div class="model-field wide">
+            <label for="lrOutputs">Paste values (optional)</label>
+            <textarea id="lrOutputs" placeholder="One number per line, matching CSV row order&#10;or name,value pairs"></textarea>
+          </div>
+          <div class="model-field">
+            <label for="lrMin">Min features</label>
+            <input id="lrMin" type="number" min="1" max="3" value="1" />
+          </div>
+          <div class="model-field">
+            <label for="lrMax">Max features</label>
+            <input id="lrMax" type="number" min="1" max="3" value="2" />
+          </div>
+          <div class="model-field">
+            <label for="lrTop">Keep top N</label>
+            <input id="lrTop" type="number" min="1" max="50" value="8" />
+          </div>
+          <div class="model-field">
+            <label for="lrThr">Min R² to keep</label>
+            <input id="lrThr" type="number" min="0" max="1" step="0.05" value="0.2" />
+          </div>
+        </div>
+        <div class="model-actions">
+          <button class="primary" type="button" id="lrRunBtn">Run linear regression</button>
+        </div>
+        <div id="lrStatus" class="model-status"></div>
+        <div class="extract-table-wrap" id="lrTableWrap" style="display:none;margin-top:10px;">
+          <table class="extract-table" id="lrTable"></table>
+        </div>
+      </div>
+      </details>
+      <details style="margin-top:8px;">
+        <summary style="font-size:11px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:5px;">
+          <span style="font-size:9px;transition:transform .2s;">▶</span> How to use
+        </summary>
+        <div class="legend" style="margin-top:6px;">
+          <b>Extract CSV</b> runs feature extraction and shows the table here. Use <b>Download CSV</b> to save it.<br/>
+          <b>Model</b> tab: pick an existing column or paste outputs, then run linear regression.<br/>
+          <b>Save picks</b> writes <code>run_config.json</code> if you want to rerun later:<br/>
+          <code id="runCmd">python descriptor_extractor.py --config run_config.json</code><br/>
+          <b>Python</b> tab = paste into a notebook as <code>answers_dict</code>.
+        </div>
+      </details>
+    </div>
+
+    <details class="advanced-box" id="advancedPanel">
+      <summary>Advanced</summary>
     <div class="panel-actions">
       <button class="micro-btn" onclick="collapseAllSecs(true)">Collapse all</button>
       <button class="micro-btn" onclick="collapseAllSecs(false)">Expand all</button>
     </div>
-    <div class="sec-head collapsible" onclick="toggleSec(this)"><span class="sec-num">1</span>Workflow<span class="sec-line"></span><span class="sec-chev">▼</span></div>
-    <div class="sec-body">
-      <div class="small" style="margin-bottom:6px;">Start from the closest workflow, then adjust individual engines only if needed.</div>
+    <div class="sec-head collapsible closed" onclick="toggleSec(this)"><span class="sec-num">A</span>Workflow<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-body closed">
+      <div class="small" style="margin-bottom:6px;">Start from the closest workflow, then adjust individual engines only if needed. Default is Feather only.</div>
       <div class="flow-strip">
         <span class="flow-step"><strong>1</strong> choose workflow</span>
         <span class="flow-step"><strong>2</strong> pick atoms</span>
@@ -699,141 +1102,24 @@
       </div>
     </div>
 
-    <div class="sec-head collapsible" onclick="toggleSec(this)"><span class="sec-num">2</span>Pick atoms<span class="sec-line"></span><span class="sec-chev">▼</span></div>
-    <div class="sec-body">
-      <div class="row">
-        <label>Active field</label>
-        <select id="fieldSelect"></select>
-        <span class="small" id="fieldDesc"></span>
-      </div>
-      <div class="guide" id="fieldGuide"></div>
-      <div class="row">
-        <label>Building group</label>
-        <span class="status-chip" id="currentGroup"><span class="chip-dot"></span>(empty)</span>
-        <button id="commitBtn">Commit group</button>
-        <button id="undoPickBtn" title="Undo last atom pick (Ctrl+Z)">↩ Undo</button>
-        <button id="clearGroupBtn">Clear group</button>
-        <span class="small" id="groupHint"></span>
-      </div>
-      <div class="row">
-        <label>Or type atom numbers</label>
-        <input type="text" id="typedAtoms" placeholder="e.g. 3,5 or 12 14 16" style="width:160px" />
-        <button id="addTypedAtomsBtn" title="Add these atom indices to the current field, same as clicking them in 3D">Add</button>
-        <span class="small" id="typedAtomsHint">1-indexed, comma or space separated.</span>
-      </div>
-    </div>
-
-    <div class="sec-head collapsible closed" onclick="toggleSec(this)"><span class="sec-num">3</span>Thresholds<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-head collapsible closed" onclick="toggleSec(this)"><span class="sec-num">B</span>Thresholds<span class="sec-line"></span><span class="sec-chev">▼</span></div>
     <div class="sec-body closed">
       <div class="row">
-        <label>Stretch threshold</label>
+        <label for="stretchThr">Stretch threshold</label>
         <input type="number" id="stretchThr" value="1600" style="width:90px" />
-        <label>Bend threshold</label>
+        <label for="bendThr">Bend threshold</label>
         <input type="number" id="bendThr" value="3000" style="width:90px" />
       </div>
     </div>
 
-    <div class="sec-head collapsible" onclick="toggleSec(this)"><span class="sec-num">4</span>Selections<span class="sec-line"></span><span class="sec-chev">▼</span></div>
-    <div class="sec-body">
-      <table id="selTable">
-        <thead><tr><th style="width:38%">field</th><th>groups</th><th style="width:46px"></th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <div class="sec-head collapsible closed" onclick="toggleSec(this)"><span class="sec-num">5</span>Feature packages<span class="sec-line"></span><span class="sec-chev">▼</span></div>
+    <div class="sec-head collapsible closed" onclick="toggleSec(this)"><span class="sec-num">C</span>Feature packages<span class="sec-line"></span><span class="sec-chev">▼</span></div>
     <div class="sec-body closed">
       <div class="small" style="margin-bottom:6px;">Tick extra descriptor engines to include in the run (each needs its pip install).</div>
       <div id="pkgBox" class="pkgbox"></div>
       <div class="guide" id="engineGuide"></div>
     </div>
-  </div>
-
-  <!-- Visualization overlays panel -->
-  <div class="vizbar">
-    <div class="vizbar-header">
-      <span class="vizbar-title">Visualizations</span>
-      <button class="micro-btn" onclick="collapseAllViz(true)">Collapse all</button>
-      <button class="micro-btn" onclick="collapseAllViz(false)">Expand all</button>
-    </div>
-    <div class="viz-sec" onclick="toggleVizSec(this)">Sterimol<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
-    <div class="viz-body">
-      <div class="vizrow">
-        <label><input type="checkbox" id="vizSterimol" /> <b>Sterimol</b></label>
-        <select id="vizSterPair" title="which [origin, attached] pair to draw"></select>
-        <span class="small" id="vizSterReadout"></span>
-        <div id="sterPolar" class="polar"></div>
-      </div>
-    </div>
-    <div class="viz-sec" onclick="toggleVizSec(this)">Dipole<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
-    <div class="viz-body">
-      <div class="vizrow">
-        <label><input type="checkbox" id="vizDipole" /> <b>Dipole</b></label>
-        <label><input type="checkbox" id="vizDipBasis" checked /> local basis</label>
-        <span class="small" id="vizDipReadout">load a feather molecule (make_picker.py) for dipole + vibrations</span>
-      </div>
-      <div class="vizrow dipole-basis">
-        <span class="small">Basis atoms</span>
-        <span class="pill">origin midpoint</span><input type="text" id="basisOrigin" placeholder="1 or 1,2" style="width:96px" />
-        <span class="pill">direction midpoint</span><input type="text" id="basisY" placeholder="3 or 3,4" style="width:96px" />
-        <span class="pill">plane midpoint</span><input type="text" id="basisPlane" placeholder="5 or 5,6" style="width:96px" />
-        <button id="basisFromPick">Use dipole pick</button>
-      </div>
-    </div>
-    <div class="viz-sec" onclick="toggleVizSec(this)">Vibration<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
-    <div class="viz-body">
-      <div class="vizrow">
-        <select id="vizMode" style="max-width:230px"></select>
-        <button id="vizPlay">Play</button>
-        <label class="small">amp <input type="range" id="vizAmp" min="0.2" max="2.5" step="0.1" value="1.0" style="width:90px;vertical-align:middle"></label>
-        <label class="small"><input type="checkbox" id="vizArrows" /> arrows</label>
-      </div>
-    </div>
-    <div class="viz-sec" onclick="toggleVizSec(this)">Feature preview<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
-    <div class="viz-body">
-      <div class="vizrow" id="featureRow">
-        <button id="featAll" title="toggle all feature overlays">All</button>
-        <label class="small"><input type="checkbox" id="featCharges" /> charges</label>
-        <label class="small"><input type="checkbox" id="featBonds" /> bond length</label>
-        <label class="small"><input type="checkbox" id="featDq" /> Δcharge</label>
-        <label class="small"><input type="checkbox" id="featAngles" /> angle/dih.</label>
-        <label class="small"><input type="checkbox" id="featVibr" /> vibr. pairs</label>
-        <label class="small"><input type="checkbox" id="featRing" /> ring</label>
-        <label class="small"><input type="checkbox" id="featDrop" /> drop</label>
-        <label class="small"><input type="checkbox" id="featSterimol" /> sterimol atoms</label>
-        <label class="small"><input type="checkbox" id="featDipoleAtoms" /> dipole atoms</label>
-        <label class="small"><input type="checkbox" id="featLabels" checked /> labels</label>
-      </div>
-    </div>
-  </div>
-
-  <!-- Output / export panel -->
-  <div class="panel" id="exportPanel">
-    <div class="sec-head collapsible" onclick="toggleSec(this)"><span class="sec-num">6</span>Export<span class="sec-line"></span><span class="sec-chev">▼</span></div>
-    <div class="sec-body">
-      <div class="tabs">
-        <button data-tab="cfg" class="active">run_config.json</button>
-        <button data-tab="py">Python answers_dict</button>
-      </div>
-      <div class="out" id="outBox"></div>
-      <div class="row" style="margin-top:10px;">
-        <button class="ok" id="copyBtn">Copy</button>
-        <a class="dl" id="dlLink"><button class="primary">Save run_config.json</button></a>
-        <button id="resetBtn">Reset all</button>
-      </div>
-      <details style="margin-top:8px;">
-        <summary style="font-size:11px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:5px;">
-          <span style="font-size:9px;transition:transform .2s;">▶</span> How to use
-        </summary>
-        <div class="legend" style="margin-top:6px;">
-          <b>run_config.json</b> = the complete, ready-to-run config (dataset paths baked in
-          + your atom selections). Save it, then run:<br/>
-          <code id="runCmd">python descriptor_extractor.py --config run_config.json</code><br/>
-          <b>Python</b> tab = paste straight into a notebook as <code>answers_dict</code> instead.
-        </div>
-      </details>
-    </div>
-  </div>
+    </details>
+  </div><!-- /#featuresPanel -->
 
   </div><!-- /#rightCol -->
 </div><!-- /.wrap -->
@@ -844,7 +1130,9 @@
      reports, BASSA plots) lives in the Streamlit web app's own
      "5 · Modeling" tab, right after Results. -->
 
-<!-- ── Conformer Search ────────────────────────────────────────────── -->
+<!-- ── Conformer Search (advanced) ─────────────────────────────────── -->
+<details class="advanced-box" style="margin:12px 18px 18px" id="cviewDetails">
+  <summary>Advanced: conformer search</summary>
 <div class="csearch-bar">
   <div class="csearch-head" id="csearchHead" onclick="toggleCsearch()">
     <b style="font-size:14px;">Conformer Search</b>
@@ -967,6 +1255,9 @@
                style="vertical-align:middle;width:80px">
         <span id="cvSpreadVal">0.00</span>&thinsp;&#8491;
       </label>
+      <label class="small" style="display:flex;align-items:center;gap:4px;">
+        <input type="checkbox" id="cvShowLabels" onchange="cvRenderStack()" /> atom labels
+      </label>
       <button class="ok" onclick="cvRenderStack()">Render</button>
       <button onclick="cvClearAll()" style="color:#c0392b;" title="Remove all loaded conformers">Clear all</button>
     </div>
@@ -986,6 +1277,7 @@
 
   </div>
 </div>
+</details>
 
 <script>
 /* ------------------------------------------------------------------ *
@@ -1295,6 +1587,8 @@ function toggleSec(head) {
   head.classList.toggle('closed');
   const body = head.nextElementSibling;
   if (body && body.classList.contains('sec-body')) body.classList.toggle('closed');
+  const open = !head.classList.contains('closed');
+  head.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 function toggleVizSec(sec) {
   sec.classList.toggle('closed');
@@ -1302,10 +1596,11 @@ function toggleVizSec(sec) {
   if (body && body.classList.contains('viz-body')) body.classList.toggle('closed');
 }
 function collapseAllSecs(collapse) {
-  document.querySelectorAll('.sec-head.collapsible').forEach(h => {
+  document.querySelectorAll('#advancedPanel .sec-head.collapsible').forEach(h => {
     h.classList.toggle('closed', collapse);
     const b = h.nextElementSibling;
     if (b && b.classList.contains('sec-body')) b.classList.toggle('closed', collapse);
+    h.setAttribute('aria-expanded', collapse ? 'false' : 'true');
   });
 }
 function collapseAllViz(collapse) {
@@ -1315,28 +1610,66 @@ function collapseAllViz(collapse) {
     if (b && b.classList.contains('viz-body')) b.classList.toggle('closed', collapse);
   });
 }
+function setVizBarOpen(open) {
+  const bar = $("vizbar");
+  const btn = $("vizbarToggle");
+  if (!bar) return;
+  bar.classList.toggle("collapsed", !open);
+  if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+}
+function toggleVizBar() {
+  const bar = $("vizbar");
+  if (!bar) return;
+  setVizBarOpen(bar.classList.contains("collapsed"));
+}
+function hideExtras() {
+  setVizBarOpen(false);
+  const table = $("selTableFold");
+  const cfg = $("configFold");
+  if (table) table.open = false;
+  if (cfg) cfg.open = false;
+}
+function showExtras() {
+  setVizBarOpen(true);
+  collapseAllViz(false);
+  const table = $("selTableFold");
+  const cfg = $("configFold");
+  if (table) table.open = true;
+  if (cfg) cfg.open = true;
+}
+
+function announce(msg) {
+  const el = $("a11yStatus");
+  if (el) el.textContent = msg || "";
+}
 
 /* ── Keyboard shortcuts ── */
 document.addEventListener('keydown', e => {
-  // don't fire when typing in an input/textarea/select
+  if (typeof tourIsOpen === "function" && tourIsOpen()) return;
+  if (e.target && e.target.closest && e.target.closest('.sec-head.collapsible') && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault();
+    toggleSec(e.target.closest('.sec-head.collapsible'));
+    return;
+  }
   if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
   if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
     e.preventDefault();
     if (typeof commitGroup === 'function') commitGroup();
   } else if (e.key === 'Escape') {
     if (typeof clearGroup === 'function') clearGroup();
-  } else if (e.key === 'Tab') {
+  } else if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
     e.preventDefault();
     const fields = typeof allFields === 'function' ? allFields() : [];
     if (!fields.length) return;
     const idx = fields.findIndex(f => f.key === activeField);
-    const next = fields[(idx + 1) % fields.length];
+    const delta = e.key === 'ArrowRight' ? 1 : -1;
+    const next = fields[(idx + delta + fields.length) % fields.length];
     if (typeof setActive === 'function') setActive(next.key);
   } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
     e.preventDefault();
     if (typeof undoLastPick === 'function') undoLastPick();
   } else if (e.key === 'r' || e.key === 'R') {
-    if (viewer) { viewer.zoomTo(); viewer.render(); }
+    if (typeof recenterViewer === "function") recenterViewer();
   } else if (e.key === 's' || e.key === 'S') {
     $("screenshotBtn") && $("screenshotBtn").click();
   } else if (e.key === 'm' || e.key === 'M') {
@@ -1356,9 +1689,34 @@ function undoLastPick() {
 function handleMainDrop(e) {
   const file = e.dataTransfer.files[0];
   if (!file) return;
-  const r = new FileReader();
-  r.onload = ev => { if (typeof initViewer === 'function') initViewer(ev.target.result, file.name); };
-  r.readAsText(file);
+  loadStructureFile(file);
+}
+
+function isFeatherName(name) {
+  return /\.(feather|ftr)$/i.test(name || "");
+}
+
+async function loadStructureFile(file) {
+  if (!file) return;
+  if (isFeatherName(file.name)) {
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const response = await fetch("/xyz_from_feather", { method: "POST", body: fd });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        alert(data.error || "Could not read this .feather file. Try an .xyz, or install RDKit/pyarrow in the conda env.");
+        return;
+      }
+      if (typeof initViewer === "function") initViewer(data.xyz, data.name || file.name);
+    } catch (err) {
+      alert("Could not convert feather to XYZ: " + err.message);
+    }
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ev => { if (typeof initViewer === "function") initViewer(ev.target.result, file.name); };
+  reader.readAsText(file);
 }
 
 /* ── Molecule info badge ── */
@@ -1446,7 +1804,7 @@ function dipoleTotal() {
   return Number.isFinite(n) ? n : V.norm(d);
 }
 
-function initViewer(xyz, filename) {
+function initViewer(xyz, filename, opts) {
   lastModelXYZ = xyz;
   parseXYZ(xyz);
   const lines = xyz.trim().split(/\r?\n/);
@@ -1456,12 +1814,40 @@ function initViewer(xyz, filename) {
     : (molComment && molComment.length < 40 ? molComment : 'molecule');
   lastModelName = molName;
   const el = $("viewer");
+  if (!el) throw new Error("3D viewer element is missing.");
+  if (typeof $3Dmol === "undefined") throw new Error("3Dmol did not load. Check the network, then reload.");
   el.innerHTML = "";
   viewer = $3Dmol.createViewer(el, { backgroundColor: "white" });
+  window.pickerViewer = viewer;
   buildSterPairOptions();
   buildModeOptions();
   buildScene(baseCoords, true);
   if (typeof updateMolInfoBadge === 'function') updateMolInfoBadge(molName, nAtoms);
+  requestAnimationFrame(() => {
+    if (typeof fitPickerViewer === "function") fitPickerViewer();
+  });
+  const silent = !!(opts && opts.silent);
+  if (!silent && filename && !/demo/i.test(String(filename)) && typeof tourNotify === "function") tourNotify("file");
+}
+
+function fitPickerViewer() {
+  const v = (viewer && typeof viewer.resize === "function") ? viewer : window.pickerViewer;
+  if (!v) return;
+  if (typeof v.resize === "function") v.resize();
+  if (typeof v.zoomTo === "function") v.zoomTo();
+  if (typeof v.render === "function") v.render();
+}
+
+function recenterViewer() {
+  fitPickerViewer();
+}
+
+function showViewerMessage(text, kind) {
+  const el = $("viewer");
+  if (!el) return;
+  const color = kind === "bad" ? "#b42318" : "#415165";
+  el.innerHTML = "<p style='padding:24px;color:" + color + ";max-width:36em;line-height:1.45'>" +
+    String(text || "").replace(/[&<>]/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[ch])) + "</p>";
 }
 
 /* (re)build the whole scene for a set of coordinates (base or a vib frame) */
@@ -1483,11 +1869,10 @@ function buildScene(coords, doZoom) {
     (atom, vw) => {
       if (!atom.label) {
         const idx = atom.serial + 1;
-        const x = atom.x.toFixed(3), y = atom.y.toFixed(3), z = atom.z.toFixed(3);
         atom.label = vw.addLabel(
-          `#${idx} ${atom.elem}  (${x}, ${y}, ${z})`,
+          `${atom.elem || ""}${idx}`,
           { position: atom, backgroundColor:"#1c1c1e", fontColor:"#f5f5f7",
-            fontSize:11, padding:5, borderRadius:6, inFront:true, showBackground:true });
+            fontSize:12, padding:5, borderRadius:6, inFront:true, showBackground:true });
       }
     },
     (atom, vw) => { if (atom.label) { vw.removeLabel(atom.label); delete atom.label; } });
@@ -1510,7 +1895,7 @@ function buildAnimScene(coords, mode) {
 }
 
 function addIndexLabels(coords) {
-  coords.forEach((c, i) => viewer.addLabel(String(i + 1), {
+  coords.forEach((c, i) => viewer.addLabel(`${elements[i] || ""}${i + 1}`, {
     position:{ x:c[0], y:c[1], z:c[2] },
     fontSize:10, fontColor:"#0b1f35", backgroundColor:"rgba(240,246,255,0.82)", backgroundOpacity:1, inFront:true
   }));
@@ -1797,7 +2182,7 @@ function _link(a, b, color, tag, coords) {
 }
 
 function _labelAbove(pos, text, color) {
-  // offset label 0.9 Å above atom so it doesn't sit on top of the halo
+  if (!pos) return;
   _floatLabel([pos[0], pos[1], pos[2] + 0.9], text, color);
 }
 
@@ -1810,7 +2195,10 @@ function drawFeaturePreview(coords) {
   // charges — cyan halo + atom-index floating label
   if (_feat("featCharges")) {
     addLegend("#06b6d4", "Charges");
-    (state["charges"] || []).flat().forEach(a => { _mark(a, "#06b6d4", coords); _labelAbove(coords[a-1], `q ${a}`, "#0891b2"); });
+    (state["charges"] || []).flat().forEach(a => {
+      _mark(a, "#06b6d4", coords);
+      if (coords[a - 1]) _labelAbove(coords[a - 1], `q ${a}`, "#0891b2");
+    });
   }
 
 
@@ -1822,7 +2210,10 @@ function drawFeaturePreview(coords) {
   if (_feat("featBonds")) {
     addLegend("#3b9dff", "Bond length");
     (state["bond_length"] || []).forEach(g => {
-      if (g.length >= 2) _link(g[0], g[1], "#3b9dff", _dist(coords[g[0]-1], coords[g[1]-1]).toFixed(3) + " Å", coords);
+      if (g.length < 2) return;
+      const pa = coords[g[0] - 1], pb = coords[g[1] - 1];
+      if (!pa || !pb) return;
+      _link(g[0], g[1], "#3b9dff", _dist(pa, pb).toFixed(3) + " Å", coords);
     });
   }
 
@@ -2030,8 +2421,13 @@ function onAtomClick(idx) {
   lastClicked = idx;
   currentGroup.push(idx);
   const f = fieldOf(activeField);
-  if (f.size > 0 && currentGroup.length >= f.size) commitGroup();
+  const touring = typeof tourIsOpen === "function" && tourIsOpen();
+  if (!touring && f.size > 0 && currentGroup.length >= f.size) commitGroup();
   refresh();
+  if (typeof tourNotify === "function") {
+    const need = (typeof window.__tourMinAtoms === "number") ? window.__tourMinAtoms : 3;
+    if (currentGroup.length >= need) tourNotify("picked");
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -2070,7 +2466,8 @@ function toggleMeasureMode() {
   measurePicks = [];
   const btn = $("measureBtn");
   btn.classList.toggle("active-mode", measureMode);
-  btn.textContent = measureMode ? "📐 Measuring…" : "📐 Measure";
+  btn.textContent = measureMode ? "Measuring…" : "Measure";
+  btn.setAttribute("aria-pressed", measureMode ? "true" : "false");
   updateMeasureReadout();
   if (baseCoords) buildScene(baseCoords, false);
 }
@@ -2158,6 +2555,8 @@ function commitGroup() {
   }
   currentGroup = [];
   refresh();
+  if (typeof tourNotify === "function") tourNotify("commit");
+  if (typeof saveSession === "function") saveSession();
 }
 
 function clearGroup() { currentGroup = []; refresh(); }
@@ -2292,7 +2691,7 @@ function runConfigObject() {
   return {
     workflow_preset: activeWorkflowPreset || "custom",
     root_dir:    pathVal(RUN_PATHS.root_dir, ""),
-    feather_dir: pathVal(RUN_PATHS.feather_dir, "C:\\path\\to\\your\\feathers"),
+    feather_dir: ($("featherDirInput") && $("featherDirInput").value.trim()) || pathVal(RUN_PATHS.feather_dir, "C:\\path\\to\\your\\feathers"),
     xyz_dir:     pathVal(RUN_PATHS.xyz_dir, "C:\\path\\to\\your\\xyz"),
     derive_xyz_from_feathers: $("useFeatherXyz") ? $("useFeatherXyz").checked : false,
     derived_xyz_dir: null,
@@ -2304,6 +2703,709 @@ function runConfigObject() {
 }
 function runConfigJSON() {
   return JSON.stringify(runConfigObject(), null, 2);
+}
+
+function setExtractStatus(msg, kind) {
+  const el = $("extractStatus");
+  if (!el) return;
+  el.textContent = msg || "";
+  el.style.color = kind === "bad" ? "var(--red)" : (kind === "ok" ? "var(--green, #1CB04A)" : "var(--muted)");
+  if (msg && typeof announce === "function") announce(msg);
+}
+
+let lastExtractCsv = "";
+let lastExtractName = "features.csv";
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i + 1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') { cell += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else cell += ch;
+    } else if (ch === '"') inQuotes = true;
+    else if (ch === ",") { row.push(cell); cell = ""; }
+    else if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+    else if (ch !== "\r") cell += ch;
+  }
+  if (cell.length || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(v => String(v).trim() !== ""));
+}
+
+function renderExtractTable(csv) {
+  const wrap = $("extractTableWrap");
+  const table = $("extractTable");
+  if (!wrap || !table) return;
+  const rows = parseCsv(csv);
+  if (!rows.length) {
+    wrap.style.display = "none";
+    table.innerHTML = "";
+    return;
+  }
+  const maxCols = 80;
+  const header = rows[0];
+  const clipped = header.length > maxCols + 1;
+  const cols = clipped ? header.slice(0, maxCols + 1) : header;
+  let html = "<thead><tr>" + cols.map(h => "<th>" + esc(h || "molecule") + "</th>").join("");
+  if (clipped) html += "<th>…</th>";
+  html += "</tr></thead><tbody>";
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    html += "<tr>";
+    for (let j = 0; j < cols.length; j++) html += "<td>" + esc(r[j] == null ? "" : r[j]) + "</td>";
+    if (clipped) html += "<td>…</td>";
+    html += "</tr>";
+  }
+  html += "</tbody>";
+  table.innerHTML = html;
+  wrap.style.display = "block";
+}
+
+function fillTargetSelect() {
+  const sel = $("lrTargetCol");
+  if (!sel) return;
+  const prev = sel.value;
+  const rows = lastExtractCsv ? parseCsv(lastExtractCsv) : [];
+  const header = rows.length ? rows[0] : [];
+  sel.innerHTML = "";
+  const blank = document.createElement("option");
+  blank.value = "";
+  blank.textContent = header.length ? "— choose a column —" : "Extract CSV first";
+  sel.appendChild(blank);
+  header.forEach((name, i) => {
+    const label = name || (i === 0 ? "molecule" : "col_" + i);
+    if (!String(name || "").trim() && i === 0) return;
+    const o = document.createElement("option");
+    o.value = name;
+    o.textContent = label;
+    sel.appendChild(o);
+  });
+  const prefer = ["output", "y", "target", "bp_c", "pka", "ddg", "activity"];
+  if (prev && header.includes(prev)) sel.value = prev;
+  else {
+    const hit = prefer.find(n => header.some(h => String(h).toLowerCase() === n));
+    if (hit) {
+      const real = header.find(h => String(h).toLowerCase() === hit);
+      sel.value = real;
+    }
+  }
+}
+
+function setModelStatus(msg, kind) {
+  const el = $("lrStatus");
+  if (!el) return;
+  el.textContent = msg || "";
+  el.className = "model-status" + (msg ? " visible " + (kind || "warn") : "");
+  if (msg && typeof announce === "function") announce(msg);
+}
+
+function renderModelTable(rows) {
+  const wrap = $("lrTableWrap");
+  const table = $("lrTable");
+  if (!wrap || !table) return;
+  if (!rows || !rows.length) {
+    wrap.style.display = "none";
+    table.innerHTML = "";
+    return;
+  }
+  const cols = Object.keys(rows[0]);
+  let html = "<thead><tr>" + cols.map(h => "<th>" + esc(h) + "</th>").join("") + "</tr></thead><tbody>";
+  rows.forEach(r => {
+    html += "<tr>";
+    cols.forEach(c => html += "<td>" + esc(r[c] == null ? "" : r[c]) + "</td>");
+    html += "</tr>";
+  });
+  html += "</tbody>";
+  table.innerHTML = html;
+  wrap.style.display = "block";
+}
+
+function showOutTab(tab) {
+  outTab = tab;
+  document.querySelectorAll(".tabs button").forEach(x => {
+    x.classList.toggle("active", x.dataset.tab === tab);
+    x.setAttribute("aria-selected", x.dataset.tab === tab ? "true" : "false");
+  });
+  if (tab === "model" && $("configFold")) $("configFold").open = true;
+  const model = $("modelPanel");
+  const out = $("outBox");
+  if (tab === "model") {
+    if (out) out.style.display = "none";
+    if (model) model.style.display = "";
+    fillTargetSelect();
+    if (!lastExtractCsv) setModelStatus("Extract CSV first, then choose a target or paste values.", "warn");
+    if (typeof tourNotify === "function") tourNotify("model-tab");
+  } else {
+    if (model) model.style.display = "none";
+    if (out) out.style.display = "";
+    refresh();
+  }
+}
+
+async function runLinearRegression() {
+  const btn = $("lrRunBtn");
+  if (!lastExtractCsv) {
+    setModelStatus("Extract CSV first.", "bad");
+    return;
+  }
+  const pasted = ($("lrOutputs") && $("lrOutputs").value.trim()) || "";
+  const yCol = ($("lrTargetCol") && $("lrTargetCol").value) || "";
+  if (!pasted && !yCol) {
+    setModelStatus("Choose a target column, or paste output values.", "bad");
+    return;
+  }
+  if (btn) btn.disabled = true;
+  setModelStatus("Fitting linear models…", "warn");
+  try {
+    const response = await fetch("/model/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        csv: lastExtractCsv,
+        y_column: yCol,
+        outputs: pasted,
+        new_column: ($("lrNewCol") && $("lrNewCol").value.trim()) || "output",
+        min_features: Number($("lrMin") && $("lrMin").value) || 1,
+        max_features: Number($("lrMax") && $("lrMax").value) || 2,
+        top_n: Number($("lrTop") && $("lrTop").value) || 8,
+        threshold: Number($("lrThr") && $("lrThr").value),
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) {
+      setModelStatus(data.error || ("Modeling failed (HTTP " + response.status + ")."), "bad");
+      renderModelTable([]);
+      return;
+    }
+    renderModelTable(data.rows || []);
+    setModelStatus(
+      (data.n_models || 0) + " models for target '" + (data.target || yCol) +
+      "' — sorted by leave-one-out Q².",
+      "ok"
+    );
+    if (typeof tourNotify === "function") tourNotify("model");
+  } catch (err) {
+    setModelStatus("Modeling failed: " + err.message, "bad");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function downloadLastCsv() {
+  if (!lastExtractCsv) return;
+  const blob = new Blob([lastExtractCsv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = lastExtractName || "features.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function extractFeatures() {
+  const btn = $("extractBtn");
+  const dl = $("downloadCsvBtn");
+  const cfg = runConfigObject();
+  const dir = ($("featherDirInput") && $("featherDirInput").value.trim()) || "";
+  if (dir) cfg.feather_dir = dir;
+  cfg.output_csv = null;
+  if (cfg.engines && cfg.engines.descripytor_full) cfg.engines.descripytor_full.save_as = false;
+  if (btn) btn.disabled = true;
+  if (dl) dl.disabled = true;
+  if (typeof tourNotify === "function") tourNotify("extract-start");
+  try {
+    window._folderCount = 0;
+    if (dir) {
+      try {
+        const sum = await fetch("/folder/summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ directory: dir }),
+        });
+        const info = await sum.json().catch(() => ({}));
+        if (info.n) window._folderCount = info.n;
+      } catch (_) {}
+    }
+    const nMol = window._folderCount;
+    setExtractStatus(
+      nMol ? ("Extracting " + nMol + " molecules… this can take a minute.") : "Extracting… this can take a minute.",
+      "warn"
+    );
+    setWorkProgress("extractProgress", 0, { indeterminate: !nMol });
+    const started = Date.now();
+    const estMs = nMol ? Math.max(8000, nMol * 4000) : 30000;
+    const tick = setInterval(() => {
+      const elapsed = Date.now() - started;
+      const sec = Math.round(elapsed / 1000);
+      setExtractStatus(
+        (nMol ? ("Extracting " + nMol + " molecules") : "Extracting") +
+        "… " + sec + "s elapsed.",
+        "warn"
+      );
+      if (nMol) setWorkProgress("extractProgress", Math.min(0.92, elapsed / estMs));
+    }, 250);
+    let response, data;
+    try {
+      response = await fetch("/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: cfg }),
+      });
+      data = await response.json().catch(() => ({}));
+    } finally {
+      clearInterval(tick);
+    }
+    if (!response.ok || data.error) {
+      hideWorkProgress("extractProgress");
+      setExtractStatus(data.error || ("Extraction failed (HTTP " + response.status + ")."), "bad");
+      if (typeof tourNotify === "function") tourNotify("extract-fail");
+      return;
+    }
+    lastExtractCsv = data.csv || "";
+    lastExtractName = data.filename || "features.csv";
+    renderExtractTable(lastExtractCsv);
+    fillTargetSelect();
+    fillExampleOutputs();
+    if (typeof saveSession === "function") saveSession();
+    setWorkProgress("extractProgress", 1);
+    setExtractStatus(
+      (data.n_mols || "?") + " molecules × " + (data.n_features || "?") +
+      " features — table below. Open the Model tab to add the experimental output column.",
+      "ok"
+    );
+    if (typeof tourNotify === "function") tourNotify("extract");
+    setTimeout(() => hideWorkProgress("extractProgress"), 500);
+  } catch (err) {
+    hideWorkProgress("extractProgress");
+    setExtractStatus("Extraction failed: " + err.message, "bad");
+    if (typeof tourNotify === "function") tourNotify("extract-fail");
+  } finally {
+    if (btn) btn.disabled = false;
+    if (dl) dl.disabled = !lastExtractCsv;
+  }
+}
+
+const SESSION_KEY = "descripytor.visual.session.v1";
+
+function saveSession() {
+  try {
+    const payload = {
+      featherDir: $("featherDirInput") ? $("featherDirInput").value.trim() : "",
+      state,
+      lastExtractCsv: lastExtractCsv || "",
+      lastExtractName: lastExtractName || "",
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+  } catch (_) {}
+}
+
+function restoreSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== "object") return false;
+    if (data.featherDir && $("featherDirInput")) $("featherDirInput").value = data.featherDir;
+    if (data.state && typeof data.state === "object") {
+      Object.keys(state).forEach(k => {
+        if (Array.isArray(data.state[k])) state[k] = data.state[k];
+      });
+    }
+    if (data.lastExtractCsv) {
+      lastExtractCsv = data.lastExtractCsv;
+      lastExtractName = data.lastExtractName || "features.csv";
+      renderExtractTable(lastExtractCsv);
+      fillTargetSelect();
+      const dl = $("downloadCsvBtn");
+      if (dl) dl.disabled = !lastExtractCsv;
+    }
+    refresh();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch (_) {}
+}
+
+function normalizePresetGroups(key, value) {
+  const field = fieldOf(key);
+  if (!Array.isArray(value)) return [];
+  if (!value.length) return [];
+  if (typeof value[0] === "number") {
+    if (field && field.size === 1) return value.map(v => [v]);
+    return [value.slice()];
+  }
+  return value.map(g => Array.isArray(g) ? g.slice() : [g]);
+}
+
+function applyExamplePresets() {
+  const atoms = window._examplePresets;
+  if (!atoms || !Object.keys(atoms).length) {
+    setExtractStatus("No example atom picks are bundled with this set.", "bad");
+    return;
+  }
+  let maxIdx = 0;
+  Object.keys(atoms).forEach(key => {
+    (atoms[key] || []).forEach(g => {
+      (Array.isArray(g) ? g : [g]).forEach(n => {
+        const i = Number(n);
+        if (i > maxIdx) maxIdx = i;
+      });
+    });
+  });
+  if (nAtoms && maxIdx > nAtoms) {
+    setExtractStatus(
+      "Example picks use atom " + maxIdx + ", but this molecule has " + nAtoms +
+      " atoms. Load " + (window._exampleReferenceName || "unsub") + ".feather first.",
+      "bad"
+    );
+    return;
+  }
+  Object.keys(atoms).forEach(key => {
+    if (state[key] === undefined) return;
+    state[key] = normalizePresetGroups(key, atoms[key]);
+  });
+  currentGroup = [];
+  refresh();
+  saveSession();
+  setExtractStatus("Loaded example atom picks. Extract when ready, or Check numbering if you want to verify indices.", "ok");
+  if (typeof tourNotify === "function") tourNotify("preset");
+}
+
+function normMolName(s) {
+  return String(s || "").replace(/\.feather$/i, "").trim().toLowerCase().replace(/_/g, "-");
+}
+
+function fillExampleOutputs() {
+  const ta = $("lrOutputs");
+  if (!ta) return;
+  const rows = window._exampleOutcomes || [];
+  if (!rows.length || !lastExtractCsv) return;
+  const table = parseCsv(lastExtractCsv);
+  if (table.length < 2) return;
+  const header = table[0].map(h => String(h || "").toLowerCase());
+  let nameIdx = header.findIndex(h => ["name", "names", "molecule", "molecule_name"].includes(h));
+  if (nameIdx < 0) nameIdx = 0;
+  const byName = {};
+  rows.forEach(r => { if (r && r.name != null) byName[normMolName(r.name)] = r.output; });
+  const lines = [];
+  for (let i = 1; i < table.length; i++) {
+    const name = String(table[i][nameIdx] || "").replace(/\.feather$/i, "");
+    const value = byName[normMolName(name)];
+    if (value == null) continue;
+    lines.push(name + "," + value);
+  }
+  if (lines.length) {
+    ta.value = lines.join("\n");
+    if ($("lrNewCol")) $("lrNewCol").value = "output";
+    if ($("lrThr")) $("lrThr").value = "0";
+    const sel = $("lrTargetCol");
+    if (sel && [...sel.options].some(o => o.value === "output")) sel.value = "output";
+  }
+}
+
+function flattenPickedIndices() {
+  const out = [];
+  Object.keys(state).forEach(k => {
+    (state[k] || []).forEach(g => {
+      (Array.isArray(g) ? g : [g]).forEach(n => {
+        const i = Number(n);
+        if (i > 0 && !out.includes(i)) out.push(i);
+      });
+    });
+  });
+  return out;
+}
+
+const NUMBERING_IDLE_MSG = "Optional: check that picked atoms are the same element in every file. This loads the whole folder, so it only runs when you ask.";
+
+function setWorkProgress(wrapId, frac, opts) {
+  const wrap = $(wrapId);
+  const bar = wrap && wrap.querySelector(".work-progress-bar");
+  if (!wrap) return;
+  wrap.hidden = false;
+  const indeterminate = !!(opts && opts.indeterminate);
+  wrap.classList.toggle("indeterminate", indeterminate);
+  if (bar && !indeterminate) {
+    const pct = Math.max(0, Math.min(100, Math.round((frac || 0) * 100)));
+    bar.style.width = pct + "%";
+    wrap.setAttribute("aria-valuenow", String(pct));
+  }
+}
+
+function hideWorkProgress(wrapId) {
+  const wrap = $(wrapId);
+  if (!wrap) return;
+  wrap.hidden = true;
+  wrap.classList.remove("indeterminate");
+  const bar = wrap.querySelector(".work-progress-bar");
+  if (bar) bar.style.width = "0%";
+  wrap.removeAttribute("aria-valuenow");
+}
+
+function setNumberingBusy(busy) {
+  window._numberingBusy = !!busy;
+  ["checkNumberingBtn", "viewNumberingBtn"].forEach(id => {
+    if ($(id)) $(id).disabled = !!busy;
+  });
+  const banner = $("numberingBanner");
+  if (banner && busy) banner.className = "numbering-banner busy";
+}
+
+async function readNdjsonEvents(response, onEvent) {
+  if (!response.body || !response.body.getReader) {
+    const text = await response.text();
+    const lines = text.split("\n").map(s => s.trim()).filter(Boolean);
+    for (const line of lines) {
+      const ev = JSON.parse(line);
+      onEvent(ev);
+    }
+    return;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      onEvent(JSON.parse(line));
+    }
+  }
+  const tail = buf.trim();
+  if (tail) onEvent(JSON.parse(tail));
+}
+
+async function checkNumbering(opts) {
+  const includeXyz = !!(opts && opts.includeXyz);
+  const dir = ($("featherDirInput") && $("featherDirInput").value.trim()) || window._exampleFeatherDir || "";
+  const banner = $("numberingBanner");
+  const msg = $("numberingMsg");
+  if (!dir) {
+    if (banner && msg) {
+      banner.hidden = false;
+      banner.className = "numbering-banner idle";
+      msg.textContent = NUMBERING_IDLE_MSG;
+    }
+    return null;
+  }
+  if (window._numberingBusy) return null;
+  const picked = flattenPickedIndices();
+  window._numberingPicked = picked;
+  const useBundledRef = sameFolderPath(dir, window._exampleFeatherDir);
+  setNumberingBusy(true);
+  setWorkProgress("numberingProgress", 0, { indeterminate: true });
+  if (banner && msg) {
+    banner.hidden = false;
+    banner.className = "numbering-banner busy";
+    msg.textContent = "Checking numbering…";
+  }
+  try {
+    const response = await fetch("/numbering/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        directory: dir,
+        reference: useBundledRef ? (window._exampleBasicFeather || "") : "",
+        picked,
+        include_xyz: includeXyz,
+        limit_xyz: 8,
+        stream: true,
+      }),
+    });
+    if (!response.ok) {
+      const fallback = await response.json().catch(() => ({}));
+      throw new Error(fallback.error || ("Could not check atom numbering (HTTP " + response.status + ")."));
+    }
+    let data = null;
+    await readNdjsonEvents(response, ev => {
+      if (!ev || typeof ev !== "object") return;
+      if (ev.event === "error") throw new Error(ev.error || "Numbering check failed.");
+      if (ev.event === "start") {
+        const n = ev.n || 0;
+        setWorkProgress("numberingProgress", 0);
+        if (msg) msg.textContent = n ? ("Checking 0/" + n + "…") : "Checking numbering…";
+      } else if (ev.event === "progress") {
+        const n = ev.n || 0;
+        setWorkProgress("numberingProgress", n ? ev.i / n : 0);
+        if (msg) {
+          msg.textContent = n
+            ? ("Checking " + ev.i + "/" + n + (ev.name ? (": " + ev.name) : "") + "…")
+            : "Checking numbering…";
+        }
+      } else if (ev.event === "done") {
+        data = ev;
+      }
+    });
+    if (!data) throw new Error("Numbering check produced no result.");
+    window._numberingN = data.n_mols;
+    window._numberingOverlay = data.overlay || [];
+    setWorkProgress("numberingProgress", 1);
+    if (banner && msg) {
+      banner.hidden = false;
+      banner.className = "numbering-banner" + (data.ok ? " ok" : "");
+      if (!picked.length) {
+        msg.textContent = data.n_mols + " molecules in the folder. Pick atoms, then numbering is checked at those indices. Use View to overlay structures.";
+      } else {
+        msg.textContent = data.message || "";
+      }
+    }
+    setTimeout(() => hideWorkProgress("numberingProgress"), 400);
+    return data;
+  } catch (err) {
+    hideWorkProgress("numberingProgress");
+    if (banner && msg) {
+      banner.hidden = false;
+      banner.className = "numbering-banner";
+      msg.textContent = "Numbering check failed: " + err.message;
+    }
+    return null;
+  } finally {
+    setNumberingBusy(false);
+  }
+}
+
+function openCviewPanel() {
+  const box = $("cviewDetails");
+  if (box) box.open = true;
+  if (typeof cvOpen !== "undefined" && !cvOpen && typeof toggleCview === "function") toggleCview();
+}
+
+async function viewNumberingOverlay() {
+  openCviewPanel();
+  let overlay = window._numberingOverlay;
+  if (!overlay || !overlay.length) {
+    const data = await checkNumbering({ includeXyz: true });
+    overlay = (data && data.overlay) || [];
+  }
+  if (!overlay.length) {
+    setExtractStatus("Could not load structures for the overlay.", "bad");
+    return;
+  }
+  if (typeof cvClearAll === "function") cvClearAll();
+  overlay.forEach((item, i) => {
+    const frames = parseMultiXyz(item.xyz, item.name);
+    frames.forEach(f => {
+      f.name = item.name + (item.reference ? " (reference)" : "");
+      cvConformers.push({
+        ...f,
+        color: CV_COLORS[cvConformers.length % CV_COLORS.length],
+        on: true,
+        rmsd: null,
+      });
+    });
+  });
+  if ($("cvShowLabels")) $("cvShowLabels").checked = true;
+  if ($("cvAlignMode")) $("cvAlignMode").value = "heavy";
+  cvUpdateList();
+  cvRenderStack();
+  const stats = $("cvStats");
+  if (stats) {
+    stats.className = "cv-stats visible";
+    const extra = stats.innerHTML ? stats.innerHTML + "<br>" : "";
+    stats.innerHTML = extra + "Overlay vs the reference molecule. Matching labels (C23, C1, …) should sit on the same atoms. A high RMSD or “not aligned” line usually means the set is numbered differently.";
+  }
+}
+
+async function loadExampleFeatherDir() {
+  try {
+    const response = await fetch("/status");
+    const data = await response.json();
+    const dir = data.example_feather_dir || "";
+    window._exampleFeatherDir = dir;
+    window._exampleBasicFeather = data.example_reference_feather || data.example_basic_feather || "";
+    window._exampleReferenceName = data.example_reference_name || "unsub";
+    window._examplePresets = data.example_presets || {};
+    window._exampleOutcomes = data.example_outcomes || [];
+    if ($("featherDirInput") && dir && !$("featherDirInput").value) {
+      $("featherDirInput").placeholder = dir;
+    }
+    const molBtn = $("loadExampleMolBtn");
+    if (molBtn && window._exampleReferenceName) {
+      molBtn.textContent = "Load " + window._exampleReferenceName + ".feather";
+    }
+    applyExampleFolderFromStatus(false);
+  } catch (_) {}
+}
+
+function isBundledBenzeneExampleDir(dir) {
+  const text = String(dir || "").replace(/[\\/]+$/, "").replace(/\\/g, "/");
+  return /\/feather_example$/i.test(text);
+}
+
+function sameFolderPath(a, b) {
+  const norm = p => String(p || "").replace(/[\\/]+$/, "").replace(/\\/g, "/").toLowerCase();
+  return !!norm(a) && norm(a) === norm(b);
+}
+
+function applyExampleFolderFromStatus(force) {
+  const dir = window._exampleFeatherDir || "";
+  const input = $("featherDirInput");
+  if (!input || !dir) return;
+  const current = input.value.trim();
+  if (force || !current || isBundledBenzeneExampleDir(current)) {
+    input.value = dir;
+    window._folderCount = 0;
+  }
+}
+
+async function loadExampleMolecule(opts) {
+  const silent = !!(opts && opts.silent);
+  if (window._exampleMolAbort) {
+    try { window._exampleMolAbort.abort(); } catch (_) {}
+  }
+  const ac = typeof AbortController === "function" ? new AbortController() : null;
+  window._exampleMolAbort = ac;
+  window._exampleMolLoading = true;
+  await loadExampleFeatherDir();
+  applyExampleFolderFromStatus(false);
+  const refName = window._exampleReferenceName || "unsub";
+  const setMsg = (text, kind) => {
+    if (typeof setExtractStatus === "function") setExtractStatus(text, kind || "");
+    const title = $("tourTitle");
+    const body = $("tourBody");
+    if (body && title && /molecule in 3D/i.test(title.textContent || "")) body.textContent = text;
+    if (kind === "bad" || kind === "warn") showViewerMessage(text, kind);
+  };
+  setMsg("Loading " + refName + ".feather…", "warn");
+  try {
+    const fetchOpts = ac ? { signal: ac.signal } : {};
+    let response = await fetch("/example_xyz", fetchOpts);
+    let data = await response.json().catch(() => ({}));
+    if ((!response.ok || !data.xyz) && window._exampleBasicFeather) {
+      response = await fetch("/xyz_from_feather", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filepath: window._exampleBasicFeather, name: refName }),
+        ...(ac ? { signal: ac.signal } : {}),
+      });
+      data = await response.json().catch(() => ({}));
+    }
+    if (!response.ok || data.error || !data.xyz) {
+      setMsg(data.error || ("Could not load " + refName + ".feather from the example set."), "bad");
+      return;
+    }
+    if (typeof initViewer === "function") initViewer(data.xyz, refName + ".feather", { silent });
+    setMsg("Loaded " + refName + ".feather into the 3D view.", "ok");
+  } catch (err) {
+    if (err && err.name === "AbortError") return;
+    setMsg("Could not load the example molecule: " + err.message, "bad");
+  } finally {
+    if (window._exampleMolAbort === ac) {
+      window._exampleMolLoading = false;
+      window._exampleMolAbort = null;
+    }
+  }
 }
 
 function esc(s) {
@@ -2451,7 +3553,9 @@ function refresh() {
   buildSterPairOptions();
 
   // export box
-  $("outBox").textContent = outTab === "py" ? pythonAnswersDict() : runConfigJSON();
+  if (outTab !== "model") {
+    $("outBox").textContent = outTab === "py" ? pythonAnswersDict() : runConfigJSON();
+  }
   const blob = new Blob([runConfigJSON()], { type:"application/json" });
   $("dlLink").href = URL.createObjectURL(blob);
   $("dlLink").download = "run_config.json";
@@ -2464,6 +3568,7 @@ function setActive(k) {
   currentGroup = [];
   $("fieldSelect").value = k;
   refresh();
+  if (typeof tourNotify === "function") tourNotify("field-" + k);
 }
 window.removeGroup = removeGroup;
 window.setActive = setActive;
@@ -2555,26 +3660,93 @@ $("resetBtn").onclick = () => {
   if ($("useFeatherXyz")) $("useFeatherXyz").checked = false;
   ["basisOrigin", "basisY", "basisPlane"].forEach(id => $(id).value = "");
   currentGroup = []; lastClicked = null; refresh();
+  if (typeof clearSession === "function") clearSession();
 };
 $("fileInput").onchange = e => {
   const file = e.target.files[0]; if (!file) return;
-  const r = new FileReader();
-  r.onload = ev => initViewer(ev.target.result, file.name);
-  r.readAsText(file);
+  loadStructureFile(file);
 };
+if ($("loadExampleMolBtn")) $("loadExampleMolBtn").onclick = () => loadExampleMolecule();
 $("pasteBtn").onclick = () => {
   const t = prompt("Paste an XYZ block (line1=atom count, line2=comment, then 'El x y z'):");
   if (t && t.trim()) initViewer(t);
 };
+if ($("recenterBtn")) $("recenterBtn").onclick = () => recenterViewer();
 document.querySelectorAll(".tabs button").forEach(b =>
-  b.onclick = () => {
-    document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("active"));
-    b.classList.add("active"); outTab = b.dataset.tab; refresh();
-  });
+  b.onclick = () => showOutTab(b.dataset.tab));
+if ($("lrRunBtn")) $("lrRunBtn").onclick = runLinearRegression;
 $("copyBtn").onclick = () => {
   navigator.clipboard.writeText($("outBox").textContent).then(
     () => { $("copyBtn").textContent = "Copied!"; setTimeout(()=>$("copyBtn").textContent="Copy", 1200); });
 };
+if ($("extractBtn")) $("extractBtn").onclick = extractFeatures;
+if ($("downloadCsvBtn")) $("downloadCsvBtn").onclick = downloadLastCsv;
+if ($("useExampleFeathersBtn")) $("useExampleFeathersBtn").onclick = async () => {
+  if (!window._exampleFeatherDir) await loadExampleFeatherDir();
+  if (window._exampleFeatherDir) {
+    applyExampleFolderFromStatus(true);
+    window._folderCount = 0;
+    window._numberingOverlay = [];
+    refresh();
+    const nOut = (window._exampleOutcomes || []).length;
+    const label = (window._exampleReferenceName === "unsub")
+      ? "bundled Baptiste product set"
+      : "bundled example set";
+    setExtractStatus(
+      "Using the " + label + (nOut ? (" (" + nOut + " molecules, experimental output).") : "."),
+      "ok"
+    );
+    if (typeof tourNotify === "function") tourNotify("example");
+    if (typeof saveSession === "function") saveSession();
+  } else {
+    setExtractStatus("Example feather folder not found in this install.", "bad");
+  }
+};
+if ($("featherDirInput")) $("featherDirInput").oninput = () => {
+  window._folderCount = 0;
+  window._numberingOverlay = [];
+  refresh();
+  if (typeof saveSession === "function") saveSession();
+};
+if ($("applyExamplePicksBtn")) $("applyExamplePicksBtn").onclick = applyExamplePresets;
+if ($("checkNumberingBtn")) $("checkNumberingBtn").onclick = () => checkNumbering();
+if ($("viewNumberingBtn")) $("viewNumberingBtn").onclick = viewNumberingOverlay;
+if ($("browseFeatherDirBtn")) $("browseFeatherDirBtn").onclick = browseFeatherFolder;
+if ($("hideExtrasBtn")) $("hideExtrasBtn").onclick = hideExtras;
+if ($("showExtrasBtn")) $("showExtrasBtn").onclick = showExtras;
+if ($("vizbarToggle")) $("vizbarToggle").onclick = toggleVizBar;
+
+async function browseFeatherFolder() {
+  const input = $("featherDirInput");
+  const initial = (input && input.value.trim()) || window._exampleFeatherDir || "";
+  if (typeof setExtractStatus === "function") setExtractStatus("Opening folder dialog…", "warn");
+  try {
+    const response = await fetch("/browse/folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initial }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) {
+      setExtractStatus(data.error || "Could not open a folder dialog. Paste the path instead.", "bad");
+      return;
+    }
+    if (data.cancelled) {
+      setExtractStatus("Folder dialog cancelled.", "");
+      return;
+    }
+    if (data.path && input) {
+      input.value = data.path;
+      window._folderCount = 0;
+      window._numberingOverlay = [];
+      refresh();
+      setExtractStatus("Feather folder: " + data.path, "ok");
+      if (typeof saveSession === "function") saveSession();
+    }
+  } catch (err) {
+    setExtractStatus("Could not open a folder dialog: " + err.message, "bad");
+  }
+}
 
 $("measureBtn").onclick = () => toggleMeasureMode();
 
@@ -2613,7 +3785,7 @@ $("screenshotBtn").onclick = () => {
   a.click();
 };
 
-/* 2D bond-graph (igraph) toggle - hidden by default so the 3D view + controls
+/* 2D bond-graph toggle - hidden by default so the 3D view + controls
    stay the primary side-by-side layout; click to bring it up alongside them. */
 (function () {
   const card = $("graph2dCard");
@@ -2625,7 +3797,7 @@ $("screenshotBtn").onclick = () => {
   card.style.display = "none";
   if (!hasImage) {
     btn.disabled = true;
-    btn.title = "No 2D graph available for this molecule (needs python-igraph on the server).";
+    btn.title = "No 2D graph available for this molecule.";
   } else {
     btn.onclick = () => {
       const showing = card.style.display !== "none";
@@ -3155,6 +4327,19 @@ function cvRenderStack() {
     } else {
       cvViewer3d.setStyle({model:mi},{stick:{color:col,radius:0.10},sphere:{color:col,scale:0.22}});
     }
+    const showLab = $("cvShowLabels") && $("cvShowLabels").checked;
+    const picked = window._numberingPicked || [];
+    if (showLab) {
+      spreadAtoms.forEach((a, ai) => {
+        const idx = ai + 1;
+        if (mi !== 0 && picked.length && !picked.includes(idx)) return;
+        cvViewer3d.addLabel(`${a[0]}${idx}`, {
+          position: { x: a[1], y: a[2], z: a[3] },
+          fontSize: 10, fontColor: col, backgroundColor: "rgba(255,255,255,0.85)",
+          inFront: true, showBackground: true,
+        });
+      });
+    }
   });
 
   cvViewer3d.zoomTo();
@@ -3384,13 +4569,600 @@ const _isDemo = EMBEDDED_XYZ.indexOf("__XYZ" + "_DATA__") === 0;
 if (typeof $3Dmol === "undefined") {
   const el = $("viewer");
   if (el) el.innerHTML = "<p style='padding:24px;color:#415165'>Could not load the 3D library from 3dmol.org. Check the network, then reload this page.</p>";
+} else if (!_isDemo) {
+  initViewer(EMBEDDED_XYZ, null);
 } else {
-  initViewer(_isDemo ? DEMO_XYZ : EMBEDDED_XYZ, _isDemo ? 'caffeine (demo)' : null);
+  const el = $("viewer");
+  if (el) el.innerHTML = "<p style='padding:24px;color:#415165'>Loading the example molecule…</p>";
 }
+if (typeof applyWorkflowPreset === "function") applyWorkflowPreset("feather");
 refresh();
-// Modeling panel was removed (see the "Modeling" section above) - its former
-// boot calls (mdlSync/mdlSyncMerge/mdlPingServer) targeted elements that no
-// longer exist, so they're intentionally not called here anymore.
+const _restoredSession = typeof restoreSession === "function" && restoreSession();
+loadExampleFeatherDir().then(() => {
+  if (typeof applyExampleFolderFromStatus === "function") applyExampleFolderFromStatus(false);
+  if (typeof $3Dmol !== "undefined" && typeof loadExampleMolecule === "function") {
+    loadExampleMolecule({ silent: true });
+  }
+});
+window.addEventListener("resize", () => {
+  if (typeof fitPickerViewer === "function") fitPickerViewer();
+});
+  // Modeling panel was removed (see the "Modeling" section above) - its former
+  // boot calls (mdlSync/mdlSyncMerge/mdlPingServer) targeted elements that no
+  // longer exist, so they're intentionally not called here anymore.
+
+/* ================================================================== *
+ * Guided tutorial: circle + arrow on Load → Pick → Extract → Model   *
+ * ================================================================== */
+function tourNotify(kind) {
+  if (typeof window.__descripytorTourNotify === "function") window.__descripytorTourNotify(kind);
+}
+function tourIsOpen() {
+  const el = document.getElementById("tourRoot");
+  return !!(el && !el.hidden);
+}
+
+(function initWorkflowTour() {
+  const ROOT_ID = "tourRoot";
+  const STORAGE = "descripytor.tour.v2";
+
+  function tourOpenPickSec() {
+    const head = $("pickSecHead");
+    if (head && head.classList.contains("closed")) toggleSec(head);
+  }
+
+  function tourRequireField(key) {
+    tourOpenPickSec();
+    const sel = $("fieldSelect");
+    if (!sel) return;
+    if (sel._tourFieldHandler) {
+      sel.removeEventListener("change", sel._tourFieldHandler);
+      sel.removeEventListener("click", sel._tourClickHandler);
+    }
+    sel._tourFieldHandler = () => {
+      if (sel.value === key) tourNotify("field-" + key);
+    };
+    sel._tourClickHandler = () => {
+      if (sel.value === key) tourNotify("field-" + key);
+    };
+    sel.addEventListener("change", sel._tourFieldHandler);
+    sel.addEventListener("click", sel._tourClickHandler);
+  }
+
+  const STEPS = [
+    {
+      id: "welcome",
+      title: "Load, extract, then model",
+      body: "Follow the circle and arrow. Next stays locked until you click the highlighted control on the page — the card will not do it for you.",
+      target: null,
+      nextLabel: "Start",
+    },
+    {
+      id: "example",
+      title: "Load the example folder",
+      body: "Click Use example set (the highlighted button). This loads the 18 Baptiste products. Extraction later uses every .feather in that folder, with experimental output values for modeling.",
+      target: "#useExampleFeathersBtn",
+      shape: "pill",
+      advance: "example",
+      waitHint: "Click Use example set. Next stays locked until you do.",
+    },
+    {
+      id: "file",
+      title: "Open a molecule in 3D",
+      body: "Click Load unsub.feather (highlighted, under the 3D view). This is the unsubstituted reference for the Baptiste set. Do not use Choose File for this step.",
+      target: "#loadExampleMolBtn",
+      shape: "pill",
+      advance: "file",
+      waitHint: "Click Load unsub.feather under the 3D view.",
+    },
+    {
+      id: "field-angle",
+      title: "Choose Bond angle",
+      body: "Open Active field (highlighted) and select Bond angle/dihedral. This is a different descriptor family from Sterimol.",
+      target: "#fieldSelect",
+      shape: "pill",
+      advance: "field-bond_angle",
+      waitHint: "Click the Active field menu and choose Bond angle/dihedral.",
+      enter() { tourRequireField("bond_angle"); },
+    },
+    {
+      id: "atoms",
+      title: "Click three atoms for an angle",
+      body: "Click three labeled atoms — for example 1, then 2, then 3. The middle atom is the vertex. The Building group chip must show three numbers.",
+      target: "#viewer",
+      shape: "round",
+      pad: 4,
+      advance: "picked",
+      waitHint: "Click three atoms on the 3D molecule (e.g. 1, 2, 3). Next stays locked.",
+      enter() {
+        tourOpenPickSec();
+        window.__tourMinAtoms = 3;
+        if (typeof setActive === "function") setActive("bond_angle");
+      },
+    },
+    {
+      id: "commit",
+      title: "Commit this angle",
+      body: "The chip lists your atoms, but they are not stored yet. Click Commit group. Bond angle does not auto-save.",
+      target: "#commitRow",
+      shape: "round",
+      pad: 8,
+      advance: "commit",
+      waitHint: "Click Commit group. The chip must not be empty.",
+      enter() { const f = $("selTableFold"); if (f) f.open = true; },
+    },
+    {
+      id: "field-length",
+      title: "Switch to Bond length",
+      body: "Now add a different feature. Open Active field and choose Bond length [a, b].",
+      target: "#fieldSelect",
+      shape: "pill",
+      advance: "field-bond_length",
+      waitHint: "Click the Active field menu and choose Bond length.",
+      enter() { tourRequireField("bond_length"); },
+    },
+    {
+      id: "atoms-length",
+      title: "Click two atoms for a bond length",
+      body: "Click two labeled atoms — for example 1 then 2. During the tutorial you still need Commit group (it does not auto-save while the tour is open).",
+      target: "#viewer",
+      shape: "round",
+      pad: 4,
+      advance: "picked",
+      waitHint: "Click two atoms (e.g. 1, 2). Next stays locked.",
+      enter() {
+        tourOpenPickSec();
+        window.__tourMinAtoms = 2;
+        if (typeof setActive === "function") setActive("bond_length");
+      },
+    },
+    {
+      id: "commit-length",
+      title: "Commit the bond length",
+      body: "Click Commit group to store this pair. It becomes a bond_length column in the CSV.",
+      target: "#commitRow",
+      shape: "round",
+      pad: 8,
+      advance: "commit",
+      waitHint: "Click Commit group to save the bond length.",
+    },
+    {
+      id: "field-sterimol",
+      title: "Switch to Sterimol",
+      body: "Add a steric feature. Open Active field and choose Sterimol [origin, attached].",
+      target: "#fieldSelect",
+      shape: "pill",
+      advance: "field-sterimol",
+      waitHint: "Click the Active field menu and choose Sterimol.",
+      enter() { tourRequireField("sterimol"); },
+    },
+    {
+      id: "atoms-sterimol",
+      title: "Click two atoms for Sterimol",
+      body: "Click the origin atom first, then the attached atom that defines the axis — for example 1 then 23.",
+      target: "#viewer",
+      shape: "round",
+      pad: 4,
+      advance: "picked",
+      waitHint: "Click two atoms (origin, then attached). Next stays locked.",
+      enter() {
+        tourOpenPickSec();
+        window.__tourMinAtoms = 2;
+        if (typeof setActive === "function") setActive("sterimol");
+      },
+    },
+    {
+      id: "commit-sterimol",
+      title: "Commit Sterimol",
+      body: "Click Commit group to store the Sterimol axis. This adds L / B1 / B5-style columns at extract.",
+      target: "#commitRow",
+      shape: "round",
+      pad: 8,
+      advance: "commit",
+      waitHint: "Click Commit group to save Sterimol.",
+    },
+    {
+      id: "field-charges",
+      title: "Switch to Charges",
+      body: "Add an electronic feature. Open Active field and choose Charges [single atoms].",
+      target: "#fieldSelect",
+      shape: "pill",
+      advance: "field-charges",
+      waitHint: "Click the Active field menu and choose Charges.",
+      enter() { tourRequireField("charges"); },
+    },
+    {
+      id: "atoms-charges",
+      title: "Click one atom for charge",
+      body: "Click one labeled atom — for example 1. That atom’s charge will be a column in the CSV.",
+      target: "#viewer",
+      shape: "round",
+      pad: 4,
+      advance: "picked",
+      waitHint: "Click one atom on the 3D molecule. Next stays locked.",
+      enter() {
+        tourOpenPickSec();
+        window.__tourMinAtoms = 1;
+        if (typeof setActive === "function") setActive("charges");
+      },
+    },
+    {
+      id: "commit-charges",
+      title: "Commit the charge atom",
+      body: "Click Commit group. You now have four different features: angle, bond length, Sterimol, and charge.",
+      target: "#commitRow",
+      shape: "round",
+      pad: 8,
+      advance: "commit",
+      waitHint: "Click Commit group to save the charge atom.",
+    },
+    {
+      id: "extract",
+      title: "Extract the features",
+      body: "Click Extract CSV (the blue button). The table will include columns from every field you committed — not only the angle. This can take about a minute.",
+      target: "#extractBtn",
+      shape: "pill",
+      advance: "extract",
+      waitHint: "Click Extract CSV. Next will not run the extract for you.",
+      enter() {
+        if (typeof collapseAllViz === "function") collapseAllViz(true);
+        const head = $("extractSecHead");
+        if (head && head.classList.contains("closed")) toggleSec(head);
+      },
+    },
+    {
+      id: "results",
+      title: "Read the feature table",
+      body: "Each row is one molecule. Look for angle, bond length, Sterimol, and charge columns from the groups you committed. Click Next when you have looked at the table.",
+      target: "#extractResultBlock",
+      shape: "round",
+      pad: 8,
+    },
+    {
+      id: "model-tab",
+      title: "Open Model",
+      body: "Click the Model tab (highlighted).",
+      target: "#modelTabBtn",
+      shape: "pill",
+      advance: "model-tab",
+      waitHint: "Click the Model tab.",
+      enter() { if ($("configFold")) $("configFold").open = true; },
+    },
+    {
+      id: "run",
+      title: "Run linear regression",
+      body: "Experimental Baptiste output values are filled from the bundled outcomes file. Click Run linear regression (the blue button).",
+      target: "#lrRunBtn",
+      shape: "pill",
+      advance: "model",
+      waitHint: "Click Run linear regression.",
+      enter() {
+        if (typeof showOutTab === "function") showOutTab("model");
+        if (typeof fillExampleOutputs === "function") fillExampleOutputs();
+        else tourFillDemoOutputs();
+      },
+    },
+    {
+      id: "done",
+      title: "You're done",
+      body: "You loaded data, committed four different features (angle, bond length, Sterimol, charge), extracted a CSV, and fit a model. Click Done, or Tutorial in the header to replay.",
+      target: "#modelPanel",
+      shape: "round",
+      pad: 8,
+      nextLabel: "Done",
+      enter() { if (typeof showOutTab === "function") showOutTab("model"); },
+    },
+  ];
+
+  let idx = 0;
+  let open = false;
+  let layoutTimer = 0;
+
+  function tourFillDemoOutputs() {
+    if (typeof fillExampleOutputs === "function") {
+      fillExampleOutputs();
+      return;
+    }
+    const ta = $("lrOutputs");
+    if (!ta) return;
+    const table = $("extractTable");
+    const n = table ? table.querySelectorAll("tbody tr").length : 0;
+    if (!n) return;
+    ta.value = Array.from({ length: n }, (_, i) => (1.50 + i * 0.07).toFixed(2)).join("\n");
+    if ($("lrThr")) $("lrThr").value = "0";
+  }
+
+  function ensureDom() {
+    if ($(ROOT_ID)) return;
+    const wrap = document.createElement("div");
+    wrap.id = ROOT_ID;
+    wrap.hidden = true;
+    wrap.innerHTML = `
+      <div id="tourRing" class="round"></div>
+      <svg id="tourSvg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="tourHead" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto">
+            <path d="M 0 0 L 12 6 L 0 12 z" fill="#007AFF"></path>
+          </marker>
+        </defs>
+        <path id="tourArrow" fill="none" stroke="#007AFF" stroke-width="3.2" stroke-linecap="round" marker-end="url(#tourHead)"></path>
+      </svg>
+      <div id="tourCard" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourBody">
+        <div class="tour-kicker" id="tourKicker"></div>
+        <h3 id="tourTitle"></h3>
+        <p id="tourBody"></p>
+        <p id="tourWait" hidden></p>
+        <div class="tour-nav">
+          <div class="tour-dots" id="tourDots"></div>
+          <button type="button" id="tourSkipBtn">Skip</button>
+          <button type="button" id="tourBackBtn">Back</button>
+          <button type="button" id="tourNextBtn">Next</button>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+    $("tourSkipBtn").onclick = stopTour;
+    $("tourBackBtn").onclick = () => go(idx - 1);
+    $("tourNextBtn").onclick = () => {
+      const step = STEPS[idx];
+      if (idx >= STEPS.length - 1) {
+        stopTour();
+        return;
+      }
+      if (stepLocked(step)) {
+        const wait = $("tourWait");
+        if (wait) {
+          wait.hidden = false;
+          wait.textContent = step.waitHint || "Click the highlighted control on the page. Next cannot skip this step.";
+          wait.classList.remove("tour-wait-flash");
+          void wait.offsetWidth;
+          wait.classList.add("tour-wait-flash");
+        }
+        return;
+      }
+      go(idx + 1);
+    };
+  }
+
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+  function stepLocked(step) {
+    return !!(step && step.advance && !step.completed);
+  }
+
+  function targetEl(step) {
+    if (!step || !step.target) return null;
+    return document.querySelector(step.target);
+  }
+
+  function edgePoint(rect, tx, ty) {
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = tx - cx, dy = ty - cy;
+    if (!dx && !dy) return { x: rect.right, y: cy };
+    const hw = rect.width / 2, hh = rect.height / 2;
+    const sx = dx === 0 ? Infinity : hw / Math.abs(dx);
+    const sy = dy === 0 ? Infinity : hh / Math.abs(dy);
+    const t = Math.min(sx, sy);
+    return { x: cx + dx * t, y: cy + dy * t };
+  }
+
+  function layout() {
+    if (!open) return;
+    const step = STEPS[idx];
+    const ring = $("tourRing");
+    const arrow = $("tourArrow");
+    const card = $("tourCard");
+    if (!ring || !arrow || !card) return;
+    const el = targetEl(step);
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const cw = card.offsetWidth || 340;
+    const ch = card.offsetHeight || 190;
+    let ringRect = null;
+
+    if (!el) {
+      ring.style.display = "none";
+      arrow.setAttribute("d", "");
+      card.style.left = Math.round((vw - cw) / 2) + "px";
+      card.style.top = Math.round(vh * 0.18) + "px";
+      return;
+    }
+
+    const pad = step.pad != null ? step.pad : 10;
+    const r = el.getBoundingClientRect();
+    let x = r.left - pad, y = r.top - pad, w = r.width + pad * 2, h = r.height + pad * 2;
+    ring.className = step.shape || "round";
+    if (step.shape === "circle") {
+      const s = Math.max(w, h);
+      x = r.left + r.width / 2 - s / 2;
+      y = r.top + r.height / 2 - s / 2;
+      w = h = s;
+    }
+    ring.style.display = "block";
+    ring.style.left = x + "px";
+    ring.style.top = y + "px";
+    ring.style.width = w + "px";
+    ring.style.height = h + "px";
+    ringRect = { left: x, top: y, width: w, height: h, right: x + w, bottom: y + h };
+
+    const spaceRight = vw - ringRect.right;
+    const spaceLeft = ringRect.left;
+    const spaceBottom = vh - ringRect.bottom;
+    const gap = 26;
+    let left, top;
+    if (spaceRight >= cw + gap + 12 && spaceRight >= spaceLeft) {
+      left = ringRect.right + gap;
+      top = clamp(ringRect.top + ringRect.height / 2 - ch / 2, 12, vh - ch - 12);
+    } else if (spaceLeft >= cw + gap + 12) {
+      left = ringRect.left - cw - gap;
+      top = clamp(ringRect.top + ringRect.height / 2 - ch / 2, 12, vh - ch - 12);
+    } else if (spaceBottom >= ch + gap + 8) {
+      left = clamp(ringRect.left + ringRect.width / 2 - cw / 2, 12, vw - cw - 12);
+      top = ringRect.bottom + gap;
+    } else {
+      left = clamp(ringRect.left + ringRect.width / 2 - cw / 2, 12, vw - cw - 12);
+      top = Math.max(12, ringRect.top - ch - gap);
+    }
+    card.style.left = Math.round(left) + "px";
+    card.style.top = Math.round(top) + "px";
+
+    const cr = card.getBoundingClientRect();
+    const rc = { x: ringRect.left + ringRect.width / 2, y: ringRect.top + ringRect.height / 2 };
+    const start = edgePoint(cr, rc.x, rc.y);
+    const end = edgePoint(ringRect, start.x, start.y);
+    const dx = end.x - start.x, dy = end.y - start.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len;
+    const tip = { x: end.x - ux * 6, y: end.y - uy * 6 };
+    const bulge = Math.min(72, len * 0.3);
+    const qx = (start.x + tip.x) / 2 - uy * bulge;
+    const qy = (start.y + tip.y) / 2 + ux * bulge;
+    arrow.setAttribute("d", `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} Q ${qx.toFixed(1)} ${qy.toFixed(1)} ${tip.x.toFixed(1)} ${tip.y.toFixed(1)}`);
+  }
+
+  function renderCard() {
+    const step = STEPS[idx];
+    const locked = stepLocked(step);
+    $("tourKicker").textContent = step.target
+      ? "Step " + idx + " of " + (STEPS.length - 1)
+      : "Tutorial";
+    $("tourTitle").textContent = step.title;
+    $("tourBody").textContent = step.body;
+    const wait = $("tourWait");
+    if (wait) {
+      if (locked && step.waitHint) {
+        wait.hidden = false;
+        wait.textContent = step.waitHint;
+      } else {
+        wait.hidden = true;
+        wait.textContent = "";
+      }
+    }
+    const next = $("tourNextBtn");
+    next.textContent = locked
+      ? "Waiting…"
+      : (idx >= STEPS.length - 1 ? "Done" : (step.nextLabel || "Next"));
+    next.disabled = locked;
+    $("tourBackBtn").disabled = idx === 0;
+    const dots = $("tourDots");
+    dots.innerHTML = STEPS.map((_, i) =>
+      `<span class="tour-dot${i === idx ? " on" : (i < idx ? " done" : "")}"></span>`
+    ).join("");
+  }
+
+  function go(n) {
+    if (!open) return;
+    const nextIdx = clamp(n, 0, STEPS.length - 1);
+    const goingBack = nextIdx < idx;
+    idx = nextIdx;
+    const step = STEPS[idx];
+    if (goingBack && step.advance) step.completed = false;
+    if (typeof step.enter === "function") step.enter();
+    const el = targetEl(step);
+    if (el && el.scrollIntoView) {
+      el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    }
+    renderCard();
+    clearTimeout(layoutTimer);
+    layout();
+    layoutTimer = setTimeout(layout, 320);
+  }
+
+  let tourPrevFocus = null;
+
+  function tourFocusables() {
+    const card = $("tourCard");
+    if (!card) return [];
+    return [...card.querySelectorAll("button")].filter(b => !b.disabled && b.offsetParent !== null);
+  }
+
+  function startTour() {
+    ensureDom();
+    STEPS.forEach(s => { s.completed = false; });
+    window.__tourMinAtoms = 3;
+    tourPrevFocus = document.activeElement;
+    open = true;
+    idx = 0;
+    $("tourRoot").hidden = false;
+    $("tourRoot").classList.add("open");
+    go(0);
+    const next = $("tourNextBtn");
+    if (next) next.focus();
+  }
+
+  function stopTour() {
+    open = false;
+    try { localStorage.setItem(STORAGE, "1"); } catch (_) {}
+    const root = $(ROOT_ID);
+    if (root) {
+      root.hidden = true;
+      root.classList.remove("open");
+    }
+    const back = tourPrevFocus && typeof tourPrevFocus.focus === "function" ? tourPrevFocus : $("startTourBtn");
+    if (back) back.focus();
+  }
+
+  window.__descripytorTourNotify = function (kind) {
+    if (!open) return;
+    const step = STEPS[idx];
+    if (!step) return;
+    if (kind === "extract-start" && step.id === "extract") {
+      const body = $("tourBody");
+      const wait = $("tourWait");
+      const btn = $("tourNextBtn");
+      if (body) body.textContent = "Extracting features for the whole folder… this card stays until the table is ready.";
+      if (wait) { wait.hidden = false; wait.textContent = "Do not skip this step. Wait for the table."; }
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Working…";
+      }
+      return;
+    }
+    if (kind === "extract-fail" && step.id === "extract") {
+      step.completed = false;
+      const body = $("tourBody");
+      const wait = $("tourWait");
+      const btn = $("tourNextBtn");
+      if (body) body.textContent = "Extraction failed. Check the status line, then click Extract CSV again.";
+      if (wait) { wait.hidden = false; wait.textContent = "Click Extract CSV to retry. Next stays locked."; }
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Waiting…";
+      }
+      return;
+    }
+    if (step.advance === kind) {
+      step.completed = true;
+      go(idx + 1);
+    }
+  };
+
+  window.addEventListener("resize", () => { if (open) layout(); });
+  window.addEventListener("scroll", () => { if (open) layout(); }, true);
+  document.addEventListener("keydown", e => {
+    if (!open) return;
+    if (e.key === "Escape") { e.preventDefault(); stopTour(); return; }
+    if (e.key === "Tab") {
+      const list = tourFocusables();
+      if (!list.length) return;
+      const first = list[0], last = list[list.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+      return;
+    }
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      const btn = $("tourNextBtn");
+      if (btn && !btn.disabled) btn.click();
+    }
+    if (e.key === "ArrowLeft") { e.preventDefault(); $("tourBackBtn").click(); }
+  });
+
+  const startBtn = $("startTourBtn");
+  if (startBtn) startBtn.onclick = startTour;
+})();
 </script>
 </body>
 </html>

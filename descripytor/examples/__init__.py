@@ -2,7 +2,7 @@
 
 After ``pip install descripytor``::
 
-    from descripytor.examples import feather_example_dir, input_example_json
+    from descripytor.examples import baptiste_example_dir, feather_example_dir, input_example_json
     molset = Molecules(str(feather_example_dir()), threshold=1.82)
 """
 
@@ -16,6 +16,24 @@ _REPO_FEATHER = (
     / "Getting_started_with_examples"
     / "feather_example"
 )
+_REPO_BAPTISTE = (
+    Path(__file__).resolve().parents[2]
+    / "Getting_started_with_examples"
+    / "baptiste_products"
+)
+
+
+def baptiste_example_dir() -> Path:
+    """Directory of the Baptiste product ``.feather`` files."""
+    bundled = _HERE / "baptiste_products"
+    if (bundled / "unsub.feather").is_file():
+        return bundled
+    if (_REPO_BAPTISTE / "unsub.feather").is_file():
+        return _REPO_BAPTISTE
+    raise FileNotFoundError(
+        "Baptiste example feathers not found. Expected unsub.feather under "
+        f"{bundled} or {_REPO_BAPTISTE}."
+    )
 
 
 def feather_example_dir() -> Path:

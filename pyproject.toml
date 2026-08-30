@@ -95,4 +95,8 @@ exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*", "tests*"
     "feather_example/*.feather",
     "feather_example/*.json",
     "feather_example/README.md",
+    "baptiste_products/*.feather",
+    "baptiste_products/*.csv",
+    "baptiste_products/*.json",
+    "baptiste_products/README.md",
 ]
