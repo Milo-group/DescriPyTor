@@ -118,6 +118,15 @@
     .pane { padding: 16px 16px 18px; }
     .pane strong { display: block; font-size: 16px; margin-bottom: 4px; }
     .pane span { color: var(--muted); font-size: 13.5px; }
+    .shot-wrap { margin: 16px 0 8px; }
+    .shot-wrap img {
+      width: 100%;
+      display: block;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--card);
+    }
+    .caption { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
     .map {
       display: grid;
       grid-template-columns: 1fr auto 1fr;
@@ -164,7 +173,8 @@
     @media print {
       body { background: #fff; }
       .page { padding: 0; max-width: none; }
-      .step, .browser, .map, table { break-inside: avoid; }
+      .step, .browser, .map, table, .shot-wrap { break-inside: avoid; }
+      .shot-wrap img { max-height: 360px; object-fit: contain; }
       a { color: inherit; text-decoration: none; }
     }
   </style>
@@ -207,7 +217,7 @@ cd DescriPyTor
 mkdir work
 docker compose up --build</div>
 
-    <h2>Open these two pages</h2>
+    <h2>Open these pages</h2>
     <div class="browsers">
       <div class="browser">
         <div class="chrome">
@@ -215,20 +225,29 @@ docker compose up --build</div>
           <div class="urlbar">http://localhost:7432/visual</div>
         </div>
         <div class="pane">
-          <strong>3D atom picker + modeling</strong>
-          <span>Load a structure, click the atoms that matter, extract descriptors, optionally fit a model on the same page. Atom numbers are 1-based (Gaussian style).</span>
+          <strong>3D atom picker</strong>
+          <span>Start here. Caffeine loads as a demo. Click atoms on the left; set the workflow on the right. Atom numbers are 1-based (Gaussian style).</span>
         </div>
       </div>
       <div class="browser">
         <div class="chrome">
           <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          <div class="urlbar">http://localhost:8503</div>
+          <div class="urlbar">http://localhost:7432/</div>
         </div>
         <div class="pane">
-          <strong>Streamlit extraction app</strong>
-          <span>Form-based extraction if you already know the atom indices. Same engine, no 3D view.</span>
+          <strong>Feature extraction GUI</strong>
+          <span>Same engine, form-based, if you already know the atom indices. Streamlit is at localhost:8503.</span>
         </div>
       </div>
+    </div>
+
+    <div class="shot-wrap">
+      <img src="images/gui-picker.png" alt="3D atom picker showing a caffeine demo molecule and the Sterimol pick-atoms panel" />
+      <p class="caption">http://localhost:7432/visual — 3D picker. Load your own file with Choose File.</p>
+    </div>
+    <div class="shot-wrap">
+      <img src="images/gui-features.png" alt="Dark-theme feature extraction GUI with input file, atom renumbering, and descriptor checkboxes" />
+      <p class="caption">http://localhost:7432/ — feature GUI.</p>
     </div>
 
     <h2>Your files</h2>

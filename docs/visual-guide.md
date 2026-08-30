@@ -28,23 +28,19 @@ First build takes several minutes. Leave that terminal open.
 
 ## Open these two pages
 
-```mermaid
-flowchart TB
-  subgraph host ["Your computer"]
-    W["work/molecule.feather"]
-  end
-  subgraph gui ["Browser"]
-    P["http://localhost:7432/visual<br/>3D atom picker + modeling"]
-    S["http://localhost:8503<br/>Streamlit extraction"]
-  end
-  W -->|"path in the GUI: /work/molecule.feather"| P
-  W --> S
-```
-
 | What | Open |
 |---|---|
-| 3D atom picker + modeling | http://localhost:7432/visual |
+| 3D atom picker (start here) | http://localhost:7432/visual |
+| Feature extraction GUI | http://localhost:7432/ |
 | Streamlit extraction app | http://localhost:8503 |
+
+**3D atom picker** — caffeine loads as a demo. Click atoms on the left; set the workflow and fields on the right. Load your own file with **Choose File**, or drop it in `work/` and use `/work/yourfile.xyz`.
+
+![3D atom picker with caffeine demo](images/gui-picker.png)
+
+**Feature GUI** — same engine, form-based, if you already know the atom indices.
+
+![Feature extraction GUI](images/gui-features.png)
 
 Drop `.feather`, `.xyz`, or CSV into `work/` on your computer. In the GUI, type `/work/yourfile.feather`. Results written to `/work` show up in that same folder.
 
