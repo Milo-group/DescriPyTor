@@ -24,7 +24,7 @@ pip install -e .
 descripytor visual
 ```
 
-Then open http://localhost:7432/visual
+Then open **http://localhost:7432/visual** — that is the 3D picker. `http://localhost:7432/` without `/visual` is the form-only GUI.
 
 If RDKit or igraph fail: `conda install -c conda-forge rdkit python-igraph`
 

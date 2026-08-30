@@ -19,7 +19,7 @@ pip install -e .
 descripytor visual
 ```
 
-Then open http://localhost:7432/visual
+Then open **http://localhost:7432/visual** (the 3D picker). Plain `http://localhost:7432/` is a different, form-only GUI.
 
 If RDKit or igraph fail on pip:
 

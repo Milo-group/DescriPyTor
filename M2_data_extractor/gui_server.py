@@ -56,8 +56,11 @@ def status():
 
 @app.route("/")
 def gui():
-    """Serve the modeling GUI from the same origin as the API."""
-    return send_file(os.path.join(os.path.dirname(__file__), "feature_extraction_gui.html"))
+    """Form-based feature GUI (same engine, no 3D picker)."""
+    return send_file(
+        os.path.join(os.path.dirname(__file__), "feature_extraction_gui.html"),
+        mimetype="text/html",
+    )
 
 
 def atom_picker_html():
@@ -81,10 +84,11 @@ def atom_picker_html():
     )
 
 
-@app.route("/visual")
+@app.route("/visual", strict_slashes=False)
 def visual_gui():
     """Serve the combined atom-picker, extraction, and modeling workflow."""
-    return send_file(atom_picker_html())
+    path = atom_picker_html()
+    return send_file(path, mimetype="text/html")
 
 
 @app.route("/sterimol", methods=["POST"])
@@ -484,22 +488,28 @@ def serve(host=None, port=None, open_browser=True):
     """Start the Flask GUI. Used by `descripytor visual` and `__main__`."""
     import threading
     import time
+    import urllib.request
     import webbrowser
 
     host = host or os.environ.get("GUI_HOST", "127.0.0.1")
     port = int(port or os.environ.get("GUI_PORT", str(PORT)))
     url = f"http://127.0.0.1:{port}/visual"
     print(f"\n  DescriPyTor GUI")
-    print(f"  Picker:  {url}")
-    print(f"  Forms:   http://127.0.0.1:{port}/")
+    print(f"  Open:  {url}")
     print(f"  Press Ctrl+C to stop\n")
     if open_browser:
         def _open():
-            time.sleep(0.8)
-            webbrowser.open(url)
+            status = f"http://127.0.0.1:{port}/status"
+            for _ in range(50):
+                try:
+                    urllib.request.urlopen(status, timeout=0.4)
+                    webbrowser.open(url)
+                    return
+                except Exception:
+                    time.sleep(0.2)
 
         threading.Thread(target=_open, daemon=True).start()
-    app.run(host=host, port=port, debug=False)
+    app.run(host=host, port=port, debug=False, use_reloader=False)
 
 
 # ── run ───────────────────────────────────────────────────────

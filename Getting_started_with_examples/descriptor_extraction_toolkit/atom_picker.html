@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>DescriPyTor - 3D Atom Picker</title>
-<script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+<script src="https://3dmol.org/build/3Dmol-min.js"></script>
 <style>
   /* ── Design tokens ── */
   :root {
@@ -3381,7 +3381,12 @@ async function mdlPingServer() {
 const EMBEDDED_XYZ = `__XYZ_DATA__`;
 buildFieldSelect();
 const _isDemo = EMBEDDED_XYZ.indexOf("__XYZ" + "_DATA__") === 0;
-initViewer(_isDemo ? DEMO_XYZ : EMBEDDED_XYZ, _isDemo ? 'caffeine (demo)' : null);
+if (typeof $3Dmol === "undefined") {
+  const el = $("viewer");
+  if (el) el.innerHTML = "<p style='padding:24px;color:#415165'>Could not load the 3D library from 3dmol.org. Check the network, then reload this page.</p>";
+} else {
+  initViewer(_isDemo ? DEMO_XYZ : EMBEDDED_XYZ, _isDemo ? 'caffeine (demo)' : null);
+}
 refresh();
 // Modeling panel was removed (see the "Modeling" section above) - its former
 // boot calls (mdlSync/mdlSyncMerge/mdlPingServer) targeted elements that no

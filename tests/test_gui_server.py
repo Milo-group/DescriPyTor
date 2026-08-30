@@ -49,6 +49,12 @@ def test_visual_serves_atom_picker(client):
     assert "DescriPyTor" in body
 
 
+def test_visual_trailing_slash(client):
+    response = client.get("/visual/")
+    assert response.status_code == 200
+    assert "3Dmol" in response.get_data(as_text=True)
+
+
 def test_packaged_picker_is_preferred():
     from M2_data_extractor.gui_server import atom_picker_html
 
