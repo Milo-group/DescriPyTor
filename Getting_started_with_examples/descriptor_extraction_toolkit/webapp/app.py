@@ -73,7 +73,7 @@ def _check_optional_deps():
     return rows
 
 
-st.set_page_config(page_title="DescriPytor Descriptor Extractor", layout="wide")
+st.set_page_config(page_title="DescriPyTor Descriptor Extractor", layout="wide")
 ss = st.session_state
 ss.setdefault("work_dir", tempfile.mkdtemp(prefix="descripytor_web_"))
 ss.setdefault("feather_dir", "")
@@ -131,7 +131,7 @@ if st.sidebar.button("Reset everything", help="Clear loaded data, run results, a
             del ss[_k]
     st.rerun()
 
-st.title("DescriPytor — Descriptor Extraction")
+st.title("DescriPyTor — Descriptor Extraction")
 tab_data, tab_pick, tab_run, tab_res, tab_model = st.tabs(
     ["1 · Data", "2 · Pick atoms", "3 · Configure & run", "4 · Results", "5 · Modeling"])
 

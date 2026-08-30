@@ -70,20 +70,19 @@ off in that frame.
 
 ## Install
 
-**From PyPI:**
-
-```bash
-pip install descripytor
-```
-
-**From a clone** (Python 3.9–3.11):
+Clone, then a conda env (Python 3.9–3.11). This is the path a first-time user should follow:
 
 ```bash
 git clone https://github.com/Milo-group/DescriPyTor.git
 cd DescriPyTor
 conda create -n descripytor python=3.10 && conda activate descripytor
 pip install -e .
+descripytor visual
 ```
+
+That opens the 3D atom picker at http://localhost:7432/visual. See [QUICKSTART.md](QUICKSTART.md).
+
+If RDKit or igraph fail on pip: `conda install -c conda-forge rdkit python-igraph`
 
 `numpy<2` is pinned: RDKit and PyArrow builds commonly used here fail against NumPy 2.x.
 (`pip install -r requirements.txt` does the same thing — dependencies are declared once, in
@@ -96,12 +95,12 @@ Optional extras, only if you need the feature they unlock:
 | `pip install -e ".[align]"` | `torch`, for MolAlign automatic atom renumbering |
 | `pip install -e ".[webapp]"` | Streamlit extraction web app |
 | `pip install -e ".[engines]"` | mordred, deepchem, ase — extra descriptor engines |
-| `pip install -e ".[gui]"` | Tkinter desktop GUI (`customtkinter`) |
+| `pip install -e ".[gui]"` | Optional Tk desktop window. Prefer `descripytor visual`. |
 | `pip install -e ".[bayes]"` | pymc / arviz spike-and-slab selection |
 | `pip install -e ".[explain]"` | SHAP model reports |
 | `pip install aqme autoqchem` (+ xTB) | xTB / Gaussian-log descriptor engines |
 
-From PyPI (same extras): `pip install descripytor` then e.g. `pip install "descripytor[webapp]"`.
+From a clone, extras are optional: `pip install -e ".[webapp]"` then e.g. `pip install -e ".[engines]"`.
 
 For `torch`, pick the build that matches your machine:
 
@@ -120,7 +119,7 @@ Gaussian and Open Babel are external programs and are not installed by pip.
 
 | | Best for | Start with |
 |---|---|---|
-| **3D atom picker** | Choosing atoms visually, live Sterimol/dipole/vibration overlays, driving extraction + modeling from one page | [`descriptor_extraction_toolkit/`](Getting_started_with_examples/descriptor_extraction_toolkit/README.md) |
+| **3D atom picker** | Choosing atoms visually, live Sterimol/dipole/vibration overlays, driving extraction + modeling from one page | `descripytor visual` → http://localhost:7432/visual |
 | **CLI** | Reproducible batch runs, scripting, HPC | `descripytor --help` |
 | **Notebooks / Python API** | Exploratory analysis, custom pipelines | [`Getting_started_with_examples/`](Getting_started_with_examples/README.md) |
 
@@ -397,9 +396,10 @@ Python API and full reference: [M3_modeler/README.md](M3_modeler/README.md).
 ## Command-line reference
 
 ```text
-descripytor {gui,model,extractor,logs_to_feather,cube,sterimol}
+descripytor {visual,gui,model,extractor,logs_to_feather,cube,sterimol}
 
-  gui               Legacy desktop app (superseded by the 3D atom picker)
+  visual            3D atom picker in the browser (start here)
+  gui               Legacy desktop app (Tk)
   model             Regression or classification model search
   extractor         Extract a feature set from a saved input JSON
   logs_to_feather   Convert Gaussian .log files to .feather
@@ -510,7 +510,7 @@ Deeper documentation:
 - [docs/METAL_COMPLEX.md](docs/METAL_COMPLEX.md) — GOAT/xTB `MetalComplex` extractors
 - [M3_modeler/README.md](M3_modeler/README.md) — modeling classes, CV, sampling, reports
 - [descriptor_extraction_toolkit/README.md](Getting_started_with_examples/descriptor_extraction_toolkit/README.md) — picker, engines, config format
-- [MolFeatures_Tutorial.md](Getting_started_with_examples/descriptor_extraction_toolkit/MolFeatures_Tutorial.md) — guided walkthrough
+- [DescriPyTor_Tutorial.md](Getting_started_with_examples/descriptor_extraction_toolkit/DescriPyTor_Tutorial.md) — guided walkthrough
 
 ---
 

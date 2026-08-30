@@ -1,4 +1,4 @@
-# DescriPytor descriptor-extraction toolkit
+# DescriPyTor descriptor-extraction toolkit
 
 A small, configurable harness that runs **many descriptor-extraction options**
 over a molecule set in one go. You pick which **engines/packages** to use, give
@@ -19,6 +19,8 @@ Built on the same `Molecules` / `Molecules_xyz` API as
 
 ## 1. Pick atoms visually
 
+Start the picker from the repo root with `descripytor visual`, or embed one molecule:
+
 ```bash
 # load one molecule of a feather set into the picker
 python make_picker.py --feather-dir ..\feather_example --index 0
@@ -31,7 +33,7 @@ python make_picker.py --xyz-dir path\to\xyz --name conf_2
 In the picker: choose a **field** (Sterimol, Bond length, Dipole, Charges, …),
 then **click atoms** in the 3D view. Pair/triplet fields auto-commit at the
 right size; variable fields (bond angle/dihedral) use **Commit group**. Atoms
-are 1-indexed, matching DescriPytor/Gaussian.
+are 1-indexed, matching DescriPyTor/Gaussian.
 
 ### Visualize panel (3Dmol.js)
 
@@ -161,9 +163,8 @@ overwritten.
 
 The panel then validates that the selected target (normally `output`) is
 numeric, reports the usable descriptors, estimates the M3 feature-combination
-count, and generates a copyable command. With
-`M2_data_extractor/gui_server.py` running, it can execute M3 regression,
-classification, or BASSA.
+count, and generates a copyable command. With `descripytor visual` running, it
+can execute M3 regression, classification, or BASSA.
 
 ### Where calculations run
 

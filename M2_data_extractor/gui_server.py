@@ -1,15 +1,13 @@
 """
-gui_server.py — local backend for feature_extraction_gui.html
+gui_server.py — local backend for the browser GUIs.
 
-Run once:
-    python gui_server.py
+Preferred:
+    descripytor visual
 
-Then open feature_extraction_gui.html in your browser.
-The GUI detects the server and enables live computation buttons.
+Or:
+    python M2_data_extractor/gui_server.py
 
-Dependencies:
-    pip install flask flask-cors
-    (all other deps come from DescriPytor itself)
+Then open http://localhost:7432/visual
 """
 
 import sys
@@ -62,16 +60,31 @@ def gui():
     return send_file(os.path.join(os.path.dirname(__file__), "feature_extraction_gui.html"))
 
 
+def atom_picker_html():
+    """Picker page: packaged copy first, then the clone path used by make_picker."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.dirname(here)
+    candidates = (
+        os.path.join(here, "atom_picker.html"),
+        os.path.join(
+            root,
+            "Getting_started_with_examples",
+            "descriptor_extraction_toolkit",
+            "atom_picker.html",
+        ),
+    )
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    raise FileNotFoundError(
+        "atom_picker.html not found. Reinstall descripytor or run from a clone."
+    )
+
+
 @app.route("/visual")
 def visual_gui():
     """Serve the combined atom-picker, extraction, and modeling workflow."""
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return send_file(os.path.join(
-        root,
-        "Getting_started_with_examples",
-        "descriptor_extraction_toolkit",
-        "atom_picker.html",
-    ))
+    return send_file(atom_picker_html())
 
 
 @app.route("/sterimol", methods=["POST"])
@@ -467,12 +480,28 @@ def _pd_from_numpy(arr, index, columns):
     return pd.DataFrame(arr, index=index, columns=columns)
 
 
+def serve(host=None, port=None, open_browser=True):
+    """Start the Flask GUI. Used by `descripytor visual` and `__main__`."""
+    import threading
+    import time
+    import webbrowser
+
+    host = host or os.environ.get("GUI_HOST", "127.0.0.1")
+    port = int(port or os.environ.get("GUI_PORT", str(PORT)))
+    url = f"http://127.0.0.1:{port}/visual"
+    print(f"\n  DescriPyTor GUI")
+    print(f"  Picker:  {url}")
+    print(f"  Forms:   http://127.0.0.1:{port}/")
+    print(f"  Press Ctrl+C to stop\n")
+    if open_browser:
+        def _open():
+            time.sleep(0.8)
+            webbrowser.open(url)
+
+        threading.Thread(target=_open, daemon=True).start()
+    app.run(host=host, port=port, debug=False)
+
+
 # ── run ───────────────────────────────────────────────────────
 if __name__ == "__main__":
-    host = os.environ.get("GUI_HOST", "127.0.0.1")
-    print(f"\n  DescriPytor GUI server")
-    print(f"  Listening on http://{host}:{PORT}")
-    print(f"  Open http://localhost:{PORT}/visual  (atom picker)")
-    print(f"  Open http://localhost:{PORT}/        (feature GUI)")
-    print(f"  Press Ctrl+C to stop\n")
-    app.run(host=host, port=PORT, debug=False)
+    serve()

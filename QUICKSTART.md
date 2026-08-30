@@ -16,7 +16,7 @@ cd DescriPyTor
 conda create -n descripytor python=3.10
 conda activate descripytor
 pip install -e .
-python M2_data_extractor/gui_server.py
+descripytor visual
 ```
 
 Then open http://localhost:7432/visual

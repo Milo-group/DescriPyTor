@@ -1623,6 +1623,14 @@ def run_gui_app():
     root.mainloop()
     # Your code to launch the GUI app goes here
 
+
+def run_visual_app(host=None, port=None, open_browser=True):
+    """Open the 3D atom picker in a browser (no Tk / customtkinter)."""
+    _ensure_project_on_path()
+    from M2_data_extractor.gui_server import serve
+
+    serve(host=host, port=port, open_browser=open_browser)
+
 def run_feature_extraction(input_file, output_file = 'features_set', molecules_dir_name='feather_example'):
     _load_runtime_dependencies()
     answers = load_answers_json(input_file)
@@ -1683,7 +1691,19 @@ def main():
     subparsers = parser.add_subparsers(dest="command")
 
     # Subcommand for running the GUI app
-    gui_parser = subparsers.add_parser("gui", help="Run the GUI app")
+    gui_parser = subparsers.add_parser(
+        "gui", help="Legacy desktop window (Tk). Prefer 'visual'."
+    )
+    visual_parser = subparsers.add_parser(
+        "visual", help="Open the 3D atom picker in a browser"
+    )
+    visual_parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Start the server without opening a browser tab",
+    )
+    visual_parser.add_argument("--host", default=None, help="Bind address (default 127.0.0.1)")
+    visual_parser.add_argument("--port", type=int, default=None, help="Port (default 7432)")
     # interactive_parser = subparsers.add_parser("interactive", help="Start interactive CLI for cmd line operations")
     model_parser = subparsers.add_parser("model", help="Run regression or classification")
     feature_extraction = subparsers.add_parser("extractor", help="Run feature extraction - complete set - from input file")
@@ -1710,7 +1730,13 @@ def main():
     feature_extraction.add_argument("-f", "--feather_directory", default=".", help="Directory of feather files set to extract features from.")
 
     args = parser.parse_args()
-    if args.command == "gui":
+    if args.command == "visual":
+        run_visual_app(
+            host=args.host,
+            port=args.port,
+            open_browser=not args.no_browser,
+        )
+    elif args.command == "gui":
         run_gui_app()
         
     elif args.command == "logs_to_feather":

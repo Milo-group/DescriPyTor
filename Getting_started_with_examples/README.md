@@ -136,4 +136,4 @@ Full API: [M2_data_extractor/README.md](../M2_data_extractor/README.md) for extr
   and check `numpy<2` was honoured.
 
 A guided walkthrough with more context:
-[MolFeatures_Tutorial.md](descriptor_extraction_toolkit/MolFeatures_Tutorial.md).
+[DescriPyTor_Tutorial.md](descriptor_extraction_toolkit/DescriPyTor_Tutorial.md).

@@ -243,7 +243,7 @@ from M2_data_extractor.cube_sterimol import cube_many
 ```
 
 Radii come from the density isosurface rather than a lookup table, so they respond to the
-electronic environment. Driven from the CLI with `python __main__.py cube`.
+electronic environment. Driven from the CLI with `descripytor cube`.
 
 ---
 

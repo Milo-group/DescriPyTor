@@ -11,7 +11,7 @@ A printable page lives next to this file: [visual-guide.html](visual-guide.html)
 ```mermaid
 flowchart LR
   A["1. conda env<br/>Python 3.10"] --> B["2. pip install -e ."]
-  B --> C["3. python …/gui_server.py"]
+  B --> C["3. descripytor visual"]
   C --> D["4. Open<br/>localhost:7432/visual"]
 ```
 
@@ -21,7 +21,7 @@ cd DescriPyTor
 conda create -n descripytor python=3.10
 conda activate descripytor
 pip install -e .
-python M2_data_extractor/gui_server.py
+descripytor visual
 ```
 
 Then open http://localhost:7432/visual

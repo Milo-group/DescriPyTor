@@ -1,4 +1,4 @@
-# DescriPytor Web App
+# DescriPyTor Web App
 
 Streamlit front end for the descriptor-extraction toolkit.
 

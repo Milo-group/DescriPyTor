@@ -45,7 +45,16 @@ def test_visual_serves_atom_picker(client):
     response = client.get("/visual")
     assert response.status_code == 200
     body = response.get_data(as_text=True)
-    assert "Atom Picker" in body or "3Dmol" in body
+    assert "3Dmol" in body
+    assert "DescriPyTor" in body
+
+
+def test_packaged_picker_is_preferred():
+    from M2_data_extractor.gui_server import atom_picker_html
+
+    path = atom_picker_html()
+    assert path.endswith("atom_picker.html")
+    assert Path(path).is_file()
 
 
 def test_root_serves_feature_gui(client):

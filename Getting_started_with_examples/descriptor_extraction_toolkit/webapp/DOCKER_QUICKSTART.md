@@ -1,4 +1,4 @@
-# DescriPytor Docker Quickstart
+# DescriPyTor Docker Quickstart
 
 This folder contains a Docker wrapper for the descriptor-extraction webapp.
 

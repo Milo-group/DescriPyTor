@@ -1,6 +1,6 @@
-# MolFeatures Tutorial
+# DescriPyTor Tutorial
 
-This tutorial is a guided path through the most common MolFeatures workflow:
+This tutorial is a guided path through the most common DescriPyTor workflow:
 
 1. prepare molecular data
 2. extract descriptors
@@ -121,7 +121,7 @@ Once your atom selections are defined, the notebook workflow uses `get_molecules
 
 ## Conformer comparison and visual inspection
 
-MolFeatures also includes viewer-oriented utilities for comparing related structures and checking how conformers align in 3D. That is especially helpful when you are validating atom numbering, ring alignment, or ensemble consistency before extracting descriptors.
+DescriPyTor also includes viewer-oriented utilities for comparing related structures and checking how conformers align in 3D. That is especially helpful when you are validating atom numbering, ring alignment, or ensemble consistency before extracting descriptors.
 
 Conformer comparison view:
 
@@ -249,7 +249,7 @@ Try lowering `--max-features`, raising the threshold, or running a smaller bench
 
 ## Suggested first session
 
-If you are opening MolFeatures for the first time, this is a good order:
+If you are opening DescriPyTor for the first time, this is a good order:
 
 1. Run `python __main__.py --help`
 2. Open `Getting_started_with_examples/README.md`
