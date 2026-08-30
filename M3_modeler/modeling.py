@@ -62,8 +62,6 @@ from sklearn.model_selection import (
 from sklearn.preprocessing import StandardScaler
 from statsmodels.miscmodels.ordinal_model import OrderedModel
 from statsmodels.stats.outliers_influence import variance_inflation_factor
-import pymc as pm
-import arviz as az
 
 
 
@@ -1032,6 +1030,13 @@ class LinearRegressionModel:
         Run spike-and-slab Bayesian variable selection using PyMC.
         Stores inclusion probabilities and posterior in self.spike_and_slab_result.
         """
+        try:
+            import pymc as pm
+        except ImportError as exc:
+            raise ImportError(
+                "run_spike_and_slab_selection requires pymc"
+            ) from exc
+
         X = self.features_df.values
         y = self.target_vector.values if hasattr(self.target_vector, 'values') else self.target_vector
 
@@ -2008,9 +2013,10 @@ class LinearRegressionModel:
         # keep at least min_models_to_keep even if top_n is small
         results = results.head(max(top_n, min_models_to_keep))
 
-        # Show table
-        if not results.empty:
-            print_models_regression_table(results, app, self)
+        # Show table when the optional plot module loaded
+        printer = globals().get("print_models_regression_table")
+        if not results.empty and callable(printer):
+            printer(results, app, self)
 
         self.results=results
 
@@ -3198,8 +3204,9 @@ class ClassificationModel:
         results = results.head(max(top_n, min_models_to_keep))
 
         # Show results
-        if not results.empty:
-            print_models_classification_table(results, app, self)
+        printer = globals().get("print_models_classification_table")
+        if not results.empty and callable(printer):
+            printer(results, app, self)
             self.combinations_list = results["combination"].tolist()
 
         # ---- Left-out evaluation ------------------------------------------
@@ -3549,18 +3556,25 @@ class ClassificationModel:
 # Deferred cross-module imports — placed here so that all functions in this
 # module are fully defined before plot.py tries to import them, avoiding the
 # circular-import failure that occurs when these lines run at the top.
+# Plotting extras (adjustText, shap, plotly) must not block LinearRegressionModel.
 # ---------------------------------------------------------------------------
 try:
-    from plot import *
     from modeling_utils import (
         simi_sampler, stratified_sampling_with_plots,
         _normalize_combination_to_columns, _parse_tuple_string,
     )
     from modeling_utils import *
 except ImportError:
-    from M3_modeler.plot import *
     from M3_modeler.modeling_utils import (
         simi_sampler, stratified_sampling_with_plots,
         _normalize_combination_to_columns, _parse_tuple_string,
     )
     from M3_modeler.modeling_utils import *
+
+try:
+    from plot import *
+except ImportError:
+    try:
+        from M3_modeler.plot import *
+    except ImportError:
+        pass

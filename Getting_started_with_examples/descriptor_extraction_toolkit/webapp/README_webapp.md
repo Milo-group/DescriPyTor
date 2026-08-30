@@ -26,7 +26,7 @@ http://localhost:8501
 
 ## Docker Run
 
-From the repository's `MolFeatures` folder:
+From the repository root:
 
 ```bash
 docker compose up --build
@@ -45,7 +45,7 @@ http://localhost:7432/visual
 ```
 
 The visual GUI and its Flask API share the same container. Put datasets in the
-root `MolFeatures/work` folder, then use their container paths (for example
+root `work` folder, then use their container paths (for example
 `/work/merged_features.csv`) in the GUI. Results written under `/work` appear
 in that same local folder.
 
@@ -108,7 +108,7 @@ Keep this on a trusted lab network. The app currently has no login screen.
 
 ## Dependency Notes
 
-- Native DescriPytor engines need the local MolFeatures source plus pandas/pyarrow.
+- Native DescriPytor engines need the local DescriPyTor source plus pandas/pyarrow.
 - External engines depend on their packages: RDKit, Mordred, DeepChem, Morfeus,
   AQME, xTB, and Gaussian log tooling where relevant. MolTop/RAFBL can be added
   manually if you have a valid `moltop` source or wheel.

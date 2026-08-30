@@ -175,7 +175,7 @@ classification, or BASSA.
 
 ### Docker
 
-From the `MolFeatures` directory:
+From the repository root:
 
 ```powershell
 docker compose up --build
@@ -184,14 +184,13 @@ docker compose up --build
 Open the combined atom-picker and modeling GUI at
 `http://localhost:7432/visual`. The Streamlit extraction app is available at
 `http://localhost:8503`. Put local input files in the visible
-`MolFeatures/work` folder and use container paths such as `/work/features.csv`
+`work` folder and use container paths such as `/work/features.csv`
 in the GUI. Generated files written to `/work` appear in that folder too.
 
 ## Notes
 
-- Set `root_dir` (or the `DESCRIPYTOR_ROOT` env var) to your `MolFeatures`
-  folder so the DescriPytor packages import. Defaults to the path used in the
-  notebooks.
+- Set `root_dir` (or the `DESCRIPYTOR_ROOT` env var) to your DescriPyTor
+  checkout so the packages import. In Docker this is `/workspace/descripytor`.
 - Engines fail independently: if one errors it's reported and the rest still
   run.
 - Rows are natural-sorted (`conf_2` before `conf_10`) like the notebooks.

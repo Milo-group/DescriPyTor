@@ -3,7 +3,7 @@
 This folder contains a Docker wrapper for the descriptor-extraction webapp.
 
 Docker gives the app a reproducible Linux chemistry environment with Streamlit,
-RDKit, ASE, Morfeus, AQME, Mordred, MolTop, xTB, and the local MolFeatures
+RDKit, ASE, Morfeus, AQME, Mordred, MolTop, xTB, and the local DescriPyTor
 source code.
 
 ## 1. Install WSL2 And Docker
@@ -54,10 +54,11 @@ The command should show both `Client` and `Server`.
 
 ## 2. Build and run from the repo
 
-From this folder:
+`docker-compose.yml` lives at the **repository root**, not in this `webapp`
+folder. From the clone:
 
 ```powershell
-cd <DescriPyTor>\Getting_started_with_examples\descriptor_extraction_toolkit\webapp
+cd path\to\DescriPyTor_to_upload
 docker compose up --build
 ```
 
@@ -65,6 +66,7 @@ Open:
 
 ```text
 http://localhost:8503
+http://localhost:7432/visual
 ```
 
 The compose file maps host port `8503` to container port `8501` by default to
@@ -93,11 +95,11 @@ There are two practical ways.
 
 ### Option A: send the repo
 
-Send the MolFeatures folder or push it to GitHub. The other person installs
+Send the repository or push it to GitHub. The other person installs
 Docker Desktop and runs:
 
 ```powershell
-cd path\to\MolFeatures\Getting_started_with_examples\descriptor_extraction_toolkit\webapp
+cd path\to\DescriPyTor_to_upload
 docker compose up --build
 ```
 

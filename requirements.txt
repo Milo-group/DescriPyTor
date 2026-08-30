@@ -6,4 +6,7 @@
 #   pip install -e ".[align]"     torch, for MolAlign atom renumbering
 #   pip install -e ".[webapp]"    streamlit + umap-learn
 #   pip install -e ".[engines]"   mordred, deepchem, ase
+#   pip install -e ".[gui]"       customtkinter desktop GUI
+#   pip install -e ".[bayes]"     pymc + arviz
+#   pip install -e ".[explain]"   shap
 -e .

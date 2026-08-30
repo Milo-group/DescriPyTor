@@ -454,7 +454,7 @@ def _main(argv=None):
     ap.add_argument("--feather-dir", help="DescriPytor feather directory.")
     ap.add_argument("--index", type=int, default=0, help="With --feather-dir: molecule index (default 0).")
     ap.add_argument("--export-xyz-dir", help="With --feather-dir: also export all feather molecules to this xyz directory.")
-    ap.add_argument("--root-dir", help="MolFeatures root (for feather loading).")
+    ap.add_argument("--root-dir", help="DescriPyTor root (for feather loading).")
     ap.add_argument("--out", help="Output HTML path.")
     ap.add_argument("--no-open", action="store_true", help="Write the HTML but don't open a browser.")
     args = ap.parse_args(argv)

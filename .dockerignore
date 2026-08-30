@@ -44,6 +44,8 @@ MolAlign/runs
 *.avi
 *.mov
 *.feather
+!Getting_started_with_examples/feather_example/*.feather
+!descripytor/examples/feather_example/*.feather
 *.sdf
 *.mol
 *.mol2

@@ -74,7 +74,7 @@ You can work in **one‑CSV** or **two‑CSV** mode.
 ### Command Line
 
 ```bash
-python __main__.py model\
+descripytor model\
   --mode {regression|classification} \
   --features_csv path/to/features.csv \
   --target_csv path/to/targets.csv \
@@ -110,7 +110,7 @@ python __main__.py model\
 Regression
 
 ```bash
-python __main__.py.py \
+descripytor \
   --mode regression \
   --features_csv data/x_features.csv \
   --target_csv data/y_targets.csv \
@@ -123,7 +123,7 @@ python __main__.py.py \
 Classification
 
 ```bash
-python __main__.py model \
+descripytor model \
   --mode classification \
   --features_csv data/x_features.csv \
   --target_csv data/classes.csv \

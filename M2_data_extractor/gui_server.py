@@ -19,7 +19,7 @@ import traceback
 
 # ── Flask ─────────────────────────────────────────────────────
 try:
-    from flask import Flask, request, jsonify
+    from flask import Flask, request, jsonify, send_file
     from flask_cors import CORS
 except ImportError:
     print("Missing dependencies. Run:  pip install flask flask-cors")
@@ -28,11 +28,11 @@ except ImportError:
 app = Flask(__name__)
 CORS(app)
 
-PORT = 7432
+PORT = int(os.environ.get("GUI_PORT", "7432"))
 
 # ── path helper ───────────────────────────────────────────────
 def ensure_path(root: str):
-    """Add MolFeatures root to sys.path so DescriPytor imports work."""
+    """Add DescriPyTor root to sys.path so imports work."""
     if root and root not in sys.path:
         sys.path.insert(0, root)
     # also try the directory containing this file as fallback
@@ -54,6 +54,24 @@ def load_molecule(filepath: str, root: str = ""):
 @app.route("/status")
 def status():
     return jsonify({"ok": True, "version": "1.0"})
+
+
+@app.route("/")
+def gui():
+    """Serve the modeling GUI from the same origin as the API."""
+    return send_file(os.path.join(os.path.dirname(__file__), "feature_extraction_gui.html"))
+
+
+@app.route("/visual")
+def visual_gui():
+    """Serve the combined atom-picker, extraction, and modeling workflow."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return send_file(os.path.join(
+        root,
+        "Getting_started_with_examples",
+        "descriptor_extraction_toolkit",
+        "atom_picker.html",
+    ))
 
 
 @app.route("/sterimol", methods=["POST"])
@@ -341,7 +359,7 @@ def features_set():
 
     Body (JSON):
       dir_path        – absolute path to the directory of .feather files
-      root            – MolFeatures root to add to sys.path (optional)
+      root            – DescriPyTor root to add to sys.path (optional)
       entry_widgets   – dict of string values: {ring, stretching, stretch,
                         upper_stretch, bending, bend, dipole,
                         charges, charge_diff, sterimol, drop_atoms,
@@ -451,8 +469,10 @@ def _pd_from_numpy(arr, index, columns):
 
 # ── run ───────────────────────────────────────────────────────
 if __name__ == "__main__":
+    host = os.environ.get("GUI_HOST", "127.0.0.1")
     print(f"\n  DescriPytor GUI server")
-    print(f"  Listening on http://localhost:{PORT}")
-    print(f"  Open feature_extraction_gui.html in your browser")
+    print(f"  Listening on http://{host}:{PORT}")
+    print(f"  Open http://localhost:{PORT}/visual  (atom picker)")
+    print(f"  Open http://localhost:{PORT}/        (feature GUI)")
     print(f"  Press Ctrl+C to stop\n")
-    app.run(host="127.0.0.1", port=PORT, debug=False)
+    app.run(host=host, port=PORT, debug=False)

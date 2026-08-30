@@ -1496,7 +1496,7 @@ def _save_top5_pdf_regression(results: pd.DataFrame, model, pdf_path: str = "top
         ax = fig.add_subplot(gs[0, 0])
         _safe_table(ax, cover_df, title="Overview")
         page_counter += 1
-        _footer(fig, left_text=f"MolFeatures report", page_num=page_counter)
+        _footer(fig, left_text=f"DescriPyTor report", page_num=page_counter)
         fig.tight_layout(rect=[0, 0, 1, 0.95])
         pdf.savefig(fig, bbox_inches="tight"); plt.close(fig)
 
@@ -1617,7 +1617,7 @@ def _save_top5_pdf_regression(results: pd.DataFrame, model, pdf_path: str = "top
             ax_meta.text(0.02, 0.98, "\n".join(meta_txt), va="top", ha="left", fontsize=10)
 
             page_counter += 1
-            _footer(fig1, left_text="MolFeatures • Summary", page_num=page_counter)
+            _footer(fig1, left_text="DescriPyTor • Summary", page_num=page_counter)
             fig1.tight_layout(rect=[0, 0, 1, 0.95])
             pdf.savefig(fig1, bbox_inches="tight"); plt.close(fig1)
 
@@ -1641,7 +1641,7 @@ def _save_top5_pdf_regression(results: pd.DataFrame, model, pdf_path: str = "top
             if q2_figs:
                 for fig in q2_figs:
                     page_counter += 1
-                    _footer(fig, left_text="MolFeatures • Q² scatter", page_num=page_counter)
+                    _footer(fig, left_text="DescriPyTor • Q² scatter", page_num=page_counter)
                     pdf.savefig(fig, bbox_inches="tight"); plt.close(fig)
             else:
                 # Provide a fallback page
@@ -1653,7 +1653,7 @@ def _save_top5_pdf_regression(results: pd.DataFrame, model, pdf_path: str = "top
                 ax = fig_fallback.add_subplot(111); ax.axis("off")
                 ax.text(0.5, 0.5, "Q² scatter plot unavailable.", ha="center", va="center", fontsize=11, alpha=0.7)
                 page_counter += 1
-                _footer(fig_fallback, left_text="MolFeatures • Q² scatter", page_num=page_counter)
+                _footer(fig_fallback, left_text="DescriPyTor • Q² scatter", page_num=page_counter)
                 pdf.savefig(fig_fallback, bbox_inches="tight"); plt.close(fig_fallback)
 
             molecule_names = model.molecule_names
@@ -1674,14 +1674,14 @@ def _save_top5_pdf_regression(results: pd.DataFrame, model, pdf_path: str = "top
                 fig = shap_res.get('figure',[])
                 fig.text(0.01, 0.01, f"Rank #{rank} | SHAP", fontsize=8, ha="left", va="bottom", alpha=0.7)
                 page_counter += 1
-                _footer(fig, left_text="MolFeatures • SHAP", page_num=page_counter)
+                _footer(fig, left_text="DescriPyTor • SHAP", page_num=page_counter)
                 pdf.savefig(fig, bbox_inches="tight"); plt.close(fig)
                 
       
             # fig = _try(lambda: plot_feature_vs_target(feature_values, target_vector, feature_name=feature, point_labels=molecule_names, figsize=(adjusted_figsize[0]/n_cols*2, adjusted_figsize[1]/n_rows*1.5)), default=None, note="Feature vs Target plot failed")
             if fig:
                 page_counter += 1
-                _footer(fig, left_text="MolFeatures • Feature vs Target", page_num=page_counter)
+                _footer(fig, left_text="DescriPyTor • Feature vs Target", page_num=page_counter)
                 pdf.savefig(fig, bbox_inches="tight"); plt.close(fig)
 
     print(f"[PDF] Saved top-{len(top_idx)} models report to: {pdf_path}")

@@ -111,7 +111,7 @@ ss.setdefault("proj_loadings_fig", None)
 # --------------------------------------------------------------------------- #
 st.sidebar.header("Environment")
 root_dir = st.sidebar.text_input(
-    "MolFeatures root", value=DEFAULT_ROOT,
+    "DescriPyTor root", value=DEFAULT_ROOT,
     help="Folder that contains M2_data_extractor etc. Must exist on THIS server.")
 os.environ["DESCRIPYTOR_ROOT"] = root_dir
 st.sidebar.caption(f"Working dir: `{ss['work_dir']}`")
@@ -429,7 +429,7 @@ def _add_m3_to_path():
         import descriptor_extractor as dx
         dx._add_descripytor_to_path(root_dir)
     except Exception as e:  # noqa
-        st.error(f"Could not add M3_modeler to sys.path (check MolFeatures root): {e}")
+        st.error(f"Could not add M3_modeler to sys.path (check DescriPyTor root): {e}")
         raise
 
 
@@ -1041,7 +1041,7 @@ with tab_run:
                    "rdkit", "rdkit_fp", "mordred", "deepchem", "rafbl", "qm", "aqme_qdescp")
         if not all(name in engine_templates for name in required):
             st.error("Engine templates unavailable (toolkit import failed) — "
-                     "check the MolFeatures root in the sidebar, or use 'Edit full JSON' instead.")
+                     "check the DescriPyTor root in the sidebar, or use 'Edit full JSON' instead.")
             cfg = None
         else:
             cfg = {key: val for key, val in template.items() if key != "engines"}
@@ -1268,7 +1268,7 @@ with tab_run:
                 try:
                     from descriptor_extractor import run_from_config
                 except Exception as e:  # noqa
-                    st.error(f"Toolkit import failed (check MolFeatures root): {e}")
+                    st.error(f"Toolkit import failed (check DescriPyTor root): {e}")
                 else:
                     buf = io.StringIO()
                     outcome = {}

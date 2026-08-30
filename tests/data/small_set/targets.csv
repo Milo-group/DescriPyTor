@@ -1,0 +1,9 @@
+name,smiles,bp_c
+methanol,CO,64.7
+ethanol,CCO,78.4
+n_propanol,CCCO,97.2
+isopropanol,CC(C)O,82.3
+n_butanol,CCCCO,117.7
+isobutanol,CC(C)CO,108.0
+sec_butanol,CCC(C)O,99.5
+tert_butanol,CC(C)(C)O,82.4

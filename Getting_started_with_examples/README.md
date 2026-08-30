@@ -26,19 +26,10 @@ jupyter notebook Getting_started_with_examples/Practical_Notebook_Features.ipynb
 
 ## The example data
 
-**`feather_example/`** — one `.feather` per molecule, each holding geometry, connectivity,
-charges, dipoles and vibrations. The set is a substituted-benzene series designed for
-structure–property work: `basic` (unsubstituted) plus ortho/meta/para halides, and a spread
-of para substituents from electron-donating to electron-withdrawing.
-
-```text
-basic          m_Br m_Cl m_F m_I m_nitro        o_Br o_Cl o_F o_I o_nitro
-p_Br p_Cl p_F p_I p_Me p_OEt p_OH p_OMe p_Ph    p_amine p_azide p_boc p_nitro p_tfm
-penta_F
-```
-
-Because the substituent pattern is systematic, descriptors vary in ways you can predict —
-which makes it a good set for checking that an extraction did what you meant.
+**`feather_example/`** — one `.feather` per molecule (geometry, connectivity, charges,
+dipoles, vibrations). 26 substituted benzenes: `basic` plus ortho/meta/para halides and a
+spread of para substituents. The same files are installed with the package as
+`descripytor.examples.feather_example_dir()`.
 
 **`modeling_example/`** — feature matrices you can model immediately:
 
@@ -52,7 +43,7 @@ samples is realistic for this field, and it is exactly why the modelling side le
 out-of-fold Q² and Y-randomization rather than R².
 
 **`cube_example/`** — `Ad_1_a`, `Bn_1_a`, `Cy_1_a` density cubes (~6.5 MB each) for
-`python __main__.py cube`, where Sterimol radii come from the electron density instead of a
+`descripytor cube`, where Sterimol radii come from the electron density instead of a
 lookup table.
 
 ---
@@ -65,7 +56,7 @@ lookup table.
 molecules:
 
 ```bash
-python __main__.py extractor \
+descripytor extractor \
   --input Getting_started_with_examples/input_example.json \
   --output feature_set \
   --feather_directory Getting_started_with_examples/feather_example
@@ -82,7 +73,7 @@ the console rather than ignored, so a typo can't quietly cost you a column.
 ### 2. Model a dataset
 
 ```bash
-python __main__.py model \
+descripytor model \
   --mode regression \
   --features_csv Getting_started_with_examples/modeling_example/Linear_Dataset_Example.csv \
   --y_value output \

@@ -7,7 +7,11 @@ from sklearn.linear_model import LogisticRegression
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from adjustText import adjust_text
+try:
+    from adjustText import adjust_text
+except ImportError:  # optional; used only for similarity-plot labels
+    def adjust_text(*args, **kwargs):
+        return None
 from itertools import combinations
 import sqlite3
 import os 

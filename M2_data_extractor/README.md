@@ -5,6 +5,7 @@ Turns quantum-chemistry output into model-ready descriptors.
 - **`Molecule`** — one molecule: geometry, connectivity, charges, dipoles, vibrations.
 - **`Molecules`** — a whole set, with batch extractors returning wide DataFrames.
 - **`Molecules_xyz`** — the same idea for bare `.xyz` files, no quantum data needed.
+- **`MetalComplex` / `MetalComplexEnsemble`** — GOAT/xTB metal-complex descriptors (atom 0 = metal). See [docs/METAL_COMPLEX.md](../docs/METAL_COMPLEX.md).
 
 > **Atom indices are 1-based**, matching Gaussian. `adjust_indices` normalises them
 > internally; you never pass 0-based indices.
