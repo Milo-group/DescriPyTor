@@ -459,8 +459,8 @@ The renumbering hook is imported lazily, so nothing else in DescriPyTor requires
 
 ## Docker
 
-Reproducible Linux environment with RDKit, Morfeus, AQME, Mordred, xTB and the app, from
-the repository root:
+If conda/pip fails, or you need xTB and the extra engines, this is a reproducible Linux
+environment with RDKit, Morfeus, AQME, Mordred, xTB and the app. From the repository root:
 
 ```bash
 docker compose up --build

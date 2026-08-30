@@ -186,36 +186,39 @@
       <div class="tag">Install + GUI · one page</div>
     </header>
 
-    <p class="lead">Use Docker. Chemistry software is already in the image. Four steps, then two links in the browser.</p>
+    <p class="lead">Start with conda and pip. Open one local URL. Use Docker only if that fails, or you need xTB and extra engines.</p>
 
     <h2>Install</h2>
     <div class="steps">
       <div class="step">
         <div class="n">1</div>
-        <h3>Docker Desktop</h3>
-        <p>Install from docker.com. Wait until it says the engine is running.</p>
+        <h3>Clone + conda</h3>
+        <p>Clone the repo. Create a Python 3.10 env and activate it.</p>
       </div>
       <div class="step">
         <div class="n">2</div>
-        <h3>Get the code</h3>
-        <p>Clone the repo and make a <b>work</b> folder for your files.</p>
+        <h3>Install</h3>
+        <p>From the repo folder: <b>pip install -e .</b></p>
       </div>
       <div class="step">
         <div class="n">3</div>
-        <h3>Start it</h3>
-        <p>From the repo folder: <b>docker compose up --build</b>. First time takes several minutes. Leave the terminal open.</p>
+        <h3>Start the GUI</h3>
+        <p><b>python M2_data_extractor/gui_server.py</b> — leave that terminal open.</p>
       </div>
       <div class="step">
         <div class="n">4</div>
-        <h3>Open the GUIs</h3>
-        <p>Two local pages. Put molecules in <b>work/</b> on your computer; the GUI sees them as <b>/work/</b>.</p>
+        <h3>Open the picker</h3>
+        <p>In a browser: <b>http://localhost:7432/visual</b></p>
       </div>
     </div>
 
     <div class="term">git clone https://github.com/Milo-group/DescriPyTor.git
 cd DescriPyTor
-mkdir work
-docker compose up --build</div>
+conda create -n descripytor python=3.10
+conda activate descripytor
+pip install -e .
+python M2_data_extractor/gui_server.py</div>
+    <p class="tag" style="margin-top:8px">If RDKit or igraph fail: <b>conda install -c conda-forge rdkit python-igraph</b></p>
 
     <h2>Open these pages</h2>
     <div class="browsers">
@@ -236,7 +239,7 @@ docker compose up --build</div>
         </div>
         <div class="pane">
           <strong>Feature extraction GUI</strong>
-          <span>Same engine, form-based, if you already know the atom indices. Streamlit is at localhost:8503.</span>
+          <span>Same engine, form-based, if you already know the atom indices.</span>
         </div>
       </div>
     </div>
@@ -249,20 +252,6 @@ docker compose up --build</div>
       <img src="images/gui-features.png" alt="Dark-theme feature extraction GUI with input file, atom renumbering, and descriptor checkboxes" />
       <p class="caption">http://localhost:7432/ — feature GUI.</p>
     </div>
-
-    <h2>Your files</h2>
-    <div class="map">
-      <div class="box">
-        <b>On your computer</b>
-        DescriPyTor\work\molecule.feather
-      </div>
-      <div class="arrow">→</div>
-      <div class="box">
-        <b>In the GUI, type</b>
-        /work/molecule.feather
-      </div>
-    </div>
-    <p class="tag" style="margin-top:8px">Drop .feather, .xyz, or CSV into work/. Results written to /work appear in that same folder. Stop with Ctrl+C, or docker compose down.</p>
 
     <h2>In the picker</h2>
     <div class="flow">
@@ -282,18 +271,27 @@ docker compose up --build</div>
         <tr><th>What you see</th><th>What to do</th></tr>
       </thead>
       <tbody>
-        <tr><td>Cannot connect to Docker</td><td>Start Docker Desktop and wait until it is idle</td></tr>
-        <tr><td>Port 7432 or 8503 already in use</td><td>Close the other app using that port</td></tr>
-        <tr><td>RDKit / Morfeus errors on pip</td><td class="ok">Use Docker instead</td></tr>
+        <tr><td>RDKit / igraph / Morfeus import errors</td><td><code>conda install -c conda-forge rdkit python-igraph</code>, then Docker below</td></tr>
+        <tr><td>Port 7432 already in use</td><td>Close the other app using that port</td></tr>
       </tbody>
     </table>
 
-    <h2>Without Docker (conda already set up)</h2>
-    <div class="term">conda create -n descripytor python=3.10
-conda activate descripytor
-pip install "descripytor[gui,webapp]"
-descripytor gui</div>
-    <p class="tag" style="margin-top:8px">That last command opens the desktop window. For the same browser picker as Docker, clone the repo and run <b>python M2_data_extractor/gui_server.py</b>, then open localhost:7432/visual.</p>
+    <h2>Docker (last resort / full toolkit)</h2>
+    <p class="tag">Use this if conda still fails, or you need Streamlit, xTB, and extra engines. Install Docker Desktop, wait until the engine is running, then from the clone:</p>
+    <div class="term">mkdir work
+docker compose up --build</div>
+    <p class="tag" style="margin-top:8px">First build takes several minutes. Then Streamlit is at <b>http://localhost:8503</b>. Drop files in <b>work/</b>; in the GUI type <b>/work/yourfile.feather</b>. Stop with Ctrl+C, or <b>docker compose down</b>.</p>
+    <div class="map">
+      <div class="box">
+        <b>On your computer</b>
+        DescriPyTor\work\molecule.feather
+      </div>
+      <div class="arrow">→</div>
+      <div class="box">
+        <b>In the Docker GUI, type</b>
+        /work/molecule.feather
+      </div>
+    </div>
 
     <footer>
       Longer notes: QUICKSTART.md and README.md in the repo.

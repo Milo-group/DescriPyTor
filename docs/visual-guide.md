@@ -1,6 +1,6 @@
 # DescriPyTor — visual start
 
-Use **Docker**. Chemistry software is already in the image. Four steps, then two links in the browser.
+Start with **conda + pip**. Open one local URL. Use Docker only if that fails, or you need xTB / extra engines.
 
 A printable page lives next to this file: [visual-guide.html](visual-guide.html) (open in a browser → Ctrl+P → Save as PDF).
 
@@ -10,41 +10,40 @@ A printable page lives next to this file: [visual-guide.html](visual-guide.html)
 
 ```mermaid
 flowchart LR
-  A["1. Docker Desktop<br/>engine running"] --> B["2. git clone<br/>mkdir work"]
-  B --> C["3. docker compose<br/>up --build"]
-  C --> D["4. Open the<br/>two local URLs"]
+  A["1. conda env<br/>Python 3.10"] --> B["2. pip install -e ."]
+  B --> C["3. python …/gui_server.py"]
+  C --> D["4. Open<br/>localhost:7432/visual"]
 ```
 
 ```bash
 git clone https://github.com/Milo-group/DescriPyTor.git
 cd DescriPyTor
-mkdir work
-docker compose up --build
+conda create -n descripytor python=3.10
+conda activate descripytor
+pip install -e .
+python M2_data_extractor/gui_server.py
 ```
 
-First build takes several minutes. Leave that terminal open.
+Then open http://localhost:7432/visual
+
+If RDKit or igraph fail: `conda install -c conda-forge rdkit python-igraph`
 
 ---
 
-## Open these two pages
+## What you will see
 
 | What | Open |
 |---|---|
 | 3D atom picker (start here) | http://localhost:7432/visual |
 | Feature extraction GUI | http://localhost:7432/ |
-| Streamlit extraction app | http://localhost:8503 |
 
-**3D atom picker** — caffeine loads as a demo. Click atoms on the left; set the workflow and fields on the right. Load your own file with **Choose File**, or drop it in `work/` and use `/work/yourfile.xyz`.
+**3D atom picker** — caffeine loads as a demo. Click atoms on the left; set the workflow and fields on the right. Load your own file with **Choose File**.
 
 ![3D atom picker with caffeine demo](images/gui-picker.png)
 
 **Feature GUI** — same engine, form-based, if you already know the atom indices.
 
 ![Feature extraction GUI](images/gui-features.png)
-
-Drop `.feather`, `.xyz`, or CSV into `work/` on your computer. In the GUI, type `/work/yourfile.feather`. Results written to `/work` show up in that same folder.
-
-Stop: `Ctrl+C`, or `docker compose down`.
 
 ---
 
@@ -65,27 +64,30 @@ Example molecules (26 substituted benzenes) ship with the package. Gaussian `.lo
 
 | What you see | What to do |
 |---|---|
-| Cannot connect to Docker | Start Docker Desktop and wait until it is idle |
-| Port 7432 or 8503 already in use | Close the other app using that port |
-| RDKit / Morfeus errors on pip | Use Docker instead |
+| RDKit / igraph / Morfeus import errors | `conda install -c conda-forge rdkit python-igraph`, then Docker below |
+| Port 7432 already in use | Close the other app using that port |
 
 ---
 
-## Without Docker (conda already set up)
+## Docker (last resort / full toolkit)
+
+Use this if conda still fails, or you need Streamlit, xTB, and the extra engines. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), wait until the engine is running, then from the clone:
 
 ```bash
-conda create -n descripytor python=3.10
-conda activate descripytor
-pip install "descripytor[gui,webapp]"
-descripytor gui
+mkdir work
+docker compose up --build
 ```
 
-That last command opens the desktop window. For the same browser picker as Docker, clone the repo and run:
+First build takes several minutes. Leave that terminal open.
 
-```bash
-python M2_data_extractor/gui_server.py
-```
+| What | Open |
+|---|---|
+| 3D atom picker | http://localhost:7432/visual |
+| Feature extraction GUI | http://localhost:7432/ |
+| Streamlit extraction app | http://localhost:8503 |
 
-Then open http://localhost:7432/visual
+Drop `.feather`, `.xyz`, or CSV into `work/` on your computer. In the GUI, type `/work/yourfile.feather`. Results written to `/work` show up in that same folder.
+
+Stop: `Ctrl+C`, or `docker compose down`.
 
 Longer notes: [QUICKSTART.md](../QUICKSTART.md) · [README.md](../README.md)
