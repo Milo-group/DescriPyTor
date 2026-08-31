@@ -18,11 +18,15 @@ def df_list_to_dict(df_list: List[pd.DataFrame]) -> Dict[str, pd.DataFrame]:
 
 def split_to_vib_dict(vectors: pd.DataFrame) -> Dict[str, np.ndarray]:
     """Splits vibration vector columns into separate NumPy arrays per atom."""
-    num_columns = vectors.shape[1]
+    if vectors is None or vectors.empty:
+        return {}
+    arr = vectors.to_numpy(dtype=float, copy=False)
+    n_atoms = arr.shape[1] // 3
     vib_dict = {}
-    for i in range(num_columns // 3):
-        key = f'vibration_atom_{i + 1}'
-        vib_dict[key] = vectors.iloc[:, i*3:(i+1)*3].dropna().to_numpy(dtype=float)
+    for i in range(n_atoms):
+        block = arr[:, i * 3:(i + 1) * 3]
+        mask = ~np.isnan(block).any(axis=1)
+        vib_dict[f'vibration_atom_{i + 1}'] = block[mask]
     return vib_dict
 
 

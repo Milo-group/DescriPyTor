@@ -361,6 +361,18 @@ class Molecule:
             self.bonds_df = pd.DataFrame(columns=['atom1', 'atom2'])
             self.atype_list = []
 
+    def _sanitize_vibration_dict(self):
+        """Drop all-NaN vibration rows without building per-frequency DataFrames."""
+        vib = getattr(self, "vibration_dict", None) or {}
+        cleaned = {}
+        for key, value in vib.items():
+            arr = np.asarray(value, dtype=float)
+            if arr.ndim == 2 and arr.size:
+                cleaned[key] = arr[~np.isnan(arr).any(axis=1)]
+            else:
+                cleaned[key] = arr
+        self.vibration_dict = cleaned
+
     def _initialize_computational_data(self):
         """Initialize computed properties from calculations"""
         try:
@@ -373,10 +385,12 @@ class Molecule:
             # Charge and vibrational data
             self.charge_dict = self.parameter_list[2] if len(self.parameter_list) > 2 else {}
             self.vibration_dict = self.parameter_list[1] if len(self.parameter_list) > 1 else {}
-            self.vibration_mode_dict = build_vibration_mode_dict(self.vibration_dict, self.info_df)
-            self.dfs = self.vibration_dict_to_dfs()
-            # print('xxx')
-            # print(self.dfs)
+            self._sanitize_vibration_dict()
+            self._dfs = None
+            if self.vibration_dict and isinstance(self.info_df, pd.DataFrame) and not self.info_df.empty:
+                self.vibration_mode_dict = build_vibration_mode_dict(self.vibration_dict, self.info_df)
+            else:
+                self.vibration_mode_dict = {}
             # Energy values
             self.energy_value = self.parameter_list[0].get('energy_df', pd.DataFrame()) if len(self.parameter_list) > 2 else pd.DataFrame()
         
@@ -389,6 +403,8 @@ class Molecule:
             if not hasattr(self, 'vibration_dict'): self.vibration_dict = {}
             if not hasattr(self, 'info_df'): self.info_df = pd.DataFrame()
             if not hasattr(self, 'energy_value'): self.energy_value = pd.DataFrame()
+            if not hasattr(self, 'vibration_mode_dict'): self.vibration_mode_dict = {}
+            self._dfs = None
 
 
 
@@ -624,6 +640,17 @@ class Molecule:
                 var_value.to_csv(f"{var_name}.csv", index=False)
 
 
+    @property
+    def dfs(self):
+        """Per-frequency vibration frames. Built on first use, not at load."""
+        if getattr(self, "_dfs", None) is None:
+            self.vibration_dict_to_dfs()
+        return self._dfs
+
+    @dfs.setter
+    def dfs(self, value):
+        self._dfs = value
+
     def vibration_dict_to_dfs(self, debug: bool = False):
         """
         Converts the vibration dictionary to a DataFrame for easier handling.
@@ -637,60 +664,50 @@ class Molecule:
         
         self.vib_df_list = []
         self.bonds_df_vib = self.bonds_df
+        frames = []
+        freqs = self.info_df["Frequency"].values if isinstance(self.info_df, pd.DataFrame) and not self.info_df.empty else np.array([])
 
         if debug:
             print(f"[DEBUG] Starting vibration_dict_to_dfs")
             print(f"[DEBUG] vibration_dict contains {len(self.vibration_dict)} entries")
 
-        for key, value in self.vibration_dict.items():
+        for key, value in (self.vibration_dict or {}).items():
             if debug:
                 print(f"\n[DEBUG] Processing key: {key}")
-                print(f"[DEBUG] Raw value shape: {value.shape}")
+                print(f"[DEBUG] Raw value shape: {getattr(value, 'shape', None)}")
 
-            # --- get atom index from key ---
             idx = int(key.split('_')[-1]) - 1
-
-            # --- filter out NaNs ---
-            before_shape = value.shape
-            value = value[~np.isnan(value).any(axis=1)]
-            after_shape = value.shape
-            if debug:
-                print(f"[DEBUG] Removed NaNs: {before_shape} -> {after_shape}")
-
-            # --- construct new array ---
-            new_array = np.array([value[i] for i in range(value.shape[0])])
-            if debug:
-                print(f"[DEBUG] new_array shape: {new_array.shape}")
-
-            # --- build DataFrame ---
-            df = pd.DataFrame(new_array, columns=['x', 'y', 'z'])
-            df['frequency'] = self.info_df['Frequency'].values
-
-            indice = [self.xyz_df['atom'].iloc[idx]] * len(value)
-            df.insert(0, 'atom', indice)
-
+            arr = np.asarray(value, dtype=float)
+            if arr.ndim != 2 or arr.shape[1] < 3:
+                continue
+            arr = arr[~np.isnan(arr).any(axis=1)]
+            if arr.size == 0:
+                self.vibration_dict[key] = arr
+                continue
+            n_rows = arr.shape[0]
+            df = pd.DataFrame(arr[:, :3], columns=['x', 'y', 'z'])
+            if len(freqs) == n_rows:
+                df['frequency'] = freqs
+            elif len(freqs) > n_rows:
+                df['frequency'] = freqs[:n_rows]
+            else:
+                df['frequency'] = np.pad(freqs.astype(float), (0, n_rows - len(freqs)), constant_values=np.nan)
+            atom = self.xyz_df['atom'].iloc[idx] if idx < len(self.xyz_df) else 'X'
+            df.insert(0, 'atom', atom)
+            frames.append(df)
+            self.vibration_dict[key] = arr
             if debug:
                 print(f"[DEBUG] DataFrame built for {key}: shape {df.shape}")
-                print(df.head())
 
-            # --- update attributes ---
-            self.vib_df_list.append(df)
-            self.vibration_dict[key] = new_array
-
-            # --- rebuild combined xyz_df ---
-            xyz_df = pd.DataFrame()
-            for vib_df in self.vib_df_list:
-                xyz_df = pd.concat([xyz_df, vib_df[['atom','x','y','z','frequency']]], axis=0)
-
-            self.dfs = [group.reset_index(drop=True) for _, group in xyz_df.groupby(xyz_df.iloc[:, -1])]
-
+        self.vib_df_list = frames
+        if not frames:
+            self._dfs = []
+            return self._dfs
+        xyz_df = pd.concat(frames, axis=0, ignore_index=True)
+        self._dfs = [group.reset_index(drop=True) for _, group in xyz_df.groupby('frequency', sort=False)]
         if debug:
-            print(f"\n[DEBUG] Finished building dfs: {len(self.dfs)} groups")
-            for i, df in enumerate(self.dfs[:3]):  # preview only first 3 groups
-                print(f"[DEBUG] Group {i} shape: {df.shape}")
-                print(df.head())
-
-        return self.dfs
+            print(f"\n[DEBUG] Finished building dfs: {len(self._dfs)} groups")
+        return self._dfs
 
 
     def visualize_molecule(self, vector=None) -> None:
@@ -1572,7 +1589,7 @@ def _molecules_worker_count(n_files):
     if requested > 0:
         return max(1, min(requested, n_files))
     cpu = os.cpu_count() or 1
-    return max(1, min(4, n_files, cpu))
+    return max(1, min(8, n_files, cpu))
 
 
 class Molecules():
@@ -1674,7 +1691,11 @@ class Molecules():
             else:
                 self.failed_molecules.append(data_file)
 
-        print(f'Molecules Loaded: {self.success_molecules}',f'Failed Molecules: {self.failed_molecules}')
+        n_ok = len(self.success_molecules)
+        n_fail = len(self.failed_molecules)
+        print(f'Molecules Loaded: {n_ok}  Failed Molecules: {n_fail}')
+        if n_fail:
+            print(f'Failed Molecules: {self.failed_molecules}')
 
         self.molecule_names=[molecule.molecule_name for molecule in self.molecules]
         self.old_molecules=self.molecules

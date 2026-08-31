@@ -1075,6 +1075,9 @@ if (typeof $3Dmol === "undefined") {
         <div class="model-actions">
           <button class="primary" type="button" id="lrRunBtn">Run linear regression</button>
         </div>
+        <div class="work-progress" id="modelProgress" hidden role="progressbar" aria-label="Model search progress">
+          <div class="work-progress-bar" id="modelProgressBar"></div>
+        </div>
         <div id="lrStatus" class="model-status"></div>
         <div class="extract-table-wrap" id="lrTableWrap" style="display:none;margin-top:10px;">
           <table class="extract-table" id="lrTable"></table>
@@ -2896,7 +2899,8 @@ async function runLinearRegression() {
     return;
   }
   if (btn) btn.disabled = true;
-  setModelStatus("Fitting linear models…", "warn");
+  setModelStatus("Starting model search…", "warn");
+  setWorkProgress("modelProgress", 0, { indeterminate: true });
   try {
     const response = await fetch("/model/run", {
       method: "POST",
@@ -2910,22 +2914,59 @@ async function runLinearRegression() {
         max_features: Number($("lrMax") && $("lrMax").value) || 2,
         top_n: Number($("lrTop") && $("lrTop").value) || 8,
         threshold: Number($("lrThr") && $("lrThr").value),
+        stream: true,
       }),
     });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.error) {
-      setModelStatus(data.error || ("Modeling failed (HTTP " + response.status + ")."), "bad");
+    const ctype = (response.headers.get("content-type") || "").toLowerCase();
+    let data = null;
+    if (response.ok && ctype.indexOf("ndjson") >= 0) {
+      await readNdjsonEvents(response, ev => {
+        if (!ev || typeof ev !== "object") return;
+        if (ev.event === "error") throw new Error(ev.error || "Modeling failed.");
+        if (ev.event === "start") {
+          const n = ev.n || 0;
+          setWorkProgress("modelProgress", 0, { indeterminate: !n });
+          setModelStatus(
+            n
+              ? ("Searching 0/" + n + " feature combinations…")
+              : "Fitting linear models…",
+            "warn"
+          );
+        }
+        if (ev.event === "progress") {
+          const n = ev.n || 0;
+          const i = ev.i || 0;
+          const kept = ev.kept;
+          setWorkProgress("modelProgress", n ? i / n : 0.5);
+          let msg = n
+            ? ("Searching " + i + "/" + n + " combinations")
+            : "Fitting linear models";
+          if (ev.k) msg += " (" + ev.k + "-feature)";
+          if (kept != null) msg += " — " + kept + " kept";
+          setModelStatus(msg + "…", "warn");
+        }
+        if (ev.event === "done") data = ev;
+      });
+    } else {
+      data = await response.json().catch(() => ({}));
+    }
+    if (!response.ok || !data || data.error) {
+      hideWorkProgress("modelProgress");
+      setModelStatus((data && data.error) || ("Modeling failed (HTTP " + response.status + ")."), "bad");
       renderModelTable([]);
       return;
     }
     renderModelTable(data.rows || []);
+    setWorkProgress("modelProgress", 1);
     setModelStatus(
       (data.n_models || 0) + " models for target '" + (data.target || yCol) +
       "' — sorted by leave-one-out Q².",
       "ok"
     );
     if (typeof tourNotify === "function") tourNotify("model");
+    setTimeout(() => hideWorkProgress("modelProgress"), 500);
   } catch (err) {
+    hideWorkProgress("modelProgress");
     setModelStatus("Modeling failed: " + err.message, "bad");
   } finally {
     if (btn) btn.disabled = false;

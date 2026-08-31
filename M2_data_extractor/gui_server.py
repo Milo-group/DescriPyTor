@@ -1326,7 +1326,7 @@ def _merge_outputs_into_df(df, pairs, new_col_name):
     return out
 
 
-def _linear_combo_search(df, y_name, min_features, max_features, top_n, threshold):
+def _linear_combo_search(df, y_name, min_features, max_features, top_n, threshold, progress=None):
     """OLS feature-combination search with leave-one-out Q². Returns a results DataFrame."""
     from itertools import combinations
 
@@ -1389,6 +1389,16 @@ def _linear_combo_search(df, y_name, min_features, max_features, top_n, threshol
     cols = list(X.columns)
     loo = LeaveOneOut()
     rows = []
+    if progress:
+        progress({
+            "event": "start",
+            "n": n_combos,
+            "i": 0,
+            "phase": "search",
+            "n_features": n_feat,
+            "min_features": min_features,
+            "max_features": max_features,
+        })
 
     def _q2(Xm, ym):
         pred = np.zeros(len(ym))
@@ -1402,6 +1412,8 @@ def _linear_combo_search(df, y_name, min_features, max_features, top_n, threshol
             return float("nan")
         return 1.0 - ss_res / ss_tot
 
+    done = 0
+    step = max(1, n_combos // 40)
     for k in range(min_features, max_features + 1):
         for combo in combinations(range(n_feat), k):
             Xm = Xs[:, combo]
@@ -1409,17 +1421,26 @@ def _linear_combo_search(df, y_name, min_features, max_features, top_n, threshol
             model.fit(Xm, ys)
             pred = model.predict(Xm)
             r2 = float(r2_score(ys, pred))
-            if r2 < threshold:
-                continue
-            p = k
-            adj = 1.0 - (1.0 - r2) * (n - 1) / max(n - p - 1, 1)
-            rows.append({
-                "combination": ", ".join(cols[i] for i in combo),
-                "n_features": k,
-                "r2": round(r2, 4),
-                "adj_r2": round(float(adj), 4),
-                "q2": round(float(_q2(Xm, ys)), 4),
-            })
+            if r2 >= threshold:
+                p = k
+                adj = 1.0 - (1.0 - r2) * (n - 1) / max(n - p - 1, 1)
+                rows.append({
+                    "combination": ", ".join(cols[i] for i in combo),
+                    "n_features": k,
+                    "r2": round(r2, 4),
+                    "adj_r2": round(float(adj), 4),
+                    "q2": round(float(_q2(Xm, ys)), 4),
+                })
+            done += 1
+            if progress and (done == 1 or done == n_combos or done % step == 0):
+                progress({
+                    "event": "progress",
+                    "i": done,
+                    "n": n_combos,
+                    "phase": "search",
+                    "kept": len(rows),
+                    "k": k,
+                })
 
     if not rows:
         raise ValueError(
@@ -1427,6 +1448,17 @@ def _linear_combo_search(df, y_name, min_features, max_features, top_n, threshol
         )
     out = pd.DataFrame(rows).sort_values(["q2", "r2"], ascending=False).head(int(top_n))
     return out.reset_index(drop=True)
+
+
+def _model_result_payload(results, y_name, n_rows):
+    return {
+        "n_models": int(len(results)),
+        "target": y_name,
+        "n_rows": int(n_rows),
+        "columns": [str(c) for c in results.columns],
+        "rows": results.to_dict(orient="records"),
+        "csv": results.to_csv(index=False),
+    }
 
 
 @app.route("/model/run", methods=["POST"])
@@ -1469,21 +1501,59 @@ def model_run():
         max_f = int(data.get("max_features", 2) or 2)
         top_n = int(data.get("top_n", 8) or 8)
         threshold = float(data.get("threshold", 0.2) or 0.0)
-        results = _linear_combo_search(df, y_name, min_f, max_f, top_n, threshold)
-    except ValueError as exc:
+    except (TypeError, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400
-    except Exception as exc:
-        traceback.print_exc()
-        return jsonify({"error": f"Linear regression failed: {exc}"}), 500
 
-    return jsonify({
-        "n_models": int(len(results)),
-        "target": y_name,
-        "n_rows": int(df.shape[0]),
-        "columns": [str(c) for c in results.columns],
-        "rows": results.to_dict(orient="records"),
-        "csv": results.to_csv(index=False),
-    })
+    stream = bool(data.get("stream"))
+    if not stream:
+        try:
+            results = _linear_combo_search(df, y_name, min_f, max_f, top_n, threshold)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception as exc:
+            traceback.print_exc()
+            return jsonify({"error": f"Linear regression failed: {exc}"}), 500
+        return jsonify(_model_result_payload(results, y_name, df.shape[0]))
+
+    from flask import Response, stream_with_context
+    from queue import Queue
+    import threading
+
+    def generate():
+        q = Queue()
+
+        def progress(ev):
+            if ev:
+                q.put(ev)
+
+        def worker():
+            try:
+                results = _linear_combo_search(
+                    df, y_name, min_f, max_f, top_n, threshold, progress=progress
+                )
+                payload = _model_result_payload(results, y_name, df.shape[0])
+                payload["event"] = "done"
+                q.put(payload)
+            except ValueError as exc:
+                q.put({"event": "error", "error": str(exc)})
+            except Exception as exc:
+                traceback.print_exc()
+                q.put({"event": "error", "error": f"Linear regression failed: {exc}"})
+            finally:
+                q.put(None)
+
+        threading.Thread(target=worker, daemon=True).start()
+        while True:
+            ev = q.get()
+            if ev is None:
+                break
+            yield json.dumps(ev) + "\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 def _pd_from_numpy(arr, index, columns):

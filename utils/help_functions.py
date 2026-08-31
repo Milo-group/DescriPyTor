@@ -976,12 +976,17 @@ def dict_to_horizontal_df(data_dict):
 
 def nob_atype(xyz_df, bonds_df):
     
-    symbols = xyz_df['atom'].values
-    
+    symbols = xyz_df['atom'].to_numpy()
+    n_atoms = len(symbols)
+    if bonds_df is None or getattr(bonds_df, "empty", True) or n_atoms == 0:
+        nobs = np.zeros(n_atoms, dtype=int)
+    else:
+        left = bonds_df.iloc[:, 0].to_numpy(dtype=int, copy=False)
+        right = bonds_df.iloc[:, 1].to_numpy(dtype=int, copy=False)
+        nobs = np.bincount(np.concatenate([left, right]), minlength=n_atoms + 1)[1:n_atoms + 1]
+
     list_results=[]
-    for index,symbol in enumerate(symbols):
-        index+=1
-        nob = bonds_df[(bonds_df[0] == index) | (bonds_df[1] == index)].shape[0]
+    for symbol, nob in zip(symbols, nobs):
         if symbol == 'H':
             result = 'H'
         elif symbol == 'F':

@@ -119,6 +119,7 @@ def test_visual_serves_atom_picker(client):
     assert 'id="numberingProgress"' in body
     assert 'id="extractProgress"' in body
     assert 'id="presetProgress"' in body
+    assert 'id="modelProgress"' in body
     viz = body.find('id="vizbar"')
     adv = body.find('id="advancedPanel"')
     assert viz != -1 and adv != -1
@@ -300,6 +301,45 @@ def test_molecules_skips_non_molecule_json(tmp_path, monkeypatch):
     assert set(mols.success_molecules) == {"a.feather", "mol.json"}
 
 
+def test_molecule_defers_vibration_frames():
+    from M2_data_extractor.data_extractor import Molecule, _MOLECULES_CACHE
+    from M2_data_extractor.gui_server import example_reference_feather
+
+    path = example_reference_feather()
+    if not path:
+        pytest.skip("example feathers are not installed")
+    try:
+        import pyarrow  # noqa: F401
+    except ImportError:
+        pytest.skip("pyarrow is not installed")
+    _MOLECULES_CACHE.clear()
+    mol = Molecule(path)
+    assert getattr(mol, "_dfs", None) is None
+    assert mol.vibration_dict
+    frames = mol.dfs
+    assert isinstance(frames, list)
+    assert frames
+    assert getattr(mol, "_dfs", None) is frames
+
+
+def test_nob_atype_counts_bonds_without_row_filters():
+    import pandas as pd
+    from utils.help_functions import nob_atype
+
+    xyz = pd.DataFrame({
+        "atom": ["C", "C", "H", "H", "H", "O"],
+        "x": [0, 1.5, -0.5, 0.5, 0, 2.5],
+        "y": [0, 0, 0.5, 0.5, -0.7, 0],
+        "z": [0, 0, 0, 0, 0, 0],
+    })
+    bonds = pd.DataFrame({0: [1, 1, 1, 1, 2], 1: [2, 3, 4, 5, 6]})
+    types = nob_atype(xyz, bonds)
+    assert types[0] == "C"
+    assert types[1] == "C3"
+    assert types[2] == "H"
+    assert types[5] == "O2"
+
+
 def test_3dmol_static_is_local_or_cdn(client):
     response = client.get("/static/3Dmol-min.js", follow_redirects=False)
     assert response.status_code in (200, 302)
@@ -389,6 +429,43 @@ def test_model_run_drops_nan_feature_columns(client):
     })
     assert response.status_code == 200, response.get_json()
     assert response.get_json()["n_models"] >= 1
+
+
+def test_model_run_streams_search_progress(client):
+    csv_text = (
+        "name,B1,L,B5\n"
+        "a,1.5,3.0,2.0\n"
+        "b,1.6,4.0,2.1\n"
+        "c,1.8,5.0,2.4\n"
+        "d,2.0,6.0,2.8\n"
+    )
+    try:
+        import sklearn  # noqa: F401
+    except ImportError:
+        pytest.skip("sklearn is not installed")
+    response = client.post("/model/run", json={
+        "csv": csv_text,
+        "outputs": "10\n12\n14\n16\n",
+        "new_column": "output",
+        "min_features": 1,
+        "max_features": 2,
+        "top_n": 5,
+        "threshold": 0.0,
+        "stream": True,
+    })
+    assert response.status_code == 200
+    assert "ndjson" in (response.mimetype or "")
+    events = [json.loads(ln) for ln in response.get_data(as_text=True).splitlines() if ln.strip()]
+    kinds = [e.get("event") for e in events]
+    assert "start" in kinds
+    assert "progress" in kinds
+    assert "done" in kinds
+    start = next(e for e in events if e.get("event") == "start")
+    done = next(e for e in events if e.get("event") == "done")
+    assert start["n"] >= 3
+    assert start["phase"] == "search"
+    assert done["n_models"] >= 1
+    assert done["target"] == "output"
 
 
 def test_browse_folder_returns_path(client, monkeypatch):
