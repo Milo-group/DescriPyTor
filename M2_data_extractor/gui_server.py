@@ -1524,36 +1524,47 @@ def _gui_payload_is_current(payload):
     return "example_presets" in payload and "example_reference_name" in payload
 
 
-def _pid_listening_on_port(port):
-    """Best-effort PID for a LISTEN socket (Windows netstat / Unix lsof)."""
+def _pids_listening_on_port(port):
+    """PIDs with a LISTEN socket on this TCP port (Windows netstat / Unix lsof)."""
     import subprocess
 
     port = int(port)
+    pids = []
+    suffix = ":" + str(port)
     try:
         if os.name == "nt":
             completed = subprocess.run(
                 ["netstat", "-ano", "-p", "tcp"],
                 capture_output=True, text=True, timeout=4, check=False,
             )
-            needle = ":%s" % port
             for line in (completed.stdout or "").splitlines():
-                text = " ".join(line.split()).lower()
-                if needle.lower() not in text or "listen" not in text:
-                    continue
                 parts = line.split()
-                if parts:
-                    return parts[-1]
+                if len(parts) < 5 or parts[0].upper() != "TCP":
+                    continue
+                if "LISTEN" not in parts[3].upper():
+                    continue
+                if not parts[1].endswith(suffix):
+                    continue
+                pid = parts[-1].strip()
+                if pid.isdigit() and pid not in pids:
+                    pids.append(pid)
         else:
             completed = subprocess.run(
                 ["lsof", f"-iTCP:{port}", "-sTCP:LISTEN", "-n", "-P", "-t"],
                 capture_output=True, text=True, timeout=4, check=False,
             )
-            pid = (completed.stdout or "").strip().splitlines()
-            if pid:
-                return pid[0].strip()
+            for pid in (completed.stdout or "").splitlines():
+                pid = pid.strip()
+                if pid.isdigit() and pid not in pids:
+                    pids.append(pid)
     except Exception:
-        return None
-    return None
+        return []
+    return pids
+
+
+def _pid_listening_on_port(port):
+    pids = _pids_listening_on_port(port)
+    return pids[0] if pids else None
 
 
 def _reuse_or_refuse_existing_gui(host, port, open_browser):
@@ -1573,15 +1584,16 @@ def _reuse_or_refuse_existing_gui(host, port, open_browser):
                 pass
         return True
     if payload is not None or _tcp_port_open(port):
-        pid = _pid_listening_on_port(port)
+        pids = _pids_listening_on_port(port)
         print(f"\n  Port {port} is already in use by an older or different process.")
-        print(f"  The browser GUI will 404 (Check numbering, example molecule) until that process is stopped.")
-        if pid:
-            print(f"  PID: {pid}")
+        print("  Stop every listener, then run descripytor visual again.")
+        if pids:
+            print("  PID(s): " + ", ".join(pids))
             if os.name == "nt":
-                print(f"  Stop it:  taskkill /PID {pid} /F")
+                kills = "  &  ".join("taskkill /PID %s /F" % pid for pid in pids)
+                print("  Stop them:  " + kills)
             else:
-                print(f"  Stop it:  kill {pid}")
+                print("  Stop them:  kill " + " ".join(pids))
         else:
             print("  Stop the old `descripytor visual` terminal with Ctrl+C, then retry.")
         print()
