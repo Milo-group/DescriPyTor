@@ -63,21 +63,26 @@ Dipole components and ring vibrations are read in this frame.
 
 ## Install
 
-Clone, then a conda env (Python 3.9–3.11):
+Needs conda and Python 3.10 or 3.11.
 
 ```bash
 git clone https://github.com/Milo-group/DescriPyTor.git
 cd DescriPyTor
-conda create -n descripytor python=3.10 && conda activate descripytor
+conda create -n descripytor python=3.10 -y
+conda activate descripytor
 pip install -e .
 descripytor visual
 ```
 
-That opens the 3D atom picker at http://localhost:7432. See [QUICKSTART.md](QUICKSTART.md).
+That opens the 3D picker at **http://127.0.0.1:7432**. If the port is already taken, stop the old process (the command prints a PID) and run `descripytor visual` again, then hard-refresh the browser (Ctrl+F5).
+
+In the picker: **Use example set** → **Apply example picks** → **Extract CSV**. The viewer loads unsubstituted benzene (`basic.feather`). Atom numbers are **1-based**. Click **Tutorial** for the five-step walkthrough.
+
+Full one-pager: [QUICKSTART.md](QUICKSTART.md). Visual handout: [docs/visual-guide.md](docs/visual-guide.md).
 
 If RDKit fails on pip: `conda install -c conda-forge rdkit`
 
-`numpy<2` is required (RDKit / PyArrow). Dependencies live in `pyproject.toml`; `pip install -r requirements.txt` is equivalent.
+`numpy<2` is required (RDKit / PyArrow). Dependencies live in `pyproject.toml`.
 
 Optional extras:
 
@@ -141,8 +146,10 @@ Failed to load Molecules: []
 ### 3D atom picker
 
 Click atoms in 3D, see Sterimol / dipole / vibrations live, then **Extract CSV** (table in
-the page; **Download CSV** to save). The **Model** tab adds an output column and runs linear
-regression. **Save picks** writes `run_config.json` for a later run.
+the page; **Download CSV** to save). **Load file…** opens a `.xyz` or `.feather`; you can
+also drop a file on the molecule. **Use example set** points extraction at the 26 bundled
+benzenes. The **Model** tab adds an output column and runs linear regression. **Save picks**
+writes `run_config.json` for a later run.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/atom-picker.png" width="900" alt="Browser atom picker: a 3D molecule with Sterimol L/B1/B5 arrows, dipole vector and transformation axes on the left; a scrollable list of descriptor fields with committed atom groups on the right."><br>

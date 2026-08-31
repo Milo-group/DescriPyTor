@@ -19,7 +19,9 @@ pip install -e .
 descripytor visual
 ```
 
-Then open **http://localhost:7432** (the 3D picker). The form-only GUI is http://localhost:7432/forms.
+Then open **http://127.0.0.1:7432** (the 3D picker). The form-only GUI is http://127.0.0.1:7432/forms.
+
+In the picker: **Use example set** → **Apply example picks** → **Extract CSV**. If port 7432 is already in use, stop the old GUI (the command prints a PID) and retry, then hard-refresh (Ctrl+F5).
 
 If RDKit fails on pip:
 
