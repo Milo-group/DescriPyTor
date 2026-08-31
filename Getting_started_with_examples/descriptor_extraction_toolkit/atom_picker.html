@@ -144,7 +144,9 @@ if (typeof $3Dmol === "undefined") {
   }
   details.mini-fold > summary {
     cursor:pointer; font-size:11.5px; font-weight:600; color:var(--muted); user-select:none;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
   }
+  details.mini-fold > summary .fold-actions { display:flex; align-items:center; gap:6px; }
   #tourNextBtn {
     color:#fff; border:none; font-weight:650;
     background:linear-gradient(180deg,#3b9bff,#007AFF);
@@ -897,7 +899,7 @@ if (typeof $3Dmol === "undefined") {
         <label for="featherDirInput">Feather folder</label>
         <input type="text" id="featherDirInput" placeholder="path/to/your/feathers" style="flex:1;min-width:160px" autocomplete="off" />
         <button type="button" id="browseFeatherDirBtn" title="Open a native folder dialog on this computer">Browse…</button>
-        <button type="button" id="useExampleFeathersBtn" title="Use the 26 substituted benzenes that ship with DescriPyTor">Use example set</button>
+        <button type="button" id="useExampleFeathersBtn" title="Use the bundled substituted benzenes that ship with DescriPyTor">Use example set</button>
         <button type="button" id="applyExamplePicksBtn" title="Load the notebook atom picks for the benzene set">Apply example picks</button>
       </div>
       <div class="work-progress" id="presetProgress" hidden role="progressbar" aria-label="Applying example picks">
@@ -916,6 +918,20 @@ if (typeof $3Dmol === "undefined") {
 
     <div class="sec-head collapsible" id="pickSecHead" onclick="toggleSec(this)" role="button" tabindex="0" aria-expanded="true"><span class="sec-num">2</span>Pick atoms<span class="sec-line"></span><span class="sec-chev">▼</span></div>
     <div class="sec-body">
+      <details class="mini-fold" id="selTableFold" open>
+        <summary>
+          <span>Picked groups table</span>
+          <span class="fold-actions">
+            <button type="button" id="clearPicksBtn" title="Remove all committed atom groups from every field">Clear picks</button>
+          </span>
+        </summary>
+      <table id="selTable" style="margin-top:8px">
+        <thead><tr><th style="width:38%">field</th><th>groups</th><th style="width:46px"></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </details>
+      <details class="mini-fold" id="pickControlsFold">
+        <summary>Click or type atoms</summary>
       <div class="row">
         <label for="fieldSelect">Active field</label>
         <select id="fieldSelect"></select>
@@ -936,12 +952,6 @@ if (typeof $3Dmol === "undefined") {
         <button type="button" id="addTypedAtomsBtn" title="Add these atom indices to the current field, same as clicking them in 3D">Add</button>
         <span class="small" id="typedAtomsHint">1-indexed, comma or space separated. Alt+Right / Alt+Left cycles the active field.</span>
       </div>
-      <details class="mini-fold" id="selTableFold">
-        <summary>Picked groups table</summary>
-      <table id="selTable" style="margin-top:8px">
-        <thead><tr><th style="width:38%">field</th><th>groups</th><th style="width:46px"></th></tr></thead>
-        <tbody></tbody>
-      </table>
       </details>
     </div>
 
@@ -1634,9 +1644,7 @@ function toggleVizBar() {
 }
 function hideExtras() {
   setVizBarOpen(false);
-  const table = $("selTableFold");
   const cfg = $("configFold");
-  if (table) table.open = false;
   if (cfg) cfg.open = false;
 }
 function showExtras() {
@@ -1644,8 +1652,10 @@ function showExtras() {
   collapseAllViz(false);
   const table = $("selTableFold");
   const cfg = $("configFold");
+  const pick = $("pickControlsFold");
   if (table) table.open = true;
   if (cfg) cfg.open = true;
+  if (pick) pick.open = true;
 }
 
 function announce(msg) {
@@ -2580,6 +2590,16 @@ function commitGroup() {
 
 function clearGroup() { currentGroup = []; refresh(); }
 
+function clearAllPicks() {
+  const fields = typeof allFields === "function" ? allFields() : [...FIELDS, ...MF_FIELDS];
+  fields.forEach(f => { if (f && f.key) state[f.key] = []; });
+  currentGroup = [];
+  lastClicked = null;
+  refresh();
+  if (typeof saveSession === "function") saveSession();
+  if (typeof setExtractStatus === "function") setExtractStatus("Cleared all atom picks.", "ok");
+}
+
 function removeGroup(fkey, gi) { state[fkey].splice(gi, 1); refresh(); }
 
 /* ------------------------------------------------------------------ *
@@ -3085,11 +3105,6 @@ function restoreSession() {
     if (!data || typeof data !== "object") return false;
     if (data.featherDir && $("featherDirInput") && !isPlaceholderFeatherDir(data.featherDir)) {
       $("featherDirInput").value = data.featherDir;
-    }
-    if (data.state && typeof data.state === "object") {
-      Object.keys(state).forEach(k => {
-        if (Array.isArray(data.state[k])) state[k] = data.state[k];
-      });
     }
     if (data.lastExtractCsv) {
       lastExtractCsv = data.lastExtractCsv;
@@ -3785,6 +3800,13 @@ function renderPackages() {
 $("commitBtn").onclick = commitGroup;
 $("undoPickBtn").onclick = undoLastPick;
 $("clearGroupBtn").onclick = clearGroup;
+if ($("clearPicksBtn")) {
+  $("clearPicksBtn").onclick = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    clearAllPicks();
+  };
+}
 $("addTypedAtomsBtn").onclick = addTypedAtoms;
 $("typedAtoms").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addTypedAtoms(); } });
 $("stretchThr").oninput = refresh;
@@ -4769,6 +4791,8 @@ function tourIsOpen() {
   function tourOpenPickSec() {
     const head = $("pickSecHead");
     if (head && head.classList.contains("closed")) toggleSec(head);
+    const controls = $("pickControlsFold");
+    if (controls) controls.open = true;
   }
 
   function tourRequireField(key) {
@@ -4799,7 +4823,7 @@ function tourIsOpen() {
   const EXAMPLE = {
       id: "example",
       title: "Load the example folder",
-      body: "Click Use example set (the highlighted button). This points extraction at the 26 substituted benzenes. Every .feather in that folder is used.",
+      body: "Click Use example set (the highlighted button). This points extraction at the bundled substituted benzenes. Every .feather in that folder is used.",
       target: "#useExampleFeathersBtn",
       shape: "pill",
       advance: "example",

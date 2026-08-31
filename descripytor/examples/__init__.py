@@ -33,7 +33,7 @@ def _first_existing(*candidates: Path, marker: str) -> Path:
 
 
 def feather_example_dir() -> Path:
-    """Directory of the 26 substituted-benzene ``.feather`` files."""
+    """Directory of the bundled substituted-benzene ``.feather`` files."""
     return _first_existing(
         _HERE / "feather_example",
         _REPO_FEATHER,

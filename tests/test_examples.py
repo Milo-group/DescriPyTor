@@ -41,7 +41,7 @@ def test_baptiste_example_set():
 def test_benzene_example_set():
     directory = feather_example_dir()
     feathers = sorted(directory.glob("*.feather"))
-    assert len(feathers) == 26
+    assert len(feathers) == 10
     assert (directory / "basic.feather").is_file()
     presets = directory / "presets.json"
     assert presets.is_file()

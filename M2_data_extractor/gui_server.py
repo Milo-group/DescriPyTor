@@ -50,7 +50,7 @@ def load_molecule(filepath: str, root: str = ""):
 # ── routes ────────────────────────────────────────────────────
 
 def benzene_example_dir():
-    """GUI default example: 26 substituted benzenes (basic.feather)."""
+    """GUI default example: bundled substituted benzenes (basic.feather)."""
     try:
         from descripytor.examples import feather_example_dir as _feather_dir
 
@@ -92,7 +92,7 @@ def baptiste_example_dir():
 
 
 def example_feather_dir():
-    """GUI default example: the 26 substituted benzenes."""
+    """GUI default example: the bundled substituted benzenes."""
     return benzene_example_dir()
 
 

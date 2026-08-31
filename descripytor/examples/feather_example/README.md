@@ -1,4 +1,4 @@
-26 substituted benzenes as `.feather` (geometry, charges, dipoles, vibrations)
+10 substituted benzenes as `.feather` (geometry, charges, dipoles, vibrations)
 plus `input_example.json` for `descripytor extractor`.
 
 Also bundled in the pip package::

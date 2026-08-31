@@ -1490,6 +1490,35 @@ class Molecule:
 _MOLECULES_CACHE = {}
 _MOLECULES_CACHE_MAX = 2
 
+# Sidecar JSON that lives next to molecule files and must never be loaded as one.
+_NON_MOLECULE_JSON_NAMES = frozenset({
+    "presets.json",
+    "input_example.json",
+    "config_example.json",
+    "run_config.json",
+})
+
+
+def _json_looks_like_molecule(path):
+    """True when the file is structured converter JSON (molecule.atoms), not a config."""
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            head = fh.read(8192)
+    except OSError:
+        return False
+    return '"molecule"' in head and '"atoms"' in head
+
+
+def _is_molecule_folder_file(name, directory):
+    lower = os.path.basename(name).lower()
+    if lower.endswith((".feather", ".ftr")):
+        return True
+    if not lower.endswith(".json"):
+        return False
+    if lower in _NON_MOLECULE_JSON_NAMES:
+        return False
+    return _json_looks_like_molecule(os.path.join(directory, name))
+
 
 def _molecules_folder_files(path, file_limit=None):
     path = os.path.abspath(path)
@@ -1499,14 +1528,15 @@ def _molecules_folder_files(path, file_limit=None):
         return path, []
     files = []
     for name in names:
-        if name.endswith(".feather") or name.endswith(".json"):
-            fp = os.path.join(path, name)
-            try:
-                st = os.stat(fp)
-                stamp = int(getattr(st, "st_mtime_ns", int(st.st_mtime * 1e9)))
-                files.append((name, stamp, int(st.st_size)))
-            except OSError:
-                files.append((name, 0, 0))
+        if not _is_molecule_folder_file(name, path):
+            continue
+        fp = os.path.join(path, name)
+        try:
+            st = os.stat(fp)
+            stamp = int(getattr(st, "st_mtime_ns", int(st.st_mtime * 1e9)))
+            files.append((name, stamp, int(st.st_size)))
+        except OSError:
+            files.append((name, 0, 0))
     if file_limit is not None:
         try:
             files = files[: max(1, int(file_limit))]

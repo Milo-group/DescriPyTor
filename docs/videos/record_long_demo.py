@@ -196,7 +196,7 @@ def record_browser(path: Path) -> None:
                   return t ? Math.max(0, t.querySelectorAll('tbody tr').length) : 0;
                 }"""
             )
-            n = n or 26
+            n = n or 10
             outputs = "\n".join(f"{0.15 + i * 0.07:.2f}" for i in range(n))
             page.fill("#lrOutputs", outputs)
             page.fill("#lrThr", "0")

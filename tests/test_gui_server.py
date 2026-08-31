@@ -110,7 +110,9 @@ def test_visual_serves_atom_picker(client):
     assert 'accept=".xyz,.feather,.ftr"' not in body
     assert "descripytor.visual.session.v2" in body
     assert 'id="a11yStatus"' in body
-    assert 'id="applyExamplePicksBtn"' in body
+    assert 'id="clearPicksBtn"' in body
+    assert 'id="pickControlsFold"' in body
+    assert 'id="selTableFold" open' in body
     assert 'id="numberingBanner"' in body
     assert 'id="checkNumberingBtn"' in body
     assert 'id="viewNumberingBtn"' in body
@@ -268,6 +270,34 @@ def test_molecules_reuses_folder_cache(tmp_path, monkeypatch):
     second = de.Molecules(str(tmp_path))
     assert calls["n"] == 2
     assert second.success_molecules == first.success_molecules
+
+
+def test_molecules_skips_non_molecule_json(tmp_path, monkeypatch):
+    import os
+    from M2_data_extractor import data_extractor as de
+
+    de._MOLECULES_CACHE.clear()
+
+    class Dummy:
+        def __init__(self, data_file, threshold=1.82):
+            self.molecule_name = os.path.splitext(os.path.basename(data_file))[0]
+
+    monkeypatch.setattr(de, "Molecule", Dummy)
+    (tmp_path / "a.feather").write_bytes(b"x")
+    (tmp_path / "presets.json").write_text(
+        '{"label": "demo", "atoms": {"sterimol": [[1, 4]]}}', encoding="utf-8"
+    )
+    (tmp_path / "input_example.json").write_text('{"Sterimol atoms": "1,4"}', encoding="utf-8")
+    (tmp_path / "run_config.json").write_text('{"feather_dir": "x"}', encoding="utf-8")
+    (tmp_path / "notes.json").write_text('{"comment": "not a molecule"}', encoding="utf-8")
+    (tmp_path / "mol.json").write_text(
+        '{"molecule": {"atoms": [{"atom": "C", "x": 0, "y": 0, "z": 0}]}}',
+        encoding="utf-8",
+    )
+    events = []
+    mols = de.Molecules(str(tmp_path), progress=events.append)
+    assert events[0]["n"] == 2
+    assert set(mols.success_molecules) == {"a.feather", "mol.json"}
 
 
 def test_3dmol_static_is_local_or_cdn(client):
@@ -482,7 +512,7 @@ def test_folder_summary_example_set(client):
     response = client.post("/folder/summary", json={"directory": directory})
     assert response.status_code == 200
     body = response.get_json()
-    assert body["n"] >= 26
+    assert body["n"] == 10
     assert "basic" in body["names"]
 
 

@@ -147,7 +147,7 @@ Failed to load Molecules: []
 
 Click atoms in 3D, see Sterimol / dipole / vibrations live, then **Extract CSV** (table in
 the page; **Download CSV** to save). **Load file…** opens a `.xyz` or `.feather`; you can
-also drop a file on the molecule. **Use example set** points extraction at the 26 bundled
+also drop a file on the molecule. **Use example set** points extraction at the bundled
 benzenes. The **Model** tab adds an output column and runs linear regression. **Save picks**
 writes `run_config.json` for a later run.
 
@@ -475,7 +475,7 @@ Start in `Getting_started_with_examples/`:
 |---|---|
 | `Practical_Notebook_Features.ipynb` | Feature extraction end to end |
 | `Practical_Notebook_Modeling.ipynb` | Model search, validation, reporting |
-| bundled benzene set | 26 substituted-benzene `.feather` files (`descripytor.examples.feather_example_dir()`) |
+| bundled benzene set | 10 substituted-benzene `.feather` files (`descripytor.examples.feather_example_dir()`) |
 | bundled Baptiste set | 18 product `.feather` files plus outcomes (`descripytor.examples.baptiste_example_dir()`) |
 | `modeling_example/` | Ready-made linear and logistic datasets |
 | `../tests/data/small_set/` | 8 alcohol XYZ files + extracted Sterimol table for tests |

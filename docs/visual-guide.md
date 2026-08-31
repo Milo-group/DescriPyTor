@@ -57,7 +57,7 @@ flowchart LR
   R --> M["Optional: Advanced"]
 ```
 
-Example molecules (26 substituted benzenes) ship with the package. Gaussian `.log` files: convert first with `descripytor logs_to_feather`.
+Example molecules (10 substituted benzenes) ship with the package. Gaussian `.log` files: convert first with `descripytor logs_to_feather`.
 
 ---
 
