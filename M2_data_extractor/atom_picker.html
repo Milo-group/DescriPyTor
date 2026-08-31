@@ -966,9 +966,21 @@ if (typeof $3Dmol === "undefined") {
     <div class="viz-body closed">
       <div class="vizrow">
         <label><input type="checkbox" id="vizSterimol" /> <b>Sterimol</b></label>
+        <label><input type="checkbox" id="vizSterAngle" checked /> θ B1–B5</label>
         <select id="vizSterPair" title="which [origin, attached] pair to draw"></select>
         <span class="small" id="vizSterReadout"></span>
         <div id="sterPolar" class="polar"></div>
+      </div>
+    </div>
+    <div class="viz-sec closed" onclick="toggleVizSec(this)">Buried volume<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
+    <div class="viz-body closed">
+      <div class="vizrow">
+        <label><input type="checkbox" id="vizBuried" /> <b>%Vbur</b></label>
+        <select id="vizBvAtom" title="anchor atom for the sphere"></select>
+        <label class="small">R <input type="number" id="vizBvRadius" min="1.5" max="8" step="0.1" value="3.5" style="width:56px;vertical-align:middle" /> Å</label>
+        <label class="small"><input type="checkbox" id="vizBvH" /> include H</label>
+        <span class="small" id="vizBvReadout">pick a buried-volume atom</span>
+        <div id="bvBar" class="polar"></div>
       </div>
     </div>
     <div class="viz-sec closed" onclick="toggleVizSec(this)">Dipole<span class="viz-sec-line"></span><span class="viz-sec-chev">▼</span></div>
@@ -976,7 +988,7 @@ if (typeof $3Dmol === "undefined") {
       <div class="vizrow">
         <label><input type="checkbox" id="vizDipole" /> <b>Dipole</b></label>
         <label><input type="checkbox" id="vizDipBasis" checked /> local basis</label>
-        <span class="small" id="vizDipReadout">load a feather molecule (make_picker.py) for dipole + vibrations</span>
+        <span class="small" id="vizDipReadout">Load a .feather molecule to show the dipole</span>
       </div>
       <div class="vizrow dipole-basis">
         <span class="small">Basis atoms</span>
@@ -1052,8 +1064,8 @@ if (typeof $3Dmol === "undefined") {
             <input id="lrNewCol" type="text" value="output" placeholder="output" />
           </div>
           <div class="model-field wide">
-            <label for="lrOutputs">Paste values (optional)</label>
-            <textarea id="lrOutputs" placeholder="One number per line, matching CSV row order&#10;or name,value pairs"></textarea>
+            <label for="lrOutputs">Paste values (Baptiste experimental output is the default)</label>
+            <textarea id="lrOutputs" placeholder="name,value pairs from outcomes.csv, or one number per line"></textarea>
           </div>
           <div class="model-field">
             <label for="lrMin">Min features</label>
@@ -1402,7 +1414,7 @@ const FIELD_GUIDES = {
     needs: ["feather or xyz", "2 atom indices"],
     example: [[1, 23]],
     explain: "Defines the Sterimol axis. Click the atom at the substituent/measurement origin first, then the attached atom that defines the axis direction.",
-    visual: "Tick the Sterimol overlay below the viewer to draw L, B1 and B5 for the selected pair."
+    visual: "Tick Sterimol under Visualizations to draw L, B1, B5, and the θ(B1,B5) arc for the selected pair."
   },
   bond_length: {
     needs: ["feather or xyz", "2 atom indices"],
@@ -1468,7 +1480,7 @@ const FIELD_GUIDES = {
     needs: ["xyz", "1 atom index", "morfeus-ml"],
     example: [[18]],
     explain: "Anchor atom for buried volume. Often a metal center, but can be any atom you want to use as the sphere center.",
-    visual: "Pick the central atom around which the buried volume sphere should be built."
+    visual: "Tick %Vbur under Visualizations to draw the Cavallo sphere and a preview of percent buried volume."
   },
   mf_cone_apex: {
     needs: ["xyz", "1 atom index", "morfeus-ml"],
@@ -1489,7 +1501,7 @@ const ENGINE_GUIDES = {
     files: ["feather_dir with .feather files"],
     indices: ["sterimol pairs", "bond lengths", "angles/dihedrals", "dipole transform", "charges", "vibration selections as needed"],
     example: `"descripytor_full": {"enabled": true, "atoms": {"sterimol": [[1,23]], "bond_length": [[1,2]], "dipole": [[23,1,3]]}}`,
-    visual: "Best loaded with make_picker.py --feather-dir because dipole and vibration overlays are embedded."
+    visual: "Dipole and vibration overlays load from the feather in this GUI. Tick Dipole or press Play under Vibration."
   },
   descripytor_steric: {
     files: ["feather_dir"],
@@ -1501,7 +1513,7 @@ const ENGINE_GUIDES = {
     files: ["xyz_dir with matching .xyz files"],
     indices: ["pairs: [[origin, attached], ...]", "radii: CPK or bondi"],
     example: `"xyz_sterimol": {"enabled": true, "pairs": [[6,4]], "radii": "CPK", "prefix": "xyz_"}`,
-    visual: "Load the same xyz with make_picker.py --xyz or --xyz-dir and tick Sterimol overlay."
+    visual: "Load the xyz (or a feather) and tick Sterimol to draw L, B1, B5, and θ(B1,B5)."
   },
   xyz_geometry: {
     files: ["xyz_dir"],
@@ -1513,7 +1525,7 @@ const ENGINE_GUIDES = {
     files: ["xyz_dir"],
     indices: ["metal_index: one atom index", "radius: sphere radius"],
     example: `"xyz_buried_volume": {"enabled": true, "metal_index": 18, "radius": 3.5}`,
-    visual: "Use morfeus Buried volume [metal/anchor atom] field."
+    visual: "Pick the metal/anchor in morfeus Buried volume, then tick %Vbur to draw the sphere."
   },
   morfeus_sterimol: {
     files: ["xyz_dir", "morfeus-ml"],
@@ -1739,14 +1751,14 @@ async function loadStructureFile(file) {
         alert(data.error || "Could not read this .feather file. Try an .xyz, or install RDKit/pyarrow in the conda env.");
         return;
       }
-      if (typeof initViewer === "function") initViewer(data.xyz, data.name || file.name);
+      if (typeof showMolecule === "function") showMolecule(data.xyz, data.name || file.name, data.mol_data);
     } catch (err) {
       alert("Could not convert feather to XYZ: " + err.message);
     }
     return;
   }
   const reader = new FileReader();
-  reader.onload = ev => { if (typeof initViewer === "function") initViewer(ev.target.result, file.name); };
+  reader.onload = ev => { if (typeof showMolecule === "function") showMolecule(ev.target.result, file.name, null); };
   reader.readAsText(file);
 }
 
@@ -1787,7 +1799,8 @@ H  2.3760   1.5090  -0.8910
 H  2.3760   1.5090   0.8910`;
 
 /* ------------------------------------------------------------------ *
- * Molecule data (dipole + vibrations), embedded by make_picker.py.    *
+ * Molecule data (dipole + vibrations). Live GUI fills this from /example_xyz
+ * and /xyz_from_feather; make_picker.py can still embed it in a standalone HTML.
  * Geometry is parsed from the xyz; elements[] + baseCoords[] drive     *
  * the overlays and the vibration animation.                            *
  * ------------------------------------------------------------------ */
@@ -1797,8 +1810,20 @@ try { const _d = `__MOL_DATA__`; if (_d.indexOf("__MOL") !== 0) MOL_DATA = JSON.
 
 // Bondi-ish van der Waals radii (Å) for Sterimol extents
 const VDW = { H:1.20, C:1.70, N:1.55, O:1.52, F:1.47, P:1.80, S:1.80,
-  Cl:1.75, Br:1.85, I:1.98, B:1.92, Si:2.10, Ni:1.63, Fe:1.56, Pd:1.63, default:1.70 };
+  Cl:1.75, Br:1.85, I:1.98, B:1.92, Si:2.10, Ni:1.63, Cu:1.40, Fe:1.56, Pd:1.63, default:1.70 };
 function vdw(el) { return VDW[el] || VDW.default; }
+const VBUR_SCALE = 1.17;
+const VBUR_DIRS = (() => {
+  const n = 400, pts = [];
+  for (let i = 0; i < n; i++) {
+    const ii = i + 0.5;
+    const phi = Math.acos(1 - 2 * ii / n);
+    const theta = Math.PI * (1 + Math.sqrt(5)) * ii;
+    pts.push([Math.cos(theta) * Math.sin(phi), Math.sin(theta) * Math.sin(phi), Math.cos(phi)]);
+  }
+  return pts;
+})();
+const VBUR_SHELLS = Array.from({ length: 8 }, (_, i) => 0.15 + (0.85 * i) / 7);
 
 /* ------------------------------------------------------------------ *
  * Viewer                                                              *
@@ -1820,6 +1845,19 @@ function coordsToXYZ(coords) {
   for (let i = 0; i < coords.length; i++)
     out.push(`${elements[i]} ${coords[i][0]} ${coords[i][1]} ${coords[i][2]}`);
   return out.join("\n");
+}
+
+function applyMolData(payload) {
+  const src = (payload && typeof payload === "object") ? payload : {};
+  MOL_DATA = {
+    dipole: src.dipole != null ? src.dipole : null,
+    modes: Array.isArray(src.modes) ? src.modes : [],
+  };
+}
+
+function showMolecule(xyz, filename, molData, opts) {
+  applyMolData(molData || null);
+  initViewer(xyz, filename, opts);
 }
 
 function dipoleVector() {
@@ -1851,6 +1889,7 @@ function initViewer(xyz, filename, opts) {
   viewer = $3Dmol.createViewer(el, { backgroundColor: "white" });
   window.pickerViewer = viewer;
   buildSterPairOptions();
+  buildBvOptions();
   buildModeOptions();
   buildScene(baseCoords, true);
   if (typeof updateMolInfoBadge === 'function') updateMolInfoBadge(molName, nAtoms);
@@ -1952,19 +1991,60 @@ const V = {
   cross:(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]
 };
 
+/* Smaller in-plane angle between B1 and B5. B1 is a caliper, so either
+   direction is valid — pick the one that faces B5, matching sterimol()'s θ. */
+function sterimolB1B5(b1, b5) {
+  const a = V.unit(b1), b = V.unit(b5);
+  const flip = V.mul(a, -1);
+  const ang = (u) => Math.acos(Math.max(-1, Math.min(1, V.dot(u, b))));
+  const a1 = ang(a), a2 = ang(flip);
+  const from = a2 < a1 ? flip : a;
+  const rad = Math.min(a1, a2);
+  return { b1: from, b5: b, rad, deg: rad * 180 / Math.PI };
+}
+
+function drawDirArc(origin, fromDir, toDir, radius, color, n) {
+  const a = V.unit(fromDir), b = V.unit(toDir);
+  const nrm = V.cross(a, b);
+  if (V.norm(nrm) < 1e-8) return null;
+  const perp = V.unit(V.cross(V.unit(nrm), a));
+  const tot = Math.acos(Math.max(-1, Math.min(1, V.dot(a, b))));
+  const steps = Math.max(12, n || 36);
+  let prev = null;
+  for (let i = 0; i <= steps; i++) {
+    const t = tot * i / steps;
+    const p = V.add(origin, V.add(V.mul(a, radius * Math.cos(t)), V.mul(perp, radius * Math.sin(t))));
+    if (prev) {
+      viewer.addCylinder({
+        start: {x: prev[0], y: prev[1], z: prev[2]},
+        end: {x: p[0], y: p[1], z: p[2]},
+        radius: 0.032, color, fromCap: 1, toCap: 1
+      });
+    }
+    prev = p;
+  }
+  const mid = V.add(a, b);
+  const midN = V.norm(mid);
+  return V.add(origin, V.mul(midN > 1e-6 ? V.unit(mid) : a, radius + 0.35));
+}
+
 /* Classic Sterimol from coords: L along origin->attached, B1=min caliper,
    B5=max radial extent (atom centre projection + vdW radius). Also returns the
    along-axis location of the B5 atom and a polar support map ext(theta).     */
 function computeSterimol(coords, originIdx, attIdx) {
   const o = coords[originIdx - 1], att = coords[attIdx - 1];
+  if (!o || !att) return null;
   const axis = V.unit(V.sub(att, o));
+  if (V.norm(axis) < 1e-8) return null;
   let t = Math.abs(axis[0]) > 0.9 ? [0,1,0] : [1,0,0];
   const u = V.unit(V.cross(axis, t));
   const w = V.unit(V.cross(axis, u));
   let L = 0, B5 = 0, b5dir = [1,0], b5along = 0;
+  const dropped = new Set((state["drop_atoms"] || []).flat().map(Number));
   const radial = [];                     // {x, y, r} in the (u,w) plane (skip origin)
   coords.forEach((c, i) => {
     if (i === originIdx - 1) return;
+    if (dropped.has(i + 1)) return;
     const d = V.sub(c, o), r = vdw(elements[i]);
     const along = V.dot(d, axis);
     L = Math.max(L, along + r);
@@ -1987,10 +2067,11 @@ function computeSterimol(coords, originIdx, attIdx) {
     if (mx < B1) { B1 = mx; b1ang = th; }
   }
   const b5ang = Math.atan2(b5dir[1], b5dir[0]);
-  const b5world = V.add(V.mul(u, b5dir[0]), V.mul(w, b5dir[1]));
-  const b1world = V.add(V.mul(u, Math.cos(b1ang)), V.mul(w, Math.sin(b1ang)));
+  const b5world = V.unit(V.add(V.mul(u, b5dir[0]), V.mul(w, b5dir[1])));
+  const b1raw = V.add(V.mul(u, Math.cos(b1ang)), V.mul(w, Math.sin(b1ang)));
+  const ang = sterimolB1B5(b1raw, b5world);
   return { o, axis, u, w, L, B1, B5, b5along, b5ang, b1ang,
-           b5world: V.unit(b5world), b1world: V.unit(b1world), polar };
+           b5world: ang.b5, b1world: ang.b1, b1b5Deg: ang.deg, polar };
 }
 
 function activeSterPair() {
@@ -2001,17 +2082,35 @@ function activeSterPair() {
 
 /* origin for the dipole arrow = the atoms you picked */
 function dipoleOrigin(coords) {
+  if (!coords || !coords.length) return null;
+  const at = (idx) => {
+    const p = coords[idx - 1];
+    return (p && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2])) ? p : null;
+  };
   const dg = (state["dipole"] || []).find(g => g.length);   // dipole field: [origin, ...]
-  if (dg) return coords[dg[0] - 1];
-  const picks = (state[activeField] || []).flat();          // else: active field's atoms
-  if (picks.length) {
-    const c = [0,0,0];
-    picks.forEach(a => { const p = coords[a-1]; c[0]+=p[0]; c[1]+=p[1]; c[2]+=p[2]; });
-    return c.map(x => x / picks.length);
+  if (dg) {
+    const p = at(dg[0]);
+    if (p) return p;
   }
-  if (lastClicked) return coords[lastClicked - 1];           // else: last clicked
-  const c = coords.reduce((a,p)=>[a[0]+p[0],a[1]+p[1],a[2]+p[2]],[0,0,0]);
-  return c.map(x => x / coords.length);                      // else: molecular centroid
+  const picks = (state[activeField] || []).flat();          // else: active field's atoms
+  const pts = picks.map(a => at(a)).filter(Boolean);
+  if (pts.length) {
+    const c = [0,0,0];
+    pts.forEach(p => { c[0]+=p[0]; c[1]+=p[1]; c[2]+=p[2]; });
+    return c.map(x => x / pts.length);
+  }
+  if (lastClicked) {
+    const p = at(lastClicked);
+    if (p) return p;
+  }
+  const c = [0,0,0];
+  let n = 0;
+  coords.forEach(p => {
+    if (p && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2])) {
+      c[0]+=p[0]; c[1]+=p[1]; c[2]+=p[2]; n++;
+    }
+  });
+  return n ? c.map(x => x / n) : null;                      // else: molecular centroid
 }
 
 function parseAtomGroupText(s) {
@@ -2106,30 +2205,51 @@ function basisPreviewObject() {
 
 function drawOverlays(coords) {
   $("vizSterReadout").textContent = "";
-  if ($("vizSterimol").checked && activeSterPair()) {
+  if ($("vizSterimol") && $("vizSterimol").checked && activeSterPair()) {
     const pair = activeSterPair();
-    const s = computeSterimol(coords, pair[0], pair[1]);
+    const s = (pair && pair.length >= 2) ? computeSterimol(coords, pair[0], pair[1]) : null;
+    if (s) {
     const arrowFrom = (start, dir, len, color, label) => {
       const end = V.add(start, V.mul(dir, len));
       viewer.addArrow({ start:{x:start[0],y:start[1],z:start[2]}, end:{x:end[0],y:end[1],z:end[2]},
         radius:0.07, color, radiusRatio:2.4 });
       _floatLabel(end, label, color);
     };
+    const Lend = V.add(s.o, V.mul(s.axis, s.L));
+    viewer.addCylinder({
+      start:{x:s.o[0],y:s.o[1],z:s.o[2]}, end:{x:Lend[0],y:Lend[1],z:Lend[2]},
+      radius:0.022, color:"#57534A", dashed:true, fromCap:1, toCap:1
+    });
     const b5base = V.add(s.o, V.mul(s.axis, s.b5along));
-    arrowFrom(s.o,    s.axis,    s.L,  "#007aff", `L ${s.L.toFixed(2)}`);
-    arrowFrom(b5base, s.b5world, s.B5, "#ff3b30", `B5 ${s.B5.toFixed(2)}`);
-    arrowFrom(s.o,    s.b1world, s.B1, "#30d158", `B1 ${s.B1.toFixed(2)}`);
+    arrowFrom(s.o, s.axis,    s.L,  "#007aff", `L ${s.L.toFixed(2)}`);
+    arrowFrom(s.o, s.b5world, s.B5, "#ff3b30", `B5 ${s.B5.toFixed(2)}`);
+    arrowFrom(s.o, s.b1world, s.B1, "#30d158", `B1 ${s.B1.toFixed(2)}`);
     viewer.addSphere({ center:{x:b5base[0],y:b5base[1],z:b5base[2]}, radius:0.12, color:"#ff3b30" });
-    $("vizSterReadout").textContent = `L=${s.L.toFixed(2)}  B1=${s.B1.toFixed(2)}  B5=${s.B5.toFixed(2)} A`;
+    const showAng = !$("vizSterAngle") || $("vizSterAngle").checked;
+    const theta = Number.isFinite(s.b1b5Deg) ? s.b1b5Deg : 0;
+    if (showAng && theta > 0.4) {
+      const arcR = Math.max(0.7, Math.min(1.7, 0.55 * Math.min(s.B1, s.B5) || 1.2));
+      const lab = drawDirArc(s.o, s.b1world, s.b5world, arcR, "#6D4AAE");
+      if (lab) _floatLabel(lab, `θ ${theta.toFixed(1)}°`, "#6D4AAE");
+    }
+    $("vizSterReadout").textContent =
+      `L=${s.L.toFixed(2)}  B1=${s.B1.toFixed(2)}  B5=${s.B5.toFixed(2)} Å` +
+      (showAng ? `  θ(B1,B5)=${theta.toFixed(1)}°` : "");
     drawSterPolar(s);
+    } else {
+      clearSterPolar();
+    }
   } else {
     clearSterPolar();
   }
 
+  drawBuriedOverlay(coords);
+
   const d = dipoleVector();
-  if ($("vizDipole").checked && d) {
+  if ($("vizDipole") && $("vizDipole").checked && d) {
     const total = dipoleTotal() ?? V.norm(d);
     const o = dipoleOrigin(coords);
+    if (o) {
     const scale = 1.4;
     const end = [o[0] + d[0]*scale, o[1] + d[1]*scale, o[2] + d[2]*scale];
     viewer.addSphere({ center:{x:o[0],y:o[1],z:o[2]}, radius:0.12, color:"#ffb000" });
@@ -2158,6 +2278,7 @@ function drawOverlays(coords) {
         ? "tick 'local basis' to draw x'/y'/z'"
         : "local axes need 3 atoms — pick origin, y-axis, plane in the Dipole field (or fill the Basis atoms boxes)";
       $("vizDipReadout").textContent = `total=${total.toFixed(3)}  raw=(${d.map(x => x.toFixed(2)).join(", ")}) — ${why}`;
+    }
     }
   }
   drawFeaturePreview(coords);
@@ -2320,22 +2441,171 @@ function drawSterPolar(s) {
   const sc = (size/2 - pad) / maxR;
   const PX = (r, a) => [cx + r*sc*Math.cos(a), cy - r*sc*Math.sin(a)];
   let poly = s.polar.map(p => { const [x,y] = PX(p.ext, p.ang); return `${x.toFixed(1)},${y.toFixed(1)}`; }).join(" ");
-  // concentric guide rings
   let rings = "";
   for (let k = 1; k <= 3; k++) { const rr = (size/2 - pad) * k/3; rings += `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="none" stroke="#c8d6e8" stroke-dasharray="3,3"/>`; }
+  const b1use = (s.b1world && s.u && s.w)
+    ? Math.atan2(V.dot(s.b1world, s.w), V.dot(s.b1world, s.u))
+    : s.b1ang;
   const [b5x,b5y] = PX(s.B5, s.b5ang);
-  const [b1x,b1y] = PX(s.B1, s.b1ang);
-  const [b1x2,b1y2] = PX(s.B1, s.b1ang + Math.PI);
+  const [b1x,b1y] = PX(s.B1, b1use);
+  const [b1x2,b1y2] = PX(s.B1, b1use + Math.PI);
+  const arcR = Math.min(s.B1, s.B5) * 0.42 * sc;
+  let dAng = s.b5ang - b1use;
+  while (dAng > Math.PI) dAng -= 2 * Math.PI;
+  while (dAng < -Math.PI) dAng += 2 * Math.PI;
+  const nArc = 24;
+  let arcPts = "";
+  for (let i = 0; i <= nArc; i++) {
+    const th = b1use + dAng * i / nArc;
+    const [x, y] = [cx + arcR * Math.cos(th), cy - arcR * Math.sin(th)];
+    arcPts += (i ? " L " : "M ") + x.toFixed(1) + " " + y.toFixed(1);
+  }
+  const midTh = b1use + dAng / 2;
+  const [tx, ty] = [cx + (arcR + 12) * Math.cos(midTh), cy - (arcR + 12) * Math.sin(midTh)];
+  const thetaTxt = Number.isFinite(s.b1b5Deg) ? s.b1b5Deg.toFixed(1) + "°" : "";
   el.innerHTML =
     `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`+
     rings +
     `<polygon points="${poly}" fill="rgba(59,157,255,0.18)" stroke="#3b9dff" stroke-width="1.2"/>`+
     `<line x1="${b1x.toFixed(1)}" y1="${b1y.toFixed(1)}" x2="${b1x2.toFixed(1)}" y2="${b1y2.toFixed(1)}" stroke="#37c871" stroke-width="1.6"/>`+
     `<line x1="${cx}" y1="${cy}" x2="${b5x.toFixed(1)}" y2="${b5y.toFixed(1)}" stroke="#ff6f6f" stroke-width="2"/>`+
+    `<path d="${arcPts}" fill="none" stroke="#6D4AAE" stroke-width="1.8"/>`+
     `<circle cx="${cx}" cy="${cy}" r="2.4" fill="#e6edf3"/>`+
     `<text x="${b5x.toFixed(1)}" y="${b5y.toFixed(1)}" fill="#ff6f6f" font-size="10">B5 ${s.B5.toFixed(2)}</text>`+
     `<text x="${b1x.toFixed(1)}" y="${b1y.toFixed(1)}" fill="#37c871" font-size="10">B1 ${s.B1.toFixed(2)}</text>`+
-    `</svg><div class="small">Sterimol polar map — radial extent vs angle around L</div>`;
+    (thetaTxt ? `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" fill="#6D4AAE" font-size="10" text-anchor="middle">${thetaTxt}</text>` : "")+
+    `</svg><div class="small">Sterimol polar map — B1, B5, and θ(B1,B5) around L</div>`;
+}
+
+function buriedRadius() {
+  const el = $("vizBvRadius");
+  const v = el ? parseFloat(el.value) : 3.5;
+  return Number.isFinite(v) && v > 0.4 ? v : 3.5;
+}
+
+function buriedAnchor() {
+  const sel = $("vizBvAtom");
+  if (sel && sel.value) {
+    const n = parseInt(sel.value, 10);
+    if (Number.isInteger(n) && n >= 1) return n;
+  }
+  const m = pickedMetal();
+  return m.length ? m[0] : null;
+}
+
+let _bvCache = { key: "", result: null };
+
+function computeBuriedVolume(coords, atomIdx, radius, includeH) {
+  const o = coords[atomIdx - 1];
+  if (!o || !Number.isFinite(radius) || radius <= 0) return null;
+  const dropped = (state["drop_atoms"] || []).flat().map(Number).sort((a, b) => a - b);
+  const key = [lastModelName || "", atomIdx, radius.toFixed(3), includeH ? 1 : 0, coords.length, dropped.join(",")].join("|");
+  if (_bvCache.key === key && _bvCache.result) return _bvCache.result;
+  const dropSet = new Set(dropped);
+  const atoms = [];
+  coords.forEach((c, i) => {
+    if (i === atomIdx - 1) return;
+    if (dropSet.has(i + 1)) return;
+    const el = elements[i];
+    if (!includeH && el === "H") return;
+    const r = vdw(el) * VBUR_SCALE;
+    if (V.norm(V.sub(c, o)) > radius + r) return;
+    atoms.push({ c, r2: r * r, i });
+  });
+  let buriedW = 0, totW = 0;
+  for (let s = 0; s < VBUR_SHELLS.length; s++) {
+    const shell = VBUR_SHELLS[s], w = shell * shell, reach = shell * radius;
+    for (let d = 0; d < VBUR_DIRS.length; d++) {
+      const dir = VBUR_DIRS[d];
+      const px = o[0] + reach * dir[0], py = o[1] + reach * dir[1], pz = o[2] + reach * dir[2];
+      totW += w;
+      for (let k = 0; k < atoms.length; k++) {
+        const a = atoms[k];
+        const dx = px - a.c[0], dy = py - a.c[1], dz = pz - a.c[2];
+        if (dx * dx + dy * dy + dz * dz < a.r2) { buriedW += w; break; }
+      }
+    }
+  }
+  const result = {
+    o, radius, includeH, atoms,
+    percent: totW ? 100 * buriedW / totW : 0
+  };
+  _bvCache = { key, result };
+  return result;
+}
+
+function drawBvBar(percent) {
+  const el = $("bvBar"); if (!el) return;
+  const pct = Math.max(0, Math.min(100, percent));
+  el.innerHTML =
+    `<svg viewBox="0 0 180 22" width="180" height="22">`+
+    `<rect x="0" y="4" width="180" height="14" rx="7" fill="#e8f4f0"/>`+
+    `<rect x="0" y="4" width="${(1.8 * pct).toFixed(1)}" height="14" rx="7" fill="#0B7A63"/>`+
+    `<text x="90" y="15" text-anchor="middle" font-size="10" fill="#14352e">${pct.toFixed(1)}% buried</text>`+
+    `</svg>`;
+}
+
+function clearBvBar() { const el = $("bvBar"); if (el) el.innerHTML = ""; }
+
+function drawBuriedOverlay(coords) {
+  const readout = $("vizBvReadout");
+  const box = $("vizBuried");
+  if (!box || !box.checked) {
+    if (readout && !pickedMetal().length) readout.textContent = "pick a buried-volume atom";
+    clearBvBar();
+    return;
+  }
+  const idx = buriedAnchor();
+  if (!idx || !coords[idx - 1]) {
+    if (readout) readout.textContent = "pick a buried-volume atom";
+    clearBvBar();
+    return;
+  }
+  const includeH = !!( $("vizBvH") && $("vizBvH").checked );
+  const bv = computeBuriedVolume(coords, idx, buriedRadius(), includeH);
+  if (!bv) { clearBvBar(); return; }
+  viewer.addSphere({
+    center: { x: bv.o[0], y: bv.o[1], z: bv.o[2] },
+    radius: bv.radius, color: "#0B7A63", alpha: 0.16
+  });
+  viewer.addSphere({
+    center: { x: bv.o[0], y: bv.o[1], z: bv.o[2] },
+    radius: bv.radius, color: "#0B7A63", alpha: 0.35, wireframe: true
+  });
+  bv.atoms.forEach(a => addHalo(a.c, "#0B7A63", 0.62, 0.4));
+  _floatLabel(bv.o, `%Vbur ${bv.percent.toFixed(1)}`, "#0B7A63");
+  if (readout) {
+    readout.textContent =
+      `%Vbur=${bv.percent.toFixed(1)}%  R=${bv.radius.toFixed(1)} Å  Bondi×${VBUR_SCALE}` +
+      (includeH ? "  +H" : "  no H") + "  (preview)";
+  }
+  drawBvBar(bv.percent);
+}
+
+function buildBvOptions() {
+  const sel = $("vizBvAtom"); if (!sel) return;
+  const prev = sel.value;
+  const had = [...sel.options].some(o => o.value);
+  const atoms = [...new Set(pickedMetal())];
+  sel.innerHTML = "";
+  if (!atoms.length) {
+    const o = document.createElement("option");
+    o.value = ""; o.textContent = "(pick a buried-volume atom)"; sel.appendChild(o);
+  } else {
+    atoms.forEach(a => {
+      const o = document.createElement("option");
+      o.value = String(a);
+      o.textContent = `${elements[a - 1] || "atom"} ${a}`;
+      sel.appendChild(o);
+    });
+    if (prev && atoms.map(String).includes(prev)) sel.value = prev;
+  }
+  const box = $("vizBuried");
+  if (box) {
+    box.disabled = !atoms.length;
+    if (!atoms.length) box.checked = false;
+    else if (!had) box.checked = true;
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -2403,6 +2673,7 @@ function toggleAnim() { animating ? stopAnim() : startAnim(); }
 function buildSterPairOptions() {
   const sel = $("vizSterPair"); if (!sel) return;
   const prev = sel.value;
+  const hadPairs = [...sel.options].some(o => o.value);
   const pairs = [];
   (state["sterimol"] || []).forEach(g => { if (g.length >= 2) pairs.push(g[0] + "-" + g[1]); });
   (state["mf_sterimol"] || []).forEach(g => { if (g.length >= 2) pairs.push(g[0] + "-" + g[1]); });
@@ -2417,6 +2688,12 @@ function buildSterPairOptions() {
     });
     if (prev && pairs.includes(prev)) sel.value = prev;
   }
+  const box = $("vizSterimol");
+  if (box) {
+    box.disabled = !pairs.length;
+    if (!pairs.length) box.checked = false;
+    else if (!hadPairs) box.checked = true;
+  }
 }
 function buildModeOptions() {
   const sel = $("vizMode"); if (!sel) return;
@@ -2427,18 +2704,30 @@ function buildModeOptions() {
     sel.appendChild(o);
     ["vizMode", "vizPlay", "vizArrows", "vizAmp"].forEach(id => $(id).disabled = true);
   } else {
+    ["vizMode", "vizPlay", "vizArrows", "vizAmp"].forEach(id => { const el = $(id); if (el) el.disabled = false; });
     modes.forEach((m, i) => {
       const o = document.createElement("option"); o.value = i;
       o.textContent = `${m.freq.toFixed(1)} cm⁻¹` + (m.ir != null ? `  (IR ${m.ir.toFixed(0)})` : "");
       sel.appendChild(o);
     });
   }
-  if (!dipoleVector()) $("vizDipole").disabled = true;
-  if (dipoleVector() || modes.length) {
+  const dipBox = $("vizDipole");
+  const hasDip = !!dipoleVector();
+  if (dipBox) {
+    dipBox.disabled = !hasDip;
+    if (hasDip) dipBox.checked = true;
+    else dipBox.checked = false;
+  }
+  const readout = $("vizDipReadout");
+  if (!readout) return;
+  if (hasDip) {
     const total = dipoleTotal();
-    $("vizDipReadout").textContent = dipoleVector()
-      ? `dipole loaded${total == null ? "" : ` - total ${total.toFixed(3)}`} + ${modes.length} vibration modes`
-      : `${modes.length} vibration modes loaded`;
+    readout.textContent = `dipole loaded${total == null ? "" : ` — total ${total.toFixed(3)}`}`
+      + (modes.length ? ` + ${modes.length} vibration modes` : "");
+  } else if (modes.length) {
+    readout.textContent = `${modes.length} vibration modes loaded`;
+  } else {
+    readout.textContent = "Load a .feather molecule to show the dipole";
   }
 }
 
@@ -2718,7 +3007,7 @@ function runConfigObject() {
     descripytor_steric: { enabled: packagesEnabled["descripytor_steric"], pairs: sterPairs, prefix: "steric_" },
     xyz_sterimol:       { enabled: packagesEnabled["xyz_sterimol"], pairs: sterPairs, radii: "CPK", prefix: "xyz_" },
     xyz_geometry:       { enabled: packagesEnabled["xyz_geometry"], angles: pickedAngles(), bond_lengths: pickedBondLengths(), prefix: "geom_" },
-    xyz_buried_volume:  { enabled: packagesEnabled["xyz_buried_volume"], metal_index: metal.length ? metal[0] : 1, radius: 3.5, prefix: "bv_" },
+    xyz_buried_volume:  { enabled: packagesEnabled["xyz_buried_volume"], metal_index: metal.length ? metal[0] : 1, radius: buriedRadius(), prefix: "bv_" },
     morfeus_sterimol:   { enabled: packagesEnabled["morfeus_sterimol"], pairs: sterPairs, prefix: "" },
     qm:                 { enabled: packagesEnabled["qm"], log_dir: "C:\\path\\to\\your\\gaussian_logs", prefix: "qm_" },
     // External packages
@@ -3099,7 +3388,10 @@ async function extractFeatures() {
     setWorkProgress("extractProgress", 1);
     setExtractStatus(
       (data.n_mols || "?") + " molecules × " + (data.n_features || "?") +
-      " features — table below. Open the Model tab to add the experimental output column.",
+      " features — table below." +
+      (data.n_outcomes
+        ? (" Added experimental output for " + data.n_outcomes + " molecules.")
+        : " Open the Model tab to add the experimental output column."),
       "ok"
     );
     if (typeof tourNotify === "function") tourNotify("extract");
@@ -3133,6 +3425,7 @@ function saveSession() {
     if (lastModelXYZ && lastModelXYZ.length < 250000) {
       payload.lastModelXYZ = lastModelXYZ;
       payload.lastModelName = lastModelName || "";
+      payload.lastMolData = MOL_DATA || null;
     }
     localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
   } catch (_) {}
@@ -3159,6 +3452,7 @@ function restoreSession() {
       window._sessionXyz = {
         xyz: data.lastModelXYZ,
         name: data.lastModelName || "molecule",
+        molData: data.lastMolData || null,
       };
     }
     refresh();
@@ -3241,17 +3535,32 @@ function normMolName(s) {
   return String(s || "").replace(/\.feather$/i, "").trim().toLowerCase().replace(/_/g, "-");
 }
 
+function fillDefaultOutcomes() {
+  const ta = $("lrOutputs");
+  if (!ta || ta.value.trim()) return;
+  const rows = window._exampleOutcomes || [];
+  if (!rows.length) return;
+  ta.value = rows.map(r => String(r.name) + "," + r.output).join("\n");
+  if ($("lrNewCol")) $("lrNewCol").value = "output";
+}
+
 function fillExampleOutputs() {
   const ta = $("lrOutputs");
   if (!ta) return;
-  if (!lastExtractCsv) return;
   const rows = window._exampleOutcomes || [];
+  if (!lastExtractCsv) {
+    fillDefaultOutcomes();
+    return;
+  }
   if (!rows.length) {
     fillDemoOutputsFromExtract();
     return;
   }
   const table = parseCsv(lastExtractCsv);
-  if (table.length < 2) return;
+  if (table.length < 2) {
+    fillDefaultOutcomes();
+    return;
+  }
   const header = table[0].map(h => String(h || "").toLowerCase());
   let nameIdx = header.findIndex(h => ["name", "names", "molecule", "molecule_name"].includes(h));
   if (nameIdx < 0) nameIdx = 0;
@@ -3266,13 +3575,13 @@ function fillExampleOutputs() {
   }
   if (lines.length) {
     ta.value = lines.join("\n");
-    if ($("lrNewCol")) $("lrNewCol").value = "output";
-    if ($("lrThr")) $("lrThr").value = "0";
-    const sel = $("lrTargetCol");
-    if (sel && [...sel.options].some(o => o.value === "output")) sel.value = "output";
-    return;
+  } else {
+    fillDefaultOutcomes();
   }
-  fillDemoOutputsFromExtract();
+  if ($("lrNewCol")) $("lrNewCol").value = "output";
+  if ($("lrThr")) $("lrThr").value = "0";
+  const sel = $("lrTargetCol");
+  if (sel && [...sel.options].some(o => o.value === "output")) sel.value = "output";
 }
 
 function fillDemoOutputsFromExtract() {
@@ -3509,6 +3818,7 @@ async function loadExampleFeatherDir() {
     window._exampleReferenceName = data.example_reference_name || "basic";
     window._examplePresets = data.example_presets || {};
     window._exampleOutcomes = data.example_outcomes || [];
+    fillDefaultOutcomes();
     if (!("example_presets" in data) || !("example_reference_name" in data)) {
       setExtractStatus(
         "This GUI server is outdated. Stop it (Ctrl+C in the terminal), run descripytor visual again from this repo, then hard-refresh (Ctrl+F5).",
@@ -3572,7 +3882,8 @@ async function loadExampleMolecule(opts) {
     let response = await xyzPromise;
     let data = await response.json().catch(() => ({}));
     if (response.ok && data.xyz) {
-      if (typeof initViewer === "function") initViewer(data.xyz, refName + ".feather", { silent });
+      if (typeof showMolecule === "function") showMolecule(data.xyz, refName + ".feather", data.mol_data, { silent });
+      else if (typeof initViewer === "function") initViewer(data.xyz, refName + ".feather", { silent });
       setMsg("Loaded " + refName + ".feather into the 3D view.", "ok");
     }
     await statusPromise;
@@ -3591,7 +3902,9 @@ async function loadExampleMolecule(opts) {
       setMsg(data.error || ("Could not load " + loadedName + ".feather from the example set."), "bad");
       return;
     }
-    if (lastModelName !== loadedName + ".feather" && typeof initViewer === "function") {
+    if (lastModelName !== loadedName + ".feather" && typeof showMolecule === "function") {
+      showMolecule(data.xyz, loadedName + ".feather", data.mol_data, { silent });
+    } else if (lastModelName !== loadedName + ".feather" && typeof initViewer === "function") {
       initViewer(data.xyz, loadedName + ".feather", { silent });
     }
     setMsg("Loaded " + loadedName + ".feather into the 3D view.", "ok");
@@ -3749,6 +4062,7 @@ function refresh() {
   renderPackages();
   renderEngineGuide();
   buildSterPairOptions();
+  buildBvOptions();
 
   // export box
   if (outTab !== "model") {
@@ -3875,7 +4189,7 @@ if ($("loadFileBtn")) $("loadFileBtn").onclick = () => $("fileInput") && $("file
 if ($("loadExampleMolBtn")) $("loadExampleMolBtn").onclick = () => loadExampleMolecule();
 $("pasteBtn").onclick = () => {
   const t = prompt("Paste an XYZ block (line1=atom count, line2=comment, then 'El x y z'):");
-  if (t && t.trim()) initViewer(t);
+  if (t && t.trim()) showMolecule(t, null, null);
 };
 if ($("recenterBtn")) $("recenterBtn").onclick = () => recenterViewer();
 document.querySelectorAll(".tabs button").forEach(b =>
@@ -4022,6 +4336,14 @@ $("screenshotBtn").onclick = () => {
 /* Visualize controls */
 $("vizSterimol").onchange = () => highlight();
 $("vizSterPair").onchange = () => highlight();
+if ($("vizSterAngle")) $("vizSterAngle").onchange = () => highlight();
+if ($("vizBuried")) $("vizBuried").onchange = () => highlight();
+if ($("vizBvAtom")) $("vizBvAtom").onchange = () => highlight();
+if ($("vizBvRadius")) {
+  $("vizBvRadius").oninput = () => highlight();
+  $("vizBvRadius").onchange = () => refresh();
+}
+if ($("vizBvH")) $("vizBvH").onchange = () => highlight();
 $("vizDipole").onchange   = () => highlight();
 $("vizDipBasis").onchange = () => highlight();
 $("vizArrows").onchange   = () => { if (!animating) highlight(); };
@@ -4792,7 +5114,11 @@ refresh();
 const _restoredSession = typeof restoreSession === "function" && restoreSession();
 const _sessionMol = window._sessionXyz && window._sessionXyz.xyz;
 if (typeof $3Dmol !== "undefined" && _sessionMol && _isDemo) {
-  initViewer(window._sessionXyz.xyz, window._sessionXyz.name || "molecule", { silent: true });
+  if (typeof showMolecule === "function") {
+    showMolecule(window._sessionXyz.xyz, window._sessionXyz.name || "molecule", window._sessionXyz.molData, { silent: true });
+  } else {
+    initViewer(window._sessionXyz.xyz, window._sessionXyz.name || "molecule", { silent: true });
+  }
   window._bootExampleXyz = null;
   loadExampleFeatherDir().then(() => {
     if (typeof applyExampleFolderFromStatus === "function") applyExampleFolderFromStatus(false);

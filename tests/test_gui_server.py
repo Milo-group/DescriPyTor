@@ -49,6 +49,11 @@ def test_status(client):
         assert "feather_example" in directory.replace("\\", "/")
         assert (payload.get("example_reference_name") or "") == "basic"
         assert payload.get("example_presets")
+    outcomes = payload.get("example_outcomes") or []
+    if outcomes:
+        names = {str(row.get("name") or "") for row in outcomes}
+        assert "unsub" in names
+        assert any(row.get("name") == "unsub" and float(row.get("output")) == 0.1461 for row in outcomes)
 
 
 def test_example_xyz_loads_basic(client):
@@ -71,6 +76,56 @@ def test_example_xyz_loads_basic(client):
     assert str(body.get("filepath") or "").replace("\\", "/").endswith("basic.feather")
     assert int(body.get("n_atoms") or 0) >= 6
     assert "C " in body["xyz"] or body["xyz"].splitlines()[2].strip()[:1] in "CNOSHP"
+    dipole = ((body.get("mol_data") or {}).get("dipole") or {})
+    vec = dipole.get("vector") or []
+    assert len(vec) == 3
+    assert all(isinstance(x, (int, float)) for x in vec)
+    assert abs(float(dipole.get("total") or 0)) > 0.1
+    modes = (body.get("mol_data") or {}).get("modes") or []
+    assert modes, "expected vibration modes from basic.feather"
+    first = modes[0]
+    assert "freq" in first and "disp" in first
+    assert len(first["disp"]) == int(body["n_atoms"])
+    assert len(first["disp"][0]) == 3
+
+
+def test_dipole_from_named_and_positional_feather_columns():
+    import math
+
+    import pandas as pd
+
+    from M2_data_extractor.gui_server import _dipole_from_feather_df
+
+    named = pd.DataFrame({
+        "atom": [None, "C"],
+        "x": [None, 0.0],
+        "y": [None, 0.0],
+        "z": [None, 0.0],
+        "dip_x": [0.9783, None],
+        "dip_y": [-1.3102, None],
+        "dip_z": [0.2607, None],
+        "total_dipole": [1.6558, None],
+    })
+    got = _dipole_from_feather_df(named)
+    assert got is not None
+    assert got["vector"] == [0.9783, -1.3102, 0.2607]
+    assert abs(got["total"] - 1.6558) < 1e-6
+
+    positional = pd.DataFrame({
+        "0": ["29.0", "C"],
+        "1": [None, 0.1],
+        "2": [None, 0.2],
+        "3": [None, 0.3],
+        "4": [-1.2426, None],
+        "5": [-1.4114, None],
+        "6": [4.9682, None],
+        "7": [5.3122, None],
+    })
+    got = _dipole_from_feather_df(positional)
+    assert got is not None
+    assert got["vector"][0] == -1.2426
+    assert abs(got["total"] - 5.3122) < 1e-6
+    assert abs(got["total"] - math.sqrt(sum(x * x for x in got["vector"]))) < 0.02
 
 
 def test_fast_feather_xyz_reads_basic():

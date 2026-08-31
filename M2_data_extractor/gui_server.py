@@ -134,16 +134,22 @@ def example_presets():
     return atoms if isinstance(atoms, dict) else {}
 
 
-def example_outcomes_payload():
-    directory = example_feather_dir()
-    if not directory:
-        return {"rows": [], "y_column": "output", "name_column": "name"}
-    path = os.path.join(directory, "outcomes.csv")
-    if not os.path.isfile(path):
-        return {"rows": [], "y_column": "output", "name_column": "name"}
+def _norm_mol_name(name):
+    text = str(name or "").strip()
+    lower = text.lower()
+    if lower.endswith(".feather"):
+        text = text[:-8]
+    elif lower.endswith(".ftr"):
+        text = text[:-4]
+    return text.strip().lower().replace("_", "-")
+
+
+def _read_outcomes_csv(path):
     import csv
 
     rows = []
+    if not path or not os.path.isfile(path):
+        return {"rows": [], "y_column": "output", "name_column": "name", "path": path or ""}
     with open(path, newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
@@ -157,6 +163,56 @@ def example_outcomes_payload():
                 continue
             rows.append({"name": name, "output": value})
     return {"rows": rows, "y_column": "output", "name_column": "name", "path": path}
+
+
+def example_outcomes_payload():
+    """Experimental y-values: folder outcomes.csv, else bundled Baptiste outcomes."""
+    empty = {"rows": [], "y_column": "output", "name_column": "name"}
+    candidates = []
+    example_dir = example_feather_dir()
+    if example_dir:
+        candidates.append(os.path.join(example_dir, "outcomes.csv"))
+    baptiste_dir = baptiste_example_dir()
+    if baptiste_dir:
+        candidates.append(os.path.join(baptiste_dir, "outcomes.csv"))
+    seen = set()
+    for path in candidates:
+        key = os.path.normcase(os.path.abspath(path))
+        if key in seen:
+            continue
+        seen.add(key)
+        payload = _read_outcomes_csv(path)
+        if payload.get("rows"):
+            return payload
+    return empty
+
+
+def _join_outcomes_into_df(df, rows, y_column="output"):
+    """Add y_column from name/output rows. Returns (df, n_matched)."""
+    if df is None or getattr(df, "empty", True) or not rows:
+        return df, 0
+    name_col = next(
+        (
+            c
+            for c in df.columns
+            if str(c).lower() in (
+                "name", "names", "molecule", "molecule_name", "mol", "compound",
+            )
+        ),
+        df.columns[0],
+    )
+    by_norm = {}
+    for row in rows:
+        key = _norm_mol_name(row.get("name"))
+        if key:
+            by_norm[key] = row.get("output")
+    mapped = df[name_col].map(lambda value: by_norm.get(_norm_mol_name(value)))
+    n_matched = int(mapped.notna().sum())
+    if n_matched <= 0:
+        return df, 0
+    out = df.copy()
+    out[y_column] = mapped
+    return out, n_matched
 
 
 def _is_placeholder_path(path):
@@ -296,6 +352,55 @@ def _xyz_text_from_coords(df, name):
 
 def _xyz_from_feather_fast(path, display_name="molecule"):
     """Read only atom coordinates from a .feather — no full Molecule() load."""
+    xyz, name, n_atoms, _overlay = _viewer_payload_from_feather(path, display_name)
+    return xyz, name, n_atoms
+
+
+def _dipole_from_feather_df(data):
+    """Gaussian dipole from named columns or the legacy 4–7 positional block."""
+    import math
+
+    import pandas as pd
+
+    if data is None or getattr(data, "empty", True):
+        return None
+    cols = [str(c).strip() for c in data.columns]
+    frame = data.copy()
+    frame.columns = cols
+    dx = dy = dz = total = None
+    named_xyz = all(c in frame.columns for c in ("atom", "x", "y", "z"))
+    if all(c in frame.columns for c in ("dip_x", "dip_y", "dip_z")):
+        xyz_names = ("dip_x", "dip_y", "dip_z")
+    elif all(c in frame.columns for c in ("dipole_x", "dipole_y", "dipole_z")):
+        xyz_names = ("dipole_x", "dipole_y", "dipole_z")
+    else:
+        xyz_names = None
+    if xyz_names:
+        block = frame[list(xyz_names)].apply(pd.to_numeric, errors="coerce").dropna()
+        if not block.empty:
+            row = block.iloc[0]
+            dx, dy, dz = float(row[xyz_names[0]]), float(row[xyz_names[1]]), float(row[xyz_names[2]])
+        for total_name in ("total_dipole", "total"):
+            if total_name in frame.columns:
+                totals = pd.to_numeric(frame[total_name], errors="coerce").dropna()
+                if len(totals):
+                    total = float(totals.iloc[0])
+                    break
+    elif (not named_xyz) and frame.shape[1] >= 8:
+        block = frame.iloc[:, 4:8].apply(pd.to_numeric, errors="coerce").dropna(how="any")
+        if not block.empty:
+            row = block.iloc[0]
+            dx, dy, dz = float(row.iloc[0]), float(row.iloc[1]), float(row.iloc[2])
+            total = float(row.iloc[3])
+    if dx is None:
+        return None
+    if total is None:
+        total = math.sqrt(dx * dx + dy * dy + dz * dz)
+    return {"vector": [dx, dy, dz], "total": total}
+
+
+def _viewer_payload_from_feather(path, display_name="molecule"):
+    """XYZ plus dipole overlay from one feather read."""
     import pandas as pd
 
     data = pd.read_feather(path)
@@ -304,7 +409,6 @@ def _xyz_from_feather_fast(path, display_name="molecule"):
     if all(c in data.columns for c in needed):
         df = data[needed].copy()
     else:
-        # Older benzene example feathers store xyz in the first four columns.
         xyz = data.iloc[:, 0:4].copy()
         xyz.columns = needed
         df = xyz
@@ -315,7 +419,133 @@ def _xyz_from_feather_fast(path, display_name="molecule"):
     if df.empty:
         raise ValueError("No atom coordinates in this feather file")
     label = display_name or os.path.splitext(os.path.basename(path))[0]
-    return _xyz_text_from_coords(df, label)
+    xyz, name, n_atoms = _xyz_text_from_coords(df, label)
+    overlay = {"dipole": _dipole_from_feather_df(data), "modes": _modes_from_feather_df(data, n_atoms)}
+    return xyz, name, n_atoms, overlay
+
+
+def _modes_from_feather_df(data, n_atoms, max_modes=250):
+    """Normal-mode displacements for the vibration overlay (rows = modes)."""
+    import numpy as np
+    import pandas as pd
+
+    if data is None or getattr(data, "empty", True) or not n_atoms:
+        return []
+    try:
+        n_atoms = int(n_atoms)
+        cols = [str(c).strip() for c in data.columns]
+        frame = data.copy()
+        frame.columns = cols
+        named_xyz = all(c in frame.columns for c in ("atom", "x", "y", "z"))
+        freq = ir = vectors = None
+        if "Frequency" in frame.columns:
+            freq = pd.to_numeric(frame["Frequency"], errors="coerce")
+            ir = pd.to_numeric(frame["IR"], errors="coerce") if "IR" in frame.columns else None
+            start = (
+                list(frame.columns).index("IR") + 1
+                if "IR" in frame.columns
+                else list(frame.columns).index("Frequency") + 1
+            )
+            if start < frame.shape[1]:
+                vectors = frame.iloc[:, start:].apply(pd.to_numeric, errors="coerce")
+        elif (not named_xyz) and frame.shape[1] > 15:
+            freq = pd.to_numeric(frame.iloc[:, 13], errors="coerce")
+            ir = pd.to_numeric(frame.iloc[:, 14], errors="coerce")
+            vectors = frame.iloc[:, 15:].apply(pd.to_numeric, errors="coerce")
+        if freq is None or vectors is None or vectors.shape[1] < 3:
+            return []
+        mask = freq.notna()
+        freq_v = freq[mask].to_numpy(dtype=float)
+        if freq_v.size == 0:
+            return []
+        ir_v = ir[mask].to_numpy(dtype=float) if ir is not None else None
+        arr = vectors.loc[mask].to_numpy(dtype=float)
+        n_vib_atoms = arr.shape[1] // 3
+        if n_vib_atoms < 1:
+            return []
+        use = min(n_vib_atoms, n_atoms)
+        modes = []
+        for i, fval in enumerate(freq_v):
+            if i >= max_modes:
+                break
+            row = arr[i]
+            disp = []
+            for atom_i in range(n_atoms):
+                if atom_i < use:
+                    sl = row[atom_i * 3:(atom_i + 1) * 3]
+                    if sl.shape[0] == 3 and np.isfinite(sl).all():
+                        disp.append([round(float(sl[0]), 4), round(float(sl[1]), 4), round(float(sl[2]), 4)])
+                    else:
+                        disp.append([0.0, 0.0, 0.0])
+                else:
+                    disp.append([0.0, 0.0, 0.0])
+            ir_val = None
+            if ir_v is not None and i < len(ir_v) and np.isfinite(ir_v[i]):
+                ir_val = round(float(ir_v[i]), 4)
+            modes.append({"freq": round(float(fval), 4), "ir": ir_val, "disp": disp})
+        return modes
+    except Exception:
+        return []
+
+
+def _mol_data_from_molecule(mol):
+    import math
+
+    overlay = {"dipole": None, "modes": []}
+    try:
+        ddf = getattr(mol, "gauss_dipole_df", None)
+        if ddf is not None and len(ddf) > 0:
+            row = ddf.iloc[0]
+            dx = float(row.get("dip_x", row.iloc[0]))
+            dy = float(row.get("dip_y", row.iloc[1]))
+            dz = float(row.get("dip_z", row.iloc[2]))
+            total = row.get("total_dipole", row.get("total", None))
+            if total is None and len(row) > 3:
+                total = row.iloc[3]
+            overlay["dipole"] = {
+                "vector": [dx, dy, dz],
+                "total": float(total) if total is not None else math.sqrt(dx * dx + dy * dy + dz * dz),
+            }
+    except Exception:
+        pass
+    try:
+        vmd = getattr(mol, "vibration_mode_dict", None) or {}
+        info = getattr(mol, "info_df", None)
+        ir_for = {}
+        if info is not None and "Frequency" in getattr(info, "columns", []):
+            ir_col = "IR" if "IR" in info.columns else None
+            for _, row in info.iterrows():
+                try:
+                    ir_for[round(float(row["Frequency"]), 2)] = (
+                        float(row[ir_col]) if ir_col else None
+                    )
+                except Exception:
+                    pass
+        modes = []
+        for freq, disp in vmd.items():
+            try:
+                fval = float(freq)
+            except (TypeError, ValueError):
+                continue
+            try:
+                rows = [[round(float(x), 4) for x in vec] for vec in disp]
+            except Exception:
+                continue
+            if not rows or len(rows[0]) != 3:
+                continue
+            ir_val = ir_for.get(round(fval, 2))
+            modes.append({
+                "freq": round(fval, 4),
+                "ir": None if ir_val is None else round(float(ir_val), 4),
+                "disp": rows,
+            })
+            if len(modes) >= 250:
+                break
+        modes.sort(key=lambda m: m["freq"])
+        overlay["modes"] = modes
+    except Exception:
+        pass
+    return overlay
 
 
 def _xyz_text_from_molecule(mol, name=None):
@@ -324,10 +554,10 @@ def _xyz_text_from_molecule(mol, name=None):
     return _xyz_text_from_coords(df, label)
 
 
-def _molecule_xyz_from_path(path, display_name="molecule"):
-    """XYZ for the 3D viewer. Prefer a fast feather read; fall back to Molecule()."""
+def _molecule_view_from_path(path, display_name="molecule"):
+    """XYZ, dipole, and vibration overlays for the 3D viewer."""
     try:
-        return _xyz_from_feather_fast(path, display_name)
+        return _viewer_payload_from_feather(path, display_name)
     except Exception:
         pass
     here = os.path.dirname(os.path.abspath(__file__))
@@ -338,7 +568,14 @@ def _molecule_xyz_from_path(path, display_name="molecule"):
     except ImportError:
         from data_extractor import Molecule
     mol = Molecule(path)
-    return _xyz_text_from_molecule(mol, display_name)
+    xyz, name, n_atoms = _xyz_text_from_molecule(mol, display_name)
+    return xyz, name, n_atoms, _mol_data_from_molecule(mol)
+
+
+def _molecule_xyz_from_path(path, display_name="molecule"):
+    """XYZ for the 3D viewer. Prefer a fast feather read; fall back to Molecule()."""
+    xyz, name, n_atoms, _overlay = _molecule_view_from_path(path, display_name)
+    return xyz, name, n_atoms
 
 
 @app.route("/xyz_from_feather", methods=["POST"])
@@ -369,8 +606,13 @@ def xyz_from_feather():
             return jsonify({"error": "Upload a .feather file or pass filepath"}), 400
         if not os.path.isfile(path):
             return jsonify({"error": "File not found: " + str(path)}), 404
-        xyz, name, n_atoms = _molecule_xyz_from_path(path, display_name)
-        return jsonify({"xyz": xyz, "name": name, "n_atoms": n_atoms})
+        xyz, name, n_atoms, overlay = _molecule_view_from_path(path, display_name)
+        payload = {
+            "xyz": xyz, "name": name, "n_atoms": n_atoms, "mol_data": overlay,
+        }
+        if not cleanup:
+            payload["filepath"] = path
+        return jsonify(payload)
     except Exception as exc:
         traceback.print_exc()
         return jsonify({"error": str(exc)}), 500
@@ -396,9 +638,10 @@ def example_xyz():
         }), 404
     display = os.path.splitext(os.path.basename(path))[0]
     try:
-        xyz, name, n_atoms = _molecule_xyz_from_path(path, display)
+        xyz, name, n_atoms, overlay = _molecule_view_from_path(path, display)
         return jsonify({
             "xyz": xyz, "name": name, "n_atoms": n_atoms, "filepath": path,
+            "mol_data": overlay,
         })
     except Exception as exc:
         traceback.print_exc()
@@ -1138,10 +1381,19 @@ def _extract_empty_message(log_text):
 
 
 def _extract_success_payload(df, cfg, log_text):
+    feather_dir = (cfg or {}).get("feather_dir") or ""
+    local_outcomes = os.path.join(feather_dir, "outcomes.csv") if feather_dir else ""
+    if local_outcomes and os.path.isfile(local_outcomes):
+        rows = _read_outcomes_csv(local_outcomes).get("rows") or []
+    else:
+        rows = example_outcomes_payload().get("rows") or []
+    df, n_outcomes = _join_outcomes_into_df(df, rows)
     return {
         "n_mols": int(df.shape[0]),
         "n_features": int(df.shape[1]),
         "n_files": len(_list_feather_files(cfg["feather_dir"])),
+        "n_outcomes": int(n_outcomes),
+        "y_column": "output" if n_outcomes else "",
         "columns": [str(c) for c in df.columns],
         "index": [str(i) for i in df.index],
         "csv": df.to_csv(),
