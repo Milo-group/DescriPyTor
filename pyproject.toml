@@ -38,7 +38,6 @@ dependencies = [
     "joblib",
     "psutil",
     "chardet",
-    "igraph",
     "networkx",
     "rdkit",
     "morfeus-ml",
@@ -89,7 +88,7 @@ include = [
 exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*", "tests*"]
 
 [tool.setuptools.package-data]
-"M2_data_extractor" = ["*.html"]
+"M2_data_extractor" = ["*.html", "static/*"]
 "descripytor.examples" = [
     "*.json",
     "feather_example/*.feather",

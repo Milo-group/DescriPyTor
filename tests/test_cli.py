@@ -32,3 +32,17 @@ def test_visual_help():
     result = _run("visual", "--help")
     assert result.returncode == 0, result.stderr
     assert "--no-browser" in result.stdout
+
+
+def test_help_functions_does_not_import_ipywidgets():
+    """Extractor imports help_functions; ipywidgets is notebook-only."""
+    import ast
+
+    tree = ast.parse((ROOT / "utils" / "help_functions.py").read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and (node.module or "").split(".", 1)[0] == "ipywidgets":
+            raise AssertionError("utils.help_functions must not import ipywidgets at module level")
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.split(".", 1)[0] == "ipywidgets":
+                    raise AssertionError("utils.help_functions must not import ipywidgets at module level")

@@ -1,10 +1,8 @@
 # DescriPyTor
 
-**Chemical-intuition-based molecular feature extraction and modeling, for computational chemists.**
+**Pick the atoms that matter, extract descriptors you can interpret, then search for a linear or classification model.**
 
-DescriPyTor turns quantum-chemistry output into descriptors *you choose* — pick the atoms
-that matter mechanistically, get a model-ready feature matrix, then search for the linear or
-classification model that explains your measured outcome.
+DescriPyTor turns quantum-chemistry output into a feature matrix you define, then finds the model that fits your measured outcome.
 
 Modeled after the R package *MoleculaR* ([docs](https://barkais.github.io/)).
 
@@ -35,42 +33,37 @@ Modeled after the R package *MoleculaR* ([docs](https://barkais.github.io/)).
 
 ## Why it looks like this
 
-Generic descriptor packages hand you thousands of columns and leave interpretation to the
-model. DescriPyTor goes the other way: you cut the molecule where the chemistry happens,
-put every structure in a common reference frame, and read off a handful of descriptors
-whose meaning you already understand.
+Most descriptor packages dump thousands of columns. DescriPyTor asks you to pick the atoms
+that matter and returns a few descriptors you already understand.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/feature-concept-blackboard.png" width="720" alt="Three panels: trimming a symmetric molecule to its unique fragment, aligning conformers, and labelling the chosen descriptors (Sterimol, dipole, charge difference, angle)."><br>
   <em>Trim by symmetry → align to a shared frame → pick the descriptors that mean something.</em>
 </p>
 
-Alignment is what makes descriptors comparable across a series. Every molecule is rotated
-and translated onto the same origin and axes, so a "dipole along x" means the same thing in
-every row of your table.
+Every molecule is rotated onto the same origin and axes, so a “dipole along x” means the
+same thing in every row.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/aligned-common-frame.png" width="680" alt="Three substituted benzenes each with local axes, rotated and translated onto one common ring-centered frame."><br>
   <em>Ring center or nuclear-charge center as origin; substituent direction fixes the axes.</em>
 </p>
 
-You give it three selections and it builds the frame by Gram–Schmidt: the origin is a
-centroid, `ŷ` points at your y-atom, and `x̂` is whatever is left of the plane atom once its
-`ŷ` component is subtracted off.
+You pick three groups. Origin is their centroid; ŷ points at the y-atom; x̂ is the plane
+atom with ŷ removed (Gram–Schmidt).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/animations/frame.svg" width="760" alt="Animation: the origin is set to the centroid of the chosen atoms, y is normalized toward the y-atom, and x is obtained by removing the y-component from the plane-atom vector.">
 </p>
 
-That is `_build_basis` in [`dipole_utils.py`](M2_data_extractor/extractor_utils/dipole_utils.py),
-and every descriptor with a direction in it — dipole components, ring vibrations — is read
-off in that frame.
+That is `_build_basis` in [`dipole_utils.py`](M2_data_extractor/extractor_utils/dipole_utils.py).
+Dipole components and ring vibrations are read in this frame.
 
 ---
 
 ## Install
 
-Clone, then a conda env (Python 3.9–3.11). This is the path a first-time user should follow:
+Clone, then a conda env (Python 3.9–3.11):
 
 ```bash
 git clone https://github.com/Milo-group/DescriPyTor.git
@@ -80,15 +73,13 @@ pip install -e .
 descripytor visual
 ```
 
-That opens the 3D atom picker at http://localhost:7432/visual. See [QUICKSTART.md](QUICKSTART.md).
+That opens the 3D atom picker at http://localhost:7432. See [QUICKSTART.md](QUICKSTART.md).
 
-If RDKit or igraph fail on pip: `conda install -c conda-forge rdkit python-igraph`
+If RDKit fails on pip: `conda install -c conda-forge rdkit`
 
-`numpy<2` is pinned: RDKit and PyArrow builds commonly used here fail against NumPy 2.x.
-(`pip install -r requirements.txt` does the same thing — dependencies are declared once, in
-`pyproject.toml`.)
+`numpy<2` is required (RDKit / PyArrow). Dependencies live in `pyproject.toml`; `pip install -r requirements.txt` is equivalent.
 
-Optional extras, only if you need the feature they unlock:
+Optional extras:
 
 | Install | Unlocks |
 |---|---|
@@ -100,7 +91,7 @@ Optional extras, only if you need the feature they unlock:
 | `pip install -e ".[explain]"` | SHAP model reports |
 | `pip install aqme autoqchem` (+ xTB) | xTB / Gaussian-log descriptor engines |
 
-From a clone, extras are optional: `pip install -e ".[webapp]"` then e.g. `pip install -e ".[engines]"`.
+From a clone, extras are optional (`pip install -e ".[webapp]"`, then `".[engines]"`, …).
 
 For `torch`, pick the build that matches your machine:
 
@@ -119,7 +110,7 @@ Gaussian and Open Babel are external programs and are not installed by pip.
 
 | | Best for | Start with |
 |---|---|---|
-| **3D atom picker** | Choosing atoms visually, live Sterimol/dipole/vibration overlays, driving extraction + modeling from one page | `descripytor visual` → http://localhost:7432/visual |
+| **3D atom picker** | Click atoms, overlay Sterimol / dipole / vibrations, extract a CSV, optional linear model | `descripytor visual` → http://localhost:7432 |
 | **CLI** | Reproducible batch runs, scripting, HPC | `descripytor --help` |
 | **Notebooks / Python API** | Exploratory analysis, custom pipelines | [`Getting_started_with_examples/`](Getting_started_with_examples/README.md) |
 
@@ -129,8 +120,7 @@ Gaussian and Open Babel are external programs and are not installed by pip.
 
 ### Getting your molecules in
 
-Extraction reads one `.feather` per molecule — geometry, charges, dipoles and vibrations in
-a single file. If you have Gaussian logs, convert them first:
+Extraction reads one `.feather` per molecule (geometry, charges, dipoles, vibrations). Convert Gaussian logs first:
 
 ```bash
 descripytor logs_to_feather
@@ -141,8 +131,7 @@ descripytor logs_to_feather
   <em>Point it at a directory of <code>.log</code> files; it writes the feather set.</em>
 </p>
 
-Loading a set reports exactly what made it through, so a malformed log is visible immediately
-rather than silently missing from your feature matrix:
+Load reports what parsed, so a bad file is not a silent missing row:
 
 ```text
 Molecules initialized : ['basic', 'm_Br', 'm_Cl', 'm_F', ... , 'p_tfm']
@@ -151,30 +140,29 @@ Failed to load Molecules: []
 
 ### 3D atom picker
 
-The browser-based picker is the richer path: click atoms in 3D, watch the descriptor
-you're defining get drawn live, then export a ready-to-run config.
+Click atoms in 3D, see Sterimol / dipole / vibrations live, then **Extract CSV** (table in
+the page; **Download CSV** to save). The **Model** tab adds an output column and runs linear
+regression. **Save picks** writes `run_config.json` for a later run.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/atom-picker.png" width="900" alt="Browser atom picker: a 3D molecule with Sterimol L/B1/B5 arrows, dipole vector and transformation axes on the left; a scrollable list of descriptor fields with committed atom groups on the right."><br>
   <em>Pick a field, click atoms, see the vectors. Pairs and triplets auto-commit.</em>
 </p>
 
-It also overlays the molecular dipole, animates normal modes with a playable amplitude
-slider, and stacks conformer ensembles with per-conformer RMSD:
+It also overlays the dipole, plays normal modes, and stacks conformers with RMSD:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/conformer-viewer.png" width="900" alt="Conformer viewer showing six overlaid conformers in different colors with energies and RMSD values against the reference conformer."><br>
   <em>Kabsch-aligned conformer overlay, aligned on a chosen substructure.</em>
 </p>
 
-The picker exports your selections as JSON. That file is the reproducible record of a run —
-hand-editable, and replayable against a different molecule set without re-picking anything:
+Selections also export as JSON — edit it and replay on another set without re-picking:
 
 ```bash
 descripytor extractor \
   --input Getting_started_with_examples/input_example.json \
   --output feature_set \
-  --feather_directory Getting_started_with_examples/feather_example
+  --feather_directory descripytor/examples/feather_example
 ```
 
 <p align="center">
@@ -184,25 +172,21 @@ descripytor extractor \
 
 ### Data prep and pre-flight check
 
-Before a long run, `data_gathering_validation.html` assembles the whole command sequence for
-you. Pick a starting point — existing feathers, Gaussian logs, or a SMILES CSV — fill in the
-paths, and it writes out the exact commands to copy, including a dependency check:
+`data_gathering_validation.html` writes the command sequence from feathers, logs, or a SMILES
+CSV, including a dependency check:
 
 ```bash
 python _dx_check.py --config run_config.json --install-report
 ```
 
-That reports which optional engines are actually importable in your environment, so a
-six-hour extraction doesn't die on a missing package at hour five.
+That lists which optional engines import, so a long run does not die on a missing package.
 
 Full instructions: [descriptor_extraction_toolkit/README.md](Getting_started_with_examples/descriptor_extraction_toolkit/README.md).
 
 ### Beyond the built-in descriptors
 
-The toolkit can run external descriptor packages in the same pass and merge everything into
-one CSV, each engine namespaced by a `prefix` so columns never collide. Every engine is
-optional and skips itself with a one-line message if its package is missing, so a run never
-dies on a dependency:
+External packages can run in the same pass and merge into one CSV (`prefix` avoids column
+clashes). A missing package is skipped with a one-line message:
 
 | Engine | Gives you | Needs |
 |---|---|---|
@@ -219,8 +203,7 @@ dies on a dependency:
 python descriptor_extractor.py --config my_run.json
 ```
 
-**Starting from SMILES.** AQME CSEARCH turns a SMILES CSV into a conformer ensemble, so the
-pipeline can begin without any structures at all:
+**Starting from SMILES.** AQME CSEARCH builds a conformer ensemble from a SMILES CSV:
 
 ```bash
 python descriptor_extractor.py --csearch molecules.csv --csearch-out xyz_out \
@@ -275,41 +258,36 @@ largest perpendicular extents of the van der Waals envelope.
   <em>Side view: L along the axis, B1 and B5 perpendicular to it.</em>
 </p>
 
-`B5` is one number — the furthest any atom reaches from the axis, plus its radius. `B1` is
-a search: rotate a supporting line all the way around the cross-section and keep the angle
-where it sits closest.
+`B5` is the furthest atom from the axis (plus its radius). `B1` is the closest supporting
+line after a full rotation around the cross-section.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/animations/sterimol.svg" width="760" alt="Animation: a supporting line sweeps 360 degrees around the substituent cross-section while a plot traces its distance from the axis; the minimum of that curve is B1.">
 </p>
 
-The traced curve is exactly what `scan_b1_over_angles` tabulates in
-[`sterimol_utils.py`](M2_data_extractor/extractor_utils/sterimol_utils.py) — B1 is its
-minimum, which is why B1 and B5 are rarely perpendicular.
+`scan_b1_over_angles` in [`sterimol_utils.py`](M2_data_extractor/extractor_utils/sterimol_utils.py)
+tabulates that sweep; B1 is the minimum. B1 and B5 are rarely perpendicular.
 
-You can measure against the whole molecule's envelope, or against just the substructure
-hanging off your chosen bond — the two answers differ, and the choice is yours
-(`sub_structure`, `drop_atoms`).
+Measure the whole envelope or only the substructure off the chosen bond (`sub_structure`,
+`drop_atoms`).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/sterimol-end-on-global.png" width="400" alt="End-on Sterimol view using the global projection: the substructure atoms are highlighted green against the full molecule's grey envelope, B1 = 2.08 A."> <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/sterimol-end-on-local.png" width="400" alt="End-on Sterimol view using local slices: only the slices at the B1 and B5 heights are drawn, giving B1 = 1.68 A."><br>
   <em>Left: global projection over the full envelope (B1 = 2.08 Å). Right: local slices at the relevant heights (B1 = 1.68 Å).</em>
 </p>
 
-**Picking the right vibration.** A Gaussian frequency job gives you every normal mode; only
-one of them is *your* bond stretching. Each mode is scored by how much of its displacement
-lies along the bond, and the best scorer inside a frequency window wins.
+**Picking the right vibration.** Each Gaussian mode is scored by how much of its
+displacement lies along the bond; the best score inside a frequency window wins.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/animations/vibration.svg" width="760" alt="Animation: each normal mode's displacement vectors are projected onto the bond axis, giving a score per mode; a cursor scans the modes and the highest-scoring one inside the frequency window is selected.">
 </p>
 
-The score is `|dᵃ·û| + |dᵇ·û|` — `calc_vibration_dot_product` in
-[`vibrations_utils.py`](M2_data_extractor/extractor_utils/vibrations_utils.py). The window
-matters: a C–H stretch at 3055 cm⁻¹ can out-score your carbonyl if you let it.
+The score is `|dᵃ·û| + |dᵇ·û|` (`calc_vibration_dot_product` in
+[`vibrations_utils.py`](M2_data_extractor/extractor_utils/vibrations_utils.py)). Keep the
+window tight or a C–H stretch can beat your carbonyl.
 
-**Ring positions.** Ring vibration descriptors need one ring atom; the primary/ortho/meta/para
-pattern is resolved for you.
+**Ring positions.** Give one ring atom; primary / ortho / meta / para are filled in.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/rings.png" width="640" alt="Two numbered aromatic rings with primary, ortho, meta and para positions color-coded and labelled."><br>
@@ -320,8 +298,8 @@ pattern is resolved for you.
 
 ## Modeling
 
-Model search is exhaustive over feature subsets, scored with leakage-free cross-validation:
-scaling is fit inside each fold, never on the full set.
+Model search is exhaustive over feature subsets. Scaling is fit inside each CV fold, never
+on the full set.
 
 ```bash
 descripytor model \
@@ -338,9 +316,8 @@ descripytor model \
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/animations/crossval.svg" width="760" alt="Animation: five folds each hold out a different fifth of the samples; the held-out predictions accumulate into one out-of-fold vector, which Q-squared is then computed from.">
 </p>
 
-With a few dozen molecules and thousands of candidate subsets, a model can fit beautifully
-and mean nothing. Q² is computed only from predictions made by models that never saw the
-sample in question — which is why it is the number worth reading.
+With few molecules and many subsets, R² can look fine and still mean nothing. Q² uses only
+predictions from models that never saw that sample — that is the number to read.
 
 - **Regression** — R², Q² (from out-of-fold predictions), MAE, RMSD; prediction intervals;
   VIF multicollinearity checks.
@@ -349,8 +326,7 @@ sample in question — which is why it is the number worth reading.
 - Results persist to SQLite per dataset, so runs are incremental and reproducible.
 - The top 5 models are written to a PDF report automatically.
 
-Every top model gets a PDF report, and these pages are generated for it automatically — no
-extra flags:
+The top five models get a PDF report (no extra flags):
 
 ```text
 runs/<dataset>_<target>_<date>/
@@ -360,17 +336,15 @@ runs/<dataset>_<target>_<date>/
   logs/  regression_results.txt
 ```
 
-**Sanity checks that try to break your model.** The report refits the model against
-deliberately corrupted data — targets shuffled (Y-randomization), descriptors shuffled
-globally and one feature at a time, and a one-hot baseline that knows only substituent
-identity. A real model has to beat all of them.
+**Sanity checks.** The report refits against shuffled targets (Y-randomization), shuffled
+descriptors, and a one-hot substituent baseline. A real model has to beat all of them.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/sanity-checks-yscramble.png" width="640" alt="Histogram of RMSD from models fitted to randomly shuffled targets, clustered near 0.50, with the real model's RMSD marked at 0.351 far to the left, plus one-hot and X-shuffle baselines."><br>
   <em>The real model (red, 0.351) sits clear of the Y-randomized distribution (~0.50). If it landed inside that histogram, the model is fitting noise.</em>
 </p>
 
-**Feature attribution.** SHAP values show which descriptor pushed which sample, and in which
+**Feature attribution.** SHAP shows which descriptor pushed which sample, and in which
 direction:
 
 <p align="center">
@@ -378,16 +352,15 @@ direction:
   <em>Named outliers make it obvious which substituents drive the model.</em>
 </p>
 
-Each model can also be decomposed per sample, so a prediction is auditable rather than opaque:
+Each model can be broken down per sample:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/model-components-chart.png" width="900" alt="Stacked contribution chart across 18 substituents, showing how the dipole, CM5 charge and O-C bond length terms each push the prediction above or below the intercept, with measured values as open circles and predictions as diamonds."><br>
   <em>Per-substituent breakdown: which descriptor moved which prediction, and by how much.</em>
 </p>
 
-Bayesian model averaging (BASSA, spike-and-slab priors) is available through the toolkit GUI
-when you want feature-inclusion probabilities across many models rather than a single winning
-subset.
+Bayesian averaging (BASSA, spike-and-slab) is in the Streamlit toolkit GUI when you want
+inclusion probabilities across many models, not one winning subset.
 
 Python API and full reference: [M3_modeler/README.md](M3_modeler/README.md).
 
@@ -419,8 +392,7 @@ descripytor sterimol
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/sterimol_cmd.jpg" width="820" alt="Terminal session running the sterimol subcommand and printing a table of L, B1 and B5 values per molecule."><br>
 </p>
 
-**Cube Sterimol** — same idea, but radii come from the electron density, so they respond to
-the electronic environment instead of being read off a table:
+**Cube Sterimol** — radii from the electron density, not a lookup table:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/cube_sterimol.jpg" width="820" alt="Terminal session running the cube subcommand over density cube files and printing the resulting Sterimol values."><br>
@@ -445,32 +417,31 @@ the electronic environment instead of being read off a table:
 
 ## Molecular alignment and renumbering
 
-`MolAlign/` matches atom numbering across a series so descriptors line up row to row. It
-finds a maximum common substructure, then optimizes the atom mapping. Needs `torch`:
+`MolAlign/` matches atom numbering across a series so descriptors line up. Needs `torch`:
 
 ```bash
 pip install torch
 python MolAlign/renumbering.py --help
 ```
 
-The renumbering hook is imported lazily, so nothing else in DescriPyTor requires torch.
+Torch is imported only for that hook; the rest of DescriPyTor does not need it.
 
 ---
 
 ## Docker
 
-If conda/pip fails, or you need xTB and the extra engines, this is a reproducible Linux
-environment with RDKit, Morfeus, AQME, Mordred, xTB and the app. From the repository root:
+If conda/pip fails, or you need xTB and extra engines, use the Linux image (RDKit, Morfeus,
+AQME, Mordred, xTB):
 
 ```bash
 docker compose up --build
 ```
 
-- Atom picker + modeling GUI: <http://localhost:7432/visual>
+- Atom picker: <http://localhost:7432>
+- Form GUI: <http://localhost:7432/forms>
 - Streamlit extraction app: <http://localhost:8503>
 
-Put input files in `work/` — it is mounted at `/work` inside the container, so use paths
-like `/work/features.csv` in the GUI. Anything written to `/work` shows up there too.
+Put files in `work/` (mounted at `/work`). Use paths like `/work/features.csv` in the GUI.
 
 **Sharing it with someone who has no source tree.** Save the built image and hand it over
 with `docker-compose.distribute.yml`; they need only Docker Desktop:
@@ -483,8 +454,7 @@ mkdir work                                    # their .feather files go here
 docker compose -f docker-compose.distribute.yml up
 ```
 
-That compose file mounts only `work/` — the code is already baked into the image, so nothing
-is bind-mounted over it.
+That compose file mounts only `work/`. The code is already in the image.
 
 Setup from scratch (WSL2, Docker Desktop): [DOCKER_QUICKSTART.md](Getting_started_with_examples/descriptor_extraction_toolkit/webapp/DOCKER_QUICKSTART.md).
 
@@ -498,7 +468,8 @@ Start in `Getting_started_with_examples/`:
 |---|---|
 | `Practical_Notebook_Features.ipynb` | Feature extraction end to end |
 | `Practical_Notebook_Modeling.ipynb` | Model search, validation, reporting |
-| `feather_example/` | 26 substituted benzenes (`.feather`) plus `input_example.json` |
+| bundled benzene set | 26 substituted-benzene `.feather` files (`descripytor.examples.feather_example_dir()`) |
+| bundled Baptiste set | 18 product `.feather` files plus outcomes (`descripytor.examples.baptiste_example_dir()`) |
 | `modeling_example/` | Ready-made linear and logistic datasets |
 | `../tests/data/small_set/` | 8 alcohol XYZ files + extracted Sterimol table for tests |
 | `cube_example/` | Density cubes for cube Sterimol |
@@ -536,9 +507,8 @@ work/                           Docker-visible scratch folder
 
 Atom indices are **1-based** everywhere, matching Gaussian.
 
-The four animated figures are generated, not drawn — the geometry in them is computed by
-`docs/animations/build_animations.py` from the same formulas the extractors use, so they
-cannot silently drift away from the code:
+The four animations are generated by `docs/animations/build_animations.py` from the same
+formulas as the extractors:
 
 ```bash
 python docs/animations/build_animations.py

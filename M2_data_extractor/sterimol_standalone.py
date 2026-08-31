@@ -4,7 +4,7 @@ import os
 import sys
 import math
 from enum import Enum
-import igraph as ig
+import networkx as nx
 
 from typing import *
 
@@ -557,16 +557,26 @@ def direction_atoms_for_sterimol(bonds_df,base_atoms)->list: #help function for 
     return base_atoms_copy
 
 def get_molecule_connections(bonds_df, source, direction):
-    # igraph requires 0-based integer vertex IDs; bonds_df uses 1-based IDs
+    source, direction = int(source), int(direction)
     edges = pd.DataFrame({
-        0: pd.to_numeric(bonds_df.iloc[:, 0]).astype(int) - 1,
-        1: pd.to_numeric(bonds_df.iloc[:, 1]).astype(int) - 1,
+        0: pd.to_numeric(bonds_df.iloc[:, 0]).astype(int),
+        1: pd.to_numeric(bonds_df.iloc[:, 1]).astype(int),
     })
-    graph = ig.Graph.DataFrame(edges=edges, directed=True)
-    paths = graph.get_all_simple_paths(v=int(source) - 1, mode='all')
-    with_direction = [path for path in paths if (int(direction) - 1) in path]
-    longest_path = np.unique(flatten_list(with_direction)) + 1  # back to 1-based
-    return longest_path
+    graph = nx.from_pandas_edgelist(edges, source=0, target=1, create_using=nx.Graph)
+    if source not in graph:
+        return np.array([], dtype=int)
+    paths = []
+    for target in list(graph.nodes()):
+        if int(target) == source:
+            continue
+        try:
+            paths.extend(nx.all_simple_paths(graph, source, int(target)))
+        except (nx.NetworkXError, nx.NodeNotFound):
+            continue
+    with_direction = [path for path in paths if direction in path]
+    if not with_direction:
+        return np.array([], dtype=int)
+    return np.unique(flatten_list(with_direction))
 
 
 

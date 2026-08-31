@@ -4,8 +4,7 @@ import numpy.typing as npt
 import pandas as pd
 
 
-from utils.help_functions import * 
-from utils.visualize import *
+from utils.help_functions import *
 
 
 def calc_new_base_atoms(coordinates_array: npt.ArrayLike, atom_indices: npt.ArrayLike):  #help function for calc_coordinates_transformation

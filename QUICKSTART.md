@@ -19,12 +19,12 @@ pip install -e .
 descripytor visual
 ```
 
-Then open **http://localhost:7432/visual** (the 3D picker). Plain `http://localhost:7432/` is a different, form-only GUI.
+Then open **http://localhost:7432** (the 3D picker). The form-only GUI is http://localhost:7432/forms.
 
-If RDKit or igraph fail on pip:
+If RDKit fails on pip:
 
 ```bash
-conda install -c conda-forge rdkit python-igraph
+conda install -c conda-forge rdkit
 ```
 
 Then run the GUI server again.
@@ -35,9 +35,9 @@ Then run the GUI server again.
 
 ## Use it in five minutes
 
-Example molecules ship with the package (26 substituted benzenes).
+Example molecules ship with the package (26 substituted benzenes, including `basic.feather`). A second set of 18 Baptiste products is also bundled.
 
-**In the picker:** load a `.feather` or `.xyz` → click atoms → extract → optional model on the same page. Atom numbers are **1-based** (Gaussian style). Caffeine loads as a demo until you choose a file.
+**In the picker:** set the feather folder (or **Use example set**), click atoms, then **Extract CSV**. The **Model** tab adds an output column (choose one or paste values) and runs linear regression. Atom numbers are **1-based** (Gaussian style). The viewer loads `basic.feather` from the example set.
 
 **Python**
 
@@ -52,7 +52,7 @@ print(mols.success_molecules)
 **Command line** (from the clone):
 
 ```bash
-descripytor extractor -i Getting_started_with_examples/input_example.json -o features -f Getting_started_with_examples/feather_example
+descripytor extractor -i Getting_started_with_examples/input_example.json -o features -f descripytor/examples/feather_example
 ```
 
 Gaussian `.log` files → feathers first:
@@ -65,9 +65,9 @@ descripytor logs_to_feather
 
 ## B. Docker (if conda fails, or you need the full toolkit)
 
-Chemistry software is already in the image (RDKit, Morfeus, xTB, Streamlit). Heavier first step: Docker Desktop, then a source build.
+Chemistry software is already in the image (RDKit, Morfeus, xTB, Streamlit).
 
-1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and wait until it says the engine is running.
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and wait until the engine is idle.
 2. From the clone:
 
 ```bash
@@ -82,11 +82,11 @@ First build takes several minutes. Leave that terminal open.
 
 | What | Open |
 |---|---|
-| 3D atom picker | http://localhost:7432/visual |
-| Feature extraction GUI | http://localhost:7432/ |
+| 3D atom picker | http://localhost:7432 |
+| Feature extraction GUI | http://localhost:7432/forms |
 | Streamlit extraction app | http://localhost:8503 |
 
-4. Drop molecule files into `work/` on your computer. Inside the GUI, use paths like `/work/yourfile.feather`. Results written to `/work` show up in that same folder.
+4. Drop files into `work/` on your computer. In the GUI use `/work/yourfile.feather`.
 
 Stop: `Ctrl+C` in the terminal, or `docker compose down`.
 
@@ -96,7 +96,7 @@ Stop: `Ctrl+C` in the terminal, or `docker compose down`.
 
 | Symptom | Fix |
 |---|---|
-| RDKit / igraph / Morfeus import errors | `conda install -c conda-forge rdkit python-igraph`, then Docker if that still fails |
+| RDKit / Morfeus import errors | `conda install -c conda-forge rdkit`, then Docker if that still fails |
 | Port 7432 already in use | Close the other app, or set `GUI_PORT` |
 | `docker compose` cannot connect | Start Docker Desktop and wait until it is idle |
 | Port 8503 already in use | Close the other app, or set `DESCRIPYTOR_HOST_PORT` |

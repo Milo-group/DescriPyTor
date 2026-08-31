@@ -1,12 +1,24 @@
 import numpy as np
 import pandas as pd 
 import numpy.typing as npt
-import igraph as ig
 import matplotlib.pyplot as plt
 plt.ion() 
 
-from utils.help_functions import * 
-from utils.visualize import *
+from utils.help_functions import *
+try:
+    from extractor_utils.bond_graph import (
+        all_simple_paths_from,
+        diameter_vertex_path,
+        graph_from_bonds_df,
+        unique_atoms_on_paths,
+    )
+except ImportError:
+    from bond_graph import (
+        all_simple_paths_from,
+        diameter_vertex_path,
+        graph_from_bonds_df,
+        unique_atoms_on_paths,
+    )
 
 
 class GeneralConstants(Enum):
@@ -604,57 +616,38 @@ def direction_atoms_for_sterimol(bonds_df, base_atoms) -> list:
     
 
 def get_molecule_connections(bonds_df, source, direction, mode='all'):
-    # Ensure correct column names for igraph
+    source, direction = int(source), int(direction)
     bonds_df = bonds_df.copy()
-    bonds_df.columns = [0, 1]
-
-    # Ensure integer atom indices
-    bonds_df[[0, 1]] = bonds_df[[0, 1]].apply(pd.to_numeric, errors='raise').astype(int)
-
-    # Build graph
-    graph = ig.Graph.DataFrame(edges=bonds_df, directed=False)
-
-    # If edge (source, direction) doesn’t exist → add it
-    if not graph.are_connected(source, direction):
+    graph = graph_from_bonds_df(bonds_df, directed=False)
+    if not graph.has_edge(source, direction):
         graph.add_edge(source, direction)
 
-    # Get all simple paths from source
-    paths = graph.get_all_simple_paths(v=source, mode='all')
-
-    # Keep only paths starting with [source, direction]
-    paths_with_start = [path for path in paths 
-                        if len(path) >= 2 and path[0] == source and path[1] == direction]
+    paths = all_simple_paths_from(graph, source)
+    paths_with_start = [
+        path for path in paths
+        if len(path) >= 2 and path[0] == source and path[1] == direction
+    ]
 
     if mode == 'all':
-        longest_path = np.unique(flatten_list(paths_with_start))
-        
-        return longest_path
+        return unique_atoms_on_paths(paths_with_start)
 
-    elif mode == 'shortest':
+    if mode == 'shortest':
         if paths_with_start:
-            shortest_path = min(paths_with_start, key=len)
-            return shortest_path
-        else:
-            return []
-        
+            return min(paths_with_start, key=len)
+        return []
+    return unique_atoms_on_paths(paths_with_start)
+
+
 def find_longest_simple_path(bonds_df):
     """
     bonds_df : pandas.DataFrame with exactly two columns [u, v] (integer atom indices)
-    
+
     Returns
     -------
     List[int]
-        The sequence of atom indices along the longest simple path (graph diameter)
-        in the undirected molecule graph.
+        Vertex sequence along a graph-diameter shortest path.
     """
-    # 1) Build an undirected igraph from your bond list
-    g = ig.Graph.DataFrame(edges=bonds_df, directed=False)
-    
-    # 2) Compute the diameter: the furthest‐apart pair of nodes and the path between them
-    diameter_path = g.get_diameter()  # returns a list of vertex indices
-    
-    # 3) Convert to plain Python ints and return
-    return [int(v) for v in diameter_path]
+    return diameter_vertex_path(graph_from_bonds_df(bonds_df, directed=False))
 
 def get_specific_bonded_atoms_df(bonds_df, longest_path, coordinates_df):
     """
@@ -870,6 +863,7 @@ def calc_sterimol(bonded_atoms_df, extended_df, visualize_bool=False):
     }])
 
     if visualize_bool:
+        from utils.visualize import plot_b1_visualization
         edited_coordinates_df.index = [index_list[i] + 1 for i in range(len(index_list))]
         plot_b1_visualization(planes[best_idx], edited_coordinates_df=edited_coordinates_df,
                               sterimol_df=result_df)

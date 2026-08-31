@@ -66,7 +66,7 @@ Open:
 
 ```text
 http://localhost:8503
-http://localhost:7432/visual
+http://localhost:7432
 ```
 
 The compose file maps host port `8503` to container port `8501` by default to

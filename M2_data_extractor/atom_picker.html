@@ -4,7 +4,12 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>DescriPyTor - 3D Atom Picker</title>
-<script src="https://3dmol.org/build/3Dmol-min.js"></script>
+<script src="/static/3Dmol-min.js"></script>
+<script>
+if (typeof $3Dmol === "undefined") {
+  document.write('<script src="https://3dmol.org/build/3Dmol-min.js"><\/script>');
+}
+</script>
 <style>
   /* ── Design tokens ── */
   :root {
@@ -233,9 +238,10 @@
     box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.9);
     overflow:hidden;
   }
-  #viewer { width:100%; height:calc(100% - 54px); position:relative; }
+  #pickerStage { width:100%; height:calc(100% - 54px); position:relative; z-index:0; overflow:hidden; }
+  #pickerStage canvas { display:block; max-width:100%; max-height:100%; }
   .viewer-toolbar {
-    position:absolute; bottom:0; left:0; right:0; z-index:2;
+    position:absolute; bottom:0; left:0; right:0; z-index:6; pointer-events:auto;
     display:flex; align-items:center; gap:8px; flex-wrap:wrap;
     padding:9px 16px;
     background:rgba(255,255,255,.78);
@@ -834,7 +840,7 @@
 <header>
   <h1>DescriPyTor &middot; Visual Workflow</h1>
   <span class="hint">Load a structure, click the atoms that matter, extract the CSV, then Model.</span>
-  <button type="button" class="tour-start-btn" id="startTourBtn" title="Guided walkthrough: Load → Pick → Extract → Model">Tutorial</button>
+  <button type="button" class="tour-start-btn" id="startTourBtn" title="Guided walkthrough (5 steps). Shift-click for the full atom-picking tour.">Tutorial</button>
   <button class="micro-btn" type="button" id="layoutToggleBtn" title="Cycle how the 3D view and the selection panel share the page" onclick="cycleLayout()">Layout: Balanced</button>
 </header>
 <div id="a11yStatus" class="sr-only" aria-live="polite" aria-atomic="true"></div>
@@ -846,14 +852,15 @@
       ondragover="event.preventDefault(); this.classList.add('drag-over-main')"
       ondragleave="this.classList.remove('drag-over-main')"
       ondrop="event.preventDefault(); this.classList.remove('drag-over-main'); handleMainDrop(event)">
-      <div id="viewer"></div>
+      <div id="pickerStage"></div>
       <div id="molInfoBadge" class="mol-info-badge" style="display:none"></div>
       <div id="featLegend" class="feat-legend" style="display:none"></div>
       <div class="viewer-toolbar">
         <span id="fileInputWrap" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <label for="fileInput" style="font-size:12.5px;font-weight:500;color:#415165;">Load structure:</label>
-        <input type="file" id="fileInput" accept=".xyz,.feather,.ftr" />
-        <button type="button" id="loadExampleMolBtn" title="Load the bundled unsubstituted product (unsub.feather) into the 3D view">Load unsub.feather</button>
+        <label for="loadFileBtn" style="font-size:12.5px;font-weight:500;color:#415165;">Load structure:</label>
+        <input type="file" id="fileInput" hidden />
+        <button type="button" id="loadFileBtn" title="Open a .xyz or .feather file">Load file…</button>
+        <button type="button" id="loadExampleMolBtn" title="Load the bundled unsubstituted benzene (basic.feather) into the 3D view">Load basic.feather</button>
         </span>
         <button type="button" id="pasteBtn">Paste XYZ&hellip;</button>
         <label for="labelToggle"><input type="checkbox" id="labelToggle" checked /> index labels</label>
@@ -885,13 +892,16 @@
     </div>
     <div class="sec-head collapsible" id="loadSecHead" onclick="toggleSec(this)" role="button" tabindex="0" aria-expanded="true"><span class="sec-num">1</span>Load<span class="sec-line"></span><span class="sec-chev">▼</span></div>
     <div class="sec-body">
-      <div class="small">Use <b>Choose File</b> on the 3D view (<code>.xyz</code> or <code>.feather</code>), drop a file on the molecule, or paste XYZ. The bundled example is the unsubstituted Baptiste product (<code>unsub.feather</code>). Atom numbers are <b>1-based</b> (Gaussian style).</div>
+      <div class="small">Use <b>Load file</b> on the 3D view (<code>.xyz</code> or <code>.feather</code>), drop a file on the molecule, or paste XYZ. The bundled example is unsubstituted benzene (<code>basic.feather</code>). Atom numbers are <b>1-based</b> (Gaussian style).</div>
       <div class="row" style="margin-top:8px;align-items:center;">
         <label for="featherDirInput">Feather folder</label>
-        <input type="text" id="featherDirInput" placeholder="C:\path\to\your\feathers" style="flex:1;min-width:160px" autocomplete="off" />
+        <input type="text" id="featherDirInput" placeholder="path/to/your/feathers" style="flex:1;min-width:160px" autocomplete="off" />
         <button type="button" id="browseFeatherDirBtn" title="Open a native folder dialog on this computer">Browse…</button>
-        <button type="button" id="useExampleFeathersBtn" title="Use the 18 Baptiste products that ship with DescriPyTor">Use example set</button>
-        <button type="button" id="applyExamplePicksBtn" title="Load the notebook atom picks for the Baptiste set">Apply example picks</button>
+        <button type="button" id="useExampleFeathersBtn" title="Use the 26 substituted benzenes that ship with DescriPyTor">Use example set</button>
+        <button type="button" id="applyExamplePicksBtn" title="Load the notebook atom picks for the benzene set">Apply example picks</button>
+      </div>
+      <div class="work-progress" id="presetProgress" hidden role="progressbar" aria-label="Applying example picks">
+        <div class="work-progress-bar" id="presetProgressBar"></div>
       </div>
       <div class="small" id="featherDirHint">Extraction runs on every <code>.feather</code> in this folder. The 3D view is only for picking atoms.</div>
       <div id="numberingBanner" class="numbering-banner idle">
@@ -1153,7 +1163,7 @@
       <div id="csSrcFile">
         <div class="cs-field">
           <label>CSV path</label>
-          <input id="csSmilesCsv" placeholder="C:\path\to\smiles.csv" oninput="csRefresh()" />
+          <input id="csSmilesCsv" placeholder="path/to/smiles.csv" oninput="csRefresh()" />
         </div>
         <div class="cs-row2">
           <div class="cs-field"><label>Name column</label><input id="csNameCol" value="name" oninput="csRefresh()" /></div>
@@ -1172,7 +1182,7 @@
         </div>
         <div class="cs-field">
           <label>Saved CSV path</label>
-          <input id="csPasteCsvPath" placeholder="C:\path\to\smiles.csv" oninput="csRefresh()" />
+          <input id="csPasteCsvPath" placeholder="path/to/smiles.csv" oninput="csRefresh()" />
         </div>
       </div>
     </div>
@@ -1195,7 +1205,7 @@
       </div>
       <div class="cs-field">
         <label>Output XYZ directory</label>
-        <input id="csOutDir" placeholder="C:\path\to\csearch_xyz" oninput="csRefresh()" />
+        <input id="csOutDir" placeholder="path/to/csearch_xyz" oninput="csRefresh()" />
       </div>
     </div>
 
@@ -1231,7 +1241,7 @@
            ondrop="event.preventDefault();this.classList.remove('drag-over');cvLoadFileList(event.dataTransfer.files)">
         &#8659; Drop XYZ / SDF files or click to load
       </div>
-      <input type="file" id="cvFileIn" multiple accept=".xyz,.sdf,.mol" style="display:none"
+      <input type="file" id="cvFileIn" multiple style="display:none"
              onchange="cvLoadFileList(this.files)" />
       <button onclick="cvLoadCurrent()" title="Load the molecule currently shown in the main picker as a conformer">Load current mol</button>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Style
@@ -1696,8 +1706,16 @@ function isFeatherName(name) {
   return /\.(feather|ftr)$/i.test(name || "");
 }
 
+function isXyzName(name) {
+  return /\.xyz$/i.test(name || "");
+}
+
 async function loadStructureFile(file) {
   if (!file) return;
+  if (!isFeatherName(file.name) && !isXyzName(file.name)) {
+    alert("Please choose a .xyz or .feather file.");
+    return;
+  }
   if (isFeatherName(file.name)) {
     try {
       const fd = new FormData();
@@ -1813,7 +1831,7 @@ function initViewer(xyz, filename, opts) {
     ? filename.replace(/\.xyz$/i, '')
     : (molComment && molComment.length < 40 ? molComment : 'molecule');
   lastModelName = molName;
-  const el = $("viewer");
+  const el = $("pickerStage");
   if (!el) throw new Error("3D viewer element is missing.");
   if (typeof $3Dmol === "undefined") throw new Error("3Dmol did not load. Check the network, then reload.");
   el.innerHTML = "";
@@ -1828,6 +1846,7 @@ function initViewer(xyz, filename, opts) {
   });
   const silent = !!(opts && opts.silent);
   if (!silent && filename && !/demo/i.test(String(filename)) && typeof tourNotify === "function") tourNotify("file");
+  if (typeof saveSession === "function") saveSession();
 }
 
 function fitPickerViewer() {
@@ -1843,7 +1862,7 @@ function recenterViewer() {
 }
 
 function showViewerMessage(text, kind) {
-  const el = $("viewer");
+  const el = $("pickerStage");
   if (!el) return;
   const color = kind === "bad" ? "#b42318" : "#415165";
   el.innerHTML = "<p style='padding:24px;color:" + color + ";max-width:36em;line-height:1.45'>" +
@@ -2904,6 +2923,25 @@ function downloadLastCsv() {
   a.remove();
 }
 
+function extractErrorText(data, fallback) {
+  if (!data || typeof data !== "object") return fallback || "Extraction failed.";
+  const parts = [];
+  if (data.error) parts.push(String(data.error));
+  const log = String(data.log || "");
+  if (log) {
+    const extra = log.split(/\r?\n/).map(s => s.trim()).filter(s =>
+      /\[error\]/i.test(s) || /^Error:/i.test(s) || /could not be processed/i.test(s)
+    ).slice(0, 4);
+    extra.forEach(line => {
+      const cleaned = line.replace(/^\[error\]\s*/i, "");
+      if (cleaned && parts.indexOf(cleaned) < 0 && parts.join(" ").indexOf(cleaned) < 0) {
+        parts.push(cleaned);
+      }
+    });
+  }
+  return parts.join(" — ") || fallback || "Extraction failed.";
+}
+
 async function extractFeatures() {
   const btn = $("extractBtn");
   const dl = $("downloadCsvBtn");
@@ -2928,38 +2966,66 @@ async function extractFeatures() {
         if (info.n) window._folderCount = info.n;
       } catch (_) {}
     }
-    const nMol = window._folderCount;
+    const nMolGuess = window._folderCount;
     setExtractStatus(
-      nMol ? ("Extracting " + nMol + " molecules… this can take a minute.") : "Extracting… this can take a minute.",
+      nMolGuess ? ("Extracting " + nMolGuess + " molecules…") : "Extracting…",
       "warn"
     );
-    setWorkProgress("extractProgress", 0, { indeterminate: !nMol });
-    const started = Date.now();
-    const estMs = nMol ? Math.max(8000, nMol * 4000) : 30000;
-    const tick = setInterval(() => {
-      const elapsed = Date.now() - started;
-      const sec = Math.round(elapsed / 1000);
-      setExtractStatus(
-        (nMol ? ("Extracting " + nMol + " molecules") : "Extracting") +
-        "… " + sec + "s elapsed.",
-        "warn"
-      );
-      if (nMol) setWorkProgress("extractProgress", Math.min(0.92, elapsed / estMs));
-    }, 250);
-    let response, data;
-    try {
-      response = await fetch("/extract", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: cfg }),
+    setWorkProgress("extractProgress", 0, { indeterminate: !nMolGuess });
+    const response = await fetch("/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config: cfg, stream: true }),
+    });
+    const ctype = (response.headers.get("content-type") || "").toLowerCase();
+    let data = null;
+    if (response.ok && ctype.indexOf("ndjson") >= 0) {
+      await readNdjsonEvents(response, ev => {
+        if (!ev || typeof ev !== "object") return;
+        if (ev.event === "error") throw new Error(extractErrorText(ev, "Extraction failed."));
+        if (ev.event === "start") {
+          const n = ev.n || nMolGuess;
+          window._folderCount = n;
+          setWorkProgress("extractProgress", ev.cached ? 1 : 0);
+          setExtractStatus(
+            ev.cached
+              ? ("Reusing " + n + " loaded molecules…")
+              : ("Loading 0/" + n + " molecules…"),
+            "warn"
+          );
+        }
+        if (ev.event === "progress") {
+          const n = ev.n || window._folderCount || nMolGuess;
+          const i = ev.i || 0;
+          const name = ev.name || "";
+          if (ev.phase === "engine") {
+            setWorkProgress("extractProgress", n ? 0.9 : 0.5);
+            setExtractStatus(
+              "Computing descriptors" + (ev.name ? (" (" + ev.name + ")") : "") + "…",
+              "warn"
+            );
+          } else if (ev.cached) {
+            setWorkProgress("extractProgress", n ? i / n : 1);
+            setExtractStatus("Reusing loaded molecules…", "warn");
+          } else {
+            setWorkProgress("extractProgress", n ? Math.min(0.88, i / n) : 0);
+            setExtractStatus(
+              "Loading " + i + "/" + n + (name ? (": " + name) : "") + "…",
+              "warn"
+            );
+          }
+        }
+        if (ev.event === "done") data = ev;
       });
+    } else {
       data = await response.json().catch(() => ({}));
-    } finally {
-      clearInterval(tick);
     }
-    if (!response.ok || data.error) {
+    if (!response.ok || !data || data.error) {
       hideWorkProgress("extractProgress");
-      setExtractStatus(data.error || ("Extraction failed (HTTP " + response.status + ")."), "bad");
+      setExtractStatus(
+        extractErrorText(data, "Extraction failed (HTTP " + response.status + ")."),
+        "bad"
+      );
       if (typeof tourNotify === "function") tourNotify("extract-fail");
       return;
     }
@@ -2987,7 +3053,13 @@ async function extractFeatures() {
   }
 }
 
-const SESSION_KEY = "descripytor.visual.session.v1";
+const SESSION_KEY = "descripytor.visual.session.v2";
+
+function isPlaceholderFeatherDir(dir) {
+  const text = String(dir || "").trim().toLowerCase().replace(/\//g, "\\");
+  if (!text) return true;
+  return text.indexOf("path\\to\\your") >= 0 || text.indexOf("path\\to\\feathers") >= 0;
+}
 
 function saveSession() {
   try {
@@ -2997,6 +3069,10 @@ function saveSession() {
       lastExtractCsv: lastExtractCsv || "",
       lastExtractName: lastExtractName || "",
     };
+    if (lastModelXYZ && lastModelXYZ.length < 250000) {
+      payload.lastModelXYZ = lastModelXYZ;
+      payload.lastModelName = lastModelName || "";
+    }
     localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
   } catch (_) {}
 }
@@ -3007,7 +3083,9 @@ function restoreSession() {
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (!data || typeof data !== "object") return false;
-    if (data.featherDir && $("featherDirInput")) $("featherDirInput").value = data.featherDir;
+    if (data.featherDir && $("featherDirInput") && !isPlaceholderFeatherDir(data.featherDir)) {
+      $("featherDirInput").value = data.featherDir;
+    }
     if (data.state && typeof data.state === "object") {
       Object.keys(state).forEach(k => {
         if (Array.isArray(data.state[k])) state[k] = data.state[k];
@@ -3020,6 +3098,12 @@ function restoreSession() {
       fillTargetSelect();
       const dl = $("downloadCsvBtn");
       if (dl) dl.disabled = !lastExtractCsv;
+    }
+    if (data.lastModelXYZ) {
+      window._sessionXyz = {
+        xyz: data.lastModelXYZ,
+        name: data.lastModelName || "molecule",
+      };
     }
     refresh();
     return true;
@@ -3058,23 +3142,43 @@ function applyExamplePresets() {
       });
     });
   });
+  const refName = window._exampleReferenceName || "basic";
   if (nAtoms && maxIdx > nAtoms) {
     setExtractStatus(
       "Example picks use atom " + maxIdx + ", but this molecule has " + nAtoms +
-      " atoms. Load " + (window._exampleReferenceName || "unsub") + ".feather first.",
+      " atoms. Load " + refName + ".feather first.",
       "bad"
     );
     return;
   }
-  Object.keys(atoms).forEach(key => {
-    if (state[key] === undefined) return;
-    state[key] = normalizePresetGroups(key, atoms[key]);
+  const applyBtn = $("applyExamplePicksBtn");
+  if (applyBtn) applyBtn.disabled = true;
+  setExtractStatus("Applying example picks…", "warn");
+  setWorkProgress("presetProgress", 0, { indeterminate: true });
+  const finish = (ok, message, kind) => {
+    hideWorkProgress("presetProgress");
+    if (applyBtn) applyBtn.disabled = false;
+    setExtractStatus(message, kind || (ok ? "ok" : "bad"));
+    if (ok && typeof tourNotify === "function") tourNotify("preset");
+  };
+  // Yield so the progress bar can paint before the 3D rebuild.
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      try {
+        Object.keys(atoms).forEach(key => {
+          if (state[key] === undefined) return;
+          state[key] = normalizePresetGroups(key, atoms[key]);
+        });
+        currentGroup = [];
+        if (typeof collapseAllViz === "function") collapseAllViz(true);
+        refresh();
+        saveSession();
+        finish(true, "Loaded example atom picks. Extract when ready, or Check numbering if you want to verify indices.", "ok");
+      } catch (err) {
+        finish(false, "Could not apply example picks: " + (err && err.message ? err.message : err), "bad");
+      }
+    }, 40);
   });
-  currentGroup = [];
-  refresh();
-  saveSession();
-  setExtractStatus("Loaded example atom picks. Extract when ready, or Check numbering if you want to verify indices.", "ok");
-  if (typeof tourNotify === "function") tourNotify("preset");
 }
 
 function normMolName(s) {
@@ -3084,8 +3188,12 @@ function normMolName(s) {
 function fillExampleOutputs() {
   const ta = $("lrOutputs");
   if (!ta) return;
+  if (!lastExtractCsv) return;
   const rows = window._exampleOutcomes || [];
-  if (!rows.length || !lastExtractCsv) return;
+  if (!rows.length) {
+    fillDemoOutputsFromExtract();
+    return;
+  }
   const table = parseCsv(lastExtractCsv);
   if (table.length < 2) return;
   const header = table[0].map(h => String(h || "").toLowerCase());
@@ -3106,7 +3214,20 @@ function fillExampleOutputs() {
     if ($("lrThr")) $("lrThr").value = "0";
     const sel = $("lrTargetCol");
     if (sel && [...sel.options].some(o => o.value === "output")) sel.value = "output";
+    return;
   }
+  fillDemoOutputsFromExtract();
+}
+
+function fillDemoOutputsFromExtract() {
+  const ta = $("lrOutputs");
+  if (!ta || ta.value.trim() || !lastExtractCsv) return;
+  const table = parseCsv(lastExtractCsv);
+  const n = Math.max(0, table.length - 1);
+  if (!n) return;
+  ta.value = Array.from({ length: n }, (_, i) => (1.50 + i * 0.07).toFixed(2)).join("\n");
+  if ($("lrNewCol")) $("lrNewCol").value = "output";
+  if ($("lrThr")) $("lrThr").value = "0";
 }
 
 function flattenPickedIndices() {
@@ -3225,6 +3346,11 @@ async function checkNumbering(opts) {
     });
     if (!response.ok) {
       const fallback = await response.json().catch(() => ({}));
+      if (response.status === 404) {
+        throw new Error(
+          "This GUI server is outdated (missing /numbering/check). Stop descripytor visual (Ctrl+C), start it again from this repo, then hard-refresh (Ctrl+F5)."
+        );
+      }
       throw new Error(fallback.error || ("Could not check atom numbering (HTTP " + response.status + ")."));
     }
     let data = null;
@@ -3324,9 +3450,15 @@ async function loadExampleFeatherDir() {
     const dir = data.example_feather_dir || "";
     window._exampleFeatherDir = dir;
     window._exampleBasicFeather = data.example_reference_feather || data.example_basic_feather || "";
-    window._exampleReferenceName = data.example_reference_name || "unsub";
+    window._exampleReferenceName = data.example_reference_name || "basic";
     window._examplePresets = data.example_presets || {};
     window._exampleOutcomes = data.example_outcomes || [];
+    if (!("example_presets" in data) || !("example_reference_name" in data)) {
+      setExtractStatus(
+        "This GUI server is outdated. Stop it (Ctrl+C in the terminal), run descripytor visual again from this repo, then hard-refresh (Ctrl+F5).",
+        "bad"
+      );
+    }
     if ($("featherDirInput") && dir && !$("featherDirInput").value) {
       $("featherDirInput").placeholder = dir;
     }
@@ -3367,36 +3499,46 @@ async function loadExampleMolecule(opts) {
   const ac = typeof AbortController === "function" ? new AbortController() : null;
   window._exampleMolAbort = ac;
   window._exampleMolLoading = true;
-  await loadExampleFeatherDir();
-  applyExampleFolderFromStatus(false);
-  const refName = window._exampleReferenceName || "unsub";
+  const refName = window._exampleReferenceName || "basic";
   const setMsg = (text, kind) => {
     if (typeof setExtractStatus === "function") setExtractStatus(text, kind || "");
     const title = $("tourTitle");
     const body = $("tourBody");
     if (body && title && /molecule in 3D/i.test(title.textContent || "")) body.textContent = text;
-    if (kind === "bad" || kind === "warn") showViewerMessage(text, kind);
+    if (kind === "bad") showViewerMessage(text, kind);
   };
   setMsg("Loading " + refName + ".feather…", "warn");
   try {
     const fetchOpts = ac ? { signal: ac.signal } : {};
-    let response = await fetch("/example_xyz", fetchOpts);
+    const xyzPromise = window._bootExampleXyz || fetch("/example_xyz", fetchOpts);
+    window._bootExampleXyz = null;
+    const statusPromise = loadExampleFeatherDir();
+    let response = await xyzPromise;
     let data = await response.json().catch(() => ({}));
+    if (response.ok && data.xyz) {
+      if (typeof initViewer === "function") initViewer(data.xyz, refName + ".feather", { silent });
+      setMsg("Loaded " + refName + ".feather into the 3D view.", "ok");
+    }
+    await statusPromise;
+    applyExampleFolderFromStatus(false);
+    const loadedName = window._exampleReferenceName || refName;
     if ((!response.ok || !data.xyz) && window._exampleBasicFeather) {
       response = await fetch("/xyz_from_feather", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filepath: window._exampleBasicFeather, name: refName }),
+        body: JSON.stringify({ filepath: window._exampleBasicFeather, name: loadedName }),
         ...(ac ? { signal: ac.signal } : {}),
       });
       data = await response.json().catch(() => ({}));
     }
     if (!response.ok || data.error || !data.xyz) {
-      setMsg(data.error || ("Could not load " + refName + ".feather from the example set."), "bad");
+      setMsg(data.error || ("Could not load " + loadedName + ".feather from the example set."), "bad");
       return;
     }
-    if (typeof initViewer === "function") initViewer(data.xyz, refName + ".feather", { silent });
-    setMsg("Loaded " + refName + ".feather into the 3D view.", "ok");
+    if (lastModelName !== loadedName + ".feather" && typeof initViewer === "function") {
+      initViewer(data.xyz, loadedName + ".feather", { silent });
+    }
+    setMsg("Loaded " + loadedName + ".feather into the 3D view.", "ok");
   } catch (err) {
     if (err && err.name === "AbortError") return;
     setMsg("Could not load the example molecule: " + err.message, "bad");
@@ -3666,6 +3808,7 @@ $("fileInput").onchange = e => {
   const file = e.target.files[0]; if (!file) return;
   loadStructureFile(file);
 };
+if ($("loadFileBtn")) $("loadFileBtn").onclick = () => $("fileInput") && $("fileInput").click();
 if ($("loadExampleMolBtn")) $("loadExampleMolBtn").onclick = () => loadExampleMolecule();
 $("pasteBtn").onclick = () => {
   const t = prompt("Paste an XYZ block (line1=atom count, line2=comment, then 'El x y z'):");
@@ -3689,11 +3832,13 @@ if ($("useExampleFeathersBtn")) $("useExampleFeathersBtn").onclick = async () =>
     window._numberingOverlay = [];
     refresh();
     const nOut = (window._exampleOutcomes || []).length;
-    const label = (window._exampleReferenceName === "unsub")
-      ? "bundled Baptiste product set"
-      : "bundled example set";
+    const label = (window._exampleReferenceName === "basic")
+      ? "bundled substituted-benzene set"
+      : (window._exampleReferenceName === "unsub")
+        ? "bundled Baptiste product set"
+        : "bundled example set";
     setExtractStatus(
-      "Using the " + label + (nOut ? (" (" + nOut + " molecules, experimental output).") : "."),
+      "Using the " + label + (nOut ? " (experimental output included)." : "."),
       "ok"
     );
     if (typeof tourNotify === "function") tourNotify("example");
@@ -3718,8 +3863,10 @@ if ($("vizbarToggle")) $("vizbarToggle").onclick = toggleVizBar;
 
 async function browseFeatherFolder() {
   const input = $("featherDirInput");
+  const btn = $("browseFeatherDirBtn");
   const initial = (input && input.value.trim()) || window._exampleFeatherDir || "";
-  if (typeof setExtractStatus === "function") setExtractStatus("Opening folder dialog…", "warn");
+  if (btn) btn.disabled = true;
+  if (typeof setExtractStatus === "function") setExtractStatus("Opening folder dialog… look for a window behind the browser if it does not appear.", "warn");
   try {
     const response = await fetch("/browse/folder", {
       method: "POST",
@@ -3745,6 +3892,8 @@ async function browseFeatherFolder() {
     }
   } catch (err) {
     setExtractStatus("Could not open a folder dialog: " + err.message, "bad");
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -4567,23 +4716,34 @@ const EMBEDDED_XYZ = `__XYZ_DATA__`;
 buildFieldSelect();
 const _isDemo = EMBEDDED_XYZ.indexOf("__XYZ" + "_DATA__") === 0;
 if (typeof $3Dmol === "undefined") {
-  const el = $("viewer");
-  if (el) el.innerHTML = "<p style='padding:24px;color:#415165'>Could not load the 3D library from 3dmol.org. Check the network, then reload this page.</p>";
+  const el = $("pickerStage");
+  if (el) el.innerHTML = "<p style='padding:24px;color:#415165'>Could not load the 3D library. Check the network, then reload this page.</p>";
 } else if (!_isDemo) {
   initViewer(EMBEDDED_XYZ, null);
 } else {
-  const el = $("viewer");
+  const el = $("pickerStage");
   if (el) el.innerHTML = "<p style='padding:24px;color:#415165'>Loading the example molecule…</p>";
 }
 if (typeof applyWorkflowPreset === "function") applyWorkflowPreset("feather");
 refresh();
 const _restoredSession = typeof restoreSession === "function" && restoreSession();
-loadExampleFeatherDir().then(() => {
-  if (typeof applyExampleFolderFromStatus === "function") applyExampleFolderFromStatus(false);
+const _sessionMol = window._sessionXyz && window._sessionXyz.xyz;
+if (typeof $3Dmol !== "undefined" && _sessionMol && _isDemo) {
+  initViewer(window._sessionXyz.xyz, window._sessionXyz.name || "molecule", { silent: true });
+  window._bootExampleXyz = null;
+  loadExampleFeatherDir().then(() => {
+    if (typeof applyExampleFolderFromStatus === "function") applyExampleFolderFromStatus(false);
+  });
+} else {
+  window._bootExampleXyz = (typeof $3Dmol !== "undefined") ? fetch("/example_xyz") : null;
   if (typeof $3Dmol !== "undefined" && typeof loadExampleMolecule === "function") {
     loadExampleMolecule({ silent: true });
+  } else {
+    loadExampleFeatherDir().then(() => {
+      if (typeof applyExampleFolderFromStatus === "function") applyExampleFolderFromStatus(false);
+    });
   }
-});
+}
 window.addEventListener("resize", () => {
   if (typeof fitPickerViewer === "function") fitPickerViewer();
 });
@@ -4604,7 +4764,7 @@ function tourIsOpen() {
 
 (function initWorkflowTour() {
   const ROOT_ID = "tourRoot";
-  const STORAGE = "descripytor.tour.v2";
+  const STORAGE = "descripytor.tour.v3";
 
   function tourOpenPickSec() {
     const head = $("pickSecHead");
@@ -4629,32 +4789,81 @@ function tourIsOpen() {
     sel.addEventListener("click", sel._tourClickHandler);
   }
 
-  const STEPS = [
-    {
+  const WELCOME = {
       id: "welcome",
       title: "Load, extract, then model",
-      body: "Follow the circle and arrow. Next stays locked until you click the highlighted control on the page — the card will not do it for you.",
+      body: "Five clicks: example set, example picks, Extract CSV, Model, Run. Shift-click Tutorial later if you want the long atom-by-atom walkthrough.",
       target: null,
       nextLabel: "Start",
-    },
-    {
+    };
+  const EXAMPLE = {
       id: "example",
       title: "Load the example folder",
-      body: "Click Use example set (the highlighted button). This loads the 18 Baptiste products. Extraction later uses every .feather in that folder, with experimental output values for modeling.",
+      body: "Click Use example set (the highlighted button). This points extraction at the 26 substituted benzenes. Every .feather in that folder is used.",
       target: "#useExampleFeathersBtn",
       shape: "pill",
       advance: "example",
       waitHint: "Click Use example set. Next stays locked until you do.",
-    },
-    {
-      id: "file",
-      title: "Open a molecule in 3D",
-      body: "Click Load unsub.feather (highlighted, under the 3D view). This is the unsubstituted reference for the Baptiste set. Do not use Choose File for this step.",
-      target: "#loadExampleMolBtn",
+    };
+  const PRESET = {
+      id: "preset",
+      title: "Apply example picks",
+      body: "Click Apply example picks. That fills Sterimol, bonds, and charges from the bundled notebook — you do not need to click atoms for this short tour. A progress bar appears while the 3D view updates.",
+      target: "#applyExamplePicksBtn",
       shape: "pill",
-      advance: "file",
-      waitHint: "Click Load unsub.feather under the 3D view.",
-    },
+      advance: "preset",
+      waitHint: "Click Apply example picks.",
+      enter() { tourOpenPickSec(); },
+    };
+  const EXTRACT = {
+      id: "extract",
+      title: "Extract the features",
+      body: "Click Extract CSV (the blue button). The table will include columns from the example picks. Re-running extract is faster after the first load.",
+      target: "#extractBtn",
+      shape: "pill",
+      advance: "extract",
+      waitHint: "Click Extract CSV. Next will not run the extract for you.",
+      enter() {
+        if (typeof collapseAllViz === "function") collapseAllViz(true);
+        const head = $("extractSecHead");
+        if (head && head.classList.contains("closed")) toggleSec(head);
+      },
+    };
+  const MODEL_TAB = {
+      id: "model-tab",
+      title: "Open Model",
+      body: "Click the Model tab (highlighted).",
+      target: "#modelTabBtn",
+      shape: "pill",
+      advance: "model-tab",
+      waitHint: "Click the Model tab.",
+      enter() { if ($("configFold")) $("configFold").open = true; },
+    };
+  const RUN = {
+      id: "run",
+      title: "Run linear regression",
+      body: "Demo output values are filled so you can click Run. Replace them with measured values when you have them. Click Run linear regression (the blue button).",
+      target: "#lrRunBtn",
+      shape: "pill",
+      advance: "model",
+      waitHint: "Click Run linear regression.",
+      enter() {
+        if (typeof showOutTab === "function") showOutTab("model");
+        if (typeof fillExampleOutputs === "function") fillExampleOutputs();
+        if (typeof fillDemoOutputsFromExtract === "function") fillDemoOutputsFromExtract();
+      },
+    };
+  const DONE = {
+      id: "done",
+      title: "You're done",
+      body: "You loaded the example set, applied picks, extracted a CSV, and fit a model. Click Done. Shift-click Tutorial for the full atom-picking walkthrough.",
+      target: "#modelPanel",
+      shape: "round",
+      pad: 8,
+      nextLabel: "Done",
+      enter() { if (typeof showOutTab === "function") showOutTab("model"); },
+    };
+  const PICK_STEPS = [
     {
       id: "field-angle",
       title: "Choose Bond angle",
@@ -4669,7 +4878,7 @@ function tourIsOpen() {
       id: "atoms",
       title: "Click three atoms for an angle",
       body: "Click three labeled atoms — for example 1, then 2, then 3. The middle atom is the vertex. The Building group chip must show three numbers.",
-      target: "#viewer",
+      target: "#pickerStage",
       shape: "round",
       pad: 4,
       advance: "picked",
@@ -4705,7 +4914,7 @@ function tourIsOpen() {
       id: "atoms-length",
       title: "Click two atoms for a bond length",
       body: "Click two labeled atoms — for example 1 then 2. During the tutorial you still need Commit group (it does not auto-save while the tour is open).",
-      target: "#viewer",
+      target: "#pickerStage",
       shape: "round",
       pad: 4,
       advance: "picked",
@@ -4740,7 +4949,7 @@ function tourIsOpen() {
       id: "atoms-sterimol",
       title: "Click two atoms for Sterimol",
       body: "Click the origin atom first, then the attached atom that defines the axis — for example 1 then 23.",
-      target: "#viewer",
+      target: "#pickerStage",
       shape: "round",
       pad: 4,
       advance: "picked",
@@ -4775,7 +4984,7 @@ function tourIsOpen() {
       id: "atoms-charges",
       title: "Click one atom for charge",
       body: "Click one labeled atom — for example 1. That atom’s charge will be a column in the CSV.",
-      target: "#viewer",
+      target: "#pickerStage",
       shape: "round",
       pad: 4,
       advance: "picked",
@@ -4796,64 +5005,14 @@ function tourIsOpen() {
       advance: "commit",
       waitHint: "Click Commit group to save the charge atom.",
     },
-    {
-      id: "extract",
-      title: "Extract the features",
-      body: "Click Extract CSV (the blue button). The table will include columns from every field you committed — not only the angle. This can take about a minute.",
-      target: "#extractBtn",
-      shape: "pill",
-      advance: "extract",
-      waitHint: "Click Extract CSV. Next will not run the extract for you.",
-      enter() {
-        if (typeof collapseAllViz === "function") collapseAllViz(true);
-        const head = $("extractSecHead");
-        if (head && head.classList.contains("closed")) toggleSec(head);
-      },
-    },
-    {
-      id: "results",
-      title: "Read the feature table",
-      body: "Each row is one molecule. Look for angle, bond length, Sterimol, and charge columns from the groups you committed. Click Next when you have looked at the table.",
-      target: "#extractResultBlock",
-      shape: "round",
-      pad: 8,
-    },
-    {
-      id: "model-tab",
-      title: "Open Model",
-      body: "Click the Model tab (highlighted).",
-      target: "#modelTabBtn",
-      shape: "pill",
-      advance: "model-tab",
-      waitHint: "Click the Model tab.",
-      enter() { if ($("configFold")) $("configFold").open = true; },
-    },
-    {
-      id: "run",
-      title: "Run linear regression",
-      body: "Experimental Baptiste output values are filled from the bundled outcomes file. Click Run linear regression (the blue button).",
-      target: "#lrRunBtn",
-      shape: "pill",
-      advance: "model",
-      waitHint: "Click Run linear regression.",
-      enter() {
-        if (typeof showOutTab === "function") showOutTab("model");
-        if (typeof fillExampleOutputs === "function") fillExampleOutputs();
-        else tourFillDemoOutputs();
-      },
-    },
-    {
-      id: "done",
-      title: "You're done",
-      body: "You loaded data, committed four different features (angle, bond length, Sterimol, charge), extracted a CSV, and fit a model. Click Done, or Tutorial in the header to replay.",
-      target: "#modelPanel",
-      shape: "round",
-      pad: 8,
-      nextLabel: "Done",
-      enter() { if (typeof showOutTab === "function") showOutTab("model"); },
-    },
   ];
 
+  function buildSteps(mode) {
+    if (mode === "full") return [WELCOME, EXAMPLE].concat(PICK_STEPS, [EXTRACT, MODEL_TAB, RUN, DONE]);
+    return [WELCOME, EXAMPLE, PRESET, EXTRACT, MODEL_TAB, RUN, DONE];
+  }
+
+  let STEPS = buildSteps("core");
   let idx = 0;
   let open = false;
   let layoutTimer = 0;
@@ -5075,8 +5234,9 @@ function tourIsOpen() {
     return [...card.querySelectorAll("button")].filter(b => !b.disabled && b.offsetParent !== null);
   }
 
-  function startTour() {
+  function startTour(mode) {
     ensureDom();
+    STEPS = buildSteps(mode === "full" ? "full" : "core");
     STEPS.forEach(s => { s.completed = false; });
     window.__tourMinAtoms = 3;
     tourPrevFocus = document.activeElement;
@@ -5161,7 +5321,7 @@ function tourIsOpen() {
   });
 
   const startBtn = $("startTourBtn");
-  if (startBtn) startBtn.onclick = startTour;
+  if (startBtn) startBtn.onclick = (e) => startTour(e.shiftKey ? "full" : "core");
 })();
 </script>
 </body>

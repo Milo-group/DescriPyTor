@@ -16,13 +16,6 @@ from descripytor.examples import (
 )
 
 
-def test_twenty_six_feathers():
-    directory = feather_example_dir()
-    feathers = sorted(directory.glob("*.feather"))
-    assert len(feathers) == 26
-    assert (directory / "basic.feather").is_file()
-
-
 def test_baptiste_example_set():
     directory = baptiste_example_dir()
     feathers = sorted(directory.glob("*.feather"))
@@ -43,6 +36,19 @@ def test_baptiste_example_set():
         if line.strip()
     }
     assert names == outcome_names
+
+
+def test_benzene_example_set():
+    directory = feather_example_dir()
+    feathers = sorted(directory.glob("*.feather"))
+    assert len(feathers) == 26
+    assert (directory / "basic.feather").is_file()
+    presets = directory / "presets.json"
+    assert presets.is_file()
+    text = presets.read_text(encoding="utf-8")
+    assert "sterimol" in text
+    assert "basic.feather" in text
+    assert directory != baptiste_example_dir()
 
 
 def test_extractor_jsons_exist():

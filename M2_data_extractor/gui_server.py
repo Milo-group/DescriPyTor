@@ -17,13 +17,13 @@ import traceback
 
 # ── Flask ─────────────────────────────────────────────────────
 try:
-    from flask import Flask, request, jsonify, send_file, redirect
+    from flask import Flask, request, jsonify, send_file, redirect, send_from_directory
     from flask_cors import CORS
 except ImportError:
     print("Missing dependencies. Run:  pip install flask flask-cors")
     sys.exit(1)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None)
 CORS(app)
 
 PORT = int(os.environ.get("GUI_PORT", "7432"))
@@ -49,6 +49,27 @@ def load_molecule(filepath: str, root: str = ""):
 
 # ── routes ────────────────────────────────────────────────────
 
+def benzene_example_dir():
+    """GUI default example: 26 substituted benzenes (basic.feather)."""
+    try:
+        from descripytor.examples import feather_example_dir as _feather_dir
+
+        path = _feather_dir()
+        if path.is_dir():
+            return str(path)
+    except Exception:
+        pass
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.dirname(here)
+    for candidate in (
+        os.path.join(root, "descripytor", "examples", "feather_example"),
+        os.path.join(root, "Getting_started_with_examples", "feather_example"),
+    ):
+        if os.path.isdir(candidate) and os.path.isfile(os.path.join(candidate, "basic.feather")):
+            return candidate
+    return ""
+
+
 def baptiste_example_dir():
     """Bundled Baptiste product set, if present."""
     try:
@@ -70,53 +91,22 @@ def baptiste_example_dir():
     return ""
 
 
-def benzene_example_dir():
-    """Bundled 26-benzene set, if present."""
-    try:
-        from descripytor.examples import feather_example_dir
-
-        path = feather_example_dir()
-        if path.is_dir():
-            return str(path)
-    except Exception:
-        pass
-    here = os.path.dirname(os.path.abspath(__file__))
-    root = os.path.dirname(here)
-    for candidate in (
-        os.path.join(root, "Getting_started_with_examples", "feather_example"),
-        os.path.join(root, "descripytor", "examples", "feather_example"),
-    ):
-        if os.path.isdir(candidate):
-            return candidate
-    return ""
-
-
 def example_feather_dir():
-    """GUI default example: Baptiste products, else the benzene set."""
-    return baptiste_example_dir() or benzene_example_dir()
+    """GUI default example: the 26 substituted benzenes."""
+    return benzene_example_dir()
 
 
 def example_reference_feather():
-    """3D reference molecule: Baptiste unsub.feather, else benzene basic.feather."""
-    baptiste = baptiste_example_dir()
-    if baptiste:
-        unsub = os.path.join(baptiste, "unsub.feather")
-        if os.path.isfile(unsub):
-            return unsub
-    directory = benzene_example_dir() or example_feather_dir()
+    """3D reference molecule: basic.feather, else unsub.feather in the example folder."""
+    directory = example_feather_dir()
     if not directory:
         return ""
-    for name in ("unsub.feather", "basic.feather"):
+    for name in ("basic.feather", "unsub.feather"):
         path = os.path.join(directory, name)
         if os.path.isfile(path):
             return path
-    feathers = sorted(
-        f for f in os.listdir(directory)
-        if f.lower().endswith((".feather", ".ftr"))
-    )
-    if feathers:
-        return os.path.join(directory, feathers[0])
-    return ""
+    files = _list_feather_files(directory)
+    return files[0] if files else ""
 
 
 def example_basic_feather():
@@ -173,7 +163,7 @@ def _is_placeholder_path(path):
     if not path or not str(path).strip():
         return True
     text = str(path).replace("/", "\\").lower()
-    if "path\\to\\your" in text:
+    if "path\\to\\your" in text or "path\\to\\logs" in text:
         return True
     stripped = str(path).strip()
     return stripped.startswith("__") and stripped.endswith("__")
@@ -198,6 +188,7 @@ def status():
     return jsonify({
         "ok": True,
         "version": "1.0",
+        "api": 2,
         "example_feather_dir": example_feather_dir(),
         "example_basic_feather": example_basic_feather(),
         "example_reference_feather": example_reference_feather(),
@@ -246,11 +237,50 @@ def atom_picker_html():
     )
 
 
+_3DMOL_URL = "https://3dmol.org/build/3Dmol-min.js"
+
+
+def _ensure_3dmol_js(folder):
+    """Cache 3Dmol next to the GUI after the first successful fetch."""
+    os.makedirs(folder, exist_ok=True)
+    dest = os.path.join(folder, "3Dmol-min.js")
+    if os.path.isfile(dest) and os.path.getsize(dest) > 1000:
+        return dest
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(_3DMOL_URL, headers={"User-Agent": "descripytor"})
+        with urllib.request.urlopen(req, timeout=20) as response:
+            data = response.read()
+        if not data or len(data) < 1000:
+            return None
+        with open(dest, "wb") as handle:
+            handle.write(data)
+        return dest
+    except Exception:
+        return None
+
+
 @app.route("/visual", strict_slashes=False)
 def visual_gui():
     """Serve the combined atom-picker, extraction, and modeling workflow."""
     path = atom_picker_html()
     return send_file(path, mimetype="text/html")
+
+
+@app.route("/static/<path:filename>")
+def visual_static(filename):
+    """Serve bundled viewer assets next to the picker HTML."""
+    import threading
+
+    folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+    local = os.path.join(folder, filename)
+    if os.path.isfile(local) and os.path.getsize(local) > 1000:
+        return send_from_directory(folder, filename)
+    if filename == "3Dmol-min.js":
+        threading.Thread(target=_ensure_3dmol_js, args=(folder,), daemon=True).start()
+        return redirect(_3DMOL_URL)
+    return jsonify({"error": "not found"}), 404
 
 
 def _xyz_text_from_coords(df, name):
@@ -271,10 +301,13 @@ def _xyz_from_feather_fast(path, display_name="molecule"):
     data = pd.read_feather(path)
     data.columns = [str(c).strip() for c in data.columns]
     needed = ["atom", "x", "y", "z"]
-    missing = [c for c in needed if c not in data.columns]
-    if missing:
-        raise ValueError("Feather file has no coordinate columns: " + ", ".join(missing))
-    df = data[needed].copy()
+    if all(c in data.columns for c in needed):
+        df = data[needed].copy()
+    else:
+        # Older benzene example feathers store xyz in the first four columns.
+        xyz = data.iloc[:, 0:4].copy()
+        xyz.columns = needed
+        df = xyz
     df["x"] = pd.to_numeric(df["x"], errors="coerce")
     df["y"] = pd.to_numeric(df["y"], errors="coerce")
     df["z"] = pd.to_numeric(df["z"], errors="coerce")
@@ -351,13 +384,13 @@ def xyz_from_feather():
 
 @app.route("/example_xyz", methods=["GET", "POST"])
 def example_xyz():
-    """XYZ for the bundled example reference molecule (unsub or basic)."""
+    """XYZ for the bundled example reference molecule (basic.feather)."""
     path = example_reference_feather()
     if not path or not os.path.isfile(path):
         return jsonify({
             "error": (
-                "No example molecule was found. Expected unsub.feather in the "
-                "Baptiste set (descripytor/examples/baptiste_products)."
+                "No example molecule was found. Expected basic.feather in the "
+                "benzene set (descripytor/examples/feather_example)."
             ),
             "filepath": path or "",
         }), 404
@@ -373,7 +406,38 @@ def example_xyz():
 
 
 def ask_folder_dialog(initial=""):
-    """Native folder picker on the machine running the GUI (not the browser sandbox)."""
+    """Native folder picker on the machine running the GUI (not the browser sandbox).
+
+    Tk must own the process main thread. Flask ``threaded=True`` handles
+    ``/browse/folder`` on a worker, so the dialog runs in a short-lived
+    subprocess instead of in-process Tk.
+    """
+    import subprocess
+    import sys
+
+    helper = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_folder_dialog.py")
+    args = [sys.executable, helper]
+    if initial and os.path.isdir(initial):
+        args.append(initial)
+    try:
+        completed = subprocess.run(
+            args,
+            capture_output=True,
+            timeout=600,
+            check=False,
+        )
+    except Exception:
+        return _ask_folder_dialog_inline(initial)
+    if completed.returncode not in (0, None):
+        err = (completed.stderr or b"").decode("utf-8", errors="replace").strip()
+        if err:
+            raise RuntimeError(err)
+        return _ask_folder_dialog_inline(initial)
+    return (completed.stdout or b"").decode("utf-8", errors="replace").strip()
+
+
+def _ask_folder_dialog_inline(initial=""):
+    """Last-resort in-process Tk dialog (works if this is the main thread)."""
     import tkinter as tk
     from tkinter import filedialog
 
@@ -620,7 +684,9 @@ def numbering_check():
 
     reference = (data.get("reference") or "").strip()
     if not reference or not os.path.isfile(reference):
-        preferred = os.path.join(directory, "unsub.feather")
+        preferred = os.path.join(directory, "basic.feather")
+        if not os.path.isfile(preferred):
+            preferred = os.path.join(directory, "unsub.feather")
         reference = preferred if os.path.isfile(preferred) else files[0]
     picked = _flatten_picked_indices(data.get("picked") or data.get("atoms") or [])
     include_xyz = bool(data.get("include_xyz"))
@@ -1043,12 +1109,64 @@ def features_set():
     })
 
 
-@app.route("/extract", methods=["POST"])
-def extract():
-    """Run the picker's run_config and return a features CSV for download."""
+def _extract_empty_message(log_text):
+    lines = (log_text or "").splitlines()
+    engine_errors = [
+        line.split("[error]", 1)[-1].strip()
+        for line in lines
+        if "[error]" in line
+    ]
+    load_errors = [
+        line.strip()
+        for line in lines
+        if line.strip().startswith("Error:") or "could not be processed" in line
+    ]
+    if engine_errors:
+        msg = "Feature extraction failed: " + "; ".join(engine_errors[:4])
+        if load_errors:
+            msg += " | " + " | ".join(load_errors[:3])
+        return msg
+    if load_errors:
+        return (
+            "Extraction produced no columns. "
+            + " | ".join(load_errors[:4])
+        )
+    return (
+        "Extraction produced no columns. Pick atoms, check the feather "
+        "folder, and look at Advanced engines."
+    )
+
+
+def _extract_success_payload(df, cfg, log_text):
+    return {
+        "n_mols": int(df.shape[0]),
+        "n_features": int(df.shape[1]),
+        "n_files": len(_list_feather_files(cfg["feather_dir"])),
+        "columns": [str(c) for c in df.columns],
+        "index": [str(i) for i in df.index],
+        "csv": df.to_csv(),
+        "filename": "features.csv",
+        "log": log_text,
+    }
+
+
+def _run_extract(cfg, progress=None):
     import contextlib
     import io
 
+    log = io.StringIO()
+    try:
+        dx = _load_descriptor_extractor()
+        with contextlib.redirect_stdout(log):
+            df = dx.run_from_config(cfg, progress=progress)
+        return df, log.getvalue(), None
+    except Exception as exc:
+        return None, log.getvalue(), exc
+
+
+@app.route("/extract", methods=["POST"])
+def extract():
+    """Run the picker's run_config and return a features CSV for download."""
     data = request.json or {}
     cfg = data.get("config") if isinstance(data.get("config"), dict) else data
     if not cfg or not isinstance(cfg, dict) or cfg.keys() <= {"config"}:
@@ -1070,46 +1188,86 @@ def extract():
     if isinstance(engines, dict) and isinstance(engines.get("descripytor_full"), dict):
         engines["descripytor_full"] = dict(engines["descripytor_full"])
         engines["descripytor_full"]["save_as"] = False
+    if data.get("limit") is not None:
+        try:
+            cfg["file_limit"] = max(1, int(data["limit"]))
+        except (TypeError, ValueError):
+            pass
 
     ensure_path(cfg["root_dir"])
-    log = io.StringIO()
-    try:
-        dx = _load_descriptor_extractor()
-        with contextlib.redirect_stdout(log):
-            df = dx.run_from_config(cfg)
-    except Exception as exc:
-        traceback.print_exc()
-        return jsonify({
-            "error": f"Feature extraction failed: {exc}",
-            "log": log.getvalue(),
-        }), 500
+    stream = bool(data.get("stream"))
+    n_files = len(_list_feather_files(cfg["feather_dir"]))
+    if cfg.get("file_limit"):
+        n_files = min(n_files, int(cfg["file_limit"]))
 
-    if df is None or getattr(df, "empty", True):
-        log_text = log.getvalue()
-        engine_errors = [
-            line.split("[error]", 1)[-1].strip()
-            for line in log_text.splitlines()
-            if "[error]" in line
-        ]
-        if engine_errors:
-            msg = "Feature extraction failed: " + "; ".join(engine_errors)
-        else:
-            msg = (
-                "Extraction produced no columns. Pick atoms, check the feather "
-                "folder, and look at Advanced engines."
-            )
-        return jsonify({"error": msg, "log": log_text}), 500
+    if not stream:
+        df, log_text, exc = _run_extract(cfg)
+        if exc is not None:
+            traceback.print_exception(type(exc), exc, exc.__traceback__)
+            return jsonify({
+                "error": f"Feature extraction failed: {exc}",
+                "log": log_text,
+            }), 500
+        if df is None or getattr(df, "empty", True):
+            return jsonify({
+                "error": _extract_empty_message(log_text),
+                "log": log_text,
+            }), 500
+        return jsonify(_extract_success_payload(df, cfg, log_text))
 
-    return jsonify({
-        "n_mols": int(df.shape[0]),
-        "n_features": int(df.shape[1]),
-        "n_files": len(_list_feather_files(cfg["feather_dir"])),
-        "columns": [str(c) for c in df.columns],
-        "index": [str(i) for i in df.index],
-        "csv": df.to_csv(),
-        "filename": "features.csv",
-        "log": log.getvalue(),
-    })
+    from flask import Response, stream_with_context
+    from queue import Queue
+    import threading
+
+    def generate():
+        q = Queue()
+
+        def progress(ev):
+            if ev:
+                q.put(ev)
+
+        def worker():
+            try:
+                df, log_text, exc = _run_extract(cfg, progress=progress)
+                if exc is not None:
+                    traceback.print_exception(type(exc), exc, exc.__traceback__)
+                    q.put({
+                        "event": "error",
+                        "error": f"Feature extraction failed: {exc}",
+                        "log": log_text,
+                    })
+                elif df is None or getattr(df, "empty", True):
+                    q.put({
+                        "event": "error",
+                        "error": _extract_empty_message(log_text),
+                        "log": log_text,
+                    })
+                else:
+                    payload = _extract_success_payload(df, cfg, log_text)
+                    payload["event"] = "done"
+                    q.put(payload)
+            except Exception as exc:
+                traceback.print_exc()
+                q.put({
+                    "event": "error",
+                    "error": f"Feature extraction failed: {exc}",
+                })
+            finally:
+                q.put(None)
+
+        q.put({"event": "start", "n": n_files, "phase": "load", "i": 0})
+        threading.Thread(target=worker, daemon=True).start()
+        while True:
+            ev = q.get()
+            if ev is None:
+                break
+            yield json.dumps(ev) + "\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 def _parse_pasted_outputs(text):
@@ -1334,6 +1492,103 @@ def _pd_from_numpy(arr, index, columns):
     return pd.DataFrame(arr, index=index, columns=columns)
 
 
+GUI_API = 2
+
+
+def _tcp_port_open(port):
+    import socket
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(0.4)
+    try:
+        return sock.connect_ex(("127.0.0.1", int(port))) == 0
+    finally:
+        sock.close()
+
+
+def _status_from_running_gui(port):
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{int(port)}/status", timeout=1.2) as resp:
+            return json.loads(resp.read().decode("utf-8") or "{}")
+    except Exception:
+        return None
+
+
+def _gui_payload_is_current(payload):
+    if not isinstance(payload, dict) or not payload.get("ok"):
+        return False
+    if payload.get("api") == GUI_API:
+        return True
+    return "example_presets" in payload and "example_reference_name" in payload
+
+
+def _pid_listening_on_port(port):
+    """Best-effort PID for a LISTEN socket (Windows netstat / Unix lsof)."""
+    import subprocess
+
+    port = int(port)
+    try:
+        if os.name == "nt":
+            completed = subprocess.run(
+                ["netstat", "-ano", "-p", "tcp"],
+                capture_output=True, text=True, timeout=4, check=False,
+            )
+            needle = ":%s" % port
+            for line in (completed.stdout or "").splitlines():
+                text = " ".join(line.split()).lower()
+                if needle.lower() not in text or "listen" not in text:
+                    continue
+                parts = line.split()
+                if parts:
+                    return parts[-1]
+        else:
+            completed = subprocess.run(
+                ["lsof", f"-iTCP:{port}", "-sTCP:LISTEN", "-n", "-P", "-t"],
+                capture_output=True, text=True, timeout=4, check=False,
+            )
+            pid = (completed.stdout or "").strip().splitlines()
+            if pid:
+                return pid[0].strip()
+    except Exception:
+        return None
+    return None
+
+
+def _reuse_or_refuse_existing_gui(host, port, open_browser):
+    """If 7432 is already taken, reuse a current GUI or tell the user to stop the old one."""
+    import webbrowser
+
+    url = f"http://127.0.0.1:{port}/visual"
+    payload = _status_from_running_gui(port)
+    if _gui_payload_is_current(payload):
+        print(f"\n  DescriPyTor GUI is already running.")
+        print(f"  Open:  {url}")
+        print(f"  This process will not start a second server.\n")
+        if open_browser:
+            try:
+                webbrowser.open(url)
+            except Exception:
+                pass
+        return True
+    if payload is not None or _tcp_port_open(port):
+        pid = _pid_listening_on_port(port)
+        print(f"\n  Port {port} is already in use by an older or different process.")
+        print(f"  The browser GUI will 404 (Check numbering, example molecule) until that process is stopped.")
+        if pid:
+            print(f"  PID: {pid}")
+            if os.name == "nt":
+                print(f"  Stop it:  taskkill /PID {pid} /F")
+            else:
+                print(f"  Stop it:  kill {pid}")
+        else:
+            print("  Stop the old `descripytor visual` terminal with Ctrl+C, then retry.")
+        print()
+        return False
+    return None
+
+
 def serve(host=None, port=None, open_browser=True):
     """Start the Flask GUI. Used by `descripytor visual` and `__main__`."""
     import threading
@@ -1343,6 +1598,11 @@ def serve(host=None, port=None, open_browser=True):
 
     host = host or os.environ.get("GUI_HOST", "127.0.0.1")
     port = int(port or os.environ.get("GUI_PORT", str(PORT)))
+    existing = _reuse_or_refuse_existing_gui(host, port, open_browser)
+    if existing is True:
+        return
+    if existing is False:
+        sys.exit(1)
     url = f"http://127.0.0.1:{port}/visual"
     print(f"\n  DescriPyTor GUI")
     print(f"  Open:  {url}")
@@ -1360,7 +1620,12 @@ def serve(host=None, port=None, open_browser=True):
                     time.sleep(0.2)
 
         threading.Thread(target=_open, daemon=True).start()
-    app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
+    try:
+        app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
+    except OSError as exc:
+        print(f"\n  Could not bind port {port}: {exc}")
+        print("  Stop the process already using that port, then retry.\n")
+        sys.exit(1)
 
 
 # ── run ───────────────────────────────────────────────────────

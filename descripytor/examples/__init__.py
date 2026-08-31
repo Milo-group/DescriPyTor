@@ -2,7 +2,7 @@
 
 After ``pip install descripytor``::
 
-    from descripytor.examples import baptiste_example_dir, feather_example_dir, input_example_json
+    from descripytor.examples import feather_example_dir, input_example_json
     molset = Molecules(str(feather_example_dir()), threshold=1.82)
 """
 
@@ -23,38 +23,40 @@ _REPO_BAPTISTE = (
 )
 
 
-def baptiste_example_dir() -> Path:
-    """Directory of the Baptiste product ``.feather`` files."""
-    bundled = _HERE / "baptiste_products"
-    if (bundled / "unsub.feather").is_file():
-        return bundled
-    if (_REPO_BAPTISTE / "unsub.feather").is_file():
-        return _REPO_BAPTISTE
+def _first_existing(*candidates: Path, marker: str) -> Path:
+    for path in candidates:
+        if (path / marker).is_file():
+            return path
     raise FileNotFoundError(
-        "Baptiste example feathers not found. Expected unsub.feather under "
-        f"{bundled} or {_REPO_BAPTISTE}."
+        f"{marker} not found under: " + ", ".join(str(p) for p in candidates)
     )
 
 
 def feather_example_dir() -> Path:
     """Directory of the 26 substituted-benzene ``.feather`` files."""
-    bundled = _HERE / "feather_example"
-    if (bundled / "basic.feather").is_file():
-        return bundled
-    if (_REPO_FEATHER / "basic.feather").is_file():
-        return _REPO_FEATHER
-    raise FileNotFoundError(
-        "Example feathers not found. Expected basic.feather under "
-        f"{bundled} or {_REPO_FEATHER}."
+    return _first_existing(
+        _HERE / "feather_example",
+        _REPO_FEATHER,
+        marker="basic.feather",
+    )
+
+
+def baptiste_example_dir() -> Path:
+    """Directory of the Baptiste product ``.feather`` files (paper case, not the GUI default)."""
+    return _first_existing(
+        _HERE / "baptiste_products",
+        _REPO_BAPTISTE,
+        marker="unsub.feather",
     )
 
 
 def input_example_json() -> Path:
-    """Extractor input JSON that matches the benzene example set."""
+    """Extractor input JSON that ships with the package."""
     for candidate in (
         _HERE / "input_example.json",
-        feather_example_dir() / "input_example.json",
-        _REPO_FEATHER.parent / "input_example.json",
+        Path(__file__).resolve().parents[2]
+        / "Getting_started_with_examples"
+        / "input_example.json",
     ):
         if candidate.is_file():
             return candidate

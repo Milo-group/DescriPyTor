@@ -1,14 +1,6 @@
 # DescriPyTor Web App
 
-Streamlit front end for the descriptor-extraction toolkit.
-
-The app lets a user:
-
-1. Upload `.feather` and/or `.xyz` molecule files, or point at folders on the server.
-2. Optionally inspect/pick atoms in the embedded 3D picker.
-3. Build, upload, or edit a `run_config.json`.
-4. Run descriptor extraction.
-5. Download the final `merged_features.csv`.
+Streamlit front end for the descriptor toolkit: upload feathers/XYZ, pick atoms, run extraction, download the CSV.
 
 ## Local Run
 
@@ -41,7 +33,7 @@ http://localhost:8503
 The compose file also starts the combined 3D extraction/modeling GUI:
 
 ```text
-http://localhost:7432/visual
+http://localhost:7432
 ```
 
 The visual GUI and its Flask API share the same container. Put datasets in the

@@ -47,7 +47,6 @@ DEFAULT_ROOT = os.environ.get(
 
 OPTIONAL_PACKAGES = [
     ("rdkit", "rdkit", "2D/3D structures, fingerprints, SMILES perception"),
-    ("python-igraph", "igraph", "2D bond-graph view in the atom picker"),
     ("morfeus-ml", "morfeus", "Morfeus suite + Sterimol reference engine"),
     ("mordred", "mordred", "Mordred 2D/3D descriptors"),
     ("deepchem", "deepchem", "DeepChem descriptors"),
@@ -202,7 +201,7 @@ def _first_feather_molecule_xyz(feather_dir):
 def _build_picker_html(xyz_text=None, mol_data=None):
     """Inject (optional) molecule into atom_picker.html and return the HTML string."""
     import make_picker as mp
-    template = (TOOLKIT_DIR / "atom_picker.html").read_text(encoding="utf-8")
+    template = mp.atom_picker_template().read_text(encoding="utf-8")
     html = template.replace("__XYZ_DATA__", mp._js_escape(xyz_text) if xyz_text else "__XYZ_DATA__")
     html = html.replace("__MOL_DATA__",
                         mp._js_escape(json.dumps(mol_data)) if mol_data else

@@ -5,10 +5,8 @@ import re
 import sys
 import math
 from enum import Enum
-import igraph as ig
 from typing import *
 import warnings
-from morfeus import Sterimol
 import networkx as nx
 import numpy.typing as npt
 # Add the parent directory to the sys.path
@@ -333,15 +331,13 @@ class Molecule:
         structured JSON format (Gaussian or ORCA derived) are supported.
         """
         if parameter_list is None:
-            original_dir = os.getcwd()
-            try:
-                os.chdir(self.molecule_path)
-                if str(filename).lower().endswith('.json'):
-                    self.parameter_list = json_file_handler(filename)
-                else:
-                    self.parameter_list = feather_file_handler(filename)
-            finally:
-                os.chdir(original_dir)
+            path = filename
+            if not os.path.isabs(path):
+                path = os.path.join(self.molecule_path, filename)
+            if str(path).lower().endswith('.json'):
+                self.parameter_list = json_file_handler(path)
+            else:
+                self.parameter_list = feather_file_handler(path)
         else:
             self.parameter_list = parameter_list
 
@@ -1491,29 +1487,170 @@ class Molecule:
 
 
 
+_MOLECULES_CACHE = {}
+_MOLECULES_CACHE_MAX = 2
+
+
+def _molecules_folder_files(path, file_limit=None):
+    path = os.path.abspath(path)
+    try:
+        names = os.listdir(path)
+    except OSError:
+        return path, []
+    files = []
+    for name in names:
+        if name.endswith(".feather") or name.endswith(".json"):
+            fp = os.path.join(path, name)
+            try:
+                st = os.stat(fp)
+                stamp = int(getattr(st, "st_mtime_ns", int(st.st_mtime * 1e9)))
+                files.append((name, stamp, int(st.st_size)))
+            except OSError:
+                files.append((name, 0, 0))
+    if file_limit is not None:
+        try:
+            files = files[: max(1, int(file_limit))]
+        except (TypeError, ValueError):
+            pass
+    return path, files
+
+
+def _molecules_cache_key(path, threshold, file_limit):
+    folder, files = _molecules_folder_files(path, file_limit)
+    limit = None if file_limit is None else int(file_limit)
+    return (folder, float(threshold), tuple(files), limit)
+
+
+def _molecules_cache_put(key, mols):
+    if key in _MOLECULES_CACHE:
+        _MOLECULES_CACHE.pop(key, None)
+    _MOLECULES_CACHE[key] = mols
+    while len(_MOLECULES_CACHE) > _MOLECULES_CACHE_MAX:
+        oldest = next(iter(_MOLECULES_CACHE))
+        if oldest == key:
+            break
+        _MOLECULES_CACHE.pop(oldest, None)
+
+
+def _molecules_worker_count(n_files):
+    if n_files <= 1:
+        return 1
+    try:
+        requested = int(os.environ.get("DESCRIPYTOR_MOL_JOBS") or 0)
+    except (TypeError, ValueError):
+        requested = 0
+    if requested > 0:
+        return max(1, min(requested, n_files))
+    cpu = os.cpu_count() or 1
+    return max(1, min(4, n_files, cpu))
+
+
 class Molecules():
     
-    def __init__(self,molecules_dir_name, renumber=False, threshold=1.82):
+    def __init__(self,molecules_dir_name, renumber=False, threshold=1.82, progress=None, file_limit=None):
         self.molecules_path=os.path.abspath(molecules_dir_name)
-        os.chdir(self.molecules_path) 
+        cache_key = None
+        if file_limit is None:
+            cache_key = _molecules_cache_key(self.molecules_path, threshold, None)
+            cached = _MOLECULES_CACHE.get(cache_key)
+            if cached is not None:
+                self.__dict__ = cached.__dict__
+                n = len(getattr(self, "molecules", []) or [])
+                if progress:
+                    progress({"event": "start", "n": n, "phase": "load", "i": 0, "cached": True})
+                    for i, mol in enumerate(self.molecules, 1):
+                        progress({
+                            "event": "progress",
+                            "i": i,
+                            "n": n,
+                            "name": getattr(mol, "molecule_name", ""),
+                            "ok": True,
+                            "phase": "load",
+                            "cached": True,
+                        })
+                return
+
         self.molecules=[]
         self.failed_molecules=[]
         self.success_molecules=[]
-        for data_file in os.listdir():
-            if data_file.endswith('.feather') or data_file.endswith('.json'):
-                try:
-                    self.molecules.append(Molecule(data_file, threshold=threshold))
-                    self.success_molecules.append(data_file)
-                except Exception as e:
-                    self.failed_molecules.append(data_file)
-                    print(f'Error: {data_file} could not be processed : {e}')
-                   
+        _folder, file_rows = _molecules_folder_files(self.molecules_path, file_limit)
+        data_files = [row[0] for row in file_rows]
+        n_files = len(data_files)
+        if progress:
+            progress({"event": "start", "n": n_files, "phase": "load", "i": 0})
+
+        def _load_one(data_file):
+            abs_path = os.path.join(self.molecules_path, data_file)
+            try:
+                return data_file, Molecule(abs_path, threshold=threshold), None
+            except Exception as exc:
+                return data_file, None, exc
+
+        n_jobs = _molecules_worker_count(n_files)
+        if n_jobs == 1:
+            ordered = []
+            for data_file in data_files:
+                ordered.append(_load_one(data_file))
+        else:
+            import threading
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            ordered = [None] * n_files
+            done = 0
+            lock = threading.Lock()
+            with ThreadPoolExecutor(max_workers=n_jobs) as pool:
+                futs = {pool.submit(_load_one, data_file): idx for idx, data_file in enumerate(data_files)}
+                for fut in as_completed(futs):
+                    idx = futs[fut]
+                    data_file, mol, err = fut.result()
+                    ordered[idx] = (data_file, mol, err)
+                    name = os.path.splitext(data_file)[0]
+                    ok = mol is not None
+                    if not ok:
+                        print(f'Error: {data_file} could not be processed : {err}')
+                    with lock:
+                        done += 1
+                        i = done
+                    if progress:
+                        progress({
+                            "event": "progress",
+                            "i": i,
+                            "n": n_files,
+                            "name": name,
+                            "ok": ok,
+                            "phase": "load",
+                        })
+
+        if n_jobs == 1:
+            for i, (data_file, mol, err) in enumerate(ordered, 1):
+                name = os.path.splitext(data_file)[0]
+                ok = mol is not None
+                if not ok:
+                    print(f'Error: {data_file} could not be processed : {err}')
+                if progress:
+                    progress({
+                        "event": "progress",
+                        "i": i,
+                        "n": n_files,
+                        "name": name,
+                        "ok": ok,
+                        "phase": "load",
+                    })
+
+        for data_file, mol, err in ordered:
+            if mol is not None:
+                self.molecules.append(mol)
+                self.success_molecules.append(data_file)
+            else:
+                self.failed_molecules.append(data_file)
+
         print(f'Molecules Loaded: {self.success_molecules}',f'Failed Molecules: {self.failed_molecules}')
 
         self.molecule_names=[molecule.molecule_name for molecule in self.molecules]
         self.old_molecules=self.molecules
         self.old_molecule_names=self.molecule_names
-        os.chdir('../')
+        if cache_key is not None:
+            _molecules_cache_put(cache_key, self)
 
     def export_all_xyz(self):
         os.makedirs('xyz_files', exist_ok=True)

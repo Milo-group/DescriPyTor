@@ -32,7 +32,22 @@ from glob import glob
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-TEMPLATE = HERE / "atom_picker.html"
+
+
+def atom_picker_template() -> Path:
+    """Canonical picker HTML: packaged M2 copy, else this toolkit folder."""
+    m2 = HERE.parents[2] / "M2_data_extractor" / "atom_picker.html"
+    local = HERE / "atom_picker.html"
+    if m2.is_file():
+        return m2
+    if local.is_file():
+        return local
+    raise FileNotFoundError(
+        "atom_picker.html not found in M2_data_extractor or this toolkit folder."
+    )
+
+
+TEMPLATE = atom_picker_template()
 
 
 # --------------------------------------------------------------------------- #
@@ -142,12 +157,12 @@ def graph2d_png_base64(xyz_text: str) -> str:
     try:
         import base64
         import io
-        import igraph as ig
+        import networkx as nx
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except Exception as e:  # noqa
-        print(f"[picker] 2D graph view unavailable ({e}); needs python-igraph + matplotlib.")
+        print(f"[picker] 2D graph view unavailable ({e}); needs networkx + matplotlib.")
         return ""
 
     elements, coords = _parse_xyz_atoms(xyz_text)
@@ -155,10 +170,12 @@ def graph2d_png_base64(xyz_text: str) -> str:
         return ""
 
     bonds = _infer_bonds(elements, coords)
-    g = ig.Graph(n=len(elements), edges=bonds)
-    layout = g.layout("kk") if bonds else g.layout("circle")
-    xs = [p[0] for p in layout]
-    ys = [p[1] for p in layout]
+    g = nx.Graph()
+    g.add_nodes_from(range(len(elements)))
+    g.add_edges_from(bonds)
+    pos = nx.kamada_kawai_layout(g) if bonds else nx.circular_layout(g)
+    xs = [pos[i][0] for i in range(len(elements))]
+    ys = [pos[i][1] for i in range(len(elements))]
 
     fig, ax = plt.subplots(figsize=(5.2, 5.2), dpi=120)
     for (i, j) in bonds:

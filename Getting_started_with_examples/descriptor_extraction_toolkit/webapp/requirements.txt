@@ -28,11 +28,8 @@ pyarrow            # read .feather
 # plotly
 # ipywidgets
 
-# Modeling tab (page 4) + picker 2D graph view
+# Modeling tab (page 4)
 # scikit-learn statsmodels    # M3 linear/lasso feature-combination search
-# python-igraph               # NOTE: pip name is "python-igraph"; `import igraph` after install.
-#                              # The conda-forge package literally named "igraph" is the C library
-#                              # only and will NOT give you `import igraph` - use "python-igraph".
 # bassa-reg                   # BASSA Bayesian regression engine
 
 # Results tab: PCA/UMAP scatter of the merged feature set

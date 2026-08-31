@@ -1,6 +1,6 @@
 # DescriPyTor — visual start
 
-Start with **conda + pip**. Open one local URL. Use Docker only if that fails, or you need xTB / extra engines.
+Start with **conda + pip**. Open http://localhost:7432. Use Docker only if that fails, or you need xTB / extra engines.
 
 A printable page lives next to this file: [visual-guide.html](visual-guide.html) (open in a browser → Ctrl+P → Save as PDF).
 
@@ -12,7 +12,7 @@ A printable page lives next to this file: [visual-guide.html](visual-guide.html)
 flowchart LR
   A["1. conda env<br/>Python 3.10"] --> B["2. pip install -e ."]
   B --> C["3. descripytor visual"]
-  C --> D["4. Open<br/>localhost:7432/visual"]
+  C --> D["4. Open<br/>localhost:7432"]
 ```
 
 ```bash
@@ -24,9 +24,9 @@ pip install -e .
 descripytor visual
 ```
 
-Then open **http://localhost:7432/visual** — that is the 3D picker. `http://localhost:7432/` without `/visual` is the form-only GUI.
+Then open **http://localhost:7432** (the 3D picker). The form-only GUI is http://localhost:7432/forms.
 
-If RDKit or igraph fail: `conda install -c conda-forge rdkit python-igraph`
+If RDKit fails: `conda install -c conda-forge rdkit`
 
 ---
 
@@ -34,10 +34,10 @@ If RDKit or igraph fail: `conda install -c conda-forge rdkit python-igraph`
 
 | What | Open |
 |---|---|
-| 3D atom picker (start here) | http://localhost:7432/visual |
-| Feature extraction GUI | http://localhost:7432/ |
+| 3D atom picker (start here) | http://localhost:7432 |
+| Feature extraction GUI | http://localhost:7432/forms |
 
-**3D atom picker** — caffeine loads as a demo. Click atoms on the left; set the workflow and fields on the right. Load your own file with **Choose File**.
+**3D atom picker** — caffeine loads as a demo. Click atoms on the left (1-based numbers). Set the feather folder (or **Use example set**), then **Extract CSV**. The **Model** tab fits linear regression on a chosen or pasted output column.
 
 ![3D atom picker with caffeine demo](images/gui-picker.png)
 
@@ -52,8 +52,9 @@ If RDKit or igraph fail: `conda install -c conda-forge rdkit python-igraph`
 ```mermaid
 flowchart LR
   L["Load .feather or .xyz"] --> C["Click atoms<br/>1-based, Gaussian style"]
-  C --> E["Extract"]
-  E --> M["Optional: model"]
+  C --> E["Extract CSV"]
+  E --> R["Model tab: output + OLS"]
+  R --> M["Optional: Advanced"]
 ```
 
 Example molecules (26 substituted benzenes) ship with the package. Gaussian `.log` files: convert first with `descripytor logs_to_feather`.
@@ -64,7 +65,7 @@ Example molecules (26 substituted benzenes) ship with the package. Gaussian `.lo
 
 | What you see | What to do |
 |---|---|
-| RDKit / igraph / Morfeus import errors | `conda install -c conda-forge rdkit python-igraph`, then Docker below |
+| RDKit / Morfeus import errors | `conda install -c conda-forge rdkit`, then Docker below |
 | Port 7432 already in use | Close the other app using that port |
 
 ---
@@ -82,8 +83,8 @@ First build takes several minutes. Leave that terminal open.
 
 | What | Open |
 |---|---|
-| 3D atom picker | http://localhost:7432/visual |
-| Feature extraction GUI | http://localhost:7432/ |
+| 3D atom picker | http://localhost:7432 |
+| Feature extraction GUI | http://localhost:7432/forms |
 | Streamlit extraction app | http://localhost:8503 |
 
 Drop `.feather`, `.xyz`, or CSV into `work/` on your computer. In the GUI, type `/work/yourfile.feather`. Results written to `/work` show up in that same folder.

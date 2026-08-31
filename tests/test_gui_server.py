@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import types
 from pathlib import Path
@@ -39,16 +40,18 @@ def test_status(client):
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["ok"] is True
+    assert payload.get("api") == 2
     assert "example_feather_dir" in payload
     assert "example_outcomes" in payload
     assert "example_presets" in payload
     directory = payload.get("example_feather_dir") or ""
     if directory:
-        assert "baptiste_products" in directory.replace("\\", "/")
-        assert (payload.get("example_reference_name") or "") == "unsub"
+        assert "feather_example" in directory.replace("\\", "/")
+        assert (payload.get("example_reference_name") or "") == "basic"
+        assert payload.get("example_presets")
 
 
-def test_example_xyz_loads_unsub(client):
+def test_example_xyz_loads_basic(client):
     from M2_data_extractor.gui_server import example_reference_feather
 
     path = example_reference_feather()
@@ -64,13 +67,13 @@ def test_example_xyz_loads_unsub(client):
     assert response.status_code == 200, response.get_json()
     body = response.get_json()
     assert body.get("xyz")
-    assert body.get("name") == "unsub"
-    assert str(body.get("filepath") or "").replace("\\", "/").endswith("unsub.feather")
-    assert int(body.get("n_atoms") or 0) >= 10
+    assert body.get("name") == "basic"
+    assert str(body.get("filepath") or "").replace("\\", "/").endswith("basic.feather")
+    assert int(body.get("n_atoms") or 0) >= 6
     assert "C " in body["xyz"] or body["xyz"].splitlines()[2].strip()[:1] in "CNOSHP"
 
 
-def test_fast_feather_xyz_reads_unsub():
+def test_fast_feather_xyz_reads_basic():
     from M2_data_extractor.gui_server import example_reference_feather, _xyz_from_feather_fast
 
     path = example_reference_feather()
@@ -80,9 +83,9 @@ def test_fast_feather_xyz_reads_unsub():
         import pyarrow  # noqa: F401
     except ImportError:
         pytest.skip("pyarrow is not installed")
-    xyz, name, n_atoms = _xyz_from_feather_fast(path, "unsub")
-    assert name == "unsub"
-    assert n_atoms >= 10
+    xyz, name, n_atoms = _xyz_from_feather_fast(path, "basic")
+    assert name == "basic"
+    assert n_atoms >= 6
     assert xyz.splitlines()[0].strip() == str(n_atoms)
 
 
@@ -101,6 +104,11 @@ def test_visual_serves_atom_picker(client):
     assert "Advanced" in body
     assert "Conformer Search" in body
     assert "Browse" in body
+    assert 'id="fileInput"' in body
+    assert 'id="loadFileBtn"' in body
+    assert "Load file" in body
+    assert 'accept=".xyz,.feather,.ftr"' not in body
+    assert "descripytor.visual.session.v2" in body
     assert 'id="a11yStatus"' in body
     assert 'id="applyExamplePicksBtn"' in body
     assert 'id="numberingBanner"' in body
@@ -108,16 +116,24 @@ def test_visual_serves_atom_picker(client):
     assert 'id="viewNumberingBtn"' in body
     assert 'id="numberingProgress"' in body
     assert 'id="extractProgress"' in body
+    assert 'id="presetProgress"' in body
     viz = body.find('id="vizbar"')
     adv = body.find('id="advancedPanel"')
     assert viz != -1 and adv != -1
     assert viz < adv
     assert "pickerViewer" in body
     assert "recenterViewer" in body
+    assert 'id="pickerStage"' in body
+    assert 'id="viewer"' not in body
     assert 'onclick="if(viewer)' not in body
     assert "Caffeine is the demo" not in body
     assert "loadExampleMolecule({ silent: true })" in body
     assert "Check numbering" in body
+    assert "JSON.stringify({ config: cfg, stream: true })" in body
+    assert "lastModelXYZ" in body
+    assert "Apply example picks" in body
+    assert "/static/3Dmol-min.js" in body
+    assert 'e.shiftKey ? "full"' in body
 
 
 def test_visual_trailing_slash(client):
@@ -132,6 +148,19 @@ def test_packaged_picker_is_preferred():
     path = atom_picker_html()
     assert path.endswith("atom_picker.html")
     assert Path(path).is_file()
+
+
+def test_atom_picker_html_copies_match():
+    m2 = ROOT / "M2_data_extractor" / "atom_picker.html"
+    toolkit = (
+        ROOT
+        / "Getting_started_with_examples"
+        / "descriptor_extraction_toolkit"
+        / "atom_picker.html"
+    )
+    assert m2.is_file()
+    assert toolkit.is_file()
+    assert m2.read_bytes() == toolkit.read_bytes()
 
 
 def test_root_redirects_to_visual(client):
@@ -163,6 +192,89 @@ def test_extract_needs_feather_dir(client):
     assert response.status_code == 400
     body = response.get_json()
     assert "feather" in body["error"].lower()
+
+
+def test_extract_stream_needs_feather_dir(client):
+    response = client.post("/extract", json={
+        "config": {"engines": {"descripytor_full": {"enabled": True}}},
+        "stream": True,
+    })
+    assert response.status_code == 400
+    body = response.get_json()
+    assert "feather" in body["error"].lower()
+
+
+def test_extract_stream_emits_start(client):
+    from M2_data_extractor.gui_server import example_feather_dir
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    response = client.post("/extract", json={
+        "config": {"engines": {}, "feather_dir": directory},
+        "stream": True,
+    })
+    assert response.status_code == 200
+    assert "ndjson" in (response.mimetype or "")
+    lines = [ln for ln in response.get_data(as_text=True).splitlines() if ln.strip()]
+    events = [json.loads(ln) for ln in lines]
+    assert events[0]["event"] == "start"
+    assert events[0]["n"] >= 18
+    assert any(e.get("event") == "error" for e in events)
+
+
+def test_molecules_reports_load_progress(tmp_path, monkeypatch):
+    import os
+    from M2_data_extractor import data_extractor as de
+
+    de._MOLECULES_CACHE.clear()
+
+    class Dummy:
+        def __init__(self, data_file, threshold=1.82):
+            self.molecule_name = os.path.splitext(os.path.basename(data_file))[0]
+
+    monkeypatch.setattr(de, "Molecule", Dummy)
+    (tmp_path / "a.feather").write_bytes(b"x")
+    (tmp_path / "b.feather").write_bytes(b"x")
+    events = []
+    mols = de.Molecules(str(tmp_path), progress=events.append)
+    assert events[0]["event"] == "start"
+    assert events[0]["n"] == 2
+    assert events[0]["phase"] == "load"
+    progress = [e for e in events if e.get("event") == "progress"]
+    assert len(progress) == 2
+    assert {e["name"] for e in progress} == {"a", "b"}
+    assert progress[-1]["i"] == 2
+    assert len(mols.success_molecules) == 2
+
+
+def test_molecules_reuses_folder_cache(tmp_path, monkeypatch):
+    import os
+    from M2_data_extractor import data_extractor as de
+
+    de._MOLECULES_CACHE.clear()
+    calls = {"n": 0}
+
+    class Dummy:
+        def __init__(self, data_file, threshold=1.82):
+            calls["n"] += 1
+            self.molecule_name = os.path.splitext(os.path.basename(data_file))[0]
+
+    monkeypatch.setattr(de, "Molecule", Dummy)
+    (tmp_path / "a.feather").write_bytes(b"x")
+    (tmp_path / "b.feather").write_bytes(b"x")
+    first = de.Molecules(str(tmp_path))
+    assert calls["n"] == 2
+    second = de.Molecules(str(tmp_path))
+    assert calls["n"] == 2
+    assert second.success_molecules == first.success_molecules
+
+
+def test_3dmol_static_is_local_or_cdn(client):
+    response = client.get("/static/3Dmol-min.js", follow_redirects=False)
+    assert response.status_code in (200, 302)
+    if response.status_code == 302:
+        assert "3dmol" in (response.headers.get("Location") or "").lower()
 
 
 def test_model_run_needs_csv(client):
@@ -260,6 +372,13 @@ def test_browse_folder_returns_path(client, monkeypatch):
     assert body["path"].endswith("feathers")
 
 
+def test_folder_dialog_helper_ships_with_package():
+    helper = ROOT / "M2_data_extractor" / "_folder_dialog.py"
+    assert helper.is_file()
+    text = helper.read_text(encoding="utf-8")
+    assert "askdirectory" in text
+
+
 def test_browse_folder_cancelled(client, monkeypatch):
     import M2_data_extractor.gui_server as gs
 
@@ -335,9 +454,23 @@ def test_placeholder_path_ignores_double_underscore_in_real_paths():
 
     assert _is_placeholder_path("")
     assert _is_placeholder_path(r"C:\path\to\your\feathers")
+    assert _is_placeholder_path("path/to/your/feathers")
     assert _is_placeholder_path("__XYZ_DATA__")
     assert not _is_placeholder_path(r"C:\Users\edens\__backup__\mols")
     assert not _is_placeholder_path(r"C:\Users\edens\Documents\GitHub\DescriPyTor_to_upload")
+
+
+def test_gui_payload_is_current():
+    from M2_data_extractor.gui_server import _gui_payload_is_current
+
+    assert not _gui_payload_is_current({"ok": True, "version": "1.0"})
+    assert _gui_payload_is_current({"ok": True, "api": 2})
+    assert _gui_payload_is_current({
+        "ok": True,
+        "example_presets": {},
+        "example_reference_name": "basic",
+    })
+    assert not _gui_payload_is_current(None)
 
 
 def test_folder_summary_example_set(client):
@@ -349,8 +482,8 @@ def test_folder_summary_example_set(client):
     response = client.post("/folder/summary", json={"directory": directory})
     assert response.status_code == 200
     body = response.get_json()
-    assert body["n"] >= 18
-    assert "unsub" in body["names"]
+    assert body["n"] >= 26
+    assert "basic" in body["names"]
 
 
 def test_numbering_flags_out_of_range_index(client):
@@ -379,7 +512,7 @@ def test_numbering_flags_out_of_range_index(client):
     assert body["n_flagged"] == body["n_mols"]
 
 
-def test_numbering_without_reference_uses_folder_unsub(client):
+def test_numbering_without_reference_uses_folder_basic(client):
     from M2_data_extractor.gui_server import example_feather_dir
 
     directory = example_feather_dir()
@@ -399,5 +532,5 @@ def test_numbering_without_reference_uses_folder_unsub(client):
         pytest.skip("could not load example feathers in this environment")
     assert response.status_code == 200
     body = response.get_json()
-    assert body["reference"] == "unsub"
+    assert body["reference"] == "basic"
     assert body["n_mols"] == 2

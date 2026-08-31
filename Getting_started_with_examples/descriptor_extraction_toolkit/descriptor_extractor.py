@@ -142,10 +142,11 @@ def build_answers_dict(short: dict) -> dict:
 class ExtractionContext:
     """Holds the lazily-loaded molecule sets so engines can share them."""
 
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: dict, progress=None):
         self.cfg = cfg
         self.root_dir = cfg.get("root_dir") or DEFAULT_ROOT_DIR
         _add_descripytor_to_path(self.root_dir)
+        self.progress = progress
         self._feather_mols = None
         self._xyz_mols = None
         self._xyz_map = None
@@ -160,7 +161,11 @@ class ExtractionContext:
 
             path = self.cfg["feather_dir"]
             print(f"[load] feather set <- {path}")
-            self._feather_mols = Molecules(path)
+            self._feather_mols = Molecules(
+                path,
+                progress=self.progress,
+                file_limit=self.cfg.get("file_limit"),
+            )
             names = [m.molecule_name for m in self._feather_mols.molecules]
             print(f"[load] {len(names)} molecules: {names}")
         return self._feather_mols
@@ -442,7 +447,7 @@ ENGINES = {
 # --------------------------------------------------------------------------- #
 # 3.  Runner
 # --------------------------------------------------------------------------- #
-def run_from_config(config, stop_check=None) -> pd.DataFrame:
+def run_from_config(config, stop_check=None, progress=None) -> pd.DataFrame:
     """
     Run all enabled engines described in `config` (a dict or path to a JSON
     file) and return the merged features DataFrame.  Also writes the merged
@@ -452,6 +457,9 @@ def run_from_config(config, stop_check=None) -> pd.DataFrame:
     returns truthy, the run stops early (whatever engines already finished are
     still merged and returned/written) - used by the webapp's Cancel button.
     Cancellation is only checked *between* engines, not mid-engine.
+
+    progress : optional callable(event_dict).  Molecules.__init__ reports
+    per-file load events; each engine start is reported as phase "engine".
     """
     if isinstance(config, (str, Path)):
         with open(config, "r", encoding="utf-8") as f:
@@ -471,7 +479,7 @@ def run_from_config(config, stop_check=None) -> pd.DataFrame:
             picked.get("atoms", picked)
         )
 
-    ctx = ExtractionContext(cfg)
+    ctx = ExtractionContext(cfg, progress=progress)
     engines_cfg = cfg.get("engines", {})
 
     results = []
@@ -488,6 +496,8 @@ def run_from_config(config, stop_check=None) -> pd.DataFrame:
             continue
         fn, _need = ENGINES[name]
         print(f"\n=== engine: {name} ===")
+        if progress:
+            progress({"event": "progress", "phase": "engine", "name": name, "i": 0, "n": 0})
         try:
             df = fn(ctx, ecfg)
         except Exception as e:  # noqa - report and keep going
@@ -527,8 +537,8 @@ def build_template_config() -> dict:
     """A fully-populated example config users can trim down."""
     return {
         "root_dir": DEFAULT_ROOT_DIR,
-        "feather_dir": r"C:\path\to\your\feathers",
-        "xyz_dir": r"C:\path\to\your\xyz",
+        "feather_dir": "path/to/your/feathers",
+        "xyz_dir": "path/to/your/xyz",
         # If True, xyz-based engines use .xyz files exported from feather xyz_df.
         # Optional derived_xyz_dir controls where those files are written.
         "derive_xyz_from_feathers": False,
@@ -615,7 +625,7 @@ def build_template_config() -> dict:
             },
             "qm": {
                 "enabled": False,
-                "log_dir": r"C:\path\to\your\gaussian_logs",
+                "log_dir": "path/to/your/gaussian_logs",
                 "prefix": "qm_",
             },
             "aqme_qdescp": {

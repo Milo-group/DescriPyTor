@@ -25,7 +25,6 @@ dependencies:
   - pymc
   - arviz
   - networkx
-  - python-igraph
   - umap-learn    # Results tab: PCA/UMAP scatter of the merged feature set
   - dash
   - ipywidgets

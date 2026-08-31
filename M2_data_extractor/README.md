@@ -16,16 +16,15 @@ Turns quantum-chemistry output into model-ready descriptors.
 
 ```python
 from M2_data_extractor.data_extractor import Molecules
+from descripytor.examples import feather_example_dir
 
-molset = Molecules("Getting_started_with_examples/feather_example", threshold=1.82)
+molset = Molecules(str(feather_example_dir()), threshold=1.82)
 
 molset.success_molecules   # files that parsed
 molset.failed_molecules    # files that did not — check these before trusting a run
 ```
 
-`Molecules` scans the directory for `*.feather` (and `*.json`) and builds a `Molecule` for
-each. `threshold` is the distance cutoff used to infer bonds — raise it slightly if bonds
-are missing, lower it for a stricter graph.
+`Molecules` loads `*.feather` (and `*.json`). `threshold` is the bond-distance cutoff.
 
 Don't have feathers yet? Convert Gaussian logs first:
 
@@ -48,8 +47,8 @@ molset.show_ring_atoms(n=5)          # inspect detected ring systems
 
 ## The one call that does everything
 
-`get_molecules_features_set` is what the atom picker and the CLI both drive. Give it the
-atom groups per descriptor family and it returns a single feature matrix.
+`get_molecules_features_set` is what the picker and CLI call. Pass atom groups per family;
+you get one feature matrix.
 
 ```python
 features = molset.get_molecules_features_set(
@@ -70,22 +69,20 @@ features = molset.get_molecules_features_set(
 )
 ```
 
-**Keys are matched on the longest descriptor name they start with**, ignoring case,
-punctuation and any trailing help text. So all of these reach `bond_length`:
+**Keys match the longest descriptor name they start with** (case, punctuation, and help
+text ignored). All of these hit `bond_length`:
 
 ```text
 'Bond-Length'   'Bond length  [a, b]'   'Bond_length - Atom pairs to calculate difference: …'
 ```
 
-That is why the picker can use long descriptive labels and still hit the right extractor.
-A label that matches nothing is **reported**, not silently dropped — if you see
+That is why the picker can use long labels. An unmatched label is **reported**, not dropped:
 
 ```text
 Warning: ignoring unrecognized feature-set entry 'Wibble atoms' - no descriptor matches it.
 ```
 
-then that field contributed no columns. Two labels resolving to the same descriptor are
-reported too, and the populated one wins.
+then that field added no columns. Two labels for the same descriptor: the populated one wins.
 
 | Key | Expects | Produces |
 |---|---|---|
@@ -103,19 +100,16 @@ Auxiliary keys tune the above rather than adding columns: `Stretch` and `Upper-S
 (frequency window), `Bend` (threshold), `Drop-Atoms` (exclude from Sterimol),
 `Center_Atoms` (move the dipole frame's origin — see [Dipoles](#dipoles)).
 
-`parameters` takes `Radii` (`'CPK'`, `'bondi'`, `'Pyykko'`) and `Isotropic` — when true,
-polarizability and energy are appended per molecule. Steps you leave out are skipped, and a
-molecule that fails one extractor is reported and skipped rather than killing the run.
+`parameters`: `Radii` (`'CPK'`, `'bondi'`, `'Pyykko'`) and `Isotropic` (append polarizability
+and energy). Skipped steps are skipped. One failed molecule is reported; the run continues.
 
-With `save_as=True` you get `features_csv_<timestamp>.csv` plus a correlation table, so
-repeated runs never silently overwrite each other.
+`save_as=True` writes `features_csv_<timestamp>.csv` plus a correlation table.
 
 ---
 
 ## Batch extractors
 
-Call these directly when you want one descriptor family. Each returns a wide DataFrame with
-a column block per molecule.
+Call these for one family. Each returns a wide DataFrame.
 
 ```python
 molset.get_sterimol_dict([[1,6],[3,4]], radii='CPK', drop_atoms=None)

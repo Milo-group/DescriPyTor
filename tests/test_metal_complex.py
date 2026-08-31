@@ -117,38 +117,107 @@ class TestTopology:
         assert not bad, bad[:5]
 
 
-def _081_ensemble_path() -> Path | None:
-    local = FIXTURES / "081_lig.finalensemble.xyz"
+EXPECTED_SMALL = FIXTURES / "expected_cc_goat_ens_small.csv"
+SMALL_GOAT = ("081_lig", "072_lig", "080_lig", "083_lig")
+
+
+def _ensemble_path(stem: str) -> Path | None:
+    local = FIXTURES / f"{stem}.finalensemble.xyz"
     if local.is_file():
         return local
     pad = scratchpad()
     if pad is not None:
-        candidate = pad / "cbens" / "081_lig.finalensemble.xyz"
+        candidate = pad / "cbens" / f"{stem}.finalensemble.xyz"
         if candidate.is_file():
             return candidate
     return None
 
 
+def _081_ensemble_path() -> Path | None:
+    return _ensemble_path("081_lig")
+
+
+def _expected_geom_table() -> pd.DataFrame | None:
+    if EXPECTED_SMALL.is_file():
+        return pd.read_csv(EXPECTED_SMALL, index_col=0)
+    table = GEOM / "desc_cc_goat_ens.csv"
+    if table.is_file():
+        return pd.read_csv(table, index_col=0)
+    return None
+
+
+@pytest.mark.parametrize("stem", SMALL_GOAT)
+def test_small_goat_matches_published_geom(stem):
+    path = _ensemble_path(stem)
+    want_table = _expected_geom_table()
+    if path is None or want_table is None or stem not in want_table.index:
+        pytest.skip(f"fixture or expected row missing for {stem}")
+    ens = MetalComplexEnsemble.from_xyz(path, name=stem)
+    got = ens.geometric_features()
+    want = want_table.loc[stem]
+    cols = [c for c in want.index if c in got]
+    bad = _compare_row(got, want, cols, atol=1e-8)
+    assert not bad, bad
+    assert got["n_conformers"] == want["n_conformers"]
+
+
 @pytest.mark.skipif(_081_ensemble_path() is None, reason="081_lig GOAT ensemble not available")
 class TestGoatGeometry081:
-    def test_recreates_desc_cc_goat_ens_row(self):
-        table = GEOM / "desc_cc_goat_ens.csv"
-        if not table.is_file():
-            pytest.skip("CS3 geom table not in this checkout")
-        path = _081_ensemble_path()
-        ens = MetalComplexEnsemble.from_xyz(path)
-        assert ens.n_conformers == 2
-        got = ens.geometric_features()
-        want = pd.read_csv(table, index_col=0).loc["081_lig"]
-        cols = [c for c in want.index if c in got]
-        bad = _compare_row(got, want, cols, atol=1e-8)
-        assert not bad, bad
-        assert got["n_conformers"] == want["n_conformers"]
-
     def test_xyz_ensemble_last_float_energy(self):
         ens = XYZEnsemble(_081_ensemble_path(), energy_convention="last")
         assert ens.n_conformers == 2
         assert ens.energies_hartree[0] == pytest.approx(-72.9194827032)
+
+
+class TestXtbParsers:
+    def test_parse_props_file(self, tmp_path):
+        path = tmp_path / "props.txt"
+        path.write_text("081_lig 0.10 -0.20 0.30 -8.9532 -8.1422\n", encoding="utf-8")
+        out = parse_props_file(path)
+        assert out["081_lig"]["homo"] == pytest.approx(-8.9532)
+        assert out["081_lig"]["lumo"] == pytest.approx(-8.1422)
+        assert out["081_lig"]["dipole"][0] == pytest.approx(0.10)
+
+    def test_parse_dump_and_map_onto_tiny_ni(self, tmp_path):
+        dump = tmp_path / "ni.txt"
+        dump.write_text(
+            "F cheap 0\n"
+            "Q -0.50 0.10 0.10 -0.05 -0.05\n"
+            "W 2 0.40 3 0.40 4 0.90 5 0.90\n"
+            "D 0.10 0.00 0.00\n"
+            "E -8.00 -7.00\n",
+            encoding="utf-8",
+        )
+        sp = XtbSinglePoint.parse_dump(dump)["cheap"][0]
+        assert sp.gap == pytest.approx(1.0)
+        assert sp.dipole_unit == "au"
+        xyz = ROOT / "tests" / "data" / "small_set" / "xyz" / "tiny_nih2n2.xyz"
+        if not xyz.is_file():
+            pytest.skip("tiny_nih2n2.xyz missing")
+        mc = MetalComplex.from_xyz(xyz)
+        elec = mc.electronic_features(sp)
+        assert elec["q_metal"] == pytest.approx(-0.50)
+        assert elec["q_anc_sum"] == pytest.approx(0.20)
+        assert elec["wbo_MD_sym"] == pytest.approx(0.90)
+        assert elec["wbo_MD_asym"] == pytest.approx(0.0)
+        assert elec["gap"] == pytest.approx(1.0)
+
+    def test_from_files_q_and_wbo(self, tmp_path):
+        q_path = tmp_path / "x.q"
+        w_path = tmp_path / "x.wbo"
+        q_path.write_text("-0.50 0.10 0.10 -0.05 -0.05\n", encoding="utf-8")
+        w_path.write_text("1 4 0.91\n1 5 0.89\n", encoding="utf-8")
+        # electronic_features always rotates the dipole into the N–M–N frame
+        sp = XtbSinglePoint.from_files(
+            q_path, wbo_path=w_path, homo=-8.0, lumo=-7.5, dipole=[0.10, 0.0, 0.0]
+        )
+        xyz = ROOT / "tests" / "data" / "small_set" / "xyz" / "tiny_nih2n2.xyz"
+        if not xyz.is_file():
+            pytest.skip("tiny_nih2n2.xyz missing")
+        elec = MetalComplex.from_xyz(xyz).electronic_features(sp)
+        assert elec["wbo_MD_sym"] == pytest.approx(0.90)
+        assert elec["homo"] == pytest.approx(-8.0)
+        assert elec["lumo"] == pytest.approx(-7.5)
 
 
 CHARGE_WBO_COLS = [

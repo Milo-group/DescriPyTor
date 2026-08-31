@@ -1,19 +1,16 @@
-# DescriPyTor descriptor-extraction toolkit
+# Descriptor-extraction toolkit
 
-A small, configurable harness that runs **many descriptor-extraction options**
-over a molecule set in one go. You pick which **engines/packages** to use, give
-each its own config, and choose atoms visually in a **3Dmol.js picker**.
+Run several descriptor engines on one molecule set. Pick atoms in 3D, extract a CSV in the
+GUI, or save `run_config.json` for the CLI.
 
-Built on the same `Molecules` / `Molecules_xyz` API as
-`Practical_Notebook_Features.ipynb`.
-
+Uses the same `Molecules` / `Molecules_xyz` API as `Practical_Notebook_Features.ipynb`.
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `descriptor_extractor.py` | Main runner. Loads a set, runs the enabled engines, merges everything into one CSV. CLI + importable. |
 | `feature_packages.py` | The external descriptor packages ported from `feature_extraction_and_regression.ipynb` (rdkit, mordred, deepchem, rafbl/moltop, qm, aqme_qdescp, morfeus suite). |
-| `atom_picker.html` | Primary visual workflow: 3D atom selection, descriptor-package configuration, extraction export, CSV validation, and M3/BASSA modeling controls. |
+| `atom_picker.html` | 3D picks, visualizations, Extract CSV, optional `run_config.json` |
 | `make_picker.py` | Embeds a *real* molecule (from a feather set or `.xyz`) into the picker and opens it. |
 | `config_example.json` | A starter run config with every engine block. |
 
@@ -23,44 +20,38 @@ Start the picker from the repo root with `descripytor visual`, or embed one mole
 
 ```bash
 # load one molecule of a feather set into the picker
-python make_picker.py --feather-dir ..\feather_example --index 0
+python make_picker.py --feather-dir ..\..\descripytor\examples\feather_example --index 0
 
 # or a single xyz / a folder of xyz
 python make_picker.py --xyz mol.xyz
 python make_picker.py --xyz-dir path\to\xyz --name conf_2
 ```
 
-In the picker: choose a **field** (Sterimol, Bond length, Dipole, Charges, …),
-then **click atoms** in the 3D view. Pair/triplet fields auto-commit at the
-right size; variable fields (bond angle/dihedral) use **Commit group**. Atoms
-are 1-indexed, matching DescriPyTor/Gaussian.
+In the picker: choose a **field**, **click atoms** (1-based, Gaussian style). Pairs and
+triplets auto-commit; variable fields use **Commit group**. **Visualizations** (Sterimol,
+dipole, vibration, feature preview) sit under the picks. Set the feather folder, then
+**Extract CSV** — the table appears in the page; **Download CSV** saves it. **Save picks**
+writes `run_config.json` for later. Extra engines are under **Advanced**.
 
-### Visualize panel (3Dmol.js)
+### Visualizations
 
-Under the 3D view:
+Next to the 3D view:
 
-- **Sterimol** — tick it and choose one of your picked `[origin, attached]`
-  pairs; the L / B1 / B5 vectors are computed live in JavaScript (from
-  coordinates + van der Waals radii) and drawn as arrows with their values.
-- **Dipole** — draws the molecular dipole vector (µ) as an arrow from the
-  molecular center. Needs dipole data, so load the molecule from a feather set
-  via `make_picker.py` (not a bare `.xyz`).
-- **Vibration** — pick a normal mode (frequency / IR intensity) and press
-  **Play**: the atoms oscillate along their displacement vectors. The amplitude
-  slider scales the motion; **arrows** overlays the per-atom displacement
-  vectors. Vibration data also comes from the feather molecule.
+- **Sterimol** — pick an `[origin, attached]` pair; L / B1 / B5 draw live.
+- **Dipole** — molecular dipole from a feather (not a bare `.xyz`).
+- **Vibration** — play a normal mode; amplitude slider and optional arrows.
+- **Feature preview** — overlay the atoms you have already picked.
 
-`make_picker.py --feather-dir … --index N` embeds the dipole vector and all
-normal-mode displacements into the page automatically; a bare `.xyz` still gives
-you the geometry-only Sterimol overlay.
+`make_picker.py --feather-dir … --index N` embeds dipole and modes. A `.xyz` still gets
+geometry-only Sterimol.
 
-Export either:
-- **Download `answers.json`** → feed it to the runner (`atoms_file`), or
-- **Copy the Python `answers_dict`** → paste into a notebook and call
-  `mols.get_molecules_features_set(entry_widgets=answers_dict, ...)`.
+Or export:
 
-`atom_picker.html` also opens on its own (with a demo molecule) — use the
-*Load structure* button to drop in any `.xyz`.
+- **Save picks** → `run_config.json` for `descriptor_extractor.py --config`
+- **Python `answers_dict`** → paste into a notebook
+
+`atom_picker.html` opens on bundled `basic.feather` (unsubstituted benzene) when you run
+`descripytor visual`. Load any `.xyz` or `.feather`.
 
 ## 2. Configure engines
 
@@ -78,9 +69,8 @@ has `"enabled"` plus its own settings:
 
 ### Expanded packages (from `feature_extraction_and_regression.ipynb`)
 
-These run on the `.xyz` set (SMILES is perceived once from the structures and
-shared) or on `.log` files. Each is optional and skips itself with a one-line
-message if its package isn't installed, so a run never dies on a missing dep.
+These run on `.xyz` (SMILES is perceived once) or `.log` files. A missing package is skipped
+with a one-line message.
 
 | Engine | Package | Needs | Config |
 |--------|---------|-------|--------|
@@ -101,9 +91,7 @@ pip install autoqchem      # qm engine (Gaussian logs)
 pip install aqme           # aqme_qdescp engine (also needs a working xTB)
 ```
 
-`rafbl` additionally needs `moltop`. Install it only if you have a working
-`moltop` source or wheel; the Docker image leaves it out because it is not
-reliably available from public package indexes.
+`rafbl` needs `moltop`. Skip it if you have no wheel; the Docker image omits it.
 
 ### AQME: end-to-end SMILES → descriptors
 
@@ -132,11 +120,8 @@ AQME is used two ways here:
    `xyz_out` and enable the xyz engines (`aqme_qdescp`, `morfeus_suite`,
    `rdkit`, `mordred`, …).
 
-`prefix` namespaces each engine's columns so they never collide. In the picker,
-the **Feature packages** checkboxes toggle these engines and the **morfeus_suite
-atoms** rows (Sterimol pair, buried-volume metal, cone-angle apex,
-pyramidalization center) feed `morfeus_suite` — all of it lands in the exported
-`run_config.json`.
+`prefix` namespaces columns. In the picker, **Advanced → Feature packages** toggles engines;
+morfeus atom rows feed `morfeus_suite`. All of that goes into `run_config.json`.
 
 ## 3. Run
 
@@ -154,25 +139,17 @@ df = run_from_config("my_run.json")
 
 ## 4. Model the extracted CSV
 
-Expand **Modeling** in `atom_picker.html`, then click **Use extraction output**.
-If the descriptor CSV does not yet contain the measured target, paste the
-output values into **Output values to merge**. Match them either to CSV row
-order or provide one `name,value` pair per line. **Merge outputs into CSV**
-writes a new CSV and selects it for modeling; the descriptor CSV is not
-overwritten.
+The 3D picker **Model** tab adds an output column (choose one from the CSV or paste values) and runs ordinary least-squares with leave-one-out Q². You can still use the CLI:
 
-The panel then validates that the selected target (normally `output`) is
-numeric, reports the usable descriptors, estimates the M3 feature-combination
-count, and generates a copyable command. With `descripytor visual` running, it
-can execute M3 regression, classification, or BASSA.
+```bash
+descripytor model -m regression -f merged_features.csv -y output --min-features 1 --max-features 3
+```
 
-### Where calculations run
+Or Streamlit tab **5 · Modeling** (`pip install -e ".[webapp]"`, then the webapp / Docker at
+http://localhost:8503). Add a numeric target column (usually `output`) if the CSV is
+descriptors only.
 
-- The molecule display, picking, and visual overlays run in the browser.
-- Extraction, CSV merging, M3, and BASSA run in the Python backend.
-- M3 uses CPU workers selected by **CPU jobs**. BASSA/PyMC also runs on CPU.
-- In Docker, both tools use the CPUs and memory assigned to Docker Desktop.
-  The GUI status reports the number of processors visible inside the container.
+Picking and overlays run in the browser. Extraction and modeling run in Python (CPU).
 
 ### Docker
 
@@ -182,16 +159,11 @@ From the repository root:
 docker compose up --build
 ```
 
-Open the combined atom-picker and modeling GUI at
-`http://localhost:7432/visual`. The Streamlit extraction app is available at
-`http://localhost:8503`. Put local input files in the visible
-`work` folder and use container paths such as `/work/features.csv`
-in the GUI. Generated files written to `/work` appear in that folder too.
+Open the picker at `http://localhost:7432` (forms: `/forms`). Streamlit is at
+`http://localhost:8503`. Put files in `work/`; use `/work/yourfile.feather` in the GUI.
 
 ## Notes
 
-- Set `root_dir` (or the `DESCRIPYTOR_ROOT` env var) to your DescriPyTor
-  checkout so the packages import. In Docker this is `/workspace/descripytor`.
-- Engines fail independently: if one errors it's reported and the rest still
-  run.
-- Rows are natural-sorted (`conf_2` before `conf_10`) like the notebooks.
+- Set `root_dir` or `DESCRIPYTOR_ROOT` to the clone (Docker: `/workspace/descripytor`).
+- Engines fail independently; the rest still run.
+- Rows are natural-sorted (`conf_2` before `conf_10`).

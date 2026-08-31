@@ -1,6 +1,7 @@
-# M3 Modeler — Machine Learning for Molecular Modeling
+# M3 — model search
 
-A comprehensive package for developing, evaluating, and applying machine‑learning models to molecular datasets. Supports both **regression** and **classification** with specialized tools for **feature selection**, **model evaluation**, **predictive analysis**, and dataset **balancing/sampling**.
+Exhaustive feature-subset search for **regression** and **classification**, with leakage-free
+CV, VIF checks, and PDF reports.
 
 ---
 

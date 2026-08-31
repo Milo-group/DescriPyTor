@@ -1631,8 +1631,11 @@ def run_visual_app(host=None, port=None, open_browser=True):
 
     serve(host=host, port=port, open_browser=open_browser)
 
-def run_feature_extraction(input_file, output_file = 'features_set', molecules_dir_name='feather_example'):
+def run_feature_extraction(input_file, output_file = 'features_set', molecules_dir_name=None):
     _load_runtime_dependencies()
+    if not molecules_dir_name:
+        from descripytor.examples import feather_example_dir
+        molecules_dir_name = str(feather_example_dir())
     answers = load_answers_json(input_file)
     mols = load_molecules(molecules_dir_name, renumber=False)
     mols.get_molecules_features_set(answers, save_as=True, csv_file_name=output_file)

@@ -1164,7 +1164,6 @@ def extract_connectivity(xyz_df, threshold_distance=1.82, metals=None,
 
 
 import plotly.graph_objs as go
-from ipywidgets import interact, FloatSlider
 import plotly.io as pio
 
 def interactive_corr_heatmap_with_highlights(

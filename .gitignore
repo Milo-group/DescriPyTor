@@ -46,6 +46,7 @@ work/*
 **/regression_results.txt
 Getting_started_with_examples/descriptor_extraction_toolkit/run_config.json
 Getting_started_with_examples/descriptor_extraction_toolkit/atom_picker_loaded.html
+M2_data_extractor/static/3Dmol-min.js
 *.sdf
 *.mol2
 *.mp4
@@ -56,6 +57,12 @@ Getting_started_with_examples/descriptor_extraction_toolkit/atom_picker_loaded.h
 Desktop - Shortcut.lnk
 Thumbs.db
 .DS_Store
+
+# Local research dumps and editor state — never publish
+tmp/
+node_modules/
+.claude/
+MolFeatures/
 
 # Quantum-chemistry inputs/outputs: too large to commit.
 # The curated sets under Getting_started_with_examples/ are tracked already.

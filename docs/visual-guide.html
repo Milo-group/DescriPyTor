@@ -208,7 +208,7 @@
       <div class="step">
         <div class="n">4</div>
         <h3>Open the picker</h3>
-        <p>In a browser: <b>http://localhost:7432/visual</b></p>
+        <p>In a browser: <b>http://localhost:7432</b></p>
       </div>
     </div>
 
@@ -218,25 +218,25 @@ conda create -n descripytor python=3.10
 conda activate descripytor
 pip install -e .
 descripytor visual</div>
-    <p class="tag" style="margin-top:8px">If RDKit or igraph fail: <b>conda install -c conda-forge rdkit python-igraph</b></p>
-    <p class="tag">The 3D picker is <b>http://localhost:7432/visual</b>. Without <b>/visual</b> you get the form-only GUI.</p>
+    <p class="tag" style="margin-top:8px">If RDKit fails: <b>conda install -c conda-forge rdkit</b></p>
+    <p class="tag">The 3D picker is <b>http://localhost:7432</b>. The form-only GUI is <b>http://localhost:7432/forms</b>.</p>
 
     <h2>Open these pages</h2>
     <div class="browsers">
       <div class="browser">
         <div class="chrome">
           <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          <div class="urlbar">http://localhost:7432/visual</div>
+          <div class="urlbar">http://localhost:7432</div>
         </div>
         <div class="pane">
           <strong>3D atom picker</strong>
-          <span>Start here. Caffeine loads as a demo. Click atoms on the left; set the workflow on the right. Atom numbers are 1-based (Gaussian style).</span>
+          <span>Start here. Caffeine loads as a demo. Click atoms on the left (1-based). Load .xyz or .feather, then Save picks.</span>
         </div>
       </div>
       <div class="browser">
         <div class="chrome">
           <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          <div class="urlbar">http://localhost:7432/</div>
+          <div class="urlbar">http://localhost:7432/forms</div>
         </div>
         <div class="pane">
           <strong>Feature extraction GUI</strong>
@@ -247,11 +247,11 @@ descripytor visual</div>
 
     <div class="shot-wrap">
       <img src="images/gui-picker.png" alt="3D atom picker showing a caffeine demo molecule and the Sterimol pick-atoms panel" />
-      <p class="caption">http://localhost:7432/visual — 3D picker. Load your own file with Choose File.</p>
+      <p class="caption">http://localhost:7432 — 3D picker. Load .xyz or .feather, click atoms, Extract CSV, then Model.</p>
     </div>
     <div class="shot-wrap">
       <img src="images/gui-features.png" alt="Dark-theme feature extraction GUI with input file, atom renumbering, and descriptor checkboxes" />
-      <p class="caption">http://localhost:7432/ — feature GUI.</p>
+      <p class="caption">http://localhost:7432/forms — feature GUI.</p>
     </div>
 
     <h2>In the picker</h2>
@@ -260,9 +260,11 @@ descripytor visual</div>
       <span class="chev">→</span>
       <span class="chip"><em>2</em> Click atoms (1-based)</span>
       <span class="chev">→</span>
-      <span class="chip"><em>3</em> Extract</span>
+      <span class="chip"><em>3</em> Extract CSV</span>
       <span class="chev">→</span>
-      <span class="chip"><em>4</em> Optional: model</span>
+      <span class="chip"><em>4</em> Model tab: output + OLS</span>
+      <span class="chev">→</span>
+      <span class="chip"><em>5</em> Optional: Advanced</span>
     </div>
     <p class="tag" style="margin-top:10px">Example molecules (26 substituted benzenes) ship with the package. Gaussian .log files: convert first with <b>descripytor logs_to_feather</b>.</p>
 
@@ -272,7 +274,7 @@ descripytor visual</div>
         <tr><th>What you see</th><th>What to do</th></tr>
       </thead>
       <tbody>
-        <tr><td>RDKit / igraph / Morfeus import errors</td><td><code>conda install -c conda-forge rdkit python-igraph</code>, then Docker below</td></tr>
+        <tr><td>RDKit / Morfeus import errors</td><td><code>conda install -c conda-forge rdkit</code>, then Docker below</td></tr>
         <tr><td>Port 7432 already in use</td><td>Close the other app using that port</td></tr>
       </tbody>
     </table>

@@ -65,9 +65,9 @@ The repository already includes a small example:
 
 ```bash
 python __main__.py extractor \
-  --input Getting_started_with_examples/feather_example/input_example.json \
+  --input Getting_started_with_examples/input_example.json \
   --output feature_set \
-  --feather_directory Getting_started_with_examples/feather_example
+  --feather_directory descripytor/examples/feather_example
 ```
 
 Outputs typically include:
@@ -109,8 +109,9 @@ sys.path.append(os.path.join(ROOT_DIR, "M2_data_extractor"))
 os.chdir(ROOT_DIR)
 
 from data_extractor import Molecules
+from descripytor.examples import feather_example_dir
 
-feather_path = os.path.join(ROOT_DIR, "Getting_started_with_examples", "feather_example")
+feather_path = str(feather_example_dir())
 mols = Molecules(feather_path)
 
 # first inspect a structure, then build descriptor inputs
@@ -254,7 +255,7 @@ If you are opening DescriPyTor for the first time, this is a good order:
 1. Run `python __main__.py --help`
 2. Open `Getting_started_with_examples/README.md`
 3. Launch `python __main__.py gui`
-4. Run the extractor example on `Getting_started_with_examples/feather_example`
+4. Run the extractor example on `descripytor/examples/feather_example`
 5. Run a small regression search with a conservative `--max-features`
 
 That sequence gives you a feel for the whole stack without throwing you into a multi-million-combination model search on day one.

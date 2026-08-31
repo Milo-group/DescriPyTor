@@ -4,8 +4,30 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from utils import help_functions
 
-import igraph as ig
 import pandas as pd
+import networkx as nx
+
+
+def get_molecule_connections(bonds_df, source, direction):
+    source, direction = int(source), int(direction)
+    graph = nx.from_pandas_edgelist(
+        bonds_df, source=bonds_df.columns[0], target=bonds_df.columns[1],
+        create_using=nx.Graph,
+    )
+    if source not in graph:
+        return np.array([], dtype=int)
+    paths = []
+    for target in list(graph.nodes()):
+        if int(target) == source:
+            continue
+        try:
+            paths.extend(nx.all_simple_paths(graph, source, int(target)))
+        except (nx.NetworkXError, nx.NodeNotFound):
+            continue
+    with_direction = [path for path in paths if direction in path]
+    if not with_direction:
+        return np.array([], dtype=int)
+    return np.unique(help_functions.flatten_list(with_direction))
 def count_0(x):
     """Count the number of leading zeros in a pandas Series before the first non-zero entry."""
     return (x.cumsum() == 0).sum()
@@ -154,13 +176,6 @@ def get_b1s_list(extended_df, scans=90//5):
     # print(f'b1 arrays: {[np.array(b1s),np.array(b1s_loc)]}')
     return [np.array(b1s),np.array(b1s_loc)]
 
-def get_molecule_connections(bonds_df,source,direction):
-    graph=ig.Graph.DataFrame(edges=bonds_df,directed=True)
-    paths=graph.get_all_simple_paths(v=source,mode='all')
-    with_direction=[path for path in paths if (direction in path)]
-    longest_path=np.unique(help_functions.flatten_list(with_direction))
-    return longest_path
-
 
 from scipy.special import cbrt
 
@@ -292,14 +307,6 @@ def direction_atoms_for_sterimol(bonds_df,base_atoms)->list: #help function for 
                 break
     return base_atoms_copy
 
-
-
-def get_molecule_connections(bonds_df,source,direction):
-    graph=ig.Graph.DataFrame(edges=bonds_df,directed=True)
-    paths=graph.get_all_simple_paths(v=source,mode='all')
-    with_direction=[path for path in paths if (direction in path)]
-    longest_path=np.unique(help_functions.flatten_list(with_direction))
-    return longest_path
 
 def calc_new_base_atoms(coordinates_array, atom_indices):  #help function for calc_coordinates_transformation
     """
