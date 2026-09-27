@@ -238,6 +238,7 @@ def generate_q2_scatter_plot(
     fit_line_style="--",
     fit_line_width=1.5,
     save_name="q2_scatter_plot.png",
+    show_leftout_labels=True
 ):
     import os
     import math
@@ -616,7 +617,7 @@ def generate_q2_scatter_plot(
             x_text = x0 + 1.2 * initial_dx * math.cos(angle)
             y_text = y0 + 1.2 * initial_dy * math.sin(angle)
 
-            if label_max == 0 :
+            if not show_leftout_labels:
                 break
 
             t = ax.text(
@@ -661,13 +662,22 @@ def generate_q2_scatter_plot(
                 alpha=0.7
             ),
             ensure_inside_axes=False,
-            expand_axes=True,
+            expand_axes=not equal_aspect,
             lim=max_adjust_iterations
         )
     except Exception:
         pass
 
-    ax.margins(x=0.18, y=0.18)
+    if equal_aspect:
+        # adjust_text(expand_axes=True) and ax.margins() stretch x and y
+        # independently — lock them back so Measured and Predicted share one window.
+        ax.set_xlim(xmin, xmax)
+        ax.set_ylim(xmin, xmax)
+        ticks = np.arange(xmin, xmax + 0.001, 0.5)
+        ax.set_xticks(ticks)
+        ax.set_yticks(ticks)
+    else:
+        ax.margins(x=0.18, y=0.18)
 
     ax.set_xlabel(
     r"Measured $\Delta\Delta G^{\ddagger}$",
@@ -759,16 +769,19 @@ def generate_q2_scatter_plot(
         ax.legend_ = None
 
     if show_metrics:
+        r2_plot = float(corr) ** 2 if np.isfinite(corr) else np.nan
+        lines = [rf"R$^2$ = {r2_plot:.2f}"] if np.isfinite(r2_plot) else []
         if folds_df is not None and not getattr(folds_df, "empty", True):
             q = folds_df.iloc[0]
-            q_txt = (
-            f"R$^2$ = {corr:.2f}"
-            f"\n3-fold Q$^2$: {q.get('Q2_3_Fold', np.nan):.2f}"
-            f"\n5-fold Q$^2$: {q.get('Q2_5_Fold', np.nan):.2f}"
-            f"\nLOOCV Q$^2$: {q.get('Q2_LOOCV', np.nan):.2f}"
-        )
-        else:
-            q_txt = f"R$^2$ = {corr:.2f}"
+            for label, col in (
+                (r"3-fold Q$^2$", "Q2_3_Fold"),
+                (r"5-fold Q$^2$", "Q2_5_Fold"),
+                (r"LOOCV Q$^2$", "Q2_LOOCV"),
+                ("MAE LOO", "MAE_LOOCV"),
+            ):
+                if col in q.index and pd.notna(q[col]):
+                    lines.append(f"{label}: {float(q[col]):.2f}")
+        q_txt = "\n".join(lines) if lines else rf"R$^2$ = {r2_plot:.2f}"
 
         ax.text(
             0.02,
@@ -1710,6 +1723,12 @@ def print_models_regression_table(results, app=None ,model=None):
         'Model_id': model_ids
     })
 
+    # Show multicollinearity flag (VIF > threshold) when search_models computed it
+    if 'max_vif' in results.columns:
+        df['max_VIF'] = results['max_vif'].values
+    if 'high_vif' in results.columns:
+        df['high_VIF'] = results['high_vif'].values
+
     df = df.sort_values(by='Q.sq', ascending=False)
     df.index = range(1, len(df) + 1)
     print(df.head().to_markdown(index=False, tablefmt="pipe"))
@@ -1846,7 +1865,9 @@ def print_models_regression_table(results, app=None ,model=None):
                 equal_aspect=False,             # let it expand horizontally
                 fontsize=10,                    # bigger axes text
                 label_fontsize=8,               # smaller point labels
-                leftout_pred_df=leftout_pred_df
+                leftout_pred_df=leftout_pred_df,
+                label_max=None,
+                show_leftout_labels=True
             )
 
             ip = get_ipython()
@@ -2402,6 +2423,35 @@ def _add_scatter_with_metrics_page(pdf, png_dir, base_name,
     save_fig_both(fig, pdf, png_dir, f"{base_name}__01_scatter_metrics")
 
 
+def _combo_equation_text(features, coef_df=None):
+    """One-line ΔΔG‡ = c1 f1 + c2 f2 + … + intercept, or just the feature names."""
+    names = [str(f) for f in (features or [])]
+    estimates = None
+    if coef_df is not None and not getattr(coef_df, "empty", True):
+        col = "Estimate" if "Estimate" in coef_df.columns else coef_df.columns[0]
+        estimates = coef_df[col]
+    if estimates is None or (names and not any(n in estimates.index for n in names)):
+        return " + ".join(names)
+    parts, intercept = [], 0.0
+    for idx, val in estimates.items():
+        val = float(val)
+        if str(idx) in {"(Intercept)", "Intercept", "const"}:
+            intercept = val
+            continue
+        if not parts:
+            parts.append(f"{val:.3g} {idx}")
+        else:
+            sign = "+" if val >= 0 else "-"
+            parts.append(f"{sign} {abs(val):.3g} {idx}")
+    if not parts:
+        parts = names
+        body = " + ".join(parts)
+    else:
+        body = " ".join(parts)
+    sign = "+" if intercept >= 0 else "-"
+    return rf"$\Delta\Delta G^{{\ddagger}}$ = {body} {sign} {abs(intercept):.3g}"
+
+
 def _draw_scatter_on_ax(ax, y, pred, names, folds_df, features, coef_df,
                         lig_types, leftout_pred_df, scatter_mode, scatter_config):
     """Minimal scatter directly on a supplied Axes (no new figure)."""
@@ -2413,12 +2463,16 @@ def _draw_scatter_on_ax(ax, y, pred, names, folds_df, features, coef_df,
     if scatter_config:
         _eff.update(scatter_config)
     show_metrics       = _eff.get("show_metrics",       scatter_mode == "full")
+    show_equation      = _eff.get("show_equation",      scatter_mode == "full")
     label_max          = _eff.get("label_max",          None if scatter_mode == "full" else 0)
     show_identity_line = _eff.get("show_identity_line", False)
     marker_size        = _eff.get("marker_size",        55)
     marker_edgewidth   = _eff.get("marker_edgewidth",   0.8)
     fit_line_width     = _eff.get("fit_line_width",     1.4)
     fontsize           = _eff.get("fontsize",           11)
+    type_markers       = _eff.get("type_markers",       None)
+    type_colors        = _eff.get("type_colors",        None)
+    show_type_legend    = _eff.get("show_type_legend",   True)
 
     y    = np.asarray(y).ravel()
     pred = np.asarray(pred).ravel()
@@ -2426,9 +2480,40 @@ def _draw_scatter_on_ax(ax, y, pred, names, folds_df, features, coef_df,
                          "Label": np.asarray(names).astype(str),
                          "Residual": pred - y})
 
-    # scatter
-    ax.scatter(data["Measured"], data["Predicted"], s=marker_size, color="#0b0e0b",
-               edgecolors="white", linewidths=marker_edgewidth, zorder=3)
+    # scatter -- one marker shape per ligand type when lig_types is supplied,
+    # otherwise a single uniform scatter (unchanged default behavior)
+    if lig_types is not None and len(lig_types) == len(data):
+        data["Type"] = np.asarray(lig_types).astype(str)
+        type_levels = list(dict.fromkeys(data["Type"]))  # stable order, first-seen
+        default_marker_cycle = ["o", "s", "^", "D", "v", "P", "X", "*", "h"]
+        if type_markers is None:
+            type_markers = {t: m for t, m in zip(type_levels, default_marker_cycle)}
+        else:
+            missing = [t for t in type_levels if t not in type_markers]
+            if missing:
+                cycle = [m for m in default_marker_cycle if m not in type_markers.values()] or default_marker_cycle
+                type_markers = dict(type_markers)
+                for t, m in zip(missing, cycle):
+                    type_markers[t] = m
+        default_color_cycle = plt.rcParams["axes.prop_cycle"].by_key().get("color", ["#0b0e0b"])
+        if type_colors is None:
+            type_colors = {t: c for t, c in zip(type_levels, default_color_cycle)}
+
+        for t in type_levels:
+            sub = data[data["Type"] == t]
+            ax.scatter(sub["Measured"], sub["Predicted"], s=marker_size,
+                       marker=type_markers.get(t, "o"), color=type_colors.get(t, "#0b0e0b"),
+                       edgecolors="white", linewidths=marker_edgewidth, zorder=3, label=str(t))
+        if show_type_legend:
+            # pinned to lower-right, deliberately opposite the metrics box (which is
+            # pinned to upper-left at (0.03, 0.97)) so the two never overlap --
+            # loc="best" was landing on top of the metrics box in practice.
+            ax.legend(title="Ligand type", fontsize=max(fontsize - 3, 7),
+                      title_fontsize=max(fontsize - 2, 8), loc="lower right",
+                      frameon=True, framealpha=0.92, edgecolor="black")
+    else:
+        ax.scatter(data["Measured"], data["Predicted"], s=marker_size, color="#0b0e0b",
+                   edgecolors="white", linewidths=marker_edgewidth, zorder=3)
 
     # left-out points
     if leftout_pred_df is not None and len(leftout_pred_df):
@@ -2476,21 +2561,32 @@ def _draw_scatter_on_ax(ax, y, pred, names, folds_df, features, coef_df,
                     row["Label"], fontsize=7,
                     path_effects=[pe.withStroke(linewidth=2, foreground="white")])
 
-    # metrics box
+    # metrics + feature terms
+    lines = []
+    if show_equation:
+        eqn = _combo_equation_text(features, coef_df)
+        if eqn:
+            lines.append(eqn)
     if show_metrics and folds_df is not None and not getattr(folds_df, "empty", True):
         q    = folds_df.iloc[0]
         corr = float(np.corrcoef(y, pred)[0, 1])
         r2     = corr ** 2
         adj_r2 = _calc_adj_r2(r2, len(y), len(features))
-        txt  = (f"R² = {r2:.3f}"
-                f"\nadj R² = {adj_r2:.3f}"
-                f"\nQ²₃ = {q.get('Q2_3_Fold', float('nan')):.3f}"
-                f"\nQ²₅ = {q.get('Q2_5_Fold', float('nan')):.3f}"
-                f"\nQ²LOO = {q.get('Q2_LOOCV', float('nan')):.3f}")
-        ax.text(0.03, 0.97, txt, transform=ax.transAxes, fontsize=9,
+        lines.extend([f"R² = {r2:.3f}", f"adj R² = {adj_r2:.3f}"])
+        for label, col in (
+            (r"Q²₃", "Q2_3_Fold"),
+            (r"Q²₅", "Q2_5_Fold"),
+            (r"Q²LOO", "Q2_LOOCV"),
+            ("MAE LOO", "MAE_LOOCV"),
+        ):
+            if col in q.index and pd.notna(q[col]):
+                lines.append(f"{label} = {float(q[col]):.3f}")
+    if lines:
+        ax.text(0.03, 0.97, "\n".join(lines), transform=ax.transAxes, fontsize=8,
                 va="top", ha="left",
                 bbox=dict(facecolor="white", edgecolor="black",
                           alpha=0.92, boxstyle="round,pad=0.3"))
+
 
 
 def _add_statistics_page(pdf, png_dir, base_name, folds_df, vif_df, coef_df):
@@ -2713,7 +2809,7 @@ def _build_scatter_display_fig(y, pred, names, folds_df, features, coef_df,
     if scatter_config:
         _eff.update(scatter_config)
     figsize = _eff.pop("figsize", (7, 7))
-    dpi     = _eff.pop("dpi", 150)
+    dpi     = _eff.pop("dpi", 200)
 
     # publication-quality rcParams for paper mode
     if scatter_mode == "paper":
@@ -2743,7 +2839,7 @@ def _build_scatter_display_fig(y, pred, names, folds_df, features, coef_df,
 def _build_violin_display_fig(model, features):
     """Clean violin-only figure for inline display."""
     n_feat = len(features)
-    fig, ax = plt.subplots(figsize=(max(8, 1.4 * n_feat), 5))
+    fig, ax = plt.subplots(figsize=(max(8, 1.4 * n_feat), 5), dpi=200)
     sns.violinplot(data=model.features_df[features], inner="point",
                    cut=0, linewidth=1, ax=ax)
     ax.set_title("Distribution of Selected Features", fontsize=13, fontweight="bold")
@@ -2764,58 +2860,154 @@ def _show_figs(*figs):
     """
     Display one or more matplotlib figures inline (Jupyter) then close them.
     Works transparently in both Jupyter and plain Python (no-op on non-figure items).
+
+    Uses IPython's rich display hook rather than Figure.show(): show() targets
+    interactive GUI backends (Qt/Tk) to pop up a window, and under Jupyter's
+    non-GUI inline backend it either silently no-ops or renders outside the
+    notebook's normal display pipeline -- bypassing InlineBackend.figure_format
+    (retina/svg) and giving a blurrier result than a native inline figure.
+    display(fig) goes through the same rich-display path as returning the
+    figure as a cell's last expression, so it picks up the notebook's actual
+    configured resolution.
     """
+    try:
+        from IPython.display import display as _ipy_display
+        _has_ipy = True
+    except ImportError:
+        _has_ipy = False
+
     for fig in figs:
         if fig is None:
             continue
-        fig.show()
+        if _has_ipy:
+            _ipy_display(fig)
+        else:
+            fig.show()
     # do NOT close — let the notebook keep the figure interactive
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Public wrapper
+# Public wrappers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=None,
-                            scatter_mode="full", scatter_config=None, show=True):
-    """
-    Build a multi-page PDF report for a single feature combination.
+def _ridge_kfold_metrics(X, y, n_splits, alpha, n_iterations=5, random_state=42):
+    """K-fold Q²/MAE/RMSD for intercept-unpenalized ridge (same protocol as LOO)."""
+    from sklearn.model_selection import KFold
+    try:
+        from .modeling import _linear_matrix_fit_predict
+    except ImportError:
+        from modeling import _linear_matrix_fit_predict
 
-    Parameters
-    ----------
-    show : bool
-        When True (default) display the three key figures inline so they are
-        visible immediately in a Jupyter notebook:
-          • Regression scatter + metrics table
-          • Feature violin plots + descriptive statistics
-          • Classification threshold plots
+    X = np.asarray(X, dtype=float)
+    y = np.asarray(y, dtype=float).ravel()
+    n = X.shape[0]
+    k = int(min(max(2, n // 2), int(n_splits)))
+    q2_list, mae_list, rmsd_list = [], [], []
+    n_iter = max(1, int(n_iterations))
+    for it in range(n_iter):
+        rs = None if random_state is None else int(random_state) + it
+        kf = KFold(n_splits=k, shuffle=True, random_state=rs)
+        y_pred_oof = np.empty_like(y, dtype=float)
+        for tr, te in kf.split(X):
+            y_pred_oof[te] = _linear_matrix_fit_predict(
+                X[tr], y[tr], X[te], alpha=alpha, scale=True,
+            )
+        q2_list.append(float(r2_score(y, y_pred_oof)))
+        mae_list.append(float(mean_absolute_error(y, y_pred_oof)))
+        rmsd_list.append(float(np.sqrt(mean_squared_error(y, y_pred_oof))))
+    return float(np.nanmean(q2_list)), float(np.mean(mae_list)), float(np.mean(rmsd_list))
 
-    Pages (PDF)
-    -----------
-    1  Scatter + metrics/coefficients panel
-    2  Statistics (CV table, VIF, coefficients)
-    3  External validation (scatter + predictions table)
-    4  Feature violin plots + descriptive statistics table
-    5  SHAP (if available)
-    6+ Threshold analysis
-    7+ Sanity checks
-    8  Regression diagnostics
-    """
-    # ── compute everything first ──────────────────────────────────────────────
-    X, y       = _extract_Xy(model, features)
-    pred, _    = _fit_and_predict(model, features)
-    folds_df, Q2_loo             = _compute_cv_metrics(model, X, y)
-    leftout_pred_df, r2_lo, mae_lo = _compute_leftout(model, features)
-    vif_df                       = _compute_vif(model, features)
-    r2_in, mae_in                = _in_sample_stats(y, pred)
-    (_, _, _), coef_df           = _coeffs_and_intervals(model, X, features)
 
-    # ── paths ─────────────────────────────────────────────────────────────────
+def _compute_ridge_cv_metrics(X, y, alpha=1.0):
+    """3-fold / 5-fold / LOO metrics using ridge α (intercept unpenalized)."""
+    try:
+        from .modeling import _analytic_loo_linear
+    except ImportError:
+        from modeling import _analytic_loo_linear
+
+    Q2_3, MAE_3, rmsd_3 = _ridge_kfold_metrics(X, y, 3, alpha)
+    Q2_5, MAE_5, rmsd_5 = _ridge_kfold_metrics(X, y, 5, alpha)
+    Q2_loo, MAE_loo, rmsd_loo = _analytic_loo_linear(X, y, alpha=alpha)
+    folds_df = pd.DataFrame({
+        "Q2_3_Fold": [Q2_3], "MAE_3": [MAE_3], "RMSD_3": [rmsd_3],
+        "Q2_5_Fold": [Q2_5], "MAE_5": [MAE_5], "RMSD_5": [rmsd_5],
+        "Q2_LOOCV": [Q2_loo], "MAE_LOOCV": [MAE_loo], "RMSD_LOOCV": [rmsd_loo],
+    })
+    return folds_df, Q2_loo
+
+
+def _ridge_in_sample_predict(X, y, alpha=1.0):
+    try:
+        from .modeling import _linear_matrix_fit_predict
+    except ImportError:
+        from modeling import _linear_matrix_fit_predict
+    return _linear_matrix_fit_predict(X, y, X, alpha=alpha, scale=True)
+
+
+def _compute_leftout_ridge(model, features, alpha=1.0):
+    """Left-out predictions with the same ridge α as the training report."""
+    try:
+        from .modeling import _linear_matrix_fit_predict
+    except ImportError:
+        from modeling import _linear_matrix_fit_predict
+
+    if getattr(model, "leftout_samples", None) is None or len(model.leftout_samples) == 0:
+        return None, None, None
+
+    X_train = model.features_df[features]
+    y_train = model.target_vector
+    X_left = model.leftout_samples.reindex(columns=features)
+    y_left = None
+    if getattr(model, "leftout_target_vector", None) is not None:
+        y_left = np.asarray(model.leftout_target_vector).ravel()
+
+    if isinstance(X_left, pd.DataFrame):
+        X_arr = X_left.fillna(0.0).to_numpy(dtype=float)
+    else:
+        X_arr = np.asarray(X_left, dtype=float)
+    if X_arr.ndim == 1:
+        X_arr = X_arr.reshape(-1, 1)
+
+    Xt = X_train.to_numpy() if hasattr(X_train, "to_numpy") else np.asarray(X_train)
+    yt = np.asarray(y_train).ravel()
+    y_pred_left = np.asarray(
+        _linear_matrix_fit_predict(Xt, yt, X_arr, alpha=alpha, scale=True)
+    ).ravel()
+
+    if hasattr(model, "molecule_names_predict") and model.molecule_names_predict is not None:
+        names = list(model.molecule_names_predict)
+    else:
+        names = X_left.index.astype(str).tolist() if hasattr(X_left, "index") else [str(i) for i in range(len(y_pred_left))]
+    if len(names) != len(y_pred_left):
+        names = [str(n) for n in range(len(y_pred_left))]
+
+    if y_left is not None and len(y_left) == len(y_pred_left):
+        df = pd.DataFrame({"Molecule": names, "Actual": y_left, "Predicted": y_pred_left})
+        df["Error in %"] = np.where(
+            df["Actual"] != 0,
+            np.abs(df["Actual"] - df["Predicted"]) / np.abs(df["Actual"]) * 100.0,
+            np.nan,
+        )
+        return df, float(r2_score(y_left, y_pred_left)), float(mean_absolute_error(y_left, y_pred_left))
+
+    df = pd.DataFrame({"Molecule": names, "Predicted": y_pred_left})
+    df["Error in %"] = np.nan
+    return df, None, None
+
+
+def _emit_combo_report(
+    model, features, *,
+    X, y, pred, folds_df, Q2_loo,
+    leftout_pred_df, r2_lo, mae_lo,
+    vif_df, coef_df, r2_in, mae_in,
+    app=None, pdf_name=None, lig_types=None,
+    scatter_mode="full", scatter_config=None, show=True,
+):
+    """Shared PDF + inline display path used by OLS and ridge combo reports."""
     figs_dir, base_name, pdf_path, png_dir = _prepare_paths(model, features, pdf_name)
     print(f"Report → {pdf_path}")
     print(f"PNGs   → {png_dir}")
 
-    # ── inline display (Jupyter) — figures + tables ─────────────────────────────
     display_figs = {}
     if show:
         try:
@@ -2824,7 +3016,6 @@ def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=
         except ImportError:
             _has_ipy = False
 
-        # ── 0. Summary metrics ────────────────────────────────────────────────
         adj_r2 = _calc_adj_r2(r2_in, *X.shape)
         print("\n" + "=" * 58)
         print(f"  {'Metric':<22} {'Value':>10}")
@@ -2843,7 +3034,6 @@ def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=
             print(f"  {'MAE (held-out)':<22} {mae_lo:>10.4f}")
         print("=" * 58 + "\n")
 
-        # ── 1. Regression scatter ─────────────────────────────────────────────
         try:
             fig_scatter = _build_scatter_display_fig(
                 y, pred, model.molecule_names, folds_df, features, coef_df,
@@ -2854,7 +3044,6 @@ def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=
         except Exception as e:
             print(f"[display scatter] {e}")
 
-        # ── 2. CV metrics table ───────────────────────────────────────────────
         if folds_df is not None and not folds_df.empty:
             print("\n── Cross-validation metrics ──")
             if _has_ipy:
@@ -2862,7 +3051,6 @@ def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=
             else:
                 print(folds_df.round(4).to_string())
 
-        # ── 3. Coefficients & VIF ─────────────────────────────────────────────
         if coef_df is not None and not coef_df.empty:
             print("\n── Coefficients ──")
             if _has_ipy:
@@ -2877,7 +3065,6 @@ def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=
             else:
                 print(vif_df.round(3).to_string())
 
-        # ── 4. Held-out predictions table ─────────────────────────────────────
         if leftout_pred_df is not None and not leftout_pred_df.empty:
             print("\n── Held-out set predictions ──")
             if _has_ipy:
@@ -2885,7 +3072,6 @@ def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=
             else:
                 print(leftout_pred_df.round(4).to_string())
 
-        # ── 5. Feature violin ────────────────────────────────────────────────
         try:
             fig_violin = _build_violin_display_fig(model, features)
             _show_figs(fig_violin)
@@ -2893,7 +3079,6 @@ def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=
         except Exception as e:
             print(f"[display violin] {e}")
 
-        # ── 6. Classification threshold plots ─────────────────────────────────
         try:
             _, thresh_figs = threshold_analysis_plot(
                 model.target_vector,
@@ -2912,7 +3097,6 @@ def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=
         except Exception as e:
             print(f"[{label}] {e}")
 
-    # ── build PDF (plt.show suppressed — display already handled above) ───────
     import unittest.mock as _mock
     _noop = lambda *a, **kw: None
     if pdf_path is not None:
@@ -2980,6 +3164,93 @@ def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=
         "leftout":   {"df": leftout_pred_df, "R2": r2_lo, "MAE": mae_lo},
         "figures":   display_figs,
     }
+
+
+def run_single_combo_report(model, features, app=None, pdf_name=None, lig_types=None,
+                            scatter_mode="full", scatter_config=None, show=True):
+    """
+    Build a multi-page PDF report for a single feature combination.
+
+    Uses the package default analytic LOO (α = 10⁻⁵). For manuscript-style
+    ridge (λ = 1, intercept unpenalized) use :func:`run_ridge_combo_report`.
+
+    Parameters
+    ----------
+    show : bool
+        When True (default) display the three key figures inline so they are
+        visible immediately in a Jupyter notebook:
+          • Regression scatter + metrics table
+          • Feature violin plots + descriptive statistics
+          • Classification threshold plots
+
+    Pages (PDF)
+    -----------
+    1  Scatter + metrics/coefficients panel
+    2  Statistics (CV table, VIF, coefficients)
+    3  External validation (scatter + predictions table)
+    4  Feature violin plots + descriptive statistics table
+    5  SHAP (if available)
+    6+ Threshold analysis
+    7+ Sanity checks
+    8  Regression diagnostics
+    """
+    X, y       = _extract_Xy(model, features)
+    pred, _    = _fit_and_predict(model, features)
+    folds_df, Q2_loo             = _compute_cv_metrics(model, X, y)
+    leftout_pred_df, r2_lo, mae_lo = _compute_leftout(model, features)
+    vif_df                       = _compute_vif(model, features)
+    r2_in, mae_in                = _in_sample_stats(y, pred)
+    (_, _, _), coef_df           = _coeffs_and_intervals(model, X, features)
+    return _emit_combo_report(
+        model, features,
+        X=X, y=y, pred=pred, folds_df=folds_df, Q2_loo=Q2_loo,
+        leftout_pred_df=leftout_pred_df, r2_lo=r2_lo, mae_lo=mae_lo,
+        vif_df=vif_df, coef_df=coef_df, r2_in=r2_in, mae_in=mae_in,
+        app=app, pdf_name=pdf_name, lig_types=lig_types,
+        scatter_mode=scatter_mode, scatter_config=scatter_config, show=show,
+    )
+
+
+def run_ridge_combo_report(model, features, alpha=None, app=None, pdf_name=None,
+                           lig_types=None, scatter_mode="full", scatter_config=None,
+                           show=True):
+    """
+    Same figures, tables, and PDF pages as :func:`run_single_combo_report`,
+    but fit / LOO / k-fold all use intercept-unpenalized ridge with ``alpha``.
+
+    The package ``LinearRegressionModel`` search and ``run_single_combo_report``
+    keep α = 10⁻⁵ in analytic LOO. This helper is the visual twin for the
+    manuscript protocol (typically α = 1).
+    """
+    if alpha is None:
+        alpha = float(getattr(model, "alpha", 1.0))
+    alpha = float(alpha)
+
+    X, y = _extract_Xy(model, features)
+    # Keep model.theta on the same ridge so coefficient / interval helpers match.
+    try:
+        model.fit(X, y, alpha=alpha)
+    except TypeError:
+        model.fit(X, y)
+
+    pred = _ridge_in_sample_predict(X, y, alpha=alpha)
+    folds_df, Q2_loo = _compute_ridge_cv_metrics(X, y, alpha=alpha)
+    leftout_pred_df, r2_lo, mae_lo = _compute_leftout_ridge(model, features, alpha=alpha)
+    vif_df = _compute_vif(model, features)
+    r2_in, mae_in = _in_sample_stats(y, pred)
+    try:
+        coef_df = model.get_covariance_matrix(features)
+    except Exception:
+        coef_df = pd.DataFrame()
+
+    return _emit_combo_report(
+        model, features,
+        X=X, y=y, pred=pred, folds_df=folds_df, Q2_loo=Q2_loo,
+        leftout_pred_df=leftout_pred_df, r2_lo=r2_lo, mae_lo=mae_lo,
+        vif_df=vif_df, coef_df=coef_df, r2_in=r2_in, mae_in=mae_in,
+        app=app, pdf_name=pdf_name, lig_types=lig_types,
+        scatter_mode=scatter_mode, scatter_config=scatter_config, show=show,
+    )
 
 
 

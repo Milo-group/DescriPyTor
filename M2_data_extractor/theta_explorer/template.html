@@ -1,0 +1,1885 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sterimol θ Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+:root{--ground:#F2F4F7;--panel:#FFF;--ink:#151A21;--ink-2:#434C59;--ink-3:#6B7482;--rule:#D3D9E1;--rule-2:#E3E7ED;
+ --theta:#3450A8;--b5:#93600F;--ok:#2F7A4F;--err:#B4232A;--field:#F7F8FA;--shadow:0 6px 24px rgba(21,26,33,.14)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ground:#0F1318;--panel:#161B22;--ink:#E6EAF0;--ink-2:#B3BBC7;
+ --ink-3:#838C9A;--rule:#2B323C;--rule-2:#1F252D;--theta:#98ACEF;--b5:#DEA859;--ok:#7CC79B;--err:#F08A8A;--field:#1B212A;
+ --shadow:0 6px 24px rgba(0,0,0,.5)}}
+:root[data-theme="dark"]{--ground:#0F1318;--panel:#161B22;--ink:#E6EAF0;--ink-2:#B3BBC7;--ink-3:#838C9A;--rule:#2B323C;--rule-2:#1F252D;
+ --theta:#98ACEF;--b5:#DEA859;--ok:#7CC79B;--err:#F08A8A;--field:#1B212A;--shadow:0 6px 24px rgba(0,0,0,.5)}
+*{box-sizing:border-box}
+html,body{background:var(--ground)}
+body{margin:0;color:var(--ink);padding-inline:20px;padding-block:0 48px;font-family:"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif;
+ font-size:15px;line-height:1.55}
+.plate{max-width:1240px;margin-inline:auto}
+header{padding-block:30px 4px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.7rem;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px}
+h1{font-family:"STIX Two Text",Georgia,serif;font-weight:600;font-size:clamp(1.7rem,4vw,2.3rem);line-height:1.08;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 i{color:var(--theta);font-weight:400}
+.lede{color:var(--ink-2);max-width:74ch;margin:10px 0 0;font-size:.95rem}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:6px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:10px 12px;margin-top:18px;z-index:5}
+@media (min-width:1000px){.bar{position:sticky;top:env(safe-area-inset-top,0px)}}
+.grp{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sep{width:1px;align-self:stretch;background:var(--rule-2)}
+@media (max-width:760px){.sep{display:none}}
+select,input[type=number],input[type=text],textarea{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--rule);border-radius:4px;padding:4px 8px}
+select{max-width:260px}
+input[type=number]{width:4.6em;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+button,.filebtn{font:inherit;font-size:.86rem;color:var(--ink);background:var(--panel);border:1px solid var(--rule);border-radius:4px;
+ padding:4px 10px;cursor:pointer;white-space:nowrap}
+button:hover,.filebtn:hover{border-color:var(--ink-3)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,.filebtn:focus-within,summary:focus-visible{outline:2px solid var(--theta);outline-offset:2px}
+.filebtn{position:relative;display:inline-block}
+.filebtn input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.role{display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--ink-3)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.dot.base{background:var(--ink)} .dot.axis{background:var(--theta)}
+.sym{font-family:"IBM Plex Mono",monospace;font-size:.8rem;color:var(--ink-2);min-width:2.8em}
+details.paste{flex-basis:100%}
+details.paste summary{cursor:pointer;font-size:.85rem;color:var(--ink-3)}
+textarea{width:100%;height:100px;margin-top:6px;font-family:"IBM Plex Mono",monospace;font-size:.75rem;display:block}
+details.paste button{margin-top:6px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+[hidden]{display:none!important}
+
+.stage{margin-top:14px;padding:12px;display:grid;gap:12px;grid-template-columns:minmax(0,1fr) 340px;align-items:start}
+#figwrap{grid-column:1;grid-row:1;position:relative;border-radius:4px;background:#FFFFFF;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+:root[data-theme="dark"] #figwrap{outline:1px solid var(--rule)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #figwrap{outline:1px solid var(--rule)}}
+#figwrap.dragging{cursor:grabbing}
+#figwrap.brushing{cursor:cell}
+#figwrap.brushing .hit{cursor:cell}
+#fig svg{display:block;width:100%;height:auto;max-height:78vh}
+#fig .fig *{pointer-events:none}
+#fig .fig .hit{pointer-events:all;cursor:pointer}
+#fig .fig .hit:hover,#fig .fig .hit.on{stroke:#6B7482;stroke-width:1.6}
+.hint{position:absolute;left:10px;bottom:8px;margin:0;font-size:.78rem;color:#6B7482;background:rgba(255,255,255,.9);padding:2px 6px;
+ border-radius:3px;pointer-events:none}
+#tip{position:absolute;pointer-events:none;font:500 .78rem "IBM Plex Mono",monospace;color:var(--ink);background:var(--panel);
+ border:1px solid var(--rule);border-radius:3px;padding:1px 6px;transform:translate(10px,-26px);white-space:nowrap}
+#pop{position:absolute;z-index:4;background:var(--panel);border:1px solid var(--rule);border-radius:6px;box-shadow:var(--shadow);
+ padding:8px;display:grid;gap:6px;min-width:190px;transform:translate(-50%,12px)}
+#pop .who{font:500 .82rem "IBM Plex Mono",monospace;color:var(--ink);display:flex;justify-content:space-between;gap:8px}
+#pop .who span{color:var(--ink-3);font-weight:400}
+#pop button{display:flex;align-items:center;gap:8px;justify-content:flex-start;padding:5px 9px;width:100%}
+#pop button.more{justify-content:center;color:var(--ink-3);border-style:dashed;margin-top:6px}
+#pop button[aria-pressed="true"]{border-color:var(--ink-3);background:var(--field)}
+#pop .grp2{display:grid;gap:6px;border-top:1px solid var(--rule-2);padding-top:6px}
+
+.layers{grid-column:2;grid-row:1;padding-left:14px;border-left:1px solid var(--rule-2);max-height:82vh;overflow:auto;display:grid;align-content:start}
+.vals,.foot{grid-column:1/-1}
+@media (max-width:980px){.stage{grid-template-columns:minmax(0,1fr)}.layers{grid-column:1;grid-row:auto;padding-left:0;border-left:0;max-height:none}}
+details.sec{border-bottom:1px solid var(--rule-2);padding-block:4px 10px}
+details.sec:last-child{border-bottom:0}
+details.sec>summary{list-style:none;cursor:pointer;font:500 .7rem "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;
+ color:var(--ink-3);padding-block:6px 2px;display:flex;align-items:center;gap:8px}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary::before{content:"\25B8";font-size:.75rem;transition:transform .15s}
+details.sec[open]>summary::before{transform:rotate(90deg)}
+@media (prefers-reduced-motion:reduce){details.sec>summary::before{transition:none}}
+details.sec>summary .count{margin-left:auto;letter-spacing:0;text-transform:none;font-size:.72rem}
+.body{display:grid;gap:9px;margin-top:6px}
+.list{display:grid;gap:6px}
+.lrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:6px 8px;border:1px solid var(--rule-2);border-radius:5px;font-size:.84rem}
+.lrow.act{border-color:var(--theta)}
+.lrow b{font:500 .82rem "IBM Plex Mono",monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:15em}
+.lrow .v{font:.76rem "IBM Plex Mono",monospace;color:var(--ink-3);flex-basis:100%}
+.lrow .v .err{color:var(--err)}
+.lrow .x{margin-left:auto;padding:0 7px;line-height:1.5}
+.lrow input[type=color]{width:22px;height:22px;padding:0;border:1px solid var(--rule);border-radius:4px;background:none;cursor:pointer}
+.lrow .tag{font:.7rem "IBM Plex Mono",monospace;color:var(--theta);border:1px solid var(--theta);border-radius:3px;padding:0 5px}
+.lrow .own{display:flex;gap:6px;align-items:center;font-size:.76rem;color:var(--ink-3);flex-basis:100%}
+.lrow .own input{width:10em;font:.8rem "IBM Plex Mono",monospace;padding:2px 6px}
+.lrow input.axtag{width:3.6em;font:.78rem "IBM Plex Mono",monospace;padding:1px 5px}
+.lrow .axon{display:flex;gap:4px;align-items:center;font-size:.76rem;color:var(--ink-3)}
+.lrow .axon select{font-size:.76rem;padding:1px 4px;max-width:9em}
+.mini input[type=color]{width:20px;height:20px;padding:0;border:1px solid var(--rule);border-radius:4px;background:none;cursor:pointer}
+.lrow button:not(.x){padding:1px 8px;font-size:.78rem}
+.mini{display:flex;gap:4px 10px;flex-wrap:wrap;font-size:.8rem;color:var(--ink-2)}
+.mini label{display:flex;gap:4px;align-items:center}
+.fields{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:end}
+.fields label{display:grid;gap:2px;font-size:.76rem;color:var(--ink-3)}
+.fields input[type=text]{width:7em;font:.85rem "IBM Plex Mono",monospace;padding:3px 6px}
+.fields select{font-size:.85rem;padding:3px 6px}
+.fields .wide{width:12em}
+table.stack{border-collapse:collapse;font-size:.76rem;width:100%;font-variant-numeric:tabular-nums}
+table.stack th{font-weight:500;color:var(--ink-3);text-align:right;padding:2px 4px}
+table.stack th:first-child{text-align:left}
+table.stack td{padding:2px 4px;text-align:right;border-top:1px solid var(--rule-2)}
+table.stack td:first-child{text-align:left;max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.stack tr.act td{color:var(--ink);font-weight:500}
+table.stack tr.avg td{border-top:1px solid var(--rule);color:var(--theta)}
+.sm-map{color:#2E9E5B}
+#smNote code{font-size:.9em;background:var(--field);padding:0 3px;border-radius:3px}
+.sliders{display:grid;grid-template-columns:6.2em 1fr 2.6em;gap:4px 8px;align-items:center;font-size:.8rem;color:var(--ink-2)}
+.sliders output{font:.76rem "IBM Plex Mono",monospace;color:var(--ink-3);text-align:right}
+.small{font-size:.8rem;color:var(--ink-3);margin:0}
+.dpv{font:.8rem "IBM Plex Mono",monospace;color:var(--ink-2);margin:0}
+
+.vals{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--rule-2);border:1px solid var(--rule-2);
+ border-radius:4px;overflow:hidden;margin:0}
+@media (max-width:640px){.vals{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.vals div{background:var(--panel);padding:7px 9px}
+.vals dt{font-size:.72rem;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vals dt b{color:var(--ink)}
+.vals dd{margin:0;font-family:"IBM Plex Mono",monospace;font-size:.9rem;font-variant-numeric:tabular-nums}
+.vals .th dd{color:var(--theta)}
+.vals .dotk{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0}
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:start}
+.status{font-size:.84rem;color:var(--ink-2);margin:0;display:grid;gap:3px;max-width:82ch}
+.status .ok{color:var(--ok)} .status .err{color:var(--err)}
+.exports{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.exports .ex{display:flex;gap:4px;align-items:center;font-size:.78rem;color:var(--ink-3)}
+.exports .ex select{font-size:.8rem;padding:2px 5px}
+.exnote{flex-basis:100%;margin-top:2px}
+body.embed{padding-inline:12px;padding-block:12px}
+.embed header{display:none}
+.embed .bar{margin-top:0}
+#usegui{border-color:var(--theta);color:var(--theta)}
+.pickrow{display:flex;gap:4px;align-items:center}
+.pick{padding:1px 7px;font-size:.8rem;line-height:1.4}
+.pick[aria-pressed="true"]{background:var(--theta);border-color:var(--theta);color:#fff}
+.armed{outline:2px solid var(--theta);outline-offset:1px}
+.chips{gap:6px}
+.chips button{border-radius:999px;padding:3px 11px;background:var(--field);color:var(--ink-2)}
+.chips button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+.chips button[aria-pressed="true"] sub{color:var(--panel)}
+.chips .lbl{font-size:.78rem;color:var(--ink-3)}
+/*SCENECSS*/
+</style>
+</head>
+<body>
+<header class="plate">
+  <div class="eyebrow">DescriPyTor &middot; Sterimol &middot; dipole &middot; charges &middot; live</div>
+  <h1>Sterimol <i>&theta;</i> explorer</h1>
+  <p class="lede">Every descriptor construction in the paper, drawn on the molecule itself: &theta; from v and its shadow, B<sub>1</sub>
+  and its plane, loc B<sub>5</sub> and B<sub>5</sub>, the dipole frame, charges, and stacks of aligned structures. Drag to turn it;
+  click any atom for its options. The numbers come from a line-for-line port of DescriPyTor&rsquo;s Sterimol, identical to the
+  Python on all 118 axes of the paper&rsquo;s case studies.</p>
+</header>
+
+<main class="plate">
+  <div class="card bar" role="toolbar" aria-label="Molecule and axis">
+    <div class="grp">
+      <label for="mol" class="sr">Molecule</label>
+      <select id="mol"></select>
+      <label class="filebtn" title="Structures (.xyz, multi-frame too, or .sdf), a calculation (.feather or Gaussian .log, which brings the dipole and charges), or a session this page saved (.thetascene.json, or an SVG it exported)">Open files<input id="file" type="file" multiple accept=".xyz,.txt,.sdf,.mol,.feather,.log,.out,.json,.svg" aria-label="Open structures or a session"></label>
+    </div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="grp">
+      <label class="role" for="a"><span class="dot base"></span>Base</label>
+      <input id="a" type="number" min="1" step="1"><span class="sym" id="asym"></span>
+      <button id="swap" type="button" title="Swap base and axis (S)">&#8646; Swap</button>
+      <label class="role" for="b"><span class="dot axis"></span>Axis</label>
+      <input id="b" type="number" min="1" step="1"><span class="sym" id="bsym"></span>
+      <button id="usegui" type="button" hidden>Use in Sterimol &#8599;</button>
+    </div>
+    <span class="sep" aria-hidden="true"></span>
+    <div class="grp">
+      <button id="orient" type="button" title="Look at the active axis as the theta figure does: axis up, v in front of the plane (O)">Orient to axis</button>
+      <button id="reset" type="button" title="Reset the view (R)">Reset view</button>
+    </div>
+    <div class="grp chips" id="chips" role="group" aria-label="Show">
+      <span class="lbl">Show</span>
+      <button type="button" data-chip="sterimol" title="Sterimol on the active axis (S)">Sterimol</button>
+      <button type="button" data-chip="dipole" title="the dipole frame; with empty fields it takes the current base, axis and frame atom">Dipole</button>
+      <button type="button" data-chip="charges" title="colour every atom by its partial charge">Charges</button>
+      <button type="button" data-chip="cone" title="the exact cone angle from the base atom, over every other atom">Cone</button>
+      <button type="button" data-chip="vbur" title="%Vbur on a sphere around the base atom">%V<sub>bur</sub></button>
+      <span class="sep" aria-hidden="true"></span>
+      <button type="button" data-flag="axis" title="the axis, L long">axis</button>
+      <button type="button" data-flag="b1">B<sub>1</sub></button>
+      <button type="button" data-flag="b5" title="B5 and the loc B5 it is read at">B<sub>5</sub> + loc</button>
+      <button type="button" data-flag="theta">&theta;</button>
+      <button type="button" data-flag="phi" title="the azimuth of B5 from the B1 normal, drawn in the end-on view">&phi;</button>
+      <button type="button" data-flag="plane" title="the B1 plane and its parallel through the axis">plane</button>
+      <button type="button" data-flag="inset" title="the end-on view down the axis">end-on</button>
+      <button type="button" data-flag="profile" title="B1 at every rotation of the scan: is this minimum sharp or flat?">B<sub>1</sub> scan</button>
+    </div>
+    <details class="paste">
+      <summary>Paste coordinates</summary>
+      <textarea id="paste" spellcheck="false" aria-label="xyz coordinates" placeholder="3&#10;water&#10;O 0 0 0&#10;H 0.96 0 0&#10;H -0.24 0.93 0"></textarea>
+      <button id="load" type="button">Load pasted molecule</button>
+    </details>
+  </div>
+
+  <section class="card stage">
+    <div id="figwrap">
+      <div id="fig" aria-live="polite"></div>
+      <div id="tip" hidden></div>
+      <div id="pop" hidden role="dialog" aria-label="Choose what to do with this atom">
+        <div class="who"><b id="popname"></b><span id="popnote"></span></div>
+        <div id="popMain" class="grp2" style="border:0;padding:0">
+          <button type="button" data-role="a"><span class="dot base"></span>Make it the base</button>
+          <button type="button" data-role="b"><span class="dot axis"></span>Make it the axis</button>
+          <div class="grp2">
+            <button type="button" data-act="axis">New axis: base &rarr; this atom</button>
+            <button type="button" data-act="q">Show its charge</button>
+            <button type="button" data-act="dpO">Dipole origin: add / remove</button>
+            <button type="button" data-act="fade">Fade / unfade</button>
+          </div>
+          <button type="button" id="popMoreBtn" class="more">More&#8230;</button>
+          <div class="grp2" id="popMore" hidden>
+            <button type="button" data-act="dpY">Dipole axis &ucirc; through it</button>
+            <button type="button" data-act="dpP">Dipole plane through it</button>
+            <button type="button" data-act="align">Align stack on it: add / remove</button>
+            <button type="button" data-act="label">Put its label back</button>
+          </div>
+        </div>
+        <div id="popOver" class="grp2" style="border:0;padding:0" hidden>
+          <button type="button" data-act="measure">Measure this structure</button>
+          <button type="button" data-act="hide">Hide this structure</button>
+        </div>
+      </div>
+      <p class="hint" id="hint">Drag to turn &middot; scroll to zoom &middot; click an atom for its options</p>
+    </div>
+
+    <aside class="layers" id="layers" aria-label="Figure layers">
+      <details class="sec" id="styleCol" open>
+        <summary>Look</summary>
+        <div class="body">
+          <div class="fields"><label for="sLook">look<select id="sLook" class="wide"></select></label></div>
+          <div class="fields">
+            <label for="dsSel">my designs<select id="dsSel"><option value="">&#8212;</option></select></label>
+            <button id="dsSave" type="button" title="keep every setting in this panel under a name">Save as&#8230;</button>
+            <button id="dsDel" type="button" title="forget the design in the box">Forget</button>
+            <button id="dsAll" type="button" title="draw every panel of the sheet with this design">Apply to the sheet</button>
+          </div>
+          <div class="fields">
+            <label for="sPreset">atoms &amp; bonds<select id="sPreset"></select></label>
+            <label for="sPalette">palette<select id="sPalette"></select></label>
+            <label for="sInk">constructions<select id="sInk"></select></label>
+            <label for="sH">hydrogens<select id="sH"><option value="all">all</option><option value="polar">polar only</option><option value="none">none</option></select></label>
+            <label for="sBond">bond colour<select id="sBond"><option value="split">split by atom</option><option value="grey">one colour</option><option value="black">black</option></select></label>
+            <label for="sDip">&mu; arrow<select id="sDip"><option value="gaussian">&#8722; &rarr; + (Gaussian)</option><option value="chemistry">+ &rarr; &#8722; (chemistry)</option></select></label>
+            <label for="sRamp">charge map<select id="sRamp"><option value="bwr">blue &#8211; white &#8211; red</option><option value="puor">purple &#8211; orange (CVD safe)</option></select></label>
+            <label for="sAxM">axis mark<select id="sAxM"><option value="arrow">arrow</option><option value="ruler">ruler (1 &#8491; graduations)</option><option value="tape">tape</option><option value="dim">dimension line</option><option value="pin">pin</option></select></label>
+            <label for="sLoc">loc B<sub>5</sub> mark<select id="sLoc"><option value="tick">tick</option><option value="caret">caret</option><option value="run">run + collar</option><option value="cross">cross</option></select></label>
+            <label for="sVdw">surface<select id="sVdw"><option value="off">off</option><option value="front">over the model</option><option value="back">behind it</option></select></label>
+            <label for="sKind">surface from<select id="sKind"><option value="cpk">CPK spheres</option><option value="density">electron density</option></select></label>
+            <label for="sFeat">feature labels<select id="sFeat"><option value="values">symbol and value</option><option value="symbols">symbol only</option><option value="none">none</option></select></label>
+            <label for="sLab">atom labels<select id="sLab"><option value="off">off</option><option value="heavy">heavy atoms</option><option value="sym">all (C12)</option><option value="num">numbers only</option></select></label>
+          </div>
+          <div class="sliders">
+            <label for="sAtom">atom size</label><input id="sAtom" type="range" min="0.5" max="1.8" step="0.05"><output id="sAtomV"></output>
+            <label for="sBw">bond width</label><input id="sBw" type="range" min="0.4" max="2" step="0.05"><output id="sBwV"></output>
+            <label for="sOl">outline</label><input id="sOl" type="range" min="0" max="2.5" step="0.1"><output id="sOlV"></output>
+            <label for="sFog">depth fog</label><input id="sFog" type="range" min="0" max="1" step="0.05"><output id="sFogV"></output>
+            <label for="sPersp">perspective</label><input id="sPersp" type="range" min="0" max="1" step="0.05"><output id="sPerspV"></output>
+            <label for="sLbl">label size</label><input id="sLbl" type="range" min="0.7" max="1.6" step="0.05"><output id="sLblV"></output>
+            <label for="sVdwO">vdW opacity</label><input id="sVdwO" type="range" min="0.05" max="1" step="0.01"><output id="sVdwOV"></output>
+            <label for="sVdwS">vdW radius &times;</label><input id="sVdwS" type="range" min="0.4" max="1.3" step="0.02"><output id="sVdwSV"></output>
+            <label for="sIso" title="the density the surface is drawn at, in atomic units; cube_sterimol reads 0.003">isovalue (au)</label><input id="sIso" type="range" min="0.0005" max="0.02" step="0.0005"><output id="sIsoV"></output>
+          </div>
+          <div class="mini">
+            <label><input id="sShadow" type="checkbox">soft shadow</label>
+            <label><input id="sMetal" type="checkbox">dashed metal bonds</label>
+            <label><input id="sLead" type="checkbox">leader lines on labels</label>
+            <label><input id="sBg" type="checkbox">transparent export</label>
+
+          </div>
+        </div>
+      </details>
+
+      <details class="sec" open>
+        <summary>Sterimol axes <span class="count" id="axCount"></span></summary>
+        <div class="body">
+          <div id="axList" class="list"></div>
+          <div class="grp"><button id="axAdd" type="button">+ New axis</button><span class="small">The active axis (&#9679;) follows the toolbar and your clicks.</span></div>
+          <div class="grp">
+            <button id="scanPlay" type="button" title="sweep the B1 plane through the rotations the scan tried, and settle on the narrowest">&#9654; Play the scan</button>
+            <input id="scanAt" type="range" min="18" max="107" step="1" value="18" aria-label="rotation of the B1 plane" style="flex:1;min-width:7em">
+            <span class="small" id="scanVal"></span>
+          </div>
+        </div>
+      </details>
+
+      <details class="sec" id="smSec">
+        <summary>Substructure <span class="count" id="smCount"></span></summary>
+        <div class="body">
+          <div class="fields"><label for="smQ">SMARTS<input id="smQ" type="text" class="wide" placeholder="[#7X2]~[#6]1[#8][#6][#6]1"></label></div>
+          <div class="grp chips" id="smChips"></div>
+          <div class="grp">
+            <button id="smPrev" type="button" title="the previous match">&#9664;</button>
+            <span class="small" id="smWhich">no query yet</span>
+            <button id="smNext" type="button" title="the next match">&#9654;</button>
+            <label class="mini"><input id="smAll" type="checkbox" checked>show every match</label>
+            <label class="mini"><input id="smAny" type="checkbox" checked>ignore bond orders</label>
+          </div>
+          <div class="grp">
+            <span class="small">send this match to</span>
+            <button type="button" data-smuse="a" title="its first atom becomes the axis base">axis base</button>
+            <button type="button" data-smuse="b" title="its first atom becomes the axis tip">axis tip</button>
+            <button type="button" data-smuse="dpO">dipole origin</button>
+            <button type="button" data-smuse="q">charges</button>
+            <button type="button" data-smuse="fade">fade</button>
+          </div>
+          <p class="small" id="smNote"></p>
+        </div>
+      </details>
+
+      <details class="sec" id="stSec">
+        <summary>Structures <span class="count" id="stCount"></span></summary>
+        <div class="body">
+          <div id="stList" class="list"></div>
+          <div class="fields">
+            <label for="stAddSel">add a structure<select id="stAddSel"></select></label>
+            <button id="stAdd" type="button">+ Add</button>
+            <label class="filebtn" title=".xyz (multi-frame too) or .sdf; every frame becomes a structure">Add files<input id="stFiles" type="file" multiple accept=".xyz,.txt,.sdf,.mol,.feather,.log,.out" aria-label="Add structure files"></label>
+          </div>
+          <div class="fields">
+            <label for="alMode">align<select id="alMode"><option value="heavy">RMSD, heavy atoms</option><option value="all">RMSD, all atoms</option><option value="atoms">chosen atoms</option><option value="smarts">substructure match</option><option value="none">no alignment</option></select></label>
+            <label for="alAtoms">on atoms (measured numbering)<input id="alAtoms" type="text" class="wide" placeholder="e.g. 23-28, 1"></label>
+          </div>
+          <div class="fields">
+            <label for="ovCol">overlays drawn in<select id="ovCol"><option value="tint">one colour each</option><option value="element">element colours</option></select></label>
+          </div>
+          <div class="sliders">
+            <label for="ovOp">opacity</label><input id="ovOp" type="range" min="0.15" max="1" step="0.05"><output id="ovOpV"></output>
+            <label for="spread">spread &#8491;</label><input id="spread" type="range" min="0" max="12" step="0.5"><output id="spreadV"></output>
+          </div>
+          <div id="stTable"></div>
+          <p class="small">RMSD alignment pairs atoms by number, so it needs the same atoms in the same order (conformers). For a series, list matching atoms: the measured structure&rsquo;s in the box above, each other structure&rsquo;s in its row.</p>
+        </div>
+      </details>
+
+      <details class="sec" id="dpSec">
+        <summary>Dipole frame</summary>
+        <div class="body">
+          <div class="mini"><label><input id="dpOn" type="checkbox">draw the dipole frame</label></div>
+          <div class="fields">
+            <label for="dpO">origin (atom or set)<span class="pickrow"><input id="dpO" type="text" placeholder="23-28"><button type="button" class="pick" data-arm="dpO" title="pick the origin atoms in the figure">&#9678;</button></span></label>
+            <label for="dpY">axis &ucirc;<span class="pickrow"><input id="dpY" type="text" placeholder="23"><button type="button" class="pick" data-arm="dpY" title="pick the axis atom in the figure">&#9678;</button></span></label>
+            <label for="dpP">plane<span class="pickrow"><input id="dpP" type="text" placeholder="1"><button type="button" class="pick" data-arm="dpP" title="pick the plane atom in the figure">&#9678;</button></span></label>
+          </div>
+          <p class="small" id="dpWho"></p>
+          <div class="mini">
+            <label><input type="checkbox" data-dp="frame">frame</label>
+            <label><input type="checkbox" data-dp="mu">&mu;</label>
+            <label><input type="checkbox" data-dp="u">&mu;<sub>u</sub></label>
+            <label><input type="checkbox" data-dp="v">&mu;<sub>v</sub></label>
+            <label><input type="checkbox" data-dp="w">&mu;<sub>w</sub></label>
+          </div>
+          <p class="dpv" id="dpVals"></p>
+          <div class="mini" id="dpCols">arrow colours
+            <label><input type="color" data-dpc="mu" aria-label="colour of mu">&mu;</label>
+            <label><input type="color" data-dpc="u" aria-label="colour of mu u">&mu;<sub>u</sub></label>
+            <label><input type="color" data-dpc="v" aria-label="colour of mu v">&mu;<sub>v</sub></label>
+            <label><input type="color" data-dpc="w" aria-label="colour of mu w">&mu;<sub>w</sub></label>
+            <button type="button" id="dpColReset">default</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="sec" id="qSec">
+        <summary>Charges</summary>
+        <div class="body">
+          <div id="qList" class="list"></div>
+          <div class="fields">
+            <label for="qAtom">atom<span class="pickrow"><input id="qAtom" type="text" placeholder="1"><button type="button" class="pick" data-arm="qAtom" title="pick charge sites in the figure">&#9678;</button></span></label>
+            <label for="qType">type<select id="qType"></select></label>
+            <button id="qAdd" type="button">Add site</button>
+            <label for="qMap">map all atoms<select id="qMap"><option value="">off</option></select></label>
+          </div>
+        </div>
+      </details>
+      <details id="posSec">
+        <summary>Cone angle &amp; buried volume <span id="posCount" class="tag"></span></summary>
+        <div class="body">
+          <div id="posList" class="list"></div>
+          <div class="fields">
+            <label for="cnApex">cone apex<span class="pickrow"><input id="cnApex" type="text" placeholder="1"><button type="button" class="pick" data-arm="cnApex" title="pick the apex in the figure">&#9678;</button></span></label>
+            <label for="cnAtoms" title="which atoms the cone must contain; blank means everything except the apex">over<input id="cnAtoms" type="text" placeholder="all atoms"></label>
+            <button id="cnAdd" type="button">Add cone</button>
+          </div>
+          <div class="fields">
+            <label for="bvAtom">sphere centre<span class="pickrow"><input id="bvAtom" type="text" placeholder="1"><button type="button" class="pick" data-arm="bvAtom" title="pick the centre in the figure">&#9678;</button></span></label>
+            <label for="bvR">radius &#8491;<input id="bvR" type="number" min="1" max="12" step="0.5" value="3.5"></label>
+            <button id="bvAdd" type="button">Add sphere</button>
+          </div>
+          <p class="small">The cone is the exact cone angle from that apex; the sphere is %V<sub>bur</sub> at that centre. Both are gated against morfeus and the package.</p>
+        </div>
+      </details>
+
+      <details class="sec" id="shSec">
+        <summary>Sheet <span class="count" id="shCount"></span></summary>
+        <div class="body">
+          <div class="grp">
+            <button id="shAdd" type="button" title="keep this whole figure as a panel">+ Add this figure</button>
+            <button id="shReplace" type="button" title="overwrite the panel this figure came from">Update the panel</button>
+          </div>
+          <div id="shList" class="list"></div>
+          <div class="fields">
+            <label for="shCols">columns<select id="shCols"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+            <label for="shLetters">letters<select id="shLetters"><option value="a">a b c</option><option value="A">A B C</option><option value="">none</option></select></label>
+            <label for="shGap">gap<input id="shGap" type="number" min="0" max="160" step="8" value="24"></label>
+          </div>
+          <div class="mini">
+            <label><input id="shLook" type="checkbox">draw them all with the design I have now</label>
+            <label><input id="shScale" type="checkbox">one scale for them all</label>
+            <label><input id="shTight" type="checkbox" checked>cut each panel to its drawing</label>
+          </div>
+          <div class="grp">
+            <button id="shSvg" type="button">Sheet SVG</button>
+            <button id="shPng" type="button">Sheet PNG</button>
+            <button id="shClear" type="button">Clear</button>
+          </div>
+          <p class="small" id="shNote"></p>
+        </div>
+      </details>
+
+      <details class="sec" open>
+        <summary>Figure</summary>
+        <div class="body">
+          <div class="fields"><label for="preset">paper preset<select id="preset" class="wide"></select></label><button id="presetApply" type="button">Apply</button></div>
+          <div class="fields">
+            <label for="perA">scale<input id="perA" type="text" placeholder="fit" title="drawing units per Angstrom: hold it to draw separate panels at one scale"></label>
+            <button id="lockScale" type="button" title="hold the scale this molecule is drawn at now">Lock</button>
+            <button id="fitScale" type="button" title="fit each molecule to the panel again">Fit</button>
+            <span class="small" id="scaleNote" style="flex:1 0 100%"></span>
+          </div>
+          <div class="fields">
+            <label for="fade">fade atoms<input id="fade" type="text" placeholder="e.g. 1-5, 30"></label>
+            <button id="fadeBrush" type="button" aria-pressed="false" title="fade atoms by running the pointer over them; hold Alt to bring them back">Brush</button>
+            <button id="fadeNone" type="button" title="bring every atom back">Clear</button>
+          </div>
+          <div class="mini">
+            <label><input id="fadeOff" type="checkbox">fade what no axis measures</label>
+            <label><input id="fadeHide" type="checkbox">drop them instead of fading</label>
+            <label><input id="legend" type="checkbox">value key</label>
+          </div>
+        </div>
+      </details>
+    </aside>
+
+    <dl class="vals" id="vals"></dl>
+    <div class="foot">
+      <div class="status" id="status"></div>
+      <div class="exports">
+        <label class="ex" for="exW">width<select id="exW"><option value="85">85 mm (1 column)</option><option value="174" selected>174 mm (2 columns)</option><option value="120">120 mm</option><option value="240">240 mm (slide)</option></select></label>
+        <label class="ex" for="exDpi">dpi<select id="exDpi"><option>300</option><option selected>600</option><option>1200</option></select></label>
+        <button id="dlsvg" type="button" title="vector, sized in millimetres, with this session inside it">SVG</button>
+        <button id="dlpng" type="button">PNG</button>
+        <button id="copylink" type="button" title="a link that reopens this exact figure">Copy link</button>
+        <button id="savesession" type="button" title="the whole session as a file you can reopen or send">Save session</button>
+        <button id="copypy" type="button" title="the DescriPyTor calls that reproduce these numbers, with assertions">Copy Python</button>
+      </div>
+      <p class="small exnote" id="exNote"></p>
+    </div>
+  </section>
+</main>
+
+<script>/*STERIMOL*/</script>
+<script>/*SCENE*/</script>
+<script>/*PROMOL*/</script>
+<script>/*VBUR*/</script>
+<script>/*SMARTS*/</script>
+<script>
+'use strict';
+const MOLS = /*MOLECULES*/;
+const REFS = /*REFS*/;
+const $ = (id) => document.getElementById(id);
+const S = Sterimol, SC = ThetaScene, esc = SC.esc;
+const st = { structs: [], active: 0, mol: null, xyz: '', key: '', name: '', note: '', entry: null, a: 1, b: 2, res: null,
+  L: null, LR: null, view: { R: null, zoom: 1, perA: 0 }, style: null, align: { mode: 'heavy', atoms: '', spread: 0 }, pop: null, sid: 0, scan: null,
+  sm: { q: '', any: true, all: true, hits: [], k: 0, per: {}, err: '', used: '', busy: false },
+  sheet: { panels: [], at: null, cols: 2, letters: 'a', gap: 24, look: false, scale: false, tight: true }, brush: false };
+// Embedded in a GUI either by URL (/theta?embed=1&theme=dark) or, for an srcdoc
+// iframe that has no URL, by window.THETA_EMBED = {theme, api} written into its <head>.
+const Q = new URLSearchParams(location.search);
+const NAMED = window.THETA_EMBED || {};
+const EMBED = Q.has('embed') || !!window.THETA_EMBED;
+const API = NAMED.api || (location.protocol.startsWith('http') ? '' : null);   // gui_server.py, for the live check
+const LIVE = API !== null;
+if (EMBED) { document.documentElement.dataset.theme = Q.get('theme') || NAMED.theme || 'dark'; document.body.classList.add('embed'); }
+
+const FLAGS = [['axis', 'axis'], ['L', 'L'], ['b1', 'B<sub>1</sub>'], ['plane', 'plane'], ['loc', 'loc B<sub>5</sub>'], ['b5', 'B<sub>5</sub> + loc'], ['theta', '&theta;'], ['phi', '&phi;'], ['drop', 'drop'], ['inset', 'end-on'], ['profile', 'B<sub>1</sub> scan']];
+const ALL = Object.fromEntries(FLAGS.map(([k]) => [k, true]));
+const QN = { nbo: 'NBO', cm5: 'CM5', hirshfeld: 'Hirshfeld' };
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const ARM = { dpO: { what: 'the dipole origin', color: '#E58A1F' }, dpY: { what: 'the dipole axis \u00fb', color: '#2F5BD3' },
+  dpP: { what: 'the dipole plane atom', color: '#2E9E5B' }, qAtom: { what: 'charge sites', color: '#C9352B' } };
+const lbl = (k, el) => { const E = el || (st.mol && st.mol.el); return E && E[k - 1] ? E[k - 1] + k : ''; };
+const emptyLayers = () => ({ axes: [], active: -1, dip: { on: false, origin: '', y: '', plane: '', show: { frame: true, mu: true, u: true, v: false, w: false } },
+  sites: [], map: '', fade: '', fadeOff: false, fadeHide: false, legend: true, labShift: {},
+  cones: [], vburs: [] });
+
+// ---------- structures: the measured one (the alignment reference) and any stacked on it ----------
+function makeStruct(entry, k) {
+  const mol = S.parseXYZ(entry.xyz);
+  // The package bonds at a flat 1.82 A, which misses P-C (1.83-1.87): a phosphorus then looks
+  // three-coordinate short and its Sterimol fragment loses whole substituents. A fixture or a
+  // session may raise the cutoff for its own structure; everything else keeps the package value.
+  mol.thr = entry.thr || 1.82;
+  mol.bonds = S.connectivity(mol.el, mol.X, mol.thr);
+  mol.types = S.atomTypes(mol.el, mol.bonds);
+  mol.dipole = entry.dipole || null;                  // from a .feather/.log (the calculation), never guessed
+  mol.charges = entry.charges || null;
+  const db = SC.displayBonds(mol.el, mol.X, mol.bonds);   // covalent-length pairs the package leaves unbonded
+  mol.displayBonds = db.all; mol.extraBonds = db.extra;
+  return { id: 's' + (++st.sid), name: entry.name, key: entry.key, entry, mol, on: true, own: '', energy: entry.energy ?? null,
+    color: SC.PAL.structs[k % SC.PAL.structs.length], Xd: mol.X, Rm: null, rmsd: null, nAlign: 0, alignErr: '' };
+}
+function framesOf(entry) {                  // an entry is one structure, or an ensemble of frames
+  const fr = entry.frames || [entry];
+  return fr.map((f, k) => Object.assign({}, entry, f, { frames: null, key: fr.length > 1 ? `${entry.key}#${k + 1}` : entry.key }));
+}
+function useActive() {
+  const s = st.structs[st.active];
+  Object.assign(st, { mol: s.mol, xyz: s.entry.xyz, key: s.key, name: s.name, note: s.entry.note || '', entry: s.entry });
+  $('a').max = $('b').max = s.mol.el.length;
+}
+function defaultPair() {
+  const e = st.entry, mol = st.mol, a = e.a && e.a <= mol.el.length ? e.a : 1;
+  let b = e.b && e.b <= mol.el.length ? e.b : 0;
+  if (!b || b === a) { const nb = mol.bonds.find((q) => q[0] === a || q[1] === a); b = nb ? (nb[0] === a ? nb[1] : nb[0]) : Math.min(2, mol.el.length); }
+  return [a, b];
+}
+function load(entry) {                      // a new stack: this entry's structure(s), its first paper preset
+  let structs;
+  try { structs = framesOf(entry).map((f, k) => makeStruct(f, k)); } catch (e) { setStatus([`<span class="err">${esc(e.message)}</span>`]); return; }
+  st.structs = structs; st.active = 0;
+  st.align.atoms = ''; if (st.align.mode === 'atoms') st.align.mode = 'heavy';   // chosen atoms belonged to the old stack
+  useActive();
+  st.view = { R: principalAxes(st.mol.X), zoom: 1, perA: st.view.perA || 0 };
+  realign();
+  const pr = (entry.presets || [])[0];
+  if (pr) { applyPreset(pr); return; }
+  st.L = emptyLayers(); const [a, b] = defaultPair();
+  st.L.axes.push({ a, b, color: SC.PAL.axes[0], show: Object.assign({}, ALL) }); st.L.active = 0; st.L.fadeOff = true;
+  normLayers(); closePop(); syncLayerUI(); refresh(); orient();
+}
+function applyPreset(pr) {                  // its layers, and the view and look a figure preset carries
+  st.L = clone(pr.layers); normLayers(); closePop();
+  if (pr.style) Object.assign(st.style, pr.style.look ? SC.lookStyle(pr.style.look) : {}, pr.style);
+  syncLayerUI(); refresh();
+  if (pr.style) styleChanged(false);
+  if (pr.view === 'axis') { orient(); if (pr.perA) { st.view.perA = pr.perA; draw(); } }
+  else if (pr.view && pr.view.right) { st.view = { R: namedView(pr.view), zoom: pr.view.zoom || 1, perA: pr.view.perA || 0 }; draw(); }
+  else resetView();
+}
+function namedView(v) {                     // screen right along right[0] -> right[1], up along up[0] -> up[1] (atoms or centroids), then turned
+  const X = st.mol.X, cen = (a) => { const l = [].concat(a); return [0, 1, 2].map((k) => l.reduce((s, i) => s + X[i - 1][k], 0) / l.length); };
+  const dir = ([a, b]) => { const p = cen(a), q = cen(b); return [q[0] - p[0], q[1] - p[1], q[2] - p[2]]; };
+  const unitV = (u) => { const n = Math.hypot(...u) || 1; return u.map((x) => x / n); };
+  const r = unitV(dir(v.right)), u0 = dir(v.up), d = u0[0] * r[0] + u0[1] * r[1] + u0[2] * r[2];
+  const u = unitV(u0.map((x, k) => x - d * r[k])), t = [r[1] * u[2] - r[2] * u[1], r[2] * u[0] - r[0] * u[2], r[0] * u[1] - r[1] * u[0]];
+  const deg = Math.PI / 180;
+  return matMul(rotAbout('x', (v.pitch || 0) * deg), matMul(rotAbout('y', (v.yaw || 0) * deg), [r, u, t]));
+}
+function append(entries) {                  // stack more structures on the current one
+  entries.forEach((entry) => framesOf(entry).forEach((f) => { try { st.structs.push(makeStruct(f, st.structs.length)); } catch (e) { setStatus([`<span class="err">${esc(f.name)}: ${esc(e.message)}</span>`]); } }));
+  $('stSec').open = true;
+  realign(); syncLayerUI(); refresh();
+}
+function setActive(k) {                     // measure another structure; it becomes the alignment reference
+  if (k === st.active || !st.structs[k]) return;
+  const s = st.structs[k];
+  if (s.Rm) st.view.R = matMul(st.view.R, s.Rm);     // it was drawn superposed: keep the picture still
+  const was = st.mol.el;
+  st.renumbered = was.length !== s.mol.el.length || was.some((e, i) => e !== s.mol.el[i]);
+  s.on = true; st.active = k;
+  useActive(); realign(); closePop(); syncLayerUI(); refresh();
+}
+function realign() {
+  const ref = st.structs[st.active];
+  st.structs.forEach((s) => {
+    Object.assign(s, { Xd: s.mol.X, Rm: null, rmsd: null, nAlign: 0, alignErr: '' });
+    if (s === ref || st.align.mode === 'none') return;
+    const pairs = alignPairs(ref, s);
+    if (typeof pairs === 'string') { s.alignErr = pairs; return; }
+    const f = SC.superpose(pairs.map(([i]) => ref.mol.X[i]), pairs.map(([, j]) => s.mol.X[j]));
+    Object.assign(s, { Xd: s.mol.X.map(f.apply), Rm: f.R, rmsd: f.rmsd, nAlign: pairs.length });
+  });
+}
+function alignPairs(ref, s) {               // [[reference atom, this atom]] 0-based, or why not
+  const A = ref.mol.el, B = s.mol.el, m = st.align.mode;
+  if (m === 'atoms') {
+    const ra = selList(st.align.atoms), sa = s.own.trim() ? selList(s.own) : ra;
+    if (ra.length < 3) return 'pick at least three atoms to align on';
+    if (sa.length !== ra.length) return `${sa.length} atoms listed against ${ra.length} on the measured structure`;
+    if (ra.some((k) => k > A.length) || sa.some((k) => k > B.length)) return 'an atom number is past the end of the structure';
+    return ra.map((k, j) => [k - 1, sa[j] - 1]);
+  }
+  if (m === 'smarts') {
+    if (!st.sm.q.trim()) return 'type a query in Substructure';
+    const ra = smMatchOf(ref), all = st.sm.per[s.id] || [];
+    if (!ra) return 'the query does not match the measured structure';
+    if (!all.length) return 'the query does not match this structure';
+    if (ra.length < 3) return 'the query matches fewer than three atoms';
+    let best = null;                          // a symmetric ligand matches more than once: take the closest fit
+    all.forEach((sa) => {
+      if (sa.length !== ra.length) return;
+      const f = SC.superpose(ra.map((i) => ref.mol.X[i]), sa.map((j) => s.mol.X[j]));
+      if (!best || f.rmsd < best.rmsd) best = { rmsd: f.rmsd, sa };
+    });
+    return best ? ra.map((k, j) => [k, best.sa[j]]) : 'the query matches a different number of atoms here';
+  }
+  if (A.length !== B.length || A.some((e, i) => e !== B[i])) return 'different atoms or order: align on chosen atoms';
+  return A.map((_, i) => i).filter((i) => m === 'all' || A[i] !== 'H').map((i) => [i, i]);
+}
+function overlays() {                       // what the scene draws besides the measured structure
+  const act = st.structs[st.active], vis = st.structs.filter((s) => s.on || s === act), R0 = st.view.R[0], k0 = vis.indexOf(act);
+  return vis.filter((s) => s !== act).map((s) => {
+    const off = st.align.spread * (vis.indexOf(s) - k0);
+    return { id: s.id, name: s.name, el: s.mol.el, X: off ? s.Xd.map((p) => [p[0] + R0[0] * off, p[1] + R0[1] * off, p[2] + R0[2] * off]) : s.Xd,
+      bonds: s.mol.displayBonds, types: s.mol.types, color: s.color, rmsd: s.rmsd };
+  });
+}
+
+// ---------- layers: axes (one active), dipole frame, charges ----------
+const activeAxis = () => (st.L && st.L.active >= 0 ? st.L.axes[st.L.active] : null);
+function normLayers() {                     // presets written before a flag existed still load
+  const L = st.L;
+  if (!L.labShift) L.labShift = {};
+  if (!L.cones) L.cones = [];
+  if (!L.vburs) L.vburs = [];
+  L.axes.forEach((ax) => {
+    ax.show = Object.assign(Object.fromEntries(FLAGS.map(([k]) => [k, false])), { axis: true, drop: true }, ax.show);
+    if (ax.show.theta === 'wedge') Object.assign(ax.show, { theta: true, drop: false });
+  });
+  if (L.active == null || L.active >= L.axes.length) L.active = L.axes.length ? 0 : -1;
+  if (L.legend == null) L.legend = true;
+  const ax = activeAxis();
+  [st.a, st.b] = ax ? [ax.a, ax.b] : defaultPair();
+}
+function addAxis(a, b) {
+  const used = st.L.axes.map((x) => x.color), col = SC.PAL.axes.find((c) => !used.includes(c)) || SC.PAL.axes[0];
+  st.L.axes.push({ a, b, color: col, show: { axis: true, L: false, b1: true, plane: false, loc: true, b5: true, theta: true, drop: true, inset: false } });
+  st.L.active = st.L.axes.length - 1;
+}
+function setPair(a, b) {                    // the toolbar, Swap and the popover all edit the active axis
+  if (!activeAxis()) addAxis(a, b);
+  const ax = activeAxis();
+  ax.a = a; ax.b = b;
+  closePop(); syncLayerUI(); refresh();
+}
+function assign(role, k) {                  // picking the other role's atom swaps them
+  let { a, b } = st;
+  if (role === 'a') { if (b === k) b = a; a = k; } else { if (a === k) a = b; b = k; }
+  setPair(a, b);
+}
+function addSite(k, type) {
+  const types = Object.keys(st.mol.charges || {});
+  if (!types.length) { setStatus(['<span class="err">No charges for this structure: open its .feather or .log.</span>']); return; }
+  const used = st.L.sites.map((x) => x.color), col = SC.PAL.sites.find((c) => !used.includes(c)) || SC.PAL.sites[0];
+  st.L.sites.push({ i: k, type: type || $('qType').value || types[0], color: col });
+}
+function layerInputs() {                    // the gated computations, done once per change (not per drag frame)
+  const L = st.L, mol = st.mol, errs = [], axes = [];
+  L.axes.forEach((ax, j) => {
+    if (ax.off) return;
+    try {
+      const own = ax.on ? st.structs.find((s) => s.id === ax.on || s.name === ax.on) : null;   // a session names it
+      // Sterimol is invariant to rigid motion, so measuring the aligned coordinates puts the
+      // whole construction in the reference structure's frame with no extra transform
+      const on = own ? { el: own.mol.el, X: own.Xd, bonds: own.mol.bonds, types: own.mol.types } : mol;
+      // block: atoms the fragment walk may not pass, as the package's block= does. A chelate
+      // needs it, or the walk rounds the backbone and swallows the rest of the complex.
+      const res = S.sterimol(on, ax.a, ax.b, { block: ax.block, drop: ax.dropAtoms });
+      const preview = st.scan && j === st.L.active ? (res.profile || []).find((p) => p.deg === st.scan.deg) || null : null;
+      axes.push({ res, color: ax.color, show: ax.show, tag: ax.tag || '', j, preview, ink: ax.ink || null,
+        label: `${st.structs.length > 1 ? (own || st.structs[st.active]).name + ' ' : ''}${lbl(ax.a, on.el)}→${lbl(ax.b, on.el)}`,
+        onStruct: own ? own.id : '' });
+    }
+    catch (e) { errs.push(`${lbl(ax.a) || ax.a}→${lbl(ax.b) || ax.b}: ${esc(e.message)}`); }
+  });
+  let dipole = null, dipole2 = null;
+  const dipOn = (spec, where) => {           // the frame on one structure; on a stacked one, in its aligned frame
+    const o = selArg(spec.origin), y = selArg(spec.y), p = selArg(spec.plane);
+    const own = where ? st.structs.find((s) => s.id === where || s.name === where) : null;
+    const M = own ? own.mol : mol, X = own ? own.Xd : mol.X;
+    if (!M.dipole) { errs.push('The dipole frame needs the calculation: open the .feather or .log.'); return null; }
+    if (o == null || y == null || p == null) { errs.push('Dipole frame: give an origin, an axis atom and a plane atom.'); return null; }
+    const bad = [].concat(o, y, p).filter((k) => k < 1 || k > M.el.length);
+    if (bad.length) { errs.push(`Dipole frame: no atom ${bad.join(', ')}.`); return null; }
+    // the vector was written in the file's own axes, so aligning the structure has to turn it too
+    const R = own && own.Rm, mu = R ? R.map((r) => r[0] * M.dipole[0] + r[1] * M.dipole[1] + r[2] * M.dipole[2]) : M.dipole.slice(0, 3);
+    return { res: S.dipoleFrame(X, mu.concat(M.dipole[3]), o, y, p), originSet: Array.isArray(o) ? o : [],
+      show: spec.show, colors: spec.colors || null, atOrigin: !!spec.atOrigin, rawAxes: !!spec.rawAxes,
+      keep: own ? [] : [].concat(o, y, p), onStruct: own ? own.id : '' };
+  };
+  if (L.dip.on) dipole = dipOn(L.dip, L.dip.onStruct || '');
+  if (L.dip2 && L.dip2.on) dipole2 = dipOn(L.dip2, L.dip2.onStruct || '');
+  const sites = L.sites.filter((q) => q.i >= 1 && q.i <= mol.el.length).map((q) => ({ i: q.i - 1, type: q.type, color: q.color }));
+  const fade = new Set(selList(L.fade).map((k) => k - 1));
+  if (L.fadeOff && axes.length) {
+    const keep = new Set();
+    axes.forEach((x) => { if (x.onStruct) return; x.res.atoms.forEach((i) => keep.add(i)); keep.add(L.axes[x.j].a - 1); });
+    sites.forEach((q) => keep.add(q.i));
+    mol.el.forEach((_, i) => { if (!keep.has(i)) fade.add(i); });
+  }
+  return { axes, dipole, dipole2, sites, map: L.map && mol.charges && mol.charges[L.map] ? { type: L.map } : null, fade, legend: L.legend, fadeHide: L.fadeHide,
+    labShift: L.labShift || {}, cones: L.cones || [], vburs: L.vburs || [], errs };
+}
+
+// ---------- drawing and reporting ----------
+function refresh() {                        // numbers changed: recompute every layer, then draw and report
+  const ax = activeAxis();
+  if (ax) { st.a = ax.a; st.b = ax.b; }
+  $('a').value = st.a; $('b').value = st.b; $('asym').textContent = lbl(st.a); $('bsym').textContent = lbl(st.b);
+  st.LR = layerInputs();
+  const x = ax && st.LR.axes.find((q) => q.j === st.L.active);
+  st.res = x ? x.res : null;
+  draw(); writeVals(); writeStatus(); exNote();
+}
+function draw() {
+  if (!st.mol || !st.LR) return;
+  const dc = st.LR.dipole && st.LR.dipole.colors, style = dc ? Object.assign({}, st.style, { inkColors: dc }) : st.style;
+  const L = Object.assign({}, st.LR, { style, overlays: overlays(), primaryName: st.structs.length > 1 ? st.name : '' });
+  const pick = Object.assign(activeAxis() ? { a: st.a - 1, b: st.b - 1 } : {}, st.arm ? { hi: armedAtoms(), hiColor: armed().color } : {});
+  const hits = smHits();
+  if (hits.size) { pick.hi = new Set([...(pick.hi || []), ...hits]); pick.hiColor = st.arm ? pick.hiColor : SM_COLOR; }
+  $('fig').innerHTML = SC.scene(st.mol, L, st.view, { interactive: true, pick, title: `${st.name}: descriptor figure` });
+  st.fitScale = L.fitScale; scaleNote();
+  if (st.pop) { const h = hitFor(st.pop); if (h) h.classList.add('on'); }
+}
+let frame = 0;
+function redrawSoon() { if (!frame) frame = requestAnimationFrame(() => { frame = 0; draw(); if (st.pop) placePop(st.pop); }); }
+
+function writeVals() {
+  const R = st.LR, cells = [];
+  const cell = (t, v, col, cls = '') => `<div class="${cls}"><dt>${col ? `<span class="dotk" style="background:${col}"></span>` : ''}${t}</dt><dd>${v}</dd></div>`;
+  R.axes.forEach((x) => {
+    const r = x.res, t = x.j === st.L.active ? `<b>${x.label}</b>` : x.label;
+    cells.push(cell(`${t} B<sub>1</sub>`, r.B1.toFixed(4), x.color), cell('B<sub>5</sub>', r.B5.toFixed(4)), cell('L', r.L.toFixed(4)),
+      cell('loc B<sub>5</sub>', r.loc_B5.toFixed(4)), cell('θ', r.B1_B5_angle.toFixed(4) + '°', null, 'th'),
+      cell('φ end-on', r.phi.toFixed(2) + '°'), cell('ρ', r.rho.toFixed(3)));
+  });
+  if (R.dipole) {
+    const d = R.dipole.res, mu = SC.INKS[st.style.ink].mu;
+    cells.push(cell('μ<sub>u</sub> D', d.dipole_y.toFixed(4), mu), cell('μ<sub>v</sub> D', d.dipole_x.toFixed(4)), cell('μ<sub>w</sub> D', d.dipole_z.toFixed(4)), cell('|μ| D', d.total.toFixed(4)));
+  }
+  R.sites.forEach((q) => { const v = st.mol.charges[q.type][q.i]; cells.push(cell(`q<sub>${QN[q.type] || q.type}</sub> ${lbl(q.i + 1)}`, (v >= 0 ? '+' : '') + v.toFixed(5), q.color)); });
+  $('vals').innerHTML = cells.join('');
+  $('vals').hidden = !cells.length;
+  const dp = st.L.dip, nm = (t) => selList(t).map((k) => lbl(k)).join(', ') || '—';
+  $('dpWho').innerHTML = dp.on ? `origin ${selList(dp.origin).length > 1 ? 'centroid of ' : ''}<b>${nm(dp.origin)}</b> · &ucirc; toward <b>${nm(dp.y)}</b> · plane through <b>${nm(dp.plane)}</b>` : '';
+  $('dpVals').textContent = R.dipole ? `μu ${R.dipole.res.dipole_y.toFixed(3)} · μv ${R.dipole.res.dipole_x.toFixed(3)} · μw ${R.dipole.res.dipole_z.toFixed(3)} · |μ| ${R.dipole.res.total.toFixed(3)} D` : '';
+  const fromGui = st.key.startsWith('gui:');
+  $('usegui').hidden = !EMBED;
+  $('usegui').disabled = !(st.res && fromGui);
+  $('usegui').title = fromGui ? 'Send the active base → axis pair back to the GUI as a Sterimol selection' : 'Only for the structure loaded from the GUI';
+}
+function writeStatus() {
+  const lines = st.LR.errs.map((e) => `<span class="err">${e}</span>`), r = st.res;
+  if (r) {
+    const A = lbl(st.a), B = lbl(st.b), el = st.mol.el;
+    const ref = !LIVE && (REFS[st.key] || {})[`${st.a}-${st.b}`];
+    if (ref) {
+      lines.push(['B1', 'B5', 'L', 'loc_B5', 'B1_B5_angle'].every((k) => r[k] === ref[k])
+        ? `<span class="ok">&#10003; Identical to DescriPyTor&rsquo;s Python output for ${A}→${B}.</span>`
+        : '<span class="err">Differs from the Python reference for this axis &mdash; please report.</span>');
+    }
+    const rest = el.length - r.atoms.length, withBase = r.atoms.includes(st.a - 1) ? `${A}, ${B}` : B;
+    lines.push(`${A}→${B} measures ${r.atoms.length} atoms: ${withBase} and everything beyond ${B}${rest ? `; ${rest} on the far side of ${A} left out` : ''}. Frame set by ${lbl(r.third)}.`);
+    if (!st.mol.bonds.some(([p, q]) => (p === st.a && q === st.b) || (p === st.b && q === st.a)))
+      lines.push(`<span class="err">${A} and ${B} are not bonded. The package joins them for this measurement, so the fragment is whatever ${B} reaches without passing through ${A}.</span>`);
+  } else if (!activeAxis()) lines.push('No Sterimol axis: click an atom and make it the base or the axis to start one.');
+  if (st.renumbered) lines.push(`<span class="err">This structure has different atoms in a different order: every axis, dipole slot, charge site and fade list still points at the old numbering. Check them.</span>`);
+  if (st.note) lines.push(st.note);
+  const xb = missingBondsNote(); if (xb) lines.push(xb);
+  if (st.structs.length > 1) lines.push(alignNote());
+  if ((st.L.dip.on || st.L.sites.length || st.L.map) && !(st.mol.dipole || st.mol.charges))
+    lines.push('The dipole frame and charges need this structure&rsquo;s .feather or Gaussian .log.');
+  lines.push('Drag to turn &middot; scroll to zoom &middot; click an atom for its options &middot; O orients to the active axis &middot; double-click empty space to reset.');
+  setStatus(lines);
+  if (r) liveCheck(r);
+}
+function alignNote() {
+  const others = st.structs.filter((_, k) => k !== st.active), ok = others.filter((s) => s.rmsd != null), bad = others.filter((s) => s.alignErr);
+  const how = { heavy: 'on heavy atoms', all: 'on all atoms', atoms: `on atoms ${esc(st.align.atoms || '(none chosen)')}` }[st.align.mode];
+  if (st.align.mode === 'none') return `${st.structs.length} structures stacked, not aligned.`;
+  const rms = ok.map((s) => s.rmsd);
+  return `${st.structs.length} structures, superposed ${how} onto ${esc(st.name)}` +
+    (ok.length ? `: RMSD ${Math.min(...rms).toFixed(3)}${ok.length > 1 ? `&ndash;${Math.max(...rms).toFixed(3)}` : ''} &#8491;.` : '.') +
+    (bad.length ? ` <span class="err">${bad.length} left as loaded: ${esc(bad[0].alignErr)}.</span>` : '');
+}
+function missingBondsNote() {
+  const x = (st.mol && st.mol.extraBonds) || [];
+  if (!x.length) return '';
+  const pairs = x.map(([a, b, d]) => `${lbl(a)}–${lbl(b)} (${d.toFixed(3)} Å)`).join(', ');
+  return `<span class="err">DescriPyTor does not bond ${pairs}: above its 1.82 Å cutoff. Drawn dashed here; Sterimol, as in the package, treats the atoms beyond as detached.</span>`;
+}
+let checkSeq = 0;
+async function liveCheck(r) {               // the Python on the same coordinates and axis
+  if (!LIVE || !r) return;
+  const seq = ++checkSeq, span = document.createElement('span');
+  span.textContent = 'Checking against the Python…';
+  $('status').prepend(span);
+  try {
+    const resp = await fetch(API + '/theta/check', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ xyz: st.xyz, a: st.a, b: st.b }) });
+    const d = await resp.json();
+    if (seq !== checkSeq) return;
+    if (d.error) { span.className = 'err'; span.textContent = 'Python check failed: ' + d.error; return; }
+    const bad = ['B1', 'B5', 'L', 'loc_B5', 'B1_B5_angle'].filter((k) => d[k] !== r[k]);
+    span.className = bad.length ? 'err' : 'ok';
+    span.innerHTML = bad.length ? `DescriPyTor&rsquo;s Python gives a different ${bad.join(', ')} (${bad.map((k) => d[k]).join(', ')}) &mdash; please report.`
+      : '&#10003; DescriPyTor&rsquo;s Python gives the same five values (checked live).';
+  } catch (e) { if (seq === checkSeq) span.remove(); }   // server not running: nothing to confirm against
+}
+function setStatus(lines) { $('status').innerHTML = lines.map((l) => `<span>${l}</span>`).join(''); }
+
+// ---------- the figure is the control: drag to turn, click an atom ----------
+const hitFor = (p) => $('fig').querySelector(`.hit[data-i="${p.i}"]${p.s ? `[data-s="${p.s}"]` : ':not([data-s])'}`);
+function hitAt(x, y) {
+  const e = document.elementFromPoint(x, y);
+  return e && e.classList && e.classList.contains('hit') ? { i: +e.dataset.i, s: e.dataset.s || null } : null;
+}
+const structOf = (p) => (p.s ? st.structs.find((s) => s.id === p.s) : st.structs[st.active]);
+function wrapXY(el) { const w = $('figwrap').getBoundingClientRect(), b = el.getBoundingClientRect(); return [b.left - w.left + b.width / 2, b.top - w.top + b.height / 2, b.height / 2]; }
+function placePop(p) {
+  const h = hitFor(p); if (!h) { closePop(); return; }
+  const [x, y, r] = wrapXY(h), W = $('figwrap').clientWidth;
+  $('pop').style.left = Math.min(Math.max(x, 100), W - 100) + 'px';
+  $('pop').style.top = (y + r) + 'px';
+}
+function openPop(p) {
+  st.pop = p;
+  const s = structOf(p), k = p.i + 1, main = !p.s;
+  $('popname').textContent = (main ? '' : s.name + ' · ') + s.mol.el[p.i] + k;
+  $('popnote').textContent = !main ? '' : k === st.a && activeAxis() ? 'base now' : k === st.b && activeAxis() ? 'axis now' : (st.res && !st.res.atoms.includes(p.i) ? 'not measured' : '');
+  $('popMain').hidden = !main; $('popOver').hidden = main;
+  if (main) {                               // hide what this structure cannot do, so the list stays short
+    const has = { q: !!(st.mol.charges || st.L.sites.length), dpO: !!st.mol.dipole, dpY: !!st.mol.dipole, dpP: !!st.mol.dipole,
+      align: st.structs.length > 1, axis: true, fade: true, label: Object.keys(st.L.labShift || {}).length > 0 };
+    $('pop').querySelectorAll('[data-act]').forEach((bt) => { bt.hidden = has[bt.dataset.act] === false; });
+    const more = [...$('popMore').querySelectorAll('button')].some((bt) => !bt.hidden);
+    $('popMoreBtn').hidden = !more; $('popMore').hidden = true;
+  }
+  $('pop').querySelectorAll('[data-role]').forEach((bt) => bt.setAttribute('aria-pressed', String((bt.dataset.role === 'a' ? st.a : st.b) === k && !!activeAxis())));
+  $('pop').hidden = false; $('tip').hidden = true;
+  $('fig').querySelectorAll('.hit.on').forEach((h) => h.classList.remove('on'));
+  const h = hitFor(p); if (h) h.classList.add('on');
+  placePop(p);
+  $('pop').querySelector(main ? '#popMain button' : '#popOver button').focus({ preventScroll: true });
+}
+function closePop() { st.pop = null; $('pop').hidden = true; $('fig').querySelectorAll('.hit.on').forEach((h) => h.classList.remove('on')); }
+function toggleIn(text, k) { const set = selList(text), j = set.indexOf(k); if (j >= 0) set.splice(j, 1); else set.push(k); return set; }
+$('popMoreBtn').addEventListener('click', () => { $('popMore').hidden = !$('popMore').hidden; $('popMoreBtn').setAttribute('aria-pressed', String(!$('popMore').hidden)); });
+$('pop').addEventListener('click', (e) => {
+  const bt = e.target.closest('button'); if (!bt || !st.pop || bt.id === 'popMoreBtn') return;
+  const p = st.pop, k = p.i + 1, L = st.L, act = bt.dataset.act;
+  if (p.s) {
+    const j = st.structs.findIndex((s) => s.id === p.s);
+    if (act === 'measure') setActive(j);
+    else if (act === 'hide') { st.structs[j].on = false; closePop(); syncLayerUI(); refresh(); }
+    return;
+  }
+  if (bt.dataset.role) { assign(bt.dataset.role, k); return; }
+  if (act === 'label') { st.L.labShift = {}; }
+  else if (act === 'axis') { if (k !== st.a) addAxis(st.a, k); }
+  else if (act === 'dpO') { L.dip.origin = selText(toggleIn(L.dip.origin, k)); L.dip.on = true; $('dpSec').open = true; }
+  else if (act === 'dpY') { L.dip.y = String(k); L.dip.on = true; $('dpSec').open = true; }
+  else if (act === 'dpP') { L.dip.plane = String(k); L.dip.on = true; $('dpSec').open = true; }
+  else if (act === 'q') { addSite(k); $('qSec').open = true; }
+  else if (act === 'fade') L.fade = selText(toggleIn(L.fade, k));
+  else if (act === 'align') { st.align.atoms = toggleIn(st.align.atoms, k).join(', '); st.align.mode = 'atoms'; $('stSec').open = true; realign(); }
+  closePop(); syncLayerUI(); refresh();
+});
+
+// ---------- the fade brush: run the pointer over atoms to drop them back, Alt to bring them back ----------
+let painted = null;                         // the atom under the pointer last time, so one pass toggles once
+function paint(p, back) {
+  $('tip').hidden = true;
+  if (!p || p.s) { painted = null; return; }
+  if (painted === p.i) return;
+  painted = p.i;
+  const k = p.i + 1, have = selList(st.L.fade);
+  const has = have.includes(k);
+  if (back === has) {                       // Alt takes an atom out of the set, a plain pass puts it in
+    st.L.fade = selText(back ? have.filter((x) => x !== k) : have.concat(k));
+    syncLayerUI(); refresh();
+  }
+}
+function setBrush(on) {
+  st.brush = on; painted = null;
+  $('fadeBrush').setAttribute('aria-pressed', String(on));
+  $('figwrap').classList.toggle('brushing', on);
+  $('hint').innerHTML = on ? 'Run the pointer over atoms to fade them &#183; Alt to bring one back &#183; Esc when done'
+    : 'Drag to turn &#183; scroll to zoom &#183; click an atom for its options';
+  if (on) { $('tip').hidden = true; closePop(); }
+}
+$('fadeBrush').addEventListener('click', () => setBrush(!st.brush));
+$('fadeNone').addEventListener('click', () => { st.L.fade = ''; st.L.fadeOff = false; syncLayerUI(); refresh(); });
+
+// ---------- a label can be dragged where you want it; double-click puts it back ----------
+(function wireLabels() {
+  const wrap = $('figwrap');
+  let drag = null;
+  const perPx = () => { const svg = $('fig').firstElementChild; return svg ? SC.W / svg.getBoundingClientRect().width : 1; };
+  wrap.addEventListener('pointerdown', (e) => {
+    const t = e.target.closest('[data-lab]');
+    if (!t || e.button > 0) return;
+    e.preventDefault();
+    const at = (st.L.labShift || {})[t.dataset.lab] || [0, 0];
+    drag = { key: t.dataset.lab, x: e.clientX, y: e.clientY, at, k: perPx() };
+    wrap.setPointerCapture(e.pointerId);                    // the text node is redrawn away under the pointer
+  });
+  wrap.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    st.L.labShift = Object.assign({}, st.L.labShift, { [drag.key]: [drag.at[0] + (e.clientX - drag.x) * drag.k, drag.at[1] + (e.clientY - drag.y) * drag.k] });
+    redrawSoon();
+  });
+  ['pointerup', 'pointercancel'].forEach((k) => wrap.addEventListener(k, () => { if (drag) { drag = null; exNote(); } }));
+  wrap.addEventListener('dblclick', (e) => {
+    const t = e.target.closest('[data-lab]');
+    if (!t || !st.L.labShift || !st.L.labShift[t.dataset.lab]) return;
+    delete st.L.labShift[t.dataset.lab]; refresh();
+  });
+})();
+
+const matMul = (A, B) => A.map((r) => [0, 1, 2].map((j) => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j]));
+const rotAbout = (ax, t) => { const c = Math.cos(t), s = Math.sin(t); return ax === 'x' ? [[1, 0, 0], [0, c, -s], [0, s, c]] : [[c, 0, s], [0, 1, 0], [-s, 0, c]]; };
+function turn(yaw, pitch) { st.view.R = matMul(rotAbout('x', pitch), matMul(rotAbout('y', yaw), st.view.R)); redrawSoon(); }
+(function wireStage() {
+  const wrap = $('figwrap');
+  let down = null;
+  wrap.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('#pop') || e.target.closest('[data-lab]') || e.button > 0 || st.brush) return;
+    down = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, moved: false, id: e.pointerId };
+  });
+  wrap.addEventListener('pointermove', (e) => {
+    if (down && e.pointerId === down.id) {                 // a trackball: turn about the screen's axes
+      if (!down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5) return;
+      if (!down.moved) { down.moved = true; wrap.setPointerCapture(e.pointerId); wrap.classList.add('dragging'); $('tip').hidden = true; }
+      turn((e.clientX - down.lx) * 0.012, (e.clientY - down.ly) * 0.012);
+      down.lx = e.clientX; down.ly = e.clientY;
+      return;
+    }
+    if (e.target.closest('#pop')) return;
+    if (st.brush) { paint(hitAt(e.clientX, e.clientY), e.altKey); return; }
+    const p = hitAt(e.clientX, e.clientY), tip = $('tip');
+    if (!p) { tip.hidden = true; return; }
+    const s = structOf(p), w = wrap.getBoundingClientRect();
+    tip.textContent = (p.s ? s.name + ' · ' : '') + s.mol.el[p.i] + (p.i + 1) + (!p.s && st.res && !st.res.atoms.includes(p.i) ? ' · not measured' : '');
+    tip.style.left = (e.clientX - w.left) + 'px'; tip.style.top = (e.clientY - w.top) + 'px';
+    tip.hidden = false;
+  });
+  const end = (e) => {
+    if (!down || e.pointerId !== down.id) return;
+    const was = down; down = null; wrap.classList.remove('dragging');
+    if (was.moved) return;
+    const p = hitAt(e.clientX, e.clientY);
+    if (p && !p.s && st.arm) { armedPick(p.i + 1); return; }
+    if (p) openPop(p); else closePop();
+  };
+  wrap.addEventListener('pointerup', end);
+  wrap.addEventListener('pointercancel', () => { down = null; wrap.classList.remove('dragging'); });
+  wrap.addEventListener('pointerleave', () => { if (!down) $('tip').hidden = true; });
+  wrap.addEventListener('dblclick', (e) => { if (!hitAt(e.clientX, e.clientY)) resetView(); });
+  wrap.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    st.view.zoom = Math.max(0.4, Math.min(4, st.view.zoom * Math.exp(-e.deltaY * 0.0015)));
+    redrawSoon();
+  }, { passive: false });
+})();
+function resetView() { if (st.mol) st.view = { R: principalAxes(st.mol.X), zoom: 1, perA: st.view.perA || 0 }; redrawSoon(); }
+// ---------- pick atoms straight off the figure for a layer's slot ----------
+function armed() { return st.arm ? ARM[st.arm] : null; }
+function arm(k) {
+  st.arm = st.arm === k ? null : k;
+  document.querySelectorAll('.pick').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.arm === st.arm)));
+  document.querySelectorAll('#dpO, #dpY, #dpP, #qAtom').forEach((i) => i.classList.toggle('armed', i.id === st.arm));
+  $('hint').textContent = st.arm ? `Click atoms for ${armed().what} · Esc when done` : 'Drag to turn · scroll to zoom · click an atom for its options';
+  closePop(); draw();
+}
+function armedPick(k) {                     // k is 1-based; returns true if the click was taken
+  const L = st.L;
+  if (st.arm === 'dpO') { L.dip.origin = selText(toggleIn(L.dip.origin, k)); L.dip.on = true; }
+  else if (st.arm === 'dpY') { L.dip.y = String(k); L.dip.on = true; }
+  else if (st.arm === 'dpP') { L.dip.plane = String(k); L.dip.on = true; }
+  else if (st.arm === 'qAtom') { $('qAtom').value = String(k); addSite(k); }
+  else return false;
+  syncLayerUI(); refresh();
+  return true;
+}
+function armedAtoms() {                     // what the armed slot holds now, for the rings in the figure
+  const L = st.L;
+  const t = st.arm === 'dpO' ? L.dip.origin : st.arm === 'dpY' ? L.dip.y : st.arm === 'dpP' ? L.dip.plane : '';
+  return new Set(selList(t).map((i) => i - 1));
+}
+function orient() {                         // the theta figure's own view of the active axis
+  const x = st.LR && (st.LR.axes.find((q) => q.j === st.L.active) || st.LR.axes[0]);
+  if (!x) return;
+  st.view = { R: SC.axisView(x), zoom: 1, perA: st.view.perA || 0 }; redrawSoon();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.target.closest && e.target.closest('input, textarea, select')) return;
+  if (e.key === 'Escape') { if (st.brush) setBrush(false); else if (st.arm) arm(st.arm); else closePop(); }
+  else if (e.key === 's' || e.key === 'S') $('swap').click();
+  else if (e.key === 'r' || e.key === 'R') resetView();
+  else if (e.key === 'o' || e.key === 'O') orient();
+  else if (st.pop && !st.pop.s && (e.key === 'b' || e.key === 'B')) assign('a', st.pop.i + 1);
+  else if (st.pop && !st.pop.s && (e.key === 'a' || e.key === 'A')) assign('b', st.pop.i + 1);
+  else if (e.key.startsWith('Arrow') && document.activeElement === document.body) {
+    const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (d) { e.preventDefault(); turn(d[0] * 5 * Math.PI / 180, d[1] * 5 * Math.PI / 180); }
+  }
+});
+document.addEventListener('pointerdown', (e) => { if (st.pop && !e.target.closest('#pop') && !e.target.closest('#figwrap')) closePop(); });
+window.addEventListener('resize', () => { if (st.pop) placePop(st.pop); });
+['dragover', 'drop'].forEach((k) => $('figwrap').addEventListener(k, async (e) => {
+  e.preventDefault();
+  if (k !== 'drop') return;
+  const files = [...(e.dataTransfer.files || [])];
+  if (!files.length) return;
+  if (files.length === 1 && /\.(json|svg)$/i.test(files[0].name)) { await openSession(files[0]); return; }
+  const got = await readFiles(files);
+  if (got.length) append(got);
+}));
+
+// ---------- the session: one serializer behind the permalink, the session file and the exported SVG ----------
+function serialize() {
+  return { v: 1, active: st.active, align: st.align, sm: { q: st.sm.q, any: st.sm.any, all: st.sm.all }, L: st.L, view: { R: st.view.R, zoom: st.view.zoom, perA: st.view.perA }, style: st.style,
+    structs: st.structs.map((x) => ({ name: x.name, key: x.key, xyz: x.entry.xyz, thr: x.entry.thr, color: x.color, on: x.on, own: x.own,
+      energy: x.energy, dipole: x.mol.dipole, charges: x.mol.charges })) };
+}
+function restore(j, quiet = false) {
+  if (!j || !Array.isArray(j.structs) || !j.structs.length) throw new Error('not a theta explorer session');
+  st.structs = j.structs.map((x, k) => makeStruct({ key: x.key || 'session:' + x.name, name: x.name, xyz: x.xyz, dipole: x.dipole, charges: x.charges, energy: x.energy, thr: x.thr }, k));
+  st.structs.forEach((x, k) => { const o = j.structs[k]; x.color = o.color || x.color; x.on = o.on !== false; x.own = o.own || ''; });
+  st.active = Math.min(j.active || 0, st.structs.length - 1);
+  Object.assign(st.align, j.align || {});
+  useActive();
+  st.L = j.L; normLayers();
+  if (j.style) Object.assign(st.style, j.style);
+  st.view = { R: (j.view && j.view.R) || principalAxes(st.mol.X), zoom: (j.view && j.view.zoom) || 1, perA: (j.view && j.view.perA) || 0 };
+  Object.assign(st.sm, { q: '', hits: [], per: {}, k: 0 }, j.sm || {});
+  realign(); closePop(); syncLayerUI(); refresh(); styleChanged(false);
+  if (st.sm.q && !quiet) { $('smQ').value = st.sm.q; $('smAny').checked = st.sm.any !== false; $('smAll').checked = st.sm.all !== false; runSmarts(); }
+}
+const b64 = (t) => btoa(unescape(encodeURIComponent(t)));
+const unb64 = (t) => decodeURIComponent(escape(atob(t)));
+const permalink = () => location.origin + location.pathname + location.search + '#s=' + b64(JSON.stringify(serialize()));
+function sceneOf(text) {                    // a session file, or an SVG this page exported
+  if (text.trim().startsWith('{')) return JSON.parse(text);
+  const node = new DOMParser().parseFromString(text, 'image/svg+xml').getElementById('thetascene');
+  if (!node) throw new Error('this SVG carries no session');
+  return JSON.parse(node.textContent);
+}
+
+
+// ---------- designs: every drawing setting, under a name ----------
+const DESIGN_KEY = 'theta-explorer-designs';
+const designs = () => { try { return JSON.parse(localStorage.getItem(DESIGN_KEY)) || {}; } catch (e) { return {}; } };
+function designSave(all) { try { localStorage.setItem(DESIGN_KEY, JSON.stringify(all)); } catch (e) { setStatus(['<span class="err">This browser would not keep the design.</span>']); } }
+function designSync(pick = '') {
+  const all = designs(), names = Object.keys(all).sort();
+  $('dsSel').innerHTML = '<option value="">&#8212;</option>' + names.map((n) => `<option${n === pick ? ' selected' : ''}>${esc(n)}</option>`).join('');
+}
+$('dsSave').addEventListener('click', () => {
+  const name = (prompt('Name for this design', $('dsSel').value || 'my design') || '').trim();
+  if (!name) return;
+  const all = designs(); all[name] = JSON.parse(JSON.stringify(st.style)); designSave(all); designSync(name);
+  setStatus([`Design &ldquo;${esc(name)}&rdquo; saved.`]);
+});
+$('dsDel').addEventListener('click', () => {
+  const name = $('dsSel').value; if (!name) return;
+  const all = designs(); delete all[name]; designSave(all); designSync('');
+});
+$('dsSel').addEventListener('change', () => {
+  const d = designs()[$('dsSel').value]; if (!d) return;
+  Object.assign(st.style, d); styleChanged(); syncStyleUI(); refresh();
+});
+$('dsAll').addEventListener('click', () => {
+  if (!st.sheet.panels.length) { setStatus(['<span class="err">The sheet has no panels yet.</span>']); return; }
+  st.sheet.panels.forEach((p) => { p.j.style = JSON.parse(JSON.stringify(st.style)); });
+  sheetSave(); sheetSync();
+  setStatus([`This design is now on all ${st.sheet.panels.length} panels.`]);
+});
+
+// ---------- the sheet: several figures on one page, each a session of its own ----------
+const SHEET_KEY = 'theta-explorer-sheet';
+function sheetSave() { try { localStorage.setItem(SHEET_KEY, JSON.stringify(st.sheet)); } catch (e) { setStatus(['<span class="err">The sheet is too large for this browser to keep.</span>']); } }
+function sheetLoad() {
+  try { Object.assign(st.sheet, JSON.parse(localStorage.getItem(SHEET_KEY)) || {}); } catch (e) { /* nothing kept */ }
+  $('shCols').value = st.sheet.cols; $('shLetters').value = st.sheet.letters; $('shGap').value = st.sheet.gap;
+  $('shLook').checked = !!st.sheet.look; $('shScale').checked = !!st.sheet.scale; $('shTight').checked = st.sheet.tight !== false;
+}
+const sheetLetter = (i) => (st.sheet.letters ? String.fromCharCode(st.sheet.letters.charCodeAt(0) + i) : '');
+function sheetSync() {
+  const P = st.sheet.panels;
+  $('shCount').textContent = P.length ? String(P.length) : '';
+  $('shList').innerHTML = P.map((p, i) => `<div class="lrow${st.sheet.at === i ? ' act' : ''}">
+    <span class="tag">${sheetLetter(i) || i + 1}</span><b title="${esc(p.name)}">${esc(p.name)}</b>
+    <button type="button" data-sh="up" data-i="${i}" title="earlier in the sheet">&#9650;</button>
+    <button type="button" data-sh="down" data-i="${i}" title="later in the sheet">&#9660;</button>
+    <button type="button" data-sh="open" data-i="${i}" title="load this panel back into the page">open</button>
+    <button class="x" type="button" data-sh="del" data-i="${i}" aria-label="remove panel ${i + 1}">&times;</button>
+    <span class="v">${(p.j.structs || []).length} structure${(p.j.structs || []).length > 1 ? 's' : ''} &#183; ${(p.j.L && p.j.L.axes || []).length} axis layer${(p.j.L && p.j.L.axes || []).length === 1 ? '' : 's'}</span></div>`).join('');
+  const cols = Math.min(+st.sheet.cols || 2, Math.max(1, P.length)), mm = exSize().mm;
+  $('shNote').innerHTML = !P.length
+    ? 'Set a figure up, then add it. Each panel keeps its own structures, layers, view and design, so it redraws exactly.'
+    : `${P.length} panel${P.length > 1 ? 's' : ''} in ${cols} column${cols > 1 ? 's' : ''} &#183; each lands about ${Math.round(mm / cols)} mm wide at the export width, `
+      + `so raise label size if the type check complains.`;
+}
+function renderPanels() {                   // draw each panel, then put the page back as it was
+  const keep = serialize(), out = [];
+  st.sheet.panels.forEach((p) => {
+    const j = JSON.parse(JSON.stringify(p.j));
+    if (st.sheet.look) j.style = JSON.parse(JSON.stringify(keep.style));
+    if (st.sheet.scale) j.view = Object.assign({}, j.view, { perA: keep.view.perA });
+    try { restore(j, true); out.push($('fig').innerHTML); } catch (e) { out.push(''); }
+  });
+  restore(keep, true);
+  return out;
+}
+// what each panel actually covers, measured on the page: a panel is a whole canvas, and the
+// drawing rarely fills it. Cells are cut to the largest of them, so the panels still share one scale.
+function panelBoxes(inners) {
+  const host = document.createElement('div');
+  host.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden';
+  host.innerHTML = `<svg class="fig scene" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SC.W} ${SC.H}" width="${SC.W}" height="${SC.H}">`
+    + inners.map((t, i) => `<g id="pb${i}">${t}</g>`).join('') + '</svg>';
+  document.body.appendChild(host);
+  const out = inners.map((_, i) => {
+    try { const b = host.querySelector('#pb' + i).getBBox(); return [b.x, b.y, b.width, b.height]; }
+    catch (e) { return [0, 0, SC.W, SC.H]; }
+  });
+  host.remove();
+  return out;
+}
+function sheetSVG() {
+  const svgs = renderPanels().filter(Boolean);
+  if (!svgs.length) return '';
+  const strip = (t) => t.replace(/^\s*<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '')
+    .replace(/<circle class="hit"[\s\S]*?<\/circle>/g, '').replace(/<circle class="pickring[^>]*?(?:\/>|><\/circle>)/g, '');
+  const inners = svgs.map(strip);
+  const pad = 14, tight = st.sheet.tight !== false;
+  const box = tight ? panelBoxes(inners) : inners.map(() => [0, 0, SC.W, SC.H]);
+  const CW = Math.max(...box.map((b) => b[2])) + 2 * pad, CH = Math.max(...box.map((b) => b[3])) + 2 * pad;
+  const cols = Math.min(+st.sheet.cols || 2, inners.length), rows = Math.ceil(inners.length / cols), g = +st.sheet.gap || 0;
+  const body = inners.map((t, i) => {
+    const x = (i % cols) * (CW + g), y = Math.floor(i / cols) * (CH + g), b = box[i];
+    const vb = [b[0] - (CW - b[2]) / 2, b[1] - (CH - b[3]) / 2, CW, CH];        // its own drawing, centred in the cell
+    const L = sheetLetter(i);
+    return `<svg x="${SC.f1(x)}" y="${SC.f1(y)}" width="${SC.f1(CW)}" height="${SC.f1(CH)}" viewBox="${vb.map(SC.f1).join(' ')}">${t}</svg>`
+      + (L ? `<text x="${SC.f1(x + 10)}" y="${SC.f1(y + 30)}" font-family="Inter, Helvetica, Arial, sans-serif" font-size="26" font-weight="600" fill="#11161C">${L}</text>` : '');
+  }).join('');
+  return `<svg class="fig scene" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SC.f1(cols * CW + (cols - 1) * g)} ${SC.f1(rows * CH + (rows - 1) * g)}">${body}</svg>`;
+}
+function rasterize(svgText, name) {         // one canvas path for the figure and for the sheet
+  const { mm, dpi } = exSize(), m = svgText.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+  const w = m ? +m[1] : SC.W, h = m ? +m[2] : SC.H, px = Math.round(mm / 25.4 * dpi);
+  const img = new Image(), url = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' }));
+  img.onload = () => {
+    const cv = document.createElement('canvas');
+    cv.width = px; cv.height = Math.round(px * h / w);
+    const c = cv.getContext('2d');
+    if (st.style.bg !== 'transparent') { c.fillStyle = '#fff'; c.fillRect(0, 0, cv.width, cv.height); }
+    c.drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url);
+    cv.toBlob((b) => save(b, `${name}_${mm}mm_${dpi}dpi.png`), 'image/png');
+  };
+  img.src = url;
+}
+$('shAdd').addEventListener('click', () => {
+  st.sheet.panels.push({ name: fileBase(), j: serialize() });
+  st.sheet.at = st.sheet.panels.length - 1;
+  sheetSave(); sheetSync(); $('shSec').open = true;
+});
+$('shReplace').addEventListener('click', () => {
+  const i = st.sheet.at;
+  if (i == null || !st.sheet.panels[i]) { setStatus(['<span class="err">Open a panel first, then update it.</span>']); return; }
+  st.sheet.panels[i] = { name: fileBase(), j: serialize() };
+  sheetSave(); sheetSync();
+});
+$('shList').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-sh]'); if (!b) return;
+  const i = +b.dataset.i, P = st.sheet.panels;
+  if (b.dataset.sh === 'del') { P.splice(i, 1); if (st.sheet.at === i) st.sheet.at = null; }
+  else if (b.dataset.sh === 'up' && i > 0) { P.splice(i - 1, 0, P.splice(i, 1)[0]); st.sheet.at = i - 1; }
+  else if (b.dataset.sh === 'down' && i < P.length - 1) { P.splice(i + 1, 0, P.splice(i, 1)[0]); st.sheet.at = i + 1; }
+  else if (b.dataset.sh === 'open') { st.sheet.at = i; restore(JSON.parse(JSON.stringify(P[i].j))); }
+  sheetSave(); sheetSync();
+});
+['shCols', 'shLetters', 'shGap', 'shLook', 'shScale', 'shTight'].forEach((k) => $(k).addEventListener('change', () => {
+  Object.assign(st.sheet, { cols: +$('shCols').value, letters: $('shLetters').value, gap: +$('shGap').value,
+    look: $('shLook').checked, scale: $('shScale').checked, tight: $('shTight').checked });
+  sheetSave(); sheetSync();
+}));
+$('shClear').addEventListener('click', () => { st.sheet.panels = []; st.sheet.at = null; sheetSave(); sheetSync(); });
+$('shSvg').addEventListener('click', () => {
+  const s = sheetSVG(); if (!s) { setStatus(['<span class="err">The sheet has no panels yet.</span>']); return; }
+  save(new Blob([SC.standalone(s, { bg: st.style.bg, mm: exSize().mm })], { type: 'image/svg+xml' }), 'sheet.svg');
+});
+$('shPng').addEventListener('click', () => {
+  const s = sheetSVG(); if (!s) { setStatus(['<span class="err">The sheet has no panels yet.</span>']); return; }
+  rasterize(SC.standalone(s, { bg: st.style.bg, mm: exSize().mm }), 'sheet');
+});
+
+// ---------- export ----------
+const PT_MIN = 5, LINE_MIN = 0.25;          // the usual journal floors: ~5 pt type, ~0.25 pt rules
+function fileBase() { const n = st.name.replace(/[^\w.-]+/g, '_'); return activeAxis() ? `${n}_${st.a}-${st.b}` : n; }
+function save(blob, name) { const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(u), 2000); }
+const exSize = () => ({ mm: +$('exW').value || 174, dpi: +$('exDpi').value || 600 });
+const exportSVG = (state = true) => SC.standalone($('fig').innerHTML, { bg: st.style.bg, mm: exSize().mm, state: state ? serialize() : null });
+function exNote() {
+  if (!st.mol) return;
+  const { mm, dpi } = exSize(), t = SC.typeCheck($('fig').innerHTML, mm), px = Math.round(mm / 25.4 * dpi);
+  const bad = [];
+  if (t.minTextPt && t.minTextPt < PT_MIN) bad.push(`type ${t.minTextPt.toFixed(1)} pt`);
+  if (t.minLinePt && t.minLinePt < LINE_MIN) bad.push(`lines ${t.minLinePt.toFixed(2)} pt`);
+  $('exNote').innerHTML = `${mm}&thinsp;&times;&thinsp;${t.heightMm.toFixed(0)} mm · ${px}&thinsp;&times;&thinsp;${Math.round(px * SC.H / SC.W)} px at ${dpi} dpi · smallest label ` +
+    `${t.minTextPt ? t.minTextPt.toFixed(1) : '—'} pt · thinnest line ${t.minLinePt ? t.minLinePt.toFixed(2) : '—'} pt ` +
+    (bad.length ? `<span class="err">— under the usual minimum (${PT_MIN} pt, ${LINE_MIN} pt): ${bad.join(', ')}. Raise label size or place it wider.</span>`
+      : `<span class="ok">&#10003; clears the usual minimums</span>`);
+}
+async function toClipboard(text, btn, ok) {
+  const was = btn.textContent;
+  try { await navigator.clipboard.writeText(text); btn.textContent = ok; }
+  catch (e) { save(new Blob([text], { type: 'text/plain' }), fileBase() + (ok === 'Python copied' ? '.py' : '.txt')); btn.textContent = 'Saved instead'; }
+  setTimeout(() => { btn.textContent = was; }, 1600);
+}
+$('dlsvg').addEventListener('click', () => save(new Blob([exportSVG()], { type: 'image/svg+xml' }), fileBase() + '.svg'));
+$('dlpng').addEventListener('click', () => rasterize(exportSVG(false), fileBase()));
+$('savesession').addEventListener('click', () => save(new Blob([JSON.stringify(serialize())], { type: 'application/json' }), fileBase() + '.thetascene.json'));
+$('copylink').addEventListener('click', (e) => {
+  const link = permalink();
+  history.replaceState(null, '', '#s=' + link.split('#s=')[1]);     // the address bar carries it too
+  if (link.length > 180000) { setStatus(['<span class="err">This stack is too large for a link — use Save session instead.</span>']); return; }
+  toClipboard(link, e.target, 'Link copied');
+});
+$('copypy').addEventListener('click', (e) => toClipboard(pythonSnippet(), e.target, 'Python copied'));
+['exW', 'exDpi'].forEach((k) => $(k).addEventListener('change', () => { exNote(); sheetSync(); }));
+designSync(); sheetLoad(); sheetSync();
+
+// the DescriPyTor calls that reproduce exactly what is on screen, with the values as assertions
+function pythonSnippet() {
+  const name = st.name.replace(/[^\w.-]+/g, '_'), out = [];
+  out.push(`# ${st.name} — from the Sterimol theta explorer`);
+  out.push('# Sterimol as the platform reads it: CPK radii, 1 deg scan, bonds from extract_connectivity at 1.82 A.');
+  out.push('# (MetalComplex measures its arms in its own frame and scans an 18 deg grid, so its values differ.)');
+  out.push('import pandas as pd');
+  out.push('import data_extractor as de                       # MolFeatures/M2_data_extractor');
+  out.push('');
+  out.push(`xyz = pd.read_csv('${name}.xyz', sep=r'\\s+', skiprows=2, names=['atom', 'x', 'y', 'z'])`);
+  out.push('bonds = de.extract_connectivity(xyz, threshold_distance=1.82)');
+  (st.LR.axes || []).forEach((x) => {
+    const ax = st.L.axes[x.j], r = x.res;
+    out.push('');
+    out.push(`r = de.get_sterimol_df(xyz, bonds, [${ax.a}, ${ax.b}], None, radii='CPK').iloc[0]   # ${x.label}`);
+    out.push(`assert [round(float(r[k]), 4) for k in ('B1', 'B5', 'L', 'loc_B5', 'B1_B5_angle')] == [${r.B1}, ${r.B5}, ${r.L}, ${r.loc_B5}, ${r.B1_B5_angle}]`);
+  });
+  if (st.LR.dipole || st.LR.sites.length || st.L.map) {
+    out.push('');
+    out.push('from extractor_utils.dipole_utils import calc_dipole_gaussian');
+    out.push(`m = de.Molecule('${name}.feather')               # the calculation: geometry, dipole, charges`);
+  }
+  if (st.LR.dipole) {
+    const o = selList(st.L.dip.origin), y = selList(st.L.dip.y)[0], p = selList(st.L.dip.plane)[0], d = st.LR.dipole.res;
+    out.push(`dip = calc_dipole_gaussian(m.xyz_df[['x', 'y', 'z']].to_numpy(), m.gauss_dipole_df.iloc[0].to_numpy()[:4],`);
+    out.push(`                           [[${o.join(', ')}], ${y}, ${p}]).iloc[0]`);
+    out.push(`assert [round(float(dip[k]), 4) for k in ('dipole_y', 'dipole_x', 'dipole_z')] == [${+d.dipole_y.toFixed(4)}, ${+d.dipole_x.toFixed(4)}, ${+d.dipole_z.toFixed(4)}]   # mu_u, mu_v, mu_w`);
+  }
+  (st.LR.sites || []).forEach((q) => {
+    const v = st.mol.charges[q.type][q.i];
+    out.push(`assert round(float(m.charge_dict['${q.type}'].iloc[${q.i}, 0]), 5) == ${+v.toFixed(5)}   # q_${q.type} on ${lbl(q.i + 1)}`);
+  });
+  out.push('');
+  out.push('print("reproduced")');
+  return out.join('\n');
+}
+
+// ---------- files: .xyz (multi-frame too), .sdf, and calculations read by DescriPyTor ----------
+function splitXyz(text, base) {
+  const lines = text.replace(/\r/g, '').split('\n'), frames = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (!lines[i].trim()) { i++; continue; }
+    if (!/^\s*\d+\s*$/.test(lines[i])) break;
+    const n = parseInt(lines[i], 10), block = lines.slice(i, i + 2 + n);
+    if (!n || block.length < 2 + n) break;
+    const m = (block[1] || '').match(/[-+]?\d+\.\d{5,}/);         // an energy in the comment line (Eh), as CREST, GOAT and xtb write it
+    frames.push({ name: base, xyz: block.join('\n'), energy: m ? parseFloat(m[0]) : null });
+    i += 2 + n;
+  }
+  if (!frames.length && text.trim()) frames.push({ name: base, xyz: text, energy: null });   // bare coordinates
+  if (frames.length > 1) frames.forEach((f, k) => { f.name = `${base} #${k + 1}`; });
+  return frames;
+}
+function splitSdf(text, base) {             // V2000 molfile records
+  return text.split(/\$\$\$\$/).map((r) => r.replace(/^\s*\n/, '')).filter((r) => r.trim()).map((rec, k, all) => {
+    const L = rec.split(/\r?\n/), n = parseInt((L[3] || '').slice(0, 3), 10), atoms = [];
+    for (let i = 0; i < n; i++) {
+      const l = L[4 + i] || '';
+      atoms.push(`${l.slice(31, 34).trim()} ${parseFloat(l.slice(0, 10))} ${parseFloat(l.slice(10, 20))} ${parseFloat(l.slice(20, 30))}`);
+    }
+    const name = (L[0] || '').trim() || (all.length > 1 ? `${base} #${k + 1}` : base);
+    return { name, xyz: `${n}\n${name}\n${atoms.join('\n')}`, energy: null };
+  }).filter((f) => !/NaN/.test(f.xyz));
+}
+async function readCalc(f) {                // geometry + dipole + charges, read by DescriPyTor itself
+  if (API === null) throw new Error('.feather and Gaussian .log files are read by DescriPyTor: start gui_server.py and open this page from it');
+  const fd = new FormData(); fd.append('file', f);
+  const d = await (await fetch(API + '/figure/load', { method: 'POST', body: fd })).json();
+  if (d.error) throw new Error(d.error);
+  return { key: 'user:' + d.name, name: d.name, sub: 'your calculation', xyz: d.xyz, dipole: d.dipole, charges: d.charges };
+}
+async function openSession(f) {             // a session file, or an SVG that carries one
+  try { restore(sceneOf(await f.text())); setStatus([`Reopened the session in ${esc(f.name)}.`]); return true; }
+  catch (e) { setStatus([`<span class="err">${esc(f.name)}: ${esc(e.message)}</span>`]); return true; }
+}
+async function readFiles(files) {           // -> entries; each file is one entry, an ensemble if it holds several frames
+  const out = [];
+  for (const f of files) {
+    const base = f.name.replace(/\.\w+$/, '');
+    try {
+      if (/\.(feather|log|out)$/i.test(f.name)) { setStatus([`Reading ${esc(f.name)} with DescriPyTor&hellip;`]); out.push(await readCalc(f)); continue; }
+      const text = await f.text(), fr = /\.(sdf|mol)$/i.test(f.name) ? splitSdf(text, base) : splitXyz(text, base);
+      if (!fr.length) throw new Error('no structures found');
+      out.push({ key: 'user:' + f.name, name: base, sub: fr.length > 1 ? `${fr.length} structures` : 'your file', xyz: fr[0].xyz,
+        energy: fr[0].energy, frames: fr.length > 1 ? fr : null });
+    } catch (e) { setStatus([`<span class="err">Could not read ${esc(f.name)}: ${esc(e.message)}</span>`]); }
+  }
+  return out;
+}
+function register(entry) {                  // into the molecule menu (replacing one with the same key), then load
+  let k = MOLS.findIndex((m) => m.key === entry.key);
+  if (k < 0) { MOLS.push(entry); k = MOLS.length - 1; $('mol').appendChild(document.createElement('option')).value = k; }
+  else MOLS[k] = entry;
+  $('mol').options[k].textContent = entry.name + ' — ' + entry.sub;
+  $('mol').value = k;
+  load(entry);
+}
+function addUser(name, xyz, kind = 'user', a = null, b = null, from = 'Click-to-Select', extra = {}) {
+  register(Object.assign({ key: kind + ':' + name, name, sub: kind === 'gui' ? 'from ' + from : 'your file', xyz, a, b }, extra));
+}
+
+// ---------- toolbar ----------
+MOLS.forEach((m, k) => { const o = document.createElement('option'); o.value = k; o.textContent = m.name + ' — ' + m.sub; $('mol').appendChild(o); });
+$('mol').addEventListener('change', () => load(MOLS[+$('mol').value]));
+['a', 'b'].forEach((k) => $(k).addEventListener('change', () => {
+  const v = parseInt($(k).value, 10);
+  if (v >= 1 && v <= st.mol.el.length) assign(k, v); else $(k).value = st[k];
+}));
+$('swap').addEventListener('click', () => setPair(st.b, st.a));
+$('orient').addEventListener('click', orient);
+$('reset').addEventListener('click', resetView);
+$('file').addEventListener('change', async (e) => {
+  const files = [...e.target.files]; e.target.value = '';
+  if (files.length === 1 && /\.(json|svg)$/i.test(files[0].name)) { await openSession(files[0]); return; }
+  const got = await readFiles(files);
+  if (got.length === 1) register(got[0]);
+  else if (got.length > 1) register({ key: 'user:' + got.map((g) => g.name).join('+'), name: `${got.length} files`, sub: 'stacked',
+    xyz: got[0].xyz, frames: got.flatMap((g) => framesOf(g).map((f) => ({ name: f.name, xyz: f.xyz, energy: f.energy, dipole: f.dipole, charges: f.charges }))) });
+});
+$('load').addEventListener('click', () => { const t = $('paste').value; if (t.trim()) addUser('pasted', t); });
+
+// ---------- inside the GUI: take its molecule and picks, hand the axis back ----------
+if (EMBED && window.parent !== window) {
+  window.addEventListener('message', (e) => {
+    if (e.source !== window.parent) return;
+    const d = e.data || {};
+    if (d.type === 'theta:load' && typeof d.xyz === 'string')
+      addUser(d.name || 'GUI molecule', d.xyz, 'gui', d.a, d.b, d.from, { dipole: d.dipole || null, charges: d.charges || null });
+  });
+  window.parent.postMessage({ type: 'theta:ready' }, '*');
+}
+$('usegui').addEventListener('click', () => {
+  if (!st.res || !st.key.startsWith('gui:')) return;
+  // the frame's third atom goes back as From-direction, so the GUI's three-atom call reproduces these numbers
+  window.parent.postMessage({ type: 'theta:axis', a: st.a, b: st.b, third: st.res.third, el: st.mol.el }, '*');
+  $('usegui').textContent = 'Sent ✓';
+  setTimeout(() => { $('usegui').innerHTML = 'Use in Sterimol &#8599;'; }, 1500);
+});
+
+// ---------- the side panel ----------
+function selList(t) {                       // "23-28, 30" -> [23..28, 30], in the order given
+  const out = [];
+  String(t || '').split(/[\s,;]+/).filter(Boolean).forEach((part) => {
+    const m = part.match(/^(\d+)(?:-(\d+))?$/);
+    if (!m) return;
+    const a = +m[1], b = m[2] ? +m[2] : a;
+    for (let k = a; a <= b ? k <= b : k >= b; k += a <= b ? 1 : -1) if (!out.includes(k)) out.push(k);
+  });
+  return out;
+}
+function selText(list) {                    // [23,24,25,26,30] -> "23-26, 30"
+  const v = [...list].sort((a, b) => a - b), parts = [];
+  for (let i = 0; i < v.length;) { let j = i; while (j + 1 < v.length && v[j + 1] === v[j] + 1) j++; parts.push(j > i ? `${v[i]}-${v[j]}` : `${v[i]}`); i = j + 1; }
+  return parts.join(', ');
+}
+const selArg = (t) => { const l = selList(t); return l.length > 1 ? l : l.length ? l[0] : null; };
+function principalAxes(X) {                 // the widest spread across the page
+  const n = X.length, c = [0, 1, 2].map((k) => X.reduce((s, p) => s + p[k], 0) / n);
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const C = [0, 1, 2].map((i) => [0, 1, 2].map((j) => X.reduce((s, p) => s + (p[i] - c[i]) * (p[j] - c[j]), 0)));
+  const pw = (M, v) => { for (let k = 0; k < 80; k++) { const w = M.map((r) => dot(r, v)); const q = Math.hypot(...w) || 1; v = w.map((x) => x / q); } return v; };
+  const v1 = pw(C, [1, 0.3, 0.2]), l1 = dot(v1, C.map((r) => dot(r, v1)));
+  let v2 = pw(C.map((r, i) => r.map((x, j) => x - l1 * v1[i] * v1[j])), [0.2, 1, 0.3]);
+  v2 = v2.map((x, i) => x - dot(v2, v1) * v1[i]); const q = Math.hypot(...v2) || 1; v2 = v2.map((x) => x / q);
+  return [v1, v2, [v1[1] * v2[2] - v1[2] * v2[1], v1[2] * v2[0] - v1[0] * v2[2], v1[0] * v2[1] - v1[1] * v2[0]]];
+}
+function syncLayerUI() {                    // state -> panel
+  const L = st.L; if (!L || !st.mol) return;
+  $('axCount').textContent = L.axes.length ? String(L.axes.length) : '';
+  $('axList').innerHTML = L.axes.length ? L.axes.map((ax, j) => {
+    const flag = ([k, t]) => `<label><input type="checkbox" data-ax="${j}" data-k="${k}"${ax.show[k] ? ' checked' : ''}>${t}</label>`;
+    return `<div class="lrow${j === L.active ? ' act' : ''}"><input type="radio" name="axact" data-axa="${j}"${j === L.active ? ' checked' : ''} aria-label="make ${lbl(ax.a)}→${lbl(ax.b)} the active axis">
+      <input type="checkbox" data-axv="${j}"${ax.off ? '' : ' checked'} aria-label="show ${lbl(ax.a)}→${lbl(ax.b)}">
+      <input type="color" value="${ax.color}" data-axc="${j}" aria-label="colour"><b>${lbl(ax.a) || ax.a}&rarr;${lbl(ax.b) || ax.b}</b>
+      <input type="text" class="axtag" data-axt="${j}" value="${esc(ax.tag || '')}" placeholder="tag" aria-label="subscript on its loc B5 label" title="subscript on its loc B5 label: 1 gives loc B5,1">
+      <input type="text" class="axtag" data-axd="${j}" value="${esc((ax.dropAtoms || []).join(','))}" placeholder="drop" aria-label="atoms left out of the measurement" title="atoms taken out of the measurement even when the fragment reaches them, like the package's drop_atoms=. Use it to cut a ring or a chelate that loops the fragment back around the molecule.">
+      <input type="text" class="axtag" data-axb="${j}" value="${esc((ax.block || []).join(','))}" placeholder="block" aria-label="atoms the fragment may not pass" title="atoms the fragment walk may not pass, as the package's block= does. A chelate needs it: block the other donor, or the metal, or the walk rounds the backbone and takes in the rest of the complex.">
+      <button class="x" type="button" data-axx="${j}" aria-label="remove">&times;</button>
+      ${st.structs.length > 1 ? `<label class="axon">on<select data-axo="${j}" title="which stacked structure this axis measures"><option value="">measured</option>${
+        st.structs.filter((s) => s !== st.structs[st.active]).map((s) => `<option value="${esc(s.id)}"${ax.on === s.id ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>` : ''}
+      <span class="mini">${FLAGS.map(flag).join('')}</span></div>`;
+  }).join('') : '<p class="small">None. Click an atom and make it the base or the axis.</p>';
+  $('dpOn').checked = L.dip.on; $('dpO').value = L.dip.origin; $('dpY').value = L.dip.y; $('dpP').value = L.dip.plane;
+  document.querySelectorAll('[data-dpc]').forEach((c) => { c.value = (L.dip.colors || {})[c.dataset.dpc] || SC.INKS[st.style.ink][c.dataset.dpc]; });
+  document.querySelectorAll('[data-dp]').forEach((c) => { c.checked = !!L.dip.show[c.dataset.dp]; });
+  const types = Object.keys(st.mol.charges || {});
+  $('qType').innerHTML = types.map((t) => `<option value="${t}">${QN[t] || t}</option>`).join('') || '<option value="">(no charges)</option>';
+  $('qMap').innerHTML = '<option value="">off</option>' + types.map((t) => `<option value="${t}"${L.map === t ? ' selected' : ''}>${QN[t] || t}</option>`).join('');
+  $('qList').innerHTML = L.sites.map((q, j) => {
+    const v = st.mol.charges && st.mol.charges[q.type] ? st.mol.charges[q.type][q.i - 1] : null;
+    return `<div class="lrow"><input type="color" value="${q.color}" data-qc="${j}" aria-label="colour"><b>${lbl(q.i)}</b> ${QN[q.type] || q.type}
+      <span class="v" style="flex-basis:auto">${v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(4)}</span>
+      <button class="x" type="button" data-qx="${j}" aria-label="remove">&times;</button></div>`;
+  }).join('');
+  const cns = L.cones || [], bvs = L.vburs || [];
+  $('posCount').textContent = (cns.length + bvs.length) ? String(cns.length + bvs.length) : '';
+  const num = (f) => { try { return f(); } catch (e) { return null; } };
+  $('posList').innerHTML = cns.map((c, j) => {
+    const r = num(() => Vbur.coneAngle(st.mol.el, st.mol.X, c.apex, { atoms: c.atoms }));
+    return `<div class="lrow"><input type="color" value="${c.color || SC.INKS[st.style.ink].theta}" data-cnc="${j}" aria-label="colour">
+      <b>cone at ${lbl(c.apex) || c.apex}</b><span class="mini">${c.atoms && c.atoms.length ? c.atoms.length + ' atoms' : 'all atoms'}</span>
+      <span class="v" style="flex-basis:auto">${r ? r.angle.toFixed(1) + '&#176;' : '&#8212;'}</span>
+      <button class="x" type="button" data-cnx="${j}" aria-label="remove">&times;</button></div>`;
+  }).join('') + bvs.map((b, j) => {
+    const r = num(() => Vbur.buriedVolume(st.mol.el, st.mol.X, st.mol.X[b.atom - 1], b.radius || 3.5));
+    return `<div class="lrow"><input type="color" value="${b.color || SC.INKS[st.style.ink].b5}" data-bvc="${j}" aria-label="colour">
+      <b>%V<sub>bur</sub> at ${lbl(b.atom) || b.atom}</b>
+      <input type="number" class="axtag" style="width:4.2em" min="1" max="12" step="0.5" value="${b.radius || 3.5}" data-bvr="${j}" aria-label="radius" title="sphere radius, &#8491;">
+      <span class="v" style="flex-basis:auto">${r ? r.percent.toFixed(1) + '%' : '&#8212;'}</span>
+      <button class="x" type="button" data-bvx="${j}" aria-label="remove">&times;</button></div>`;
+  }).join('');
+  $('fade').value = L.fade; $('fadeOff').checked = L.fadeOff; $('fadeHide').checked = !!L.fadeHide; $('legend').checked = L.legend;
+  $('scanAt').disabled = !activeAxis(); scaleNote();
+  const pr = (st.entry && st.entry.presets) || [];
+  $('preset').innerHTML = pr.length ? pr.map((x, k) => `<option value="${k}">${esc(x.name)}</option>`).join('') : '<option value="">(none for this structure)</option>';
+  $('presetApply').disabled = !pr.length;
+  syncChips(); syncStructUI();
+}
+function syncStructUI() {
+  const multi = st.structs.length > 1, e0 = Math.min(...st.structs.map((s) => (s.energy == null ? Infinity : s.energy)));
+  $('stCount').textContent = multi ? String(st.structs.length) : '';
+  $('stList').innerHTML = st.structs.map((s, k) => {
+    const act = k === st.active;
+    const dE = s.energy != null && isFinite(e0) && multi ? ` · ΔE ${((s.energy - e0) * 627.5095).toFixed(2)} kcal/mol` : '';
+    const al = act ? (multi ? ' · reference' : '') : s.alignErr ? ` · <span class="err">${esc(s.alignErr)}</span>` : s.rmsd != null ? ` · RMSD ${s.rmsd.toFixed(3)} Å on ${s.nAlign}` : '';
+    const own = st.align.mode === 'atoms' && !act ? `<label class="own" for="own${k}">its atoms<input id="own${k}" type="text" data-so="${k}" value="${esc(s.own)}" placeholder="same numbers"></label>` : '';
+    return `<div class="lrow${act ? ' act' : ''}"><input type="checkbox" data-sv="${k}"${s.on || act ? ' checked' : ''}${act ? ' disabled' : ''} aria-label="show ${esc(s.name)}">
+      <input type="color" value="${s.color}" data-sc="${k}" aria-label="colour of ${esc(s.name)}"><b title="${esc(s.name)}">${esc(s.name)}</b>
+      ${act ? '<span class="tag">measured</span>' : `<button type="button" data-sm="${k}">measure</button>`}
+      <button class="x" type="button" data-sx="${k}" aria-label="remove ${esc(s.name)}"${multi ? '' : ' disabled'}>&times;</button>
+      <span class="v">${s.mol.el.length} atoms${dE}${al}</span>${own}</div>`;
+  }).join('');
+  stackTable();
+  $('alMode').value = st.align.mode; $('alAtoms').value = st.align.atoms;
+  $('spread').value = st.align.spread; $('spreadV').textContent = (+st.align.spread).toFixed(1);
+  $('stAddSel').innerHTML = MOLS.map((m, k) => `<option value="${k}">${esc(m.name)}</option>`).join('');
+}
+// the active axis measured on every stacked structure, with Boltzmann weights from their energies
+function stackTable() {
+  const box = $('stTable'), ax = activeAxis();
+  if (!box) return;
+  if (st.structs.length < 2 || !ax) { box.innerHTML = ''; return; }
+  const rows = st.structs.map((s) => {
+    const mapped = smAxisOn(s);                       // the same atoms by substructure, where the query reaches them
+    const n = mapped || { a: ax.a, b: ax.b };
+    const same = s.mol.el.length === st.mol.el.length && s.mol.el.every((e, i) => e === st.mol.el[i]);
+    let r = null;
+    if (mapped || same || s === st.structs[st.active]) { try { r = S.sterimol(s.mol, n.a, n.b); } catch (e) { r = null; } }
+    return { s, r, n, mapped, same };
+  });
+  const nMap = rows.filter((x) => x.mapped).length;
+  const E = rows.map((x) => x.s.energy).filter((e) => e != null);
+  const e0 = E.length ? Math.min(...E) : null;
+  const kT = 3.166811e-6 * 298.15;                   // Eh at 298.15 K
+  const w = rows.map((x) => (e0 != null && x.s.energy != null ? Math.exp(-(x.s.energy - e0) / kT) : 0));
+  const sw = w.reduce((a, b) => a + b, 0);
+  const mean = (get) => {
+    if (!sw) return null;
+    let acc = 0, tot = 0;
+    rows.forEach((x, i) => { if (x.r && w[i]) { acc += w[i] * get(x.r); tot += w[i]; } });
+    return tot ? acc / tot : null;
+  };
+  const cell = (v, d = 2) => (v == null ? '—' : v.toFixed(d));
+  const head = `<tr><th>structure</th><th>B<sub>1</sub></th><th>B<sub>5</sub></th><th>L</th><th>loc B<sub>5</sub></th><th>θ</th><th>ΔE</th><th>w</th></tr>`;
+  const body = rows.map((x, i) => `<tr${st.structs[st.active] === x.s ? ' class="act"' : ''}><td title="${esc(x.s.name)}${x.n.a !== ax.a || x.n.b !== ax.b ? ` — measured ${x.n.a}→${x.n.b}` : ''}"><span class="dotk" style="background:${x.s.color}"></span>${esc(x.s.name)}${x.n.a !== ax.a || x.n.b !== ax.b ? ' <span class="sm-map">↦</span>' : ''}</td>
+    <td>${x.r ? cell(x.r.B1) : '—'}</td><td>${x.r ? cell(x.r.B5) : '—'}</td><td>${x.r ? cell(x.r.L) : '—'}</td><td>${x.r ? cell(x.r.loc_B5) : '—'}</td><td>${x.r ? cell(x.r.B1_B5_angle, 1) : '—'}</td>
+    <td>${x.s.energy != null && e0 != null ? ((x.s.energy - e0) * 627.5095).toFixed(2) : '—'}</td><td>${sw ? (100 * w[i] / sw).toFixed(0) + '%' : '—'}</td></tr>`).join('');
+  const avg = sw ? `<tr class="avg"><td>Boltzmann, 298 K</td><td>${cell(mean((r) => r.B1))}</td><td>${cell(mean((r) => r.B5))}</td><td>${cell(mean((r) => r.L))}</td>
+    <td>${cell(mean((r) => r.loc_B5))}</td><td>${cell(mean((r) => r.B1_B5_angle), 1)}</td><td></td><td></td></tr>` : '';
+  const off = rows.filter((x) => !x.r).length;
+  box.innerHTML = `<table class="stack">${head}${body}${avg}</table>` +
+    `<p class="small">${lbl(ax.a)}→${lbl(ax.b)} on every structure, ${nMap ? `by substructure on ${nMap} of them` : 'by atom number'}. ΔE in kcal/mol from the energies in the files.` +
+    (off ? ` <span class="err">${off} hold different atoms and no query maps them: match a fragment they share.</span>` : '') + '</p>';
+}
+// ---------- replay the scan B1 comes from: the plane sweeps, the plot follows, it settles on the narrowest ----------
+function scanProfile() { const x = st.LR && st.LR.axes.find((q) => q.j === st.L.active); return (x && x.res.profile) || []; }
+function scanShow(deg) {
+  const prof = scanProfile();
+  if (!prof.length) return;
+  st.scan = { deg: Math.min(107, Math.max(18, Math.round(deg))) };
+  const p = prof.find((q) => q.deg === st.scan.deg);
+  $('scanAt').value = st.scan.deg;
+  $('scanVal').innerHTML = p ? `B<sub>1</sub> ${p.B1.toFixed(2)} Å at ${p.deg}°` : '';
+  refresh();
+}
+function scanStop(settle = true) {
+  if (st.scanTimer) clearInterval(st.scanTimer);
+  st.scanTimer = null; st.scan = null;
+  $('scanPlay').innerHTML = '&#9654; Play the scan';
+  const x = st.LR && st.LR.axes.find((q) => q.j === st.L.active);
+  $('scanVal').innerHTML = settle && x ? `narrowest ${x.res.B1.toFixed(2)} Å at ${x.res.scanDeg}°` : '';
+  refresh();
+}
+$('scanPlay').addEventListener('click', () => {
+  if (st.scanTimer) { scanStop(); return; }
+  const prof = scanProfile();
+  if (!prof.length) { setStatus(['<span class="err">No axis to scan: pick one first.</span>']); return; }
+  const best = prof.reduce((b, p) => (p.B1 < b.B1 ? p : b));
+  const ax = activeAxis(); if (ax) { ax.show.profile = true; syncLayerUI(); }   // the sweep is read off the plot
+  $('scanPlay').innerHTML = '&#9632; Stop';
+  let deg = 18;                              // 18 to 107 degrees in about two seconds, then hold the narrowest
+  st.scanTimer = setInterval(() => {
+    if (deg > 107) { clearInterval(st.scanTimer); st.scanTimer = null; $('scanPlay').innerHTML = '&#9654; Play the scan'; scanShow(best.deg); return; }
+    scanShow(deg); deg += 2;
+  }, 45);
+});
+$('scanAt').addEventListener('input', (e) => { if (st.scanTimer) { clearInterval(st.scanTimer); st.scanTimer = null; $('scanPlay').innerHTML = '&#9654; Play the scan'; } scanShow(+e.target.value); });
+
+// how big a Angstrom is drawn: fitted per molecule, or held so separate panels match
+function scaleNote() {
+  const fit = st.fitScale, held = st.view.perA > 0;
+  $('perA').value = held ? st.view.perA : '';
+  if (!fit) { $('scaleNote').textContent = ''; return; }
+  const per = held ? st.view.perA : fit, mm = +$('exW').value || 174;
+  $('scaleNote').innerHTML = `${held ? 'held at' : 'fitted to'} ${per.toFixed(1)} units/Å` +
+    ` — ${(per * mm / SC.W).toFixed(1)} mm per Å at ${mm} mm wide` + (held ? ` (fit here: ${fit.toFixed(1)})` : '');
+}
+
+// ---------- substructure: one query, matched on every structure, in query order ----------
+// Atom numbers are per-file; a match is not. Matching the same query on two ligands pairs their
+// atoms, which is what carries an axis, an alignment or a dipole origin across a series.
+const SM_COLOR = '#2E9E5B';
+const SM_CHIPS = [
+  ['ring atoms', '[R]', 'every atom in a ring'],
+  ['6-ring', '[#6]1[#6][#6][#6][#6][#6]1', 'a six-carbon ring, aromatic or not'],
+  ['5-ring', '[R]1[R][R][R][R]1', 'any five-membered ring'],
+  ['C=O', '[#6X3]~[#8X1]', 'a three-connected carbon on a one-connected oxygen'],
+  ['oxazoline', '[#8]1[#6][#6][#7]~[#6]1', 'the O-C-C-N=C ring of a BOX arm'],
+  ['N donor', '[#7X2]', 'a two-connected nitrogen: imine, oxazoline, pyridine'],
+  ['P donor', '[#15X3]', 'a three-connected phosphorus'],
+  ['metal', '[Cu,Ni,Pd,Rh,Ru,Co,Fe,Ir,Pt,Zn,Mg,Mn,Cr,Ti,Zr,Ag,Au]', 'the metal centre'],
+  ['halide', '[F,Cl,Br,I]', 'a halogen'],
+  ['tert-butyl', '[#6X4;H0]([#6;H3])([#6;H3])[#6;H3]', 'a carbon carrying three methyls'],
+  ['isopropyl', '[#6X4;H1]([#6;H3])[#6;H3]', 'a CH on two methyls'],
+  ['stereocentre C', '[#6X4]([!#1])([!#1])([!#1])[!#1]', 'a carbon on four heavy atoms'],
+];
+const smMatches = (s) => st.sm.per[s.id] || (s === st.structs[st.active] ? st.sm.hits : []);
+const smMatchOf = (s) => { const l = smMatches(s); return l.length ? l[Math.min(st.sm.k, l.length - 1)] : null; };
+function smHits() {                         // the atoms drawn as matched right now
+  const m = smMatches(st.structs[st.active]);
+  if (!m.length) return new Set();
+  return new Set(st.sm.all ? m.flat() : (smMatchOf(st.structs[st.active]) || []));
+}
+function smMapAtom(s, i0) {                 // a reference atom -> this structure's, 0-based, or -1
+  const ref = st.structs[st.active], ra = smMatchOf(ref), sa = smMatchOf(s);
+  if (!ra || !sa || sa.length !== ra.length) return -1;
+  const k = ra.indexOf(i0);
+  if (k >= 0) return sa[k];                 // in the match: the mapping is the match itself
+  if (!s.nAlign || s.alignErr) return -1;   // outside it: only once the match has aligned the two
+  const p = ref.mol.X[i0], e0 = ref.mol.el[i0];
+  let best = -1, bd = 1.0;                  // the same element sitting within 1 A of it, once aligned
+  s.mol.el.forEach((e, j) => {
+    if (e !== e0) return;
+    const d = Math.hypot(s.Xd[j][0] - p[0], s.Xd[j][1] - p[1], s.Xd[j][2] - p[2]);
+    if (d < bd) { bd = d; best = j; }
+  });
+  return best;
+}
+function smAxisOn(s) {                      // the active axis carried onto this structure
+  const ax = activeAxis(), ref = st.structs[st.active];
+  if (!ax || s === ref) return null;
+  const a = smMapAtom(s, ax.a - 1), b = smMapAtom(s, ax.b - 1);
+  return a < 0 || b < 0 ? null : { a: a + 1, b: b + 1 };
+}
+async function runSmarts() {
+  const S = st.sm;
+  S.q = $('smQ').value; S.any = $('smAny').checked; S.all = $('smAll').checked;
+  S.err = ''; S.hits = []; S.per = {}; S.used = '';
+  if (!S.q.trim()) { smSync(); realign(); refresh(); return; }
+  S.busy = true; smSync();
+  try {
+    for (const s of st.structs) {
+      const r = await SMARTS.match(s.mol, S.q, S.any);
+      S.per[s.id] = r.matches; S.used = r.query;
+    }
+    S.hits = S.per[st.structs[st.active].id] || [];
+    S.k = S.hits.length ? Math.min(S.k, S.hits.length - 1) : 0;
+  } catch (e) { S.err = e.message; }
+  S.busy = false; smSync(); realign(); syncLayerUI(); refresh();
+}
+function smSync() {
+  const S = st.sm, n = S.hits.length;
+  $('smCount').textContent = n ? String(n) : '';
+  $('smWhich').innerHTML = S.busy ? 'matching&#8230;' : S.err ? `<span class="err">${esc(S.err)}</span>`
+    : !S.q.trim() ? 'no query yet' : !n ? 'no match' : `match ${S.k + 1} of ${n} &#183; ${S.hits[0].length} atoms`;
+  const others = st.structs.filter((s) => s !== st.structs[st.active]);
+  const hit = others.filter((s) => (S.per[s.id] || []).length).length;
+  $('smNote').innerHTML = !S.q.trim()
+    ? 'A query matched on two ligands pairs their atoms, whatever the numbering. Use it to align the stack, and the table there measures each ligand at its own matching atoms.'
+    : (S.used && S.used !== S.q.trim() ? `Matched as <code>${esc(S.used)}</code>: a geometry file carries no bond orders. ` : '')
+      + (others.length ? `${hit} of ${others.length} stacked structures match.` : 'Stack more structures to carry this match onto them.');
+  document.querySelectorAll('[data-smq]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.smq === S.q)));
+}
+$('smChips').innerHTML = SM_CHIPS.map(([name, q, why]) => `<button type="button" data-smq="${esc(q)}" title="${esc(why)} — ${esc(q)}">${esc(name)}</button>`).join('');
+$('smChips').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-smq]'); if (!b) return;
+  $('smQ').value = b.dataset.smq === st.sm.q ? '' : b.dataset.smq;
+  st.sm.k = 0; runSmarts();
+});
+let smTimer = 0;
+$('smQ').addEventListener('input', () => { clearTimeout(smTimer); st.sm.k = 0; smTimer = setTimeout(runSmarts, 350); });
+['smAny', 'smAll'].forEach((k) => $(k).addEventListener('change', runSmarts));
+$('smPrev').addEventListener('click', () => { if (st.sm.hits.length) { st.sm.k = (st.sm.k + st.sm.hits.length - 1) % st.sm.hits.length; smSync(); realign(); refresh(); } });
+$('smNext').addEventListener('click', () => { if (st.sm.hits.length) { st.sm.k = (st.sm.k + 1) % st.sm.hits.length; smSync(); realign(); refresh(); } });
+document.querySelectorAll('[data-smuse]').forEach((b) => b.addEventListener('click', () => {
+  const one = smMatchOf(st.structs[st.active]);
+  if (!one) { setStatus(['<span class="err">Nothing matched: no atoms to send.</span>']); return; }
+  const set = [...smHits()].sort((p, q) => p - q).map((i) => i + 1), first = one[0] + 1, L = st.L;
+  const to = b.dataset.smuse;
+  if (to === 'a' || to === 'b') assign(to, first);
+  else if (to === 'dpO') { L.dip.origin = selText(set); L.dip.on = true; syncLayerUI(); refresh(); }
+  else if (to === 'q') { set.forEach((k) => addSite(k)); syncLayerUI(); refresh(); }
+  else if (to === 'fade') { L.fade = selText(set); L.fadeOff = false; syncLayerUI(); refresh(); }
+}));
+$('axAdd').addEventListener('click', () => { addAxis(st.a, st.b); syncLayerUI(); refresh(); });
+// ---------- the Show toggles: a layer, or one part of the active axis, in a click ----------
+const chipOn = { sterimol: () => st.L.axes.some((a) => !a.off), dipole: () => st.L.dip.on, charges: () => !!st.L.map,
+  cone: () => !!(st.L.cones || []).length, vbur: () => !!(st.L.vburs || []).length };
+function syncChips() {
+  const ax = activeAxis();
+  $('chips').querySelectorAll('[data-chip]').forEach((b) => b.setAttribute('aria-pressed', String(!!chipOn[b.dataset.chip]())));
+  $('chips').querySelectorAll('[data-flag]').forEach((b) => {
+    b.setAttribute('aria-pressed', String(!!(ax && !ax.off && ax.show[b.dataset.flag])));
+    b.disabled = !st.mol;
+  });
+}
+$('chips').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b || !st.mol) return;
+  const L = st.L;
+  if (b.dataset.flag) {                     // one part of the active axis
+    if (!activeAxis()) addAxis(st.a, st.b);
+    const ax = activeAxis();
+    ax.off = false;
+    ax.show[b.dataset.flag] = !ax.show[b.dataset.flag];
+  } else if (b.dataset.chip === 'sterimol') {
+    if (!L.axes.length) addAxis(st.a, st.b);
+    else { const on = chipOn.sterimol(); L.axes.forEach((a) => { a.off = on; }); }
+  } else if (b.dataset.chip === 'dipole') {
+    if (!L.dip.on && !selList(L.dip.origin).length) {     // no frame yet: take the pair on screen, with the Sterimol frame's third atom
+      L.dip.origin = String(st.a); L.dip.y = String(st.b); L.dip.plane = String(st.res ? st.res.third : st.b);
+    }
+    L.dip.on = !L.dip.on;
+    $('dpSec').open = L.dip.on;
+  } else if (b.dataset.chip === 'cone') {
+    if (L.cones.length) L.cones = [];                      // pressed: clear them
+    else {
+      const r = Vbur.coneAngle(st.mol.el, st.mol.X, st.a, {});
+      if (!r || r.inside.length) {
+        setStatus([`<span class="err">${lbl(st.a)} cannot be a cone apex: ${r ? r.inside.map((i) => (st.mol.el[i - 1] || '') + i).join(', ') + ' contain it' : 'nothing to enclose'}. Pick a metal or a terminal atom.</span>`]);
+        return;
+      }
+      L.cones.push({ apex: st.a, atoms: null, color: SC.INKS[st.style.ink].theta });
+    }
+    $('posSec').open = !!L.cones.length;
+  } else if (b.dataset.chip === 'vbur') {
+    if (L.vburs.length) L.vburs = [];
+    else L.vburs.push({ atom: st.a, radius: +($('bvR') || {}).value || 3.5, color: SC.INKS[st.style.ink].b5 });
+    $('posSec').open = !!L.vburs.length;
+  } else if (b.dataset.chip === 'charges') {
+    const types = Object.keys(st.mol.charges || {});
+    if (!types.length) { setStatus(['<span class="err">No charges for this structure: open its .feather or .log.</span>']); return; }
+    L.map = L.map ? '' : types[0];
+    $('qSec').open = !!L.map;
+  } else return;
+  syncLayerUI(); refresh();
+});
+$('layers').addEventListener('input', (e) => {             // colours: redraw only, so the picker stays open
+  const t = e.target, L = st.L;
+  if (t.dataset.axo) { const ax = L.axes[+t.dataset.axo]; ax.on = t.value || ''; syncLayerUI(); refresh(); return; }
+  if (t.dataset.axc) { L.axes[+t.dataset.axc].color = t.value; st.LR.axes.forEach((x) => { if (x.j === +t.dataset.axc) x.color = t.value; }); draw(); writeVals(); }
+  else if (t.dataset.qc) { L.sites[+t.dataset.qc].color = t.value; refresh(); }
+  else if (t.dataset.cnc) { L.cones[+t.dataset.cnc].color = t.value; refresh(); }
+  else if (t.dataset.bvc) { L.vburs[+t.dataset.bvc].color = t.value; refresh(); }
+  else if (t.dataset.bvr) { L.vburs[+t.dataset.bvr].radius = +t.value || 3.5; refresh(); }
+  else if (t.dataset.axb) { const b = selList(t.value); L.axes[+t.dataset.axb].block = b.length ? b : null; refresh(); }
+  else if (t.dataset.axd) { const d = selList(t.value); L.axes[+t.dataset.axd].dropAtoms = d.length ? d : null; refresh(); }
+  else if (t.dataset.sc) { st.structs[+t.dataset.sc].color = t.value; draw(); }
+  else if (t.id === 'spread') { st.align.spread = +t.value; $('spreadV').textContent = (+t.value).toFixed(1); redrawSoon(); }
+  else if (t.id === 'ovOp') { st.style.overlayOpacity = +t.value; styleChanged(); }
+  else if (t.dataset.dpc) { L.dip.colors = Object.assign({}, L.dip.colors, { [t.dataset.dpc]: t.value }); if (st.LR.dipole) st.LR.dipole.colors = L.dip.colors; draw(); }
+});
+$('layers').addEventListener('change', (e) => {
+  const t = e.target, L = st.L;
+  if (t.dataset.ax) { L.axes[+t.dataset.ax].show[t.dataset.k] = t.checked; refresh(); return; }
+  if (t.dataset.axa) { L.active = +t.dataset.axa; syncLayerUI(); refresh(); return; }
+  if (t.dataset.dp) { L.dip.show[t.dataset.dp] = t.checked; refresh(); return; }
+  if (t.dataset.axt) { L.axes[+t.dataset.axt].tag = t.value.trim(); refresh(); return; }
+  if (t.dataset.axv) { L.axes[+t.dataset.axv].off = !t.checked; syncLayerUI(); refresh(); return; }
+  if (t.dataset.sv) { st.structs[+t.dataset.sv].on = t.checked; refresh(); return; }
+  if (t.dataset.so) { st.structs[+t.dataset.so].own = t.value; realign(); syncStructUI(); refresh(); return; }
+  if (t.id === 'perA') { st.view.perA = Math.max(0, parseFloat(t.value) || 0); refresh(); return; }
+  if (t.id === 'dpOn') L.dip.on = t.checked;
+  else if (t.id === 'dpO') { L.dip.origin = t.value; L.dip.on = true; }
+  else if (t.id === 'dpY') { L.dip.y = t.value; L.dip.on = true; }
+  else if (t.id === 'dpP') { L.dip.plane = t.value; L.dip.on = true; }
+  else if (t.id === 'qMap') L.map = t.value;
+  else if (t.id === 'fade') L.fade = t.value;
+  else if (t.id === 'fadeOff') L.fadeOff = t.checked;
+  else if (t.id === 'fadeHide') L.fadeHide = t.checked;
+  else if (t.id === 'legend') L.legend = t.checked;
+  else if (t.id === 'alMode') { st.align.mode = t.value; realign(); }
+  else if (t.id === 'alAtoms') { st.align.atoms = t.value; st.align.mode = 'atoms'; realign(); }
+  else if (t.id === 'ovCol') { st.style.overlay = t.value; styleChanged(); return; }
+  else return;
+  syncLayerUI(); refresh();
+});
+$('layers').addEventListener('click', (e) => {
+  const t = e.target.closest('button'); if (!t) return;
+  const L = st.L;
+  if (t.dataset.arm) { arm(t.dataset.arm); return; }
+  if (t.dataset.axx) { L.axes.splice(+t.dataset.axx, 1); if (L.active >= L.axes.length || +t.dataset.axx < L.active) L.active = Math.max(L.axes.length ? 0 : -1, L.active - 1); }
+  else if (t.dataset.qx) L.sites.splice(+t.dataset.qx, 1);
+  else if (t.id === 'qAdd') selList($('qAtom').value).forEach((k) => { if (k <= st.mol.el.length) addSite(k); });
+  else if (t.dataset.cnx) L.cones.splice(+t.dataset.cnx, 1);
+  else if (t.dataset.bvx) L.vburs.splice(+t.dataset.bvx, 1);
+  else if (t.id === 'cnAdd') {
+    const a = selArg($('cnApex').value), over = selList($('cnAtoms').value);
+    if (!a || a > st.mol.el.length) { setStatus(['<span class="err">Pick an apex atom first.</span>']); return; }
+    L.cones.push({ apex: a, atoms: over.length ? over : null, color: SC.INKS[st.style.ink].theta });
+  } else if (t.id === 'bvAdd') {
+    const a = selArg($('bvAtom').value);
+    if (!a || a > st.mol.el.length) { setStatus(['<span class="err">Pick a centre atom first.</span>']); return; }
+    L.vburs.push({ atom: a, radius: +$('bvR').value || 3.5, color: SC.INKS[st.style.ink].b5 });
+  }
+  else if (t.dataset.sm) { setActive(+t.dataset.sm); return; }
+  else if (t.dataset.sx) {
+    const k = +t.dataset.sx;
+    st.structs.splice(k, 1);
+    if (k === st.active) { st.active = Math.min(k, st.structs.length - 1); useActive(); }
+    else if (k < st.active) st.active--;
+    realign();
+  } else if (t.id === 'stAdd') { append([MOLS[+$('stAddSel').value]]); return; }
+  else if (t.id === 'presetApply') { const pr = (st.entry.presets || [])[+$('preset').value]; if (pr) applyPreset(pr); return; }
+  else if (t.id === 'lockScale') { st.view.perA = +(st.fitScale || 0).toFixed(2); }
+  else if (t.id === 'fitScale') { st.view.perA = 0; }
+  else if (t.id === 'dpColReset') delete L.dip.colors;
+  else return;
+  syncLayerUI(); refresh();
+});
+$('stFiles').addEventListener('change', async (e) => { const files = [...e.target.files]; e.target.value = ''; const got = await readFiles(files); if (got.length) append(got); });
+
+// ---------- the look (CYLview-style options, and the theta figure's own) ----------
+const STYLE_KEY = 'theta-explorer-style';
+st.style = (() => { try { return Object.assign({}, SC.STYLE, JSON.parse(localStorage.getItem(STYLE_KEY) || '{}')); } catch (e) { return Object.assign({}, SC.STYLE); } })();
+const opts = (o) => Object.entries(o).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+$('sLook').innerHTML = opts(SC.LOOKS) + '<option value="custom">Custom</option>';
+$('sPreset').innerHTML = opts(SC.PRESETS); $('sPalette').innerHTML = opts(SC.PALETTES); $('sInk').innerHTML = opts(SC.INKS);
+const SLIDERS = { sAtom: 'atomScale', sBw: 'bondScale', sOl: 'outline', sFog: 'fog', sPersp: 'perspective', sLbl: 'labelScale',
+  sVdwO: 'vdwOpacity', sVdwS: 'vdwScale', sIso: 'surfIso' };
+const SELECTS = { sAxM: 'axisMark', sPreset: 'preset', sPalette: 'palette', sInk: 'ink', sH: 'hydrogens', sBond: 'bondColor', sLab: 'atomLabels', sLoc: 'locMark',
+  sDip: 'dipoleArrow', sRamp: 'qRamp', sVdw: 'vdw', sKind: 'surfKind' };
+const matchLook = () => Object.keys(SC.LOOKS).find((k) => { const l = SC.lookStyle(k); return SC.LOOK_KEYS.every((key) => l[key] === st.style[key]); }) || 'custom';
+function syncStyleUI() {
+  const y = st.style;
+  y.look = matchLook(); $('sLook').value = y.look;
+  Object.entries(SELECTS).forEach(([id, k]) => { $(id).value = y[k]; });
+  Object.entries(SLIDERS).forEach(([id, k]) => { $(id).value = y[k]; $(id + 'V').textContent = (+y[k]).toFixed(k === 'surfIso' ? 4 : 2); });
+  $('sShadow').checked = y.shadow; $('sMetal').checked = y.metalDash; $('sLead').checked = y.leaders !== false; $('sBg').checked = y.bg === 'transparent';
+  $('sFeat').value = y.featureLabels === false ? 'none' : y.values !== false ? 'values' : 'symbols';
+  $('ovCol').value = y.overlay; $('ovOp').value = y.overlayOpacity; $('ovOpV').textContent = (+y.overlayOpacity).toFixed(2);
+}
+function styleChanged(persist = true) {          // a preset's look belongs to that figure, not to the next one
+  if (persist) { try { localStorage.setItem(STYLE_KEY, JSON.stringify(st.style)); } catch (e) { /* storage may be off */ } }
+  syncStyleUI(); writeVals(); redrawSoon();
+}
+$('styleCol').addEventListener('input', (e) => {
+  const t = e.target, y = st.style;
+  if (t.id === 'sLook') { if (t.value !== 'custom') Object.assign(y, SC.lookStyle(t.value)); }
+  else if (SLIDERS[t.id]) y[SLIDERS[t.id]] = +t.value;
+  else if (SELECTS[t.id]) y[SELECTS[t.id]] = t.value;
+  else if (t.id === 'sShadow') y.shadow = t.checked;
+  else if (t.id === 'sMetal') y.metalDash = t.checked;
+  else if (t.id === 'sLead') y.leaders = t.checked;
+  else if (t.id === 'sBg') y.bg = t.checked ? 'transparent' : 'white';
+  else if (t.id === 'sFeat') { y.featureLabels = t.value !== 'none'; y.values = t.value === 'values'; }
+  else return;
+  styleChanged();
+});
+syncStyleUI();
+load(MOLS[0]);
+// ?mol=m-CN&preset=Case%20Study%201%20panel opens that figure; &figure=1 leaves only the exported figure on the page
+(function fromUrl() {
+  let fromHash = false;
+  if (location.hash.startsWith('#s=')) {     // a permalink carries the whole session
+    try { restore(JSON.parse(unb64(location.hash.slice(3)))); fromHash = true; }
+    catch (e) { setStatus([`<span class="err">That link could not be read: ${esc(e.message)}</span>`]); }
+  }
+  const want = fromHash ? null : Q.get('mol');
+  if (want) { const k = MOLS.findIndex((m) => m.name === want || m.key === want); if (k >= 0) { $('mol').value = k; load(MOLS[k]); } }
+  const p = fromHash ? null : Q.get('preset'), prs = (st.entry && st.entry.presets) || [];
+  if (p != null) {
+    const k = /^[0-9]+$/.test(p) ? +p : prs.findIndex((x) => x.name.toLowerCase().startsWith(p.toLowerCase()));
+    if (prs[k]) { $('preset').value = k; applyPreset(prs[k]); }
+  }
+  const stl = Q.get('style');             // &style=locMark:caret,values:true overrides the look for a scripted export
+  if (stl) {
+    stl.split(',').forEach((kv) => {
+      const [k, v] = kv.split(':');
+      if (k in st.style) st.style[k] = /^-?[\d.]+$/.test(v) ? +v : v === 'true' ? true : v === 'false' ? false : v;
+    });
+    styleChanged(); draw();
+  }
+  // &sheet=m-CN::Case Study 1 panel;FL_lig_13::Case Study 2 panel builds the sheet from those presets
+  const sh = fromHash ? null : Q.get('sheet');
+  if (sh) {
+    Object.assign(st.sheet, { panels: [], at: null, cols: +(Q.get('cols') || st.sheet.cols), letters: Q.get('letters') ?? st.sheet.letters,
+      gap: +(Q.get('gap') ?? st.sheet.gap), tight: Q.get('tight') !== '0' });
+    sh.split(';').forEach((part) => {
+      const [m, pn] = part.split('::');
+      const k = MOLS.findIndex((x) => x.name === m || x.key === m);
+      if (k < 0) { setStatus([`<span class="err">No molecule called ${esc(m)}.</span>`]); return; }
+      $('mol').value = k; load(MOLS[k]);
+      const pr = (st.entry.presets || []).find((x) => !pn || x.name.toLowerCase().startsWith(pn.toLowerCase()));
+      if (pn && !pr) { setStatus([`<span class="err">${esc(m)} has no preset "${esc(pn)}".</span>`]); return; }
+      if (pr) applyPreset(pr);
+      st.sheet.panels.push({ name: fileBase(), j: serialize() });
+    });
+    sheetSync();
+  }
+  if (Q.has('figure')) {
+    draw();
+    const svg = sh ? SC.standalone(sheetSVG(), { bg: st.style.bg, mm: exSize().mm }) : exportSVG();
+    document.body.className = ''; document.body.style.cssText = 'margin:0;padding:0;background:#fff'; document.body.innerHTML = svg;
+  }
+})();
+</script>
+</body>
+</html>

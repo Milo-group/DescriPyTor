@@ -2,7 +2,10 @@ import numpy as np
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from utils import help_functions
+try:
+    from ..utils import help_functions
+except:
+    from utils import help_functions
 
 import pandas as pd
 import networkx as nx

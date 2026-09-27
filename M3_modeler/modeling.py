@@ -1,5 +1,6 @@
 # -*- coding: latin-1 -*-
 import cProfile
+import copy
 import os
 if not os.environ.get("MPLBACKEND"):
     os.environ["MPLBACKEND"] = "Agg"   # headless, file-only
@@ -480,30 +481,45 @@ def fit_and_evaluate_single_combination_regression(model, combination, r2_thresh
     X = selected_features.to_numpy()
     y = model.target_vector.to_numpy()
 
+    # ── Thread-local worker ───────────────────────────────────────────────────
+    # search_models() evaluates many combinations concurrently via
+    # Parallel(backend="threading"). fit()/evaluate() mutate instance state
+    # (self.theta, self.X_b_train, self.model, ...); sharing one `model` object
+    # across threads races and corrupts that state — e.g. one thread's 4-feature
+    # theta getting matmul'd against another thread's 3-feature design matrix,
+    # which surfaces as "matmul: ... size N is different from M" crashes once
+    # combos of mixed sizes run in the same parallel batch. Work on a shallow
+    # per-call copy so each thread's fit state is isolated; large shared
+    # read-only data (features_df, target_vector) is still referenced, not
+    # copied, so this stays cheap.
+    worker = copy.copy(model)
+    if worker.model_type.lower() != "linear":
+        worker.model = copy.deepcopy(model.model)
+
     # ── Fit both estimators ───────────────────────────────────────────────────
     # Ordinary linear regression uses the matrix-based fit/predict path.
     # Nonlinear/penalized sklearn estimators, such as lasso, still need their
     # estimator-specific fit implementation.
     t0 = time.time()
-    model.fit(X, y)
-    if model.model_type.lower() != "linear":
-        model.model.fit(X, y)
+    worker.fit(X, y)
+    if worker.model_type.lower() != "linear":
+        worker.model.fit(X, y)
     fit_time = time.time() - t0
 
     # ── In-sample evaluation (R², adj-R²) ────────────────────────────────────
     t1 = time.time()
-    model._trained_features = list(combination)
-    evaluation_results, y_pred = model.evaluate(X, y)
+    worker._trained_features = list(combination)
+    evaluation_results, y_pred = worker.evaluate(X, y)
     eval_time = time.time() - t1
-    coefficients, intercepts = model.get_coefficients_from_trained_estimator()
+    coefficients, intercepts = worker.get_coefficients_from_trained_estimator()
 
     # ── Q² LOO — always compute, unconditionally ──────────────────────────────
     # Linear models use the analytic hat-matrix LOO (no re-fitting loop).
     t3 = time.time()
-    if model.model_type.lower() == "linear":
+    if worker.model_type.lower() == "linear":
         q2, mae, rmsd = _analytic_loo_linear(X, y)
     else:
-        q2, mae, rmsd = model.calculate_q2_and_mae(X, y, n_splits=1)
+        q2, mae, rmsd = worker.calculate_q2_and_mae(X, y, n_splits=1)
     evaluation_results['Q2']   = q2
     evaluation_results['MAE']  = mae
     evaluation_results['RMSD'] = rmsd
@@ -514,7 +530,7 @@ def fit_and_evaluate_single_combination_regression(model, combination, r2_thresh
         'scores':       evaluation_results,
         'intercept':    intercepts,
         'coefficients': coefficients,
-        'model':        model,
+        'model':        worker,
         'predictions':  y_pred,
     }
 
@@ -1043,6 +1059,13 @@ class LinearRegressionModel:
         p = X.shape[1]
         features = self.features_df.columns
 
+        try:
+            import pymc as pm
+        except ImportError as e:
+            raise ImportError(
+                "Spike-and-slab selection requires pymc. Install with: pip install 'descripytor[bayes]'"
+            ) from e
+
         with pm.Model() as model:
             # Slab: wide Gaussian for nonzero
             spike = pm.Bernoulli('spike', p=p_include, shape=p)
@@ -1200,6 +1223,44 @@ class LinearRegressionModel:
         X_scaled = StandardScaler().fit_transform(df_num)
         vif_vals = [variance_inflation_factor(X_scaled, i) for i in range(df_num.shape[1])]
         return pd.DataFrame({"variable": df_num.columns, "VIF": vif_vals})
+
+    def _flag_high_vif(self, results: pd.DataFrame, vif_threshold: float = 10.0) -> pd.DataFrame:
+        """
+        For each row in `results` where Q2 was actually calculated (not NaN/-inf),
+        compute the max VIF among that combination's features and flag high_vif
+        when it exceeds `vif_threshold`. Rows without a calculated Q2 get NaN/False.
+        """
+        if results is None or results.empty or "combination" not in results.columns:
+            return results
+
+        results = results.copy()
+        q2 = _extract_q2(results)
+        has_q2 = q2.notna() & (q2 != float("-inf")) if q2 is not None else pd.Series(False, index=results.index)
+
+        max_vifs = []
+        high_flags = []
+        for idx, row in results.iterrows():
+            if not has_q2.loc[idx]:
+                max_vifs.append(np.nan)
+                high_flags.append(False)
+                continue
+            try:
+                cols = _parse_tuple_string(row["combination"])
+                cols = [c for c in cols if c in self.features_df.columns]
+                if len(cols) < 2:
+                    max_vifs.append(np.nan)
+                    high_flags.append(False)
+                    continue
+                vif_df = self._compute_vif(self.features_df[cols])
+                max_vif = float(vif_df["VIF"].max()) if not vif_df.empty else np.nan
+            except Exception:
+                max_vif = np.nan
+            max_vifs.append(max_vif)
+            high_flags.append(bool(max_vif > vif_threshold) if pd.notna(max_vif) else False)
+
+        results["max_vif"] = max_vifs
+        results["high_vif"] = high_flags
+        return results
 
     def _get_highly_correlated_features(self, corr_matrix: pd.DataFrame, threshold: float = 0.8) -> set:
         """Return the set of feature names involved in any pair with |r| > threshold."""
@@ -1839,10 +1900,15 @@ class LinearRegressionModel:
         min_models_to_keep: int = 5,
         threshold_step: float = 0.05,
         min_threshold: float = 0.2,
+        vif_threshold: float = 10.0,
     ):
         """
         Fit and evaluate feature combinations with an optional set of required features.
         Threshold is relaxed automatically if all Q2 are -inf.
+
+        Adds a `high_vif` flag (and `max_vif` value) for every model whose Q2 was
+        actually calculated, marking combinations whose max feature VIF exceeds
+        `vif_threshold` (default 10).
 
         Returns
         -------
@@ -2012,6 +2078,9 @@ class LinearRegressionModel:
 
         # keep at least min_models_to_keep even if top_n is small
         results = results.head(max(top_n, min_models_to_keep))
+
+        # Flag high multicollinearity (VIF > vif_threshold) for models with a calculated Q2
+        results = self._flag_high_vif(results, vif_threshold=vif_threshold)
 
         # Show table when the optional plot module loaded
         printer = globals().get("print_models_regression_table")

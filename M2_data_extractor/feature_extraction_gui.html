@@ -1127,10 +1127,18 @@
     <div class="nav-item" onclick="showTab('tab-steriplot', this)">
       <span class="nav-icon">📊</span> Steriplot Options
     </div>
+    <div class="nav-item" onclick="showTab('tab-theta', this)">
+      <span class="nav-icon">θ</span> θ Explorer
+    </div>
 
     <div class="nav-section" style="margin-top:12px;">Extraction</div>
     <div class="nav-item" onclick="showTab('tab-features', this)">
       <span class="nav-icon">🧬</span> Feature Set
+    </div>
+
+    <div class="nav-section" style="margin-top:12px;">Modeling</div>
+    <div class="nav-item" onclick="showTab('tab-modeling', this)">
+      <span class="nav-icon">M3</span> Regression &amp; BASSA
     </div>
 
     <div class="nav-section" style="margin-top:12px;">Output</div>
@@ -1891,6 +1899,25 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- ════════════════ TAB: THETA EXPLORER -->
+    <div id="tab-theta" class="tab-panel">
+      <div class="section-title">θ Explorer</div>
+      <div class="section-sub">Live Sterimol for any two atoms: drag the molecule to turn it, click an atom to make it the
+        base or the axis. The numbers come from an in-browser port of <code>get_sterimol_df</code>, checked against the
+        Python on every pick. <strong>Use in Sterimol ↗</strong> sends the axis to the Sterimol configuration.</div>
+      <div class="btn-row" style="align-items:center;margin-bottom:10px;">
+        <button class="btn btn-secondary" type="button" onclick="thetaSendCurrent(false)">Load the Click-to-Select molecule</button>
+        <span id="theta-msg" class="hint"></span>
+      </div>
+      <div id="theta-offline" class="info-banner" style="display:none;">
+        <span class="icon">ℹ️</span>
+        <div>The explorer is served by <code>gui_server.py</code>. Start it with <code>python gui_server.py</code>,
+          then open this tab again.</div>
+      </div>
+      <iframe id="theta-frame" title="Sterimol theta explorer"
+        style="display:block;width:100%;height:calc(100vh - 210px);min-height:640px;border:1px solid var(--border);border-radius:8px;background:var(--surface);"></iframe>
     </div>
 
     <!-- ════════════════ TAB: FEATHER DATASET -->
@@ -2980,6 +3007,67 @@
     </div>
 
     <!-- ════════════════ TAB: GUIDE & EXAMPLES -->
+    <div id="tab-modeling" class="tab-panel">
+      <div class="section-title">Modeling</div>
+      <div class="section-sub">Validate an extracted descriptor CSV, prepare a modeling command, then run M3 or BASSA without leaving this GUI.</div>
+
+      <div class="card">
+        <div class="card-header" onclick="toggleCard(this)"><span>M3</span><h3>Engine and dataset</h3><span class="chevron">▼</span></div>
+        <div class="card-body">
+          <div class="form-grid form-grid-2">
+            <div class="field"><label>Engine</label><select id="model-engine" onchange="modelSyncOptions()"><option value="m3">M3 exhaustive search</option><option value="bassa">BASSA Bayesian regression</option></select></div>
+            <div class="field" id="model-task-field"><label>Task</label><select id="model-task" onchange="modelSyncOptions()"><option value="regression">Regression</option><option value="classification">Classification</option></select></div>
+            <div class="field"><label>Feature CSV</label><input type="text" id="model-features-csv" placeholder="C:\path\to\dataset.csv" oninput="modelInvalidateDataset()" onblur="modelInspectDataset()"/><span class="hint">The file is checked automatically when you leave this field.</span></div>
+            <div class="field" id="model-target-csv-field"><label>Target CSV (optional)</label><input type="text" id="model-target-csv" placeholder="Leave empty for one-CSV mode"/></div>
+            <div class="field"><label>Target column</label><input type="text" id="model-target" value="output" oninput="modelInvalidateDataset()" onblur="modelInspectDataset()"/><span class="hint">Descriptor CSVs are expected to contain a numeric <code>output</code> column.</span></div>
+            <div class="field"><label>Names column (optional)</label><input type="text" id="model-names-column" placeholder="Molecule or ID column"/></div>
+          </div>
+          <div class="btn-row" style="margin-top:16px;"><button class="btn btn-secondary" onclick="modelInspectDataset()">Verify CSV</button></div>
+          <div id="model-dataset-summary" class="info-banner" style="display:none;margin-top:14px;"></div>
+        </div>
+      </div>
+
+      <div class="card" id="model-m3-options">
+        <div class="card-header" onclick="toggleCard(this)"><span>⚙</span><h3>M3 search options</h3><span class="chevron">▼</span></div>
+        <div class="card-body">
+          <div class="form-grid form-grid-3">
+            <div class="field" id="model-regression-type-field"><label>Regression type</label><select id="model-regression-type"><option value="linear">Ordinary least squares</option><option value="lasso">Lasso</option></select></div>
+            <div class="field"><label>Lasso alpha</label><input type="number" id="model-alpha" value="1" min="0" step="0.1"/></div>
+            <div class="field"><label>CV folds</label><input type="number" id="model-splits" value="5" min="2" max="20"/></div>
+            <div class="field"><label>Minimum features</label><input type="number" id="model-min-features" value="1" min="1" onchange="modelUpdateCombinations()"/></div>
+            <div class="field"><label>Maximum features</label><input type="number" id="model-max-features" value="3" min="1" onchange="modelUpdateCombinations()"/></div>
+            <div class="field"><label>Top models</label><input type="number" id="model-top-n" value="20" min="1"/></div>
+            <div class="field"><label>Quality threshold</label><input type="number" id="model-threshold" value="0.7" min="0" max="1" step="0.01"/></div>
+            <div class="field"><label>CPU jobs</label><input type="number" id="model-jobs" value="1" min="1"/></div>
+            <div class="field"><label>Random seed</label><input type="number" id="model-seed" value="42"/></div>
+            <div class="field"><label>Required features</label><input type="text" id="model-required" placeholder="feature_a, feature_b"/></div>
+            <div class="field"><label>Leave-out samples</label><input type="text" id="model-leave-out" placeholder="Mol_01, Mol_02"/></div>
+            <div class="field"><label>Parallel evaluation</label><div class="toggle-row"><label class="toggle"><input type="checkbox" id="model-parallel"/><span class="slider"></span></label><label for="model-parallel">Use multiple CPU jobs</label></div></div>
+          </div>
+          <div id="model-combo-warning" class="info-banner" style="display:none;margin-top:16px;"></div>
+        </div>
+      </div>
+
+      <div class="card" id="model-bassa-options" style="display:none;">
+        <div class="card-header" onclick="toggleCard(this)"><span>B</span><h3>BASSA options</h3><span class="chevron">▼</span></div>
+        <div class="card-body">
+          <div class="form-grid form-grid-2">
+            <div class="field"><label>Sampler iterations</label><input type="number" id="model-bassa-iterations" value="5000" min="100"/></div>
+            <div class="field"><label>Experiment name</label><input type="text" id="model-bassa-name" value="molfeatures_gui"/></div>
+            <div class="field"><label>Output directory</label><input type="text" id="model-bassa-path" value="bassa_runs"/></div>
+            <div class="field"><label>Feature columns (optional)</label><input type="text" id="model-bassa-features" placeholder="Empty uses all numeric columns"/></div>
+          </div>
+          <div id="model-bassa-install" class="info-banner" style="margin-top:16px;">BASSA requires <code>pip install bassa-reg</code> in the same Python environment as the GUI server.</div>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-bottom:16px;"><button class="btn btn-success" id="model-run-button" onclick="modelRun()">Run model</button><button class="btn btn-primary" onclick="modelGenerateCommand()">Generate command</button><button class="btn btn-secondary" onclick="modelGenerateCode()">Python API code</button></div>
+      <div id="model-status" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;min-height:16px;"></div>
+      <div id="model-command-wrap" class="code-wrap" style="display:none;margin-bottom:20px;"><div class="code-toolbar"><span>Terminal command</span><button class="btn btn-secondary btn-icon" onclick="modelCopyCommand()">Copy</button></div><pre id="model-command" style="font-size:12px;overflow:auto;white-space:pre-wrap;"></pre></div>
+      <div id="model-code-wrap" class="code-wrap" style="display:none;margin-bottom:20px;"><div class="code-toolbar"><span>model.py</span><button class="btn btn-secondary btn-icon" onclick="modelCopyCode()">Copy</button></div><pre id="model-code" style="font-size:11.5px;max-height:360px;overflow:auto;"></pre></div>
+      <div id="model-results-wrap" style="display:none;"><div class="fs-result-wrap"><table class="fs-result-table"><thead><tr id="model-results-head"></tr></thead><tbody id="model-results-body"></tbody></table></div></div>
+    </div>
+
     <div id="tab-guide" class="tab-panel">
       <div class="section-title">Guide &amp; Examples</div>
       <div class="section-sub">A complete walkthrough of every feature in this GUI — from loading your first dataset to interpreting the feature matrix.</div>
@@ -3599,6 +3687,8 @@ function showTab(id, el) {
   document.getElementById(id).classList.add('active');
   el.classList.add('active');
   if (id === 'tab-features') fsOnTabActivated();
+  if (id === 'tab-modeling') modelSyncOptions();
+  if (id === 'tab-theta') thetaOnTabActivated();
 }
 
 // ── Card collapse
@@ -4934,6 +5024,42 @@ let lastExprResult  = null;
 const SERVER_URL = 'http://localhost:7432';
 let serverOnline = false;
 
+// ── θ Explorer bridge: Click-to-Select → explorer → Sterimol configuration ──
+const THETA_ORIGIN = new URL(SERVER_URL).origin;
+let thetaReady = false, thetaPending = null;
+function thetaMsg(t) { const el = document.getElementById('theta-msg'); if (el) el.textContent = t; }
+function thetaOnTabActivated() {
+  const frame = document.getElementById('theta-frame');
+  document.getElementById('theta-offline').style.display = serverOnline ? 'none' : '';
+  frame.style.display = serverOnline ? 'block' : 'none';
+  if (!serverOnline) return;
+  if (!frame.src) { thetaReady = false; frame.src = SERVER_URL + '/theta?embed=1&theme=dark'; }
+  thetaSendCurrent(true);
+}
+function thetaSendCurrent(quiet) {
+  const xyz = (document.getElementById('xyz-input')?.value || '').trim();
+  if (!xyz) { if (!quiet) thetaMsg('Load a molecule in Click-to-Select first.'); return; }
+  const payload = { type: 'theta:load', name: (typeof fpCurrentMol !== 'undefined' && fpCurrentMol?.name) || 'Click-to-Select molecule',
+    xyz, a: selState.origin?.idx || null, b: selState.direction?.idx || null };
+  if (!thetaReady) { thetaPending = payload; return; }
+  document.getElementById('theta-frame').contentWindow.postMessage(payload, THETA_ORIGIN);
+  thetaMsg(`Loaded ${payload.name}` + (payload.a && payload.b ? ` with your picks ${payload.a} → ${payload.b}.` : '.'));
+}
+window.addEventListener('message', (e) => {
+  if (e.origin !== THETA_ORIGIN) return;
+  const d = e.data || {};
+  if (d.type === 'theta:ready') {
+    thetaReady = true;
+    if (thetaPending) { const p = thetaPending; thetaPending = null; thetaReady = true; document.getElementById('theta-frame').contentWindow.postMessage(p, THETA_ORIGIN);
+      thetaMsg(`Loaded ${p.name}` + (p.a && p.b ? ` with your picks ${p.a} → ${p.b}.` : '.')); }
+  } else if (d.type === 'theta:axis' && [d.a, d.b, d.third].every(Number.isInteger)) {
+    const at = (i) => ({ idx: i, elem: (d.el && d.el[i - 1]) || '?' });
+    selState.origin = at(d.a); selState.direction = at(d.b); selState.fromdirection = at(d.third);
+    refreshStyles(); refreshChips(); refreshApplySummary(); updateFpSelectionDisplay(); applyToFields();
+    thetaMsg(`Sterimol axis set: origin ${d.a}, direction ${d.b}, from-direction ${d.third}.`);
+  }
+});
+
 // ── parse XYZ string → array ─────────────────────────────────
 function parseXYZString(xyzStr) {
   const lines = xyzStr.trim().split('\n');
@@ -6208,6 +6334,217 @@ function copyFsCode() {
 }
 
 // ══════════════════════════════════════════════════════════════
+// MODELING (M3 / BASSA)
+let modelFeatureCount = 0;
+let modelDatasetReady = false;
+
+function modelList(id) {
+  return document.getElementById(id).value.split(',').map(v => v.trim()).filter(Boolean);
+}
+
+function modelInvalidateDataset() {
+  modelDatasetReady = false;
+  const summary = document.getElementById('model-dataset-summary');
+  if (summary) summary.style.display = 'none';
+}
+
+function modelSyncOptions() {
+  const isBassa = document.getElementById('model-engine').value === 'bassa';
+  const isRegression = document.getElementById('model-task').value === 'regression';
+  document.getElementById('model-m3-options').style.display = isBassa ? 'none' : '';
+  document.getElementById('model-bassa-options').style.display = isBassa ? '' : 'none';
+  document.getElementById('model-task-field').style.display = isBassa ? 'none' : '';
+  document.getElementById('model-target-csv-field').style.display = isBassa ? 'none' : '';
+  document.getElementById('model-regression-type-field').style.display = isRegression ? '' : 'none';
+  document.getElementById('model-run-button').textContent = isBassa ? 'Run BASSA' : 'Run M3 search';
+}
+
+function modelCombinationCount(n, lo, hi) {
+  const choose = (a, b) => {
+    if (b < 0 || b > a) return 0;
+    b = Math.min(b, a - b);
+    let value = 1;
+    for (let i = 1; i <= b; i++) value = value * (a - b + i) / i;
+    return Math.round(value);
+  };
+  let total = 0;
+  for (let k = Math.max(1, lo); k <= Math.min(n, hi); k++) total += choose(n, k);
+  return total;
+}
+
+function modelUpdateCombinations() {
+  const box = document.getElementById('model-combo-warning');
+  if (!modelFeatureCount) { box.style.display = 'none'; return; }
+  const lo = Number(document.getElementById('model-min-features').value || 1);
+  const hi = Number(document.getElementById('model-max-features').value || lo);
+  const count = modelCombinationCount(modelFeatureCount, lo, hi);
+  box.style.display = '';
+  box.innerHTML = `<strong>${count.toLocaleString()} combinations</strong> from ${modelFeatureCount} numeric features. ` +
+    (count > 100000 ? 'This is a large search; lower the maximum features or add required features before running.' : 'This search size is reasonable.');
+  box.style.background = count > 100000 ? 'rgba(240,192,64,0.08)' : 'rgba(62,207,142,0.08)';
+}
+
+async function modelInspectDataset() {
+  const summary = document.getElementById('model-dataset-summary');
+  const csvPath = document.getElementById('model-features-csv').value.trim();
+  if (!csvPath) {
+    modelDatasetReady = false;
+    summary.style.display = 'none';
+    return false;
+  }
+  summary.style.display = '';
+  summary.textContent = 'Inspecting dataset...';
+  try {
+    const response = await fetch(SERVER_URL + '/model/dataset', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({features_csv: document.getElementById('model-features-csv').value.trim(), target: document.getElementById('model-target').value.trim()})
+    });
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || 'Dataset inspection failed.');
+    modelFeatureCount = data.feature_count;
+    summary.innerHTML = `<strong>${data.rows.toLocaleString()} rows</strong> · ${data.columns.length} columns · ${data.feature_count} numeric candidate features · target ${data.target_found ? 'found' : 'not found'}`;
+    modelDatasetReady = data.ready;
+    const targetState = !data.target_found
+      ? `Column <code>${data.target}</code> is missing.`
+      : !data.target_numeric
+        ? `Column <code>${data.target}</code> must be numeric.`
+        : `<code>${data.target}</code> is numeric${data.target_missing ? ` with ${data.target_missing} missing values` : ' with no missing values'}.`;
+    const duplicateState = data.duplicate_columns.length
+      ? ` Duplicate columns: ${data.duplicate_columns.join(', ')}.` : '';
+    summary.innerHTML = `<span class="icon">${data.ready ? '✓' : '!'}</span><div><strong>${data.ready ? 'CSV ready for modeling' : 'CSV needs attention'}</strong><br>${data.rows.toLocaleString()} rows, ${data.columns.length} columns, ${data.feature_count} numeric features. ${targetState}${duplicateState}</div>`;
+    summary.style.background = data.ready ? 'rgba(62,207,142,0.08)' : 'rgba(224,82,82,0.08)';
+    summary.style.borderColor = data.ready ? 'rgba(62,207,142,0.35)' : 'rgba(224,82,82,0.35)';
+    modelUpdateCombinations();
+    return data.ready;
+  } catch (error) {
+    modelDatasetReady = false;
+    summary.innerHTML = `<span class="icon">!</span><div><strong>CSV could not be verified</strong><br>${error.message}</div>`;
+    summary.style.background = 'rgba(224,82,82,0.08)';
+    summary.style.borderColor = 'rgba(224,82,82,0.35)';
+    return false;
+  }
+}
+
+function modelPayload() {
+  return {
+    engine: document.getElementById('model-engine').value,
+    task: document.getElementById('model-task').value,
+    features_csv: document.getElementById('model-features-csv').value.trim(),
+    target_csv: document.getElementById('model-target-csv').value.trim(),
+    target: document.getElementById('model-target').value.trim(),
+    names_column: document.getElementById('model-names-column').value.trim(),
+    regression_type: document.getElementById('model-regression-type').value,
+    alpha: Number(document.getElementById('model-alpha').value),
+    n_splits: Number(document.getElementById('model-splits').value),
+    min_features: Number(document.getElementById('model-min-features').value),
+    max_features: Number(document.getElementById('model-max-features').value),
+    top_n: Number(document.getElementById('model-top-n').value),
+    threshold: Number(document.getElementById('model-threshold').value),
+    n_jobs: Number(document.getElementById('model-jobs').value),
+    parallel: document.getElementById('model-parallel').checked,
+    seed: Number(document.getElementById('model-seed').value),
+    required_features: modelList('model-required'), leave_out: modelList('model-leave-out'),
+    sampler_iterations: Number(document.getElementById('model-bassa-iterations').value),
+    experiment_name: document.getElementById('model-bassa-name').value.trim(),
+    project_path: document.getElementById('model-bassa-path').value.trim(),
+    feature_columns: modelList('model-bassa-features')
+  };
+}
+
+async function modelRun() {
+  const status = document.getElementById('model-status');
+  const button = document.getElementById('model-run-button');
+  if (!serverOnline) { status.textContent = 'Start gui_server.py before running a model.'; return; }
+  const payload = modelPayload();
+  if (!payload.features_csv || !payload.target) { status.textContent = 'Feature CSV and target column are required.'; return; }
+  if (!modelDatasetReady && !await modelInspectDataset()) {
+    status.textContent = 'Fix the CSV validation issues before running the model.';
+    return;
+  }
+  const combos = payload.engine === 'm3' ? modelCombinationCount(modelFeatureCount, payload.min_features, payload.max_features) : 0;
+  if (combos > 100000 && !confirm(`This will evaluate ${combos.toLocaleString()} combinations. Continue?`)) return;
+  button.disabled = true; status.textContent = payload.engine === 'bassa' ? 'BASSA is sampling models...' : 'M3 is evaluating feature combinations...';
+  try {
+    const response = await fetch(SERVER_URL + '/model/run', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || 'Model run failed.');
+    modelRenderResults(data);
+    status.textContent = data.message || `Completed. ${data.rows || 0} result rows. Output: ${data.run_directory || data.project_path || ''}`;
+  } catch (error) { status.textContent = 'Error: ' + error.message; }
+  finally { button.disabled = false; }
+}
+
+function modelRenderResults(data) {
+  const wrap = document.getElementById('model-results-wrap');
+  const head = document.getElementById('model-results-head');
+  const body = document.getElementById('model-results-body');
+  const rows = data.results || [];
+  if (!rows.length) { wrap.style.display = 'none'; return; }
+  const columns = data.columns || Object.keys(rows[0]);
+  head.innerHTML = columns.map(c => `<th>${String(c)}</th>`).join('');
+  body.innerHTML = rows.map(row => '<tr>' + columns.map(c => `<td>${row[c] == null ? '' : String(row[c])}</td>`).join('') + '</tr>').join('');
+  wrap.style.display = '';
+}
+
+function modelGenerateCode() {
+  const p = modelPayload();
+  let code;
+  if (p.engine === 'bassa') {
+    code = `import pandas as pd\nfrom bassa_reg import Bassa\nfrom bassa_reg.spike_and_slab.spike_and_slab import SpikeAndSlabConfigurations, SpikeAndSlabRegression\nfrom bassa_reg.spike_and_slab.spike_and_slab_util_models import SpikeAndSlabPriors\n\ndf = pd.read_csv(${JSON.stringify(p.features_csv)})\ny = df.pop(${JSON.stringify(p.target)})\nX = df.select_dtypes(include="number")\nconfig = SpikeAndSlabConfigurations(sampler_iterations=${p.sampler_iterations})\nmodel = SpikeAndSlabRegression(x=X, y=y, priors=SpikeAndSlabPriors(), config=config, project_path=${JSON.stringify(p.project_path)}, experiment_name=${JSON.stringify(p.experiment_name)})\nmodel.run()\nBassa(model=model).run()\n`;
+  } else {
+    const cls = p.task === 'classification' ? 'ClassificationModel' : 'LinearRegressionModel';
+    code = `from M3_modeler.modeling import ${cls}\n\npaths = {"features_csv_filepath": ${JSON.stringify(p.features_csv)}, "target_csv_filepath": ${JSON.stringify(p.target_csv || null)}}\nmodel = ${cls}(paths, process_method=${JSON.stringify(p.target_csv ? 'two csvs' : 'one csv')}, y_value=${JSON.stringify(p.target)}, min_features_num=${p.min_features}, max_features_num=${p.max_features})\nresults = model.search_models(top_n=${p.top_n}, threshold=${p.threshold}, bool_parallel=${p.parallel ? 'True' : 'False'}, n_jobs=${p.n_jobs})\nprint(results)\n`;
+  }
+  document.getElementById('model-code').textContent = code;
+  document.getElementById('model-code-wrap').style.display = '';
+}
+
+function modelCopyCode() { navigator.clipboard.writeText(document.getElementById('model-code').textContent); }
+
+function modelShellQuote(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function modelGenerateCommand() {
+  const p = modelPayload();
+  const status = document.getElementById('model-status');
+  if (!p.features_csv || !p.target) {
+    status.textContent = 'Enter a feature CSV and target column first.';
+    return;
+  }
+  if (p.engine === 'bassa') {
+    modelGenerateCode();
+    status.textContent = 'BASSA uses the generated Python API script shown below.';
+    return;
+  }
+  const parts = [
+    'python', '__main__.py', 'model',
+    '--mode', p.task,
+    '--features_csv', modelShellQuote(p.features_csv),
+    '--y_value', modelShellQuote(p.target),
+    '--min-features', p.min_features,
+    '--max-features', p.max_features,
+    '--top-n', p.top_n,
+    '--threshold', p.threshold,
+    '--n_jobs', p.n_jobs
+  ];
+  if (p.target_csv) parts.push('--target_csv', modelShellQuote(p.target_csv));
+  if (p.parallel || p.n_jobs > 1) parts.push('--bool-parallel');
+  if (p.leave_out.length) parts.push('--leave-out', ...p.leave_out.map(modelShellQuote));
+  document.getElementById('model-command').textContent = parts.join(' ');
+  document.getElementById('model-command-wrap').style.display = '';
+  const lassoNote = p.task === 'regression' && p.regression_type === 'lasso'
+    ? ' The CLI command uses standard M3 regression; use Run M3 search or Python API code for Lasso.' : '';
+  status.textContent = (modelDatasetReady
+    ? 'Command generated from the verified CSV and current settings.'
+    : 'Command generated. Verify the CSV before running it.') + lassoNote;
+}
+
+function modelCopyCommand() {
+  navigator.clipboard.writeText(document.getElementById('model-command').textContent);
+  document.getElementById('model-status').textContent = 'Command copied to the clipboard.';
+}
+
 // SERVER (gui_server.py)
 // ══════════════════════════════════════════════════════════════
 
@@ -6223,6 +6560,17 @@ async function pingServer() {
       serverOnline = true;
       dot.className     = 'server-status-dot ok';
       label.textContent = 'Connected';
+      const jobs = document.getElementById('model-jobs');
+      if (jobs) {
+        jobs.max = j.cpu_count || 1;
+        jobs.title = `${j.cpu_count || 1} logical CPU cores detected`;
+      }
+      const install = document.getElementById('model-bassa-install');
+      if (install) {
+        install.innerHTML = j.bassa_available
+          ? '<strong>BASSA is installed</strong> and ready in the server environment.'
+          : 'BASSA requires <code>pip install bassa-reg</code> in the same Python environment as the GUI server.';
+      }
     } else throw new Error('bad response');
   } catch(_) {
     serverOnline = false;
@@ -6325,6 +6673,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initModeButtons();
   updateGeomInputs();
   fsSyncCount();
+  modelSyncOptions();
   pingServer();
   setInterval(pingServer, 15000);
 });
