@@ -57,8 +57,9 @@ CHEAP_TABLES = CORNMINBUF / "data" / "single_structure"
 
 @pytest.fixture(autouse=True)
 def deposited_scan_grid(monkeypatch):
-    """The published CS3 tables were built on the 18° coarse B1 grid, with phi."""
+    """The published CS3 tables were built on the 18° coarse B1 grid, with phi, in the lab frame."""
     monkeypatch.setattr(metal_complex, "STERIMOL_SCAN_STEP", 18)
+    monkeypatch.setattr(metal_complex, "STERIMOL_FRAME", "lab")
     monkeypatch.setattr(metal_complex, "STERIMOL_KEYS", ("B1", "B5", "L", "angle"))
 
 

@@ -80,6 +80,12 @@ STERIMOL_KEYS = ("B1", "B5", "L", "theta")
 # some arms; set it to 18 to rebuild them.
 STERIMOL_SCAN_STEP = 1
 
+# Where the rotation scan starts. "fragment" (the default) takes the fragment atom
+# furthest off the axis, so the result does not depend on how the file is oriented.
+# "lab" is the frame every CS3 table up to tag paper-v3 was built in (cross product
+# of the axis with the lab z-axis); set it to rebuild those tables.
+STERIMOL_FRAME = "fragment"
+
 # build_general.py rejects a metal placement whose bite falls outside this window,
 # but only before relaxation; a donor can still come off during it (009_lig in the
 # CS3 oxy-alkynylation set: 87 deg placed, 58 deg relaxed). geometric_features
@@ -192,9 +198,17 @@ def sterimol(symbols, coords, a, b, radii, block=()):
     origin = coords[a - 1]
     axis = coords[b - 1] - origin
     axis = axis / np.linalg.norm(axis)
-    e1 = np.cross(axis, [0, 0, 1.0])
-    if np.linalg.norm(e1) < 1e-6:
-        e1 = np.cross(axis, [0, 1.0, 0])
+    # The rotation scan starts at e1, so e1 has to turn with the molecule. Taking it from the
+    # lab frame made every scan-derived angle depend on how the input file happened to be
+    # oriented (theta moved up to 25 deg and the azimuth up to 83 deg under a pure rotation);
+    # the platform's own path builds its frame from three atoms and is invariant. Use the
+    # fragment atom furthest off the axis: deterministic, and never near-degenerate.
+    perp = (coords[idx] - origin) - np.outer((coords[idx] - origin) @ axis, axis)
+    e1 = perp[int(np.argmax((perp ** 2).sum(1)))] if STERIMOL_FRAME == "fragment" else np.zeros(3)
+    if np.linalg.norm(e1) < 1e-8:                     # "lab", or every fragment atom on the axis
+        e1 = np.cross(axis, [0, 0, 1.0])
+        if np.linalg.norm(e1) < 1e-6:
+            e1 = np.cross(axis, [0, 1.0, 0])
     e1 = e1 / np.linalg.norm(e1)
     e2 = np.cross(axis, e1)
     P, R, along = [], [], []
