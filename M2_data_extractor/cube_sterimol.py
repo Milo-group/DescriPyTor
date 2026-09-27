@@ -2,7 +2,10 @@ import numpy as np
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from utils import help_functions
+try:
+    from ..utils import help_functions
+except:
+    from utils import help_functions
 
 import igraph as ig
 import pandas as pd
@@ -128,7 +131,7 @@ def b1s_for_loop_function(extended_df, b1s, b1s_loc, degree_list, plane):
         b1s.append(np.unique(np.vstack(B1)).max())####check
         b1s_loc.append(np.unique(np.vstack(B1_loc)).max())
 
-def get_b1s_list(extended_df, scans=90//5):
+def get_b1s_list(extended_df, scans=1):
     
     b1s,b1s_loc=[],[]
     scans=scans

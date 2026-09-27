@@ -16,10 +16,11 @@ import sys
 import os
 import json
 import traceback
+import math
 
 # ── Flask ─────────────────────────────────────────────────────
 try:
-    from flask import Flask, request, jsonify
+    from flask import Flask, request, jsonify, send_file
     from flask_cors import CORS
 except ImportError:
     print("Missing dependencies. Run:  pip install flask flask-cors")
@@ -28,7 +29,7 @@ except ImportError:
 app = Flask(__name__)
 CORS(app)
 
-PORT = 7432
+PORT = int(os.environ.get("GUI_PORT", "7432"))
 
 # ── path helper ───────────────────────────────────────────────
 def ensure_path(root: str):
@@ -53,7 +54,380 @@ def load_molecule(filepath: str, root: str = ""):
 
 @app.route("/status")
 def status():
-    return jsonify({"ok": True, "version": "1.0"})
+    return jsonify({
+        "ok": True,
+        "version": "1.1",
+        "cpu_count": os.cpu_count() or 1,
+        "bassa_available": _module_available("bassa_reg"),
+    })
+
+
+@app.route("/")
+def gui():
+    """Serve the GUI from the same origin as the API."""
+    return send_file(os.path.join(os.path.dirname(__file__), "feature_extraction_gui.html"))
+
+
+@app.route("/modes")
+def modes_viewer():
+    """Serve the py3Dmol TS / vibration checker."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return send_file(os.path.join(root, "utils", "mode_viewer.html"))
+
+
+@app.route("/api/parse-modes", methods=["POST"])
+def parse_modes_api():
+    """Parse an uploaded .hess / ORCA .out / .xyz into a 3Dmol payload."""
+    data = request.json or {}
+    try:
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if root not in sys.path:
+            sys.path.insert(0, root)
+        from utils.mode_viewer import molecule_payload, parse_text
+        mol = parse_text(data.get("name") or "upload", data.get("text") or "")
+        return jsonify(molecule_payload(mol))
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/visual")
+def visual_gui():
+    """Serve the combined atom-picker, extraction, and modeling workflow."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    toolkit = os.path.join(
+        root, "Getting_started_with_examples", "descriptor_extraction_toolkit",
+    )
+    loaded = os.path.join(toolkit, "atom_picker_loaded.html")
+    template = os.path.join(toolkit, "atom_picker.html")
+    return send_file(loaded if os.path.isfile(loaded) else template)
+
+
+@app.route("/theta")
+def theta_explorer():
+    """Serve the live Sterimol theta explorer (sources in theta_explorer/)."""
+    ensure_path("")
+    from theta_explorer.build import assemble
+    return assemble(), 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@app.route("/theta/check", methods=["POST"])
+def theta_check():
+    """The Python Sterimol on the explorer's coordinates and axis, so the page
+    can confirm its in-browser port against the package on every pick."""
+    data = request.json or {}
+    try:
+        ensure_path(data.get("root", ""))
+        import io
+        import pandas as pd
+        from data_extractor import extract_connectivity, get_sterimol_df
+
+        lines = (data.get("xyz") or "").strip().splitlines()
+        if lines and lines[0].strip().isdigit():
+            lines = lines[2:]
+        xyz = pd.read_csv(io.StringIO("\n".join(lines)), sep=r"\s+", header=None,
+                          names=["atom", "x", "y", "z"], usecols=range(4))
+        bonds = extract_connectivity(xyz, threshold_distance=1.82)
+        r = get_sterimol_df(xyz, bonds, [int(data["a"]), int(data["b"])], None, radii="CPK").iloc[0]
+        return jsonify({k: float(r[k]) for k in ("B1", "B5", "L", "loc_B5", "B1_B5_angle")})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/figure/load", methods=["POST"])
+def figure_load():
+    """Geometry, dipole and partial charges for the explorer's Descriptors view,
+    read by the package from an uploaded .feather or Gaussian .log (or a local path)."""
+    import tempfile
+    try:
+        ensure_path("")
+        from theta_explorer.data import payload
+        up = request.files.get("file")
+        if up is not None:
+            name, ext = os.path.splitext(os.path.basename(up.filename or "upload"))
+            if ext.lower() not in (".feather", ".log", ".out"):
+                return jsonify({"error": "expected a .feather or Gaussian .log file"}), 400
+            with tempfile.TemporaryDirectory() as tmp:
+                path = os.path.join(tmp, name + ext.lower().replace(".out", ".log"))
+                up.save(path)
+                return jsonify(payload(path, name=name))
+        data = request.json or {}
+        return jsonify(payload(data["filepath"]))
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 400
+
+
+def _module_available(name: str) -> bool:
+    import importlib.util
+    return importlib.util.find_spec(name) is not None
+
+
+def _json_value(value):
+    """Convert pandas/NumPy values into strict JSON-compatible values."""
+    import numpy as np
+    import pandas as pd
+
+    if value is None or value is pd.NA:
+        return None
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    if isinstance(value, (np.floating, float)):
+        return float(value) if math.isfinite(float(value)) else None
+    if isinstance(value, (np.bool_, bool)):
+        return bool(value)
+    if isinstance(value, (list, tuple, set, np.ndarray)):
+        return [_json_value(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _json_value(item) for key, item in value.items()}
+    return str(value) if not isinstance(value, (str, int)) else value
+
+
+def _frame_records(frame, limit: int = 100):
+    if frame is None:
+        return []
+    return [
+        {str(key): _json_value(value) for key, value in row.items()}
+        for row in frame.head(limit).to_dict(orient="records")
+    ]
+
+
+@app.route("/model/merge-outputs", methods=["POST"])
+def model_merge_outputs():
+    """Merge pasted target values into a descriptor CSV and save a new CSV."""
+    import re
+    import pandas as pd
+
+    data = request.json or {}
+    source = str(data.get("features_csv", "")).strip()
+    target = str(data.get("target", "output")).strip() or "output"
+    raw = str(data.get("outputs", "")).strip()
+    mode = str(data.get("mode", "row_order")).strip()
+    name_column = str(data.get("name_column", "")).strip()
+
+    if not source or not os.path.isfile(source):
+        return jsonify({"error": f"CSV file not found: {source!r}"}), 400
+    if not raw:
+        return jsonify({"error": "Paste at least one output value."}), 400
+
+    frame = pd.read_csv(source)
+    try:
+        if mode == "name_value":
+            if not name_column or name_column not in frame.columns:
+                return jsonify({"error": f"Name column {name_column!r} was not found."}), 400
+            mapping = {}
+            for line_number, line in enumerate(raw.splitlines(), start=1):
+                if not line.strip():
+                    continue
+                parts = [item.strip() for item in re.split(r"[\t,;]", line, maxsplit=1)]
+                if len(parts) != 2 or not parts[0]:
+                    return jsonify({"error": f"Line {line_number} must be: name,value"}), 400
+                mapping[parts[0]] = float(parts[1])
+            names = frame[name_column].astype(str)
+            missing = names[~names.isin(mapping)].tolist()
+            if missing:
+                return jsonify({
+                    "error": f"No output supplied for {len(missing)} rows.",
+                    "missing_names": missing[:20],
+                }), 400
+            frame[target] = names.map(mapping).astype(float)
+        else:
+            tokens = [item for item in re.split(r"[\s,;]+", raw) if item]
+            values = [float(item) for item in tokens]
+            if len(values) != len(frame):
+                return jsonify({
+                    "error": f"Received {len(values)} outputs for {len(frame)} CSV rows."
+                }), 400
+            frame[target] = values
+    except ValueError as exc:
+        return jsonify({"error": f"Outputs must be numeric: {exc}"}), 400
+
+    requested_output = str(data.get("output_csv", "")).strip()
+    if requested_output:
+        output = os.path.abspath(requested_output)
+    else:
+        stem, extension = os.path.splitext(os.path.abspath(source))
+        output = f"{stem}_with_{target}{extension or '.csv'}"
+    os.makedirs(os.path.dirname(output), exist_ok=True)
+    frame.to_csv(output, index=False)
+    return jsonify({
+        "ok": True,
+        "output_csv": output,
+        "rows": len(frame),
+        "target": target,
+        "preview": _frame_records(frame[[target]], 5),
+    })
+
+
+@app.route("/model/dataset", methods=["POST"])
+def model_dataset():
+    """Inspect a modeling CSV before starting an expensive search."""
+    import pandas as pd
+
+    data = request.json or {}
+    path = data.get("features_csv", "")
+    target = data.get("target", "")
+    if not path or not os.path.isfile(path):
+        return jsonify({"error": f"CSV file not found: {path!r}"}), 400
+
+    try:
+        frame = pd.read_csv(path)
+        numeric = frame.select_dtypes(include="number").columns.tolist()
+        candidate_features = [column for column in numeric if column != target]
+        target_found = bool(target and target in frame.columns)
+        target_numeric = bool(target_found and target in numeric)
+        target_missing = int(frame[target].isna().sum()) if target_found else None
+        duplicate_columns = frame.columns[frame.columns.duplicated()].tolist()
+        ready = target_found and target_numeric and bool(candidate_features) and not duplicate_columns
+        return jsonify({
+            "rows": len(frame),
+            "columns": frame.columns.tolist(),
+            "numeric_columns": numeric,
+            "feature_count": len(candidate_features),
+            "target": target,
+            "target_found": target_found,
+            "target_numeric": target_numeric,
+            "target_missing": target_missing,
+            "duplicate_columns": duplicate_columns,
+            "ready": ready,
+            "preview": _frame_records(frame, 5),
+        })
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.route("/model/run", methods=["POST"])
+def model_run():
+    """Run M3 model search or BASSA from the browser GUI."""
+    data = request.json or {}
+    engine = str(data.get("engine", "m3")).lower()
+    features_csv = data.get("features_csv", "")
+    target_csv = data.get("target_csv") or ""
+    target = str(data.get("target", "output")).strip()
+
+    if not features_csv or not os.path.isfile(features_csv):
+        return jsonify({"error": f"CSV file not found: {features_csv!r}"}), 400
+    if not target:
+        return jsonify({"error": "A target column is required."}), 400
+
+    try:
+        ensure_path(data.get("root", ""))
+        if engine == "bassa":
+            return _run_bassa(data, features_csv, target)
+        return _run_m3(data, features_csv, target_csv, target)
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
+
+def _run_m3(data, features_csv: str, target_csv: str, target: str):
+    try:
+        from M3_modeler.modeling import ClassificationModel, LinearRegressionModel
+    except ImportError:
+        from MolFeatures.M3_modeler.modeling import ClassificationModel, LinearRegressionModel
+
+    task = str(data.get("task", "regression")).lower()
+    process_method = "two csvs" if target_csv else "one csv"
+    paths = {
+        "features_csv_filepath": features_csv,
+        "target_csv_filepath": target_csv or None,
+    }
+    common = dict(
+        csv_filepaths=paths,
+        process_method=process_method,
+        y_value=target,
+        names_column=data.get("names_column") or None,
+        leave_out=data.get("leave_out") or None,
+        min_features_num=int(data.get("min_features", 1)),
+        max_features_num=int(data.get("max_features", 3)),
+        n_splits=int(data.get("n_splits", 5)),
+        db_path=data.get("db_path") or "results",
+    )
+    if task == "classification":
+        model = ClassificationModel(
+            **common,
+            ordinal=bool(data.get("ordinal", False)),
+        )
+    else:
+        model = LinearRegressionModel(
+            **common,
+            model_type=data.get("regression_type", "linear"),
+            alpha=float(data.get("alpha", 1.0)),
+            scale=bool(data.get("scale", True)),
+            seed=int(data.get("seed", 42)),
+        )
+
+    results = model.search_models(
+        top_n=int(data.get("top_n", 20)),
+        n_jobs=int(data.get("n_jobs", 1)),
+        threshold=float(data.get("threshold", 0.7)),
+        bool_parallel=bool(data.get("parallel", False)),
+        required_features=data.get("required_features") or None,
+    )
+    return jsonify({
+        "engine": "m3",
+        "task": task,
+        "rows": len(results),
+        "columns": list(results.columns),
+        "results": _frame_records(results),
+        "run_directory": str(model.paths.root),
+    })
+
+
+def _run_bassa(data, features_csv: str, target: str):
+    if not _module_available("bassa_reg"):
+        return jsonify({
+            "error": "BASSA is not installed in this Python environment. Run: pip install bassa-reg"
+        }), 400
+
+    import pandas as pd
+    from bassa_reg import Bassa
+    from bassa_reg.spike_and_slab.spike_and_slab import (
+        SpikeAndSlabConfigurations,
+        SpikeAndSlabRegression,
+    )
+    from bassa_reg.spike_and_slab.spike_and_slab_util_models import SpikeAndSlabPriors
+
+    frame = pd.read_csv(features_csv)
+    if target not in frame.columns:
+        return jsonify({"error": f"Target column {target!r} was not found."}), 400
+
+    excluded = {target, data.get("names_column") or ""}
+    requested = data.get("feature_columns") or []
+    if requested:
+        feature_columns = [column for column in requested if column in frame.columns]
+    else:
+        feature_columns = [
+            column for column in frame.select_dtypes(include="number").columns
+            if column not in excluded
+        ]
+    if not feature_columns:
+        return jsonify({"error": "No numeric feature columns were found."}), 400
+
+    clean = frame[feature_columns + [target]].dropna()
+    project_path = os.path.abspath(data.get("project_path") or "bassa_runs")
+    os.makedirs(project_path, exist_ok=True)
+    config = SpikeAndSlabConfigurations(
+        sampler_iterations=int(data.get("sampler_iterations", 5000))
+    )
+    regression = SpikeAndSlabRegression(
+        x=clean[feature_columns],
+        y=clean[target],
+        priors=SpikeAndSlabPriors(),
+        config=config,
+        project_path=project_path,
+        experiment_name=data.get("experiment_name") or "molfeatures_gui",
+    )
+    regression.run()
+    Bassa(model=regression).run()
+    return jsonify({
+        "engine": "bassa",
+        "rows": len(clean),
+        "features": feature_columns,
+        "project_path": project_path,
+        "message": "BASSA completed. Plots and summary files were written to the project path.",
+    })
 
 
 @app.route("/sterimol", methods=["POST"])
@@ -450,5 +824,6 @@ if __name__ == "__main__":
     print(f"\n  DescriPytor GUI server")
     print(f"  Listening on http://localhost:{PORT}")
     print(f"  Open feature_extraction_gui.html in your browser")
+    print(f"  TS / vibration viewer: http://localhost:{PORT}/modes")
     print(f"  Press Ctrl+C to stop\n")
-    app.run(host="127.0.0.1", port=PORT, debug=False)
+    app.run(host=os.environ.get("GUI_HOST", "127.0.0.1"), port=PORT, debug=False)

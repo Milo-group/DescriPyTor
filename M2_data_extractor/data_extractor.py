@@ -13,42 +13,29 @@ import numpy.typing as npt
 # Add the parent directory to the sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-# NOTE: MolAlign.renumbering (needs torch) and utils.visualize (needs
-# dash/ipywidgets) are NOT imported here - they're only used by
-# get_renumbering_dict() and the visualize_*/get_dipole_gaussian_df_single
-# methods respectively, both opt-in features most callers (including the
-# webapp's basic "load a feather set" path) never touch. Importing them
-# eagerly meant torch/dash/ipywidgets were hard requirements just to open
-# a feather file. They're imported lazily inside those specific methods
-# instead - see _import_batch_renumbering() and _import_visualize() below.
-from gaussian_handler import feather_file_handler, save_to_feather
-from utils.help_functions import *
-from utils.help_functions import json_file_handler  # structured-JSON loader
-from extractor_utils.sterimol_utils import *
-from extractor_utils.bond_angle_length_utils import *
-from extractor_utils.dipole_utils import *
-from extractor_utils.vibrations_utils import *
-
-
-def _import_batch_renumbering():
-    """
-    Lazy import of MolAlign.renumbering.batch_renumbering - only needed by
-    get_renumbering_dict(). Isolated here so the rest of data_extractor.py
-    (feather loading, descriptor extraction, etc.) never needs torch.
-    """
-    from MolAlign.renumbering import batch_renumbering
-    return batch_renumbering
-
-
-def _import_visualize():
-    """
-    Lazy import of utils.visualize - only needed by the visualize_* / optional
-    dipole-visualization methods. Isolated here so basic feather loading and
-    descriptor extraction never need dash/ipywidgets.
-    """
+try:
+    # Now you can import from the parent directory
+    from gaussian_handler import feather_file_handler, save_to_feather
     from utils import visualize
-    return visualize
-
+    from utils.help_functions import *
+    from utils.help_functions import json_file_handler  # structured-JSON loader
+    # from utils.rdkit_utils import xyz_list_to_mols, visualize_mols, mols_to_fingerprint_df
+    from extractor_utils.sterimol_utils import *
+    from extractor_utils.bond_angle_length_utils import *
+    from extractor_utils.dipole_utils import *
+    from extractor_utils.vibrations_utils import *
+    
+except ImportError:
+    from .gaussian_handler import feather_file_handler, save_to_feather
+    from ..utils import visualize
+    from ..utils.help_functions import *
+    from ..utils.help_functions import json_file_handler  # structured-JSON loader
+    # from ..utils.rdkit_utils import xyz_list_to_mols, visualize_mols, mols_to_fingerprint_df
+    from .extractor_utils.sterimol_utils import *
+    from .extractor_utils.bond_angle_length_utils import *
+    from .extractor_utils.dipole_utils import *
+    from .extractor_utils.vibrations_utils import *
+    
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -652,7 +639,6 @@ class Molecule:
         """
         Visualizes the molecule using the `visualize` module.
         """
-        visualize = _import_visualize()
         if vector is not None:
             visualize.show_single_molecule(molecule_name=self.molecule_name, xyz_df=self.xyz_df, dipole_df=vector,origin=[0,0,0])
         else:
@@ -1099,7 +1085,6 @@ class Molecule:
                     pass
 
                 # 4) Visualize: dipole_df is already in the same LOCAL frame ג†’ no basis needed
-                visualize = _import_visualize()
                 visualize.show_single_molecule(
                     molecule_name=self.molecule_name,
                     xyz_df=xyz_df,
@@ -1497,28 +1482,89 @@ class Molecule:
 
 
 class Molecules():
-    
-    def __init__(self,molecules_dir_name, renumber=False, threshold=1.82):
-        self.molecules_path=os.path.abspath(molecules_dir_name)
-        os.chdir(self.molecules_path) 
-        self.molecules=[]
-        self.failed_molecules=[]
-        self.success_molecules=[]
-        for data_file in os.listdir():
-            if data_file.endswith('.feather') or data_file.endswith('.json'):
-                try:
-                    self.molecules.append(Molecule(data_file, threshold=threshold))
-                    self.success_molecules.append(data_file)
-                except Exception as e:
-                    self.failed_molecules.append(data_file)
-                    print(f'Error: {data_file} could not be processed : {e}')
-                   
-        print(f'Molecules Loaded: {self.success_molecules}',f'Failed Molecules: {self.failed_molecules}')
 
-        self.molecule_names=[molecule.molecule_name for molecule in self.molecules]
-        self.old_molecules=self.molecules
-        self.old_molecule_names=self.molecule_names
-        os.chdir('../')
+    def __init__(self, molecules_dir_name, renumber=False, threshold=1.82):
+        """
+        Load Molecule objects from a directory, or from several directories at once.
+
+        Parameters
+        ----------
+        molecules_dir_name : str | os.PathLike | dict[str, str]
+            - str / os.PathLike: a single directory containing .feather/.json
+              files (original behaviour - unchanged).
+            - dict[str, str]: a mapping of ``{source_label: directory_path}``.
+              Every directory is scanned for .feather/.json files and all
+              molecules are pooled into this one ``Molecules`` object, e.g.::
+
+                  Molecules({
+                      "crest_renumbered": r"...\\feather_files_after_crest\\renumbered",
+                      "ddg1": r"...\\ddg1",
+                      "ddg2": r"...\\ddg2",
+                      "ddg3": r"...\\ddg3",
+                  })
+
+              Each loaded ``Molecule`` gets a ``.source`` attribute set to its
+              label, and ``self.molecule_sources`` maps
+              ``molecule_name -> label``. A directory that doesn't exist is
+              skipped with a warning instead of raising. Unlike the
+              single-directory form, loading from a dict does not change the
+              caller's current working directory (there's no single sensible
+              "parent" to land in when several directories are involved).
+        threshold : float
+            Distance threshold (Angstrom) used for connectivity/bond
+            detection when building each ``Molecule``.
+        """
+        self.molecules = []
+        self.failed_molecules = []
+        self.success_molecules = []
+        self.molecule_sources = {}  # molecule_name -> source label (dict-mode only)
+
+        if isinstance(molecules_dir_name, dict):
+            self.source_dirs = {label: os.path.abspath(path) for label, path in molecules_dir_name.items()}
+            # Kept for backward compatibility with methods (extract_all_dfs,
+            # extract_all_xyz, get_renumbering_dict, ...) that assume a single
+            # self.molecules_path - defaults to the first directory supplied.
+            self.molecules_path = next(iter(self.source_dirs.values()), None)
+
+            original_cwd = os.getcwd()
+            try:
+                for label, dir_path in self.source_dirs.items():
+                    if not os.path.isdir(dir_path):
+                        print(f"[skip] source '{label}': directory not found -> {dir_path}")
+                        continue
+                    for data_file in os.listdir(dir_path):
+                        if data_file.endswith('.feather') or data_file.endswith('.json'):
+                            full_path = os.path.join(dir_path, data_file)
+                            try:
+                                mol = Molecule(full_path, threshold=threshold)
+                                mol.source = label
+                                self.molecules.append(mol)
+                                self.success_molecules.append(full_path)
+                                self.molecule_sources[mol.molecule_name] = label
+                            except Exception as e:
+                                self.failed_molecules.append(full_path)
+                                print(f'Error: {full_path} could not be processed : {e}')
+            finally:
+                os.chdir(original_cwd)
+        else:
+            self.source_dirs = {molecules_dir_name: os.path.abspath(molecules_dir_name)}
+            self.molecules_path = os.path.abspath(molecules_dir_name)
+            os.chdir(self.molecules_path)
+            for data_file in os.listdir():
+                if data_file.endswith('.feather') or data_file.endswith('.json'):
+                    try:
+                        self.molecules.append(Molecule(data_file, threshold=threshold))
+                        self.success_molecules.append(data_file)
+                    except Exception as e:
+                        self.failed_molecules.append(data_file)
+                        print(f'Error: {data_file} could not be processed : {e}')
+            os.chdir('../')
+
+        print(f'Molecules Loaded: {self.success_molecules}', f'Failed Molecules: {self.failed_molecules}')
+
+        self.molecule_names = [molecule.molecule_name for molecule in self.molecules]
+        self.old_molecules = self.molecules
+        self.old_molecule_names = self.molecule_names
 
     def export_all_xyz(self):
         os.makedirs('xyz_files', exist_ok=True)
@@ -1997,14 +2043,14 @@ class Molecules():
         # This will open a visualization window or generate a visualization file for the smallest molecule.
 
         """
-        idx=0
-        smallest= len(self.molecules[0].xyz_df)
-        for id, molecule in enumerate(self.molecules[1:]):
-            if len(molecule.xyz_df)<smallest:
-                smallest=len(molecule.xyz_df)
-                idx=id
-        html=self.molecules[idx].visualize_molecule()
-        return html
+        idx = 0
+        smallest = len(self.molecules[0].xyz_df)
+        for i, molecule in enumerate(self.molecules):
+            n = len(molecule.xyz_df)
+            if n < smallest:
+                smallest = n
+                idx = i
+        return self.molecules[idx].visualize_molecule()
     
     def visualize_smallest_molecule_morfeus(self, indices=None):
         idx=0
@@ -2179,10 +2225,13 @@ class Molecules():
 
 
     def get_renumbering_dict(self):
-
-        batch_renumbering = _import_batch_renumbering()
+        
         self.export_all_xyz()
         os.chdir('xyz_files')
+        try:
+            from MolAlign.renumbering import batch_renumbering
+        except ImportError:
+            from ..MolAlign.renumbering import batch_renumbering
         self.renumbering_list, target_idx = batch_renumbering(os.getcwd())
       
         # self.renumbering_list = [

@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import os
 import sys
+import re
+import glob
 import math
 from enum import Enum
 import igraph as ig
@@ -1106,7 +1108,7 @@ def b1s_for_loop_function(extended_df, b1s, b1s_loc, degree_list, plane, b1_plan
 
    
     
-def get_b1s_list(extended_df, scans=90//5,plot_result=False):
+def get_b1s_list(extended_df, scans=1,plot_result=False):
     """
     Calculate B1 values by scanning over a range of rotation angles.
     Instead of using only the center points, this version generates circle points
@@ -1775,7 +1777,933 @@ class Molecules_xyz():
                 rows[molecule.molecule_name] = np.nan
         return pd.DataFrame(rows).T
 
+# =============================================================================
+# CREST conformer ensembles -> Boltzmann-averaged Sterimol
+# =============================================================================
+#
+# Everything above this line works on ONE structure per .xyz file. The classes
+# below extend that to CREST's native output: a directory per ligand containing
+# a multi-structure conformer ensemble (energy in Hartree on the comment line
+# of every block), which is parsed, Sterimol'd conformer-by-conformer, and
+# combined into a single Boltzmann-weighted value per ligand.
+#
+# Layout expected per ligand (standard `crest` output naming):
+#
+#   L1/
+#     L1_conformers.xyz   <- de-duplicated unique conformers (used by default)
+#     L1_rotamers.xyz     <- fallback: includes symmetry-equivalent duplicates
+#     L1_best.xyz         <- fallback: single lowest-energy structure only
+#     raw_crest_run/crest_conformers.xyz  <- fallback: raw CREST working dir
+#
+# Usage (a directory of ligand subfolders):
+#
+#   from sterimol_standalone import CrestLigandSet
+#   dataset = CrestLigandSet(r"C:\...\doyle_conformers")
+#   summary_df, detail_df = dataset.get_sterimol_df(
+#       base_atoms=[1, 2],      # 1-indexed anchor atoms; omit for auto-detection
+#       radii='CPK',
+#       save_dir=r"C:\...\doyle_conformers\sterimol_results",
+#   )
+#
+# Usage (a single ligand's ensemble file):
+#
+#   from sterimol_standalone import ConformerEnsemble
+#   ens = ConformerEnsemble(ligand_dir=r"C:\...\doyle_conformers\L1")
+#   per_conformer_df, boltzmann_row = ens.get_sterimol(base_atoms=[1, 2])
+#
+# =============================================================================
+
+HARTREE_TO_KCAL = 627.5094740631  # CODATA, matches CREST's own conversion
+_KB_KCAL = 1.9872041e-3           # gas constant, kcal / (mol K)
+
+
+def boltzmann_weights(energies_hartree, temperature=298.15):
+    """
+    Convert a list of absolute energies (Hartree, e.g. straight off a CREST/xtb
+    ensemble comment line) into normalized Boltzmann weights at `temperature` (K).
+
+    Uses a log-sum-exp shift for numerical stability, and propagates NaN energies
+    as NaN weights (rather than silently treating them as 0 or crashing) so the
+    caller can decide how to handle/renormalize around missing values.
+
+    Parameters
+    ----------
+    energies_hartree : array-like
+        Absolute electronic (or free) energies, Hartree.
+    temperature : float, default 298.15
+        Temperature in Kelvin.
+
+    Returns
+    -------
+    np.ndarray
+        Weights summing to 1 over the valid (non-NaN) entries; NaN energies
+        get a NaN weight.
+    """
+    energies = np.asarray(energies_hartree, dtype=float)
+    weights = np.full(energies.shape, np.nan)
+    valid = ~np.isnan(energies)
+    if not valid.any():
+        return weights
+    rel_kcal = (energies[valid] - energies[valid].min()) * HARTREE_TO_KCAL
+    exponent = -rel_kcal / (_KB_KCAL * temperature)
+    exponent = exponent - exponent.max()
+    w = np.exp(exponent)
+    w = w / w.sum()
+    weights[valid] = w
+    return weights
+
+
+def _energy_from_xyz_comment(comment, convention='first'):
+    """Parse a Hartree energy from an XYZ comment line.
+
+    ``first`` is the CREST convention (energy is the first token). ``last`` is
+    GOAT-safe: ORCA GOAT may write an RMSD before the energy, and taking the
+    first float then Boltzmann-weights the RMSD. ``auto`` takes the last float
+    whose absolute value is at least 1 Eh when one exists.
+    """
+    if not comment:
+        return np.nan
+    floats = []
+    for tok in comment.replace('=', ' ').split():
+        try:
+            floats.append(float(tok))
+        except ValueError:
+            continue
+    if not floats:
+        return np.nan
+    conv = (convention or 'first').lower()
+    if conv == 'first':
+        return floats[0]
+    if conv == 'last':
+        return floats[-1]
+    if conv == 'auto':
+        abs_eh = [v for v in floats if abs(v) >= 1.0]
+        return abs_eh[-1] if abs_eh else floats[-1]
+    raise ValueError(f"Unknown energy convention {convention!r}")
+
+
+def parse_xyz_ensemble(filepath, energy_convention='first'):
+    """
+    Parse a multi-structure XYZ file (CREST/xtb `*_conformers.xyz`,
+    `*_rotamers.xyz`, GOAT `*.ens.xyz` / `*.finalensemble.xyz`, or a
+    single-structure `*_best.xyz`) into a list of conformer blocks.
+
+    Each block's comment line (line 2) is interpreted as the absolute energy
+    in Hartree. Default ``energy_convention='first'`` is the CREST convention.
+    Pass ``'last'`` for GOAT files that may write an RMSD before the energy.
+
+    Returns
+    -------
+    list[dict]
+        One dict per structure: {'energy': float, 'xyz_df': DataFrame[atom,x,y,z]}
+
+    Raises
+    ------
+    ValueError
+        If a block header isn't a valid atom count, or a block is truncated
+        (fewer coordinate lines than declared) -- both indicate a corrupted
+        ensemble file that should not be silently averaged over.
+    """
+    with open(filepath, 'r') as f:
+        lines = f.read().splitlines()
+    while lines and not lines[-1].strip():
+        lines.pop()
+
+    blocks = []
+    i = 0
+    n_lines = len(lines)
+    while i < n_lines:
+        header = lines[i].strip()
+        if not header:
+            i += 1
+            continue
+        try:
+            natoms = int(header.split()[0])
+        except (ValueError, IndexError):
+            raise ValueError(f"Malformed XYZ block header at line {i + 1} in {filepath}: '{lines[i]}'")
+
+        comment = lines[i + 1].strip() if i + 1 < n_lines else ''
+        energy = _energy_from_xyz_comment(comment, convention=energy_convention)
+
+        atom_lines = lines[i + 2:i + 2 + natoms]
+        rows = [ln.split() for ln in atom_lines if len(ln.split()) >= 4]
+        if len(rows) != natoms:
+            raise ValueError(
+                f"Block starting at line {i + 1} in {filepath} declares {natoms} atoms "
+                f"but {len(rows)} coordinate line(s) were parsed -- truncated/corrupted ensemble."
+            )
+
+        xyz_df = pd.DataFrame([r[:4] for r in rows], columns=['atom', 'x', 'y', 'z'])
+        xyz_df[['x', 'y', 'z']] = xyz_df[['x', 'y', 'z']].astype(float)
+        blocks.append({'energy': energy, 'xyz_df': xyz_df})
+        i += 2 + natoms
+
+    if not blocks:
+        raise ValueError(f"No structures parsed from {filepath}")
+    return blocks
+
+
+class _ConformerFrame:
+    """
+    Lightweight in-memory analogue of `Molecule`, built directly from an
+    already-parsed XYZ block (atom/x/y/z DataFrame + energy) instead of
+    reading a file from disk. Mirrors the attributes/methods `Molecule`
+    exposes so the existing `get_sterimol_df` machinery works unchanged
+    -- deliberately kept separate from `Molecule` so looping over hundreds
+    of conformers never has to `os.chdir()` per-structure.
+    """
+
+    def __init__(self, xyz_df, energy, molecule_name, threshold=1.82):
+        self.molecule_name = molecule_name
+        self.energy = energy
+        self.xyz_df = xyz_df.reset_index(drop=True)
+        self.coordinates_array = np.array(self.xyz_df[['x', 'y', 'z']].astype(float))
+        self.bonds_df = extract_connectivity(self.xyz_df, threshold_distance=threshold)
+
+    def process_sterimol_atom_group(self, atoms, radii, sub_structure=True, drop_atoms=None, visualize=False):
+        # Only pay for `get_molecule_connections` (an igraph all-simple-paths
+        # enumeration that can blow up on larger/cyclic ligands) when the
+        # substructure trim is actually requested. `Molecule` upstream always
+        # computes this eagerly; for whole free-ligand ensembles (this class's
+        # use case) that made a 28-atom, 138-conformer ensemble hang for
+        # minutes on paths nobody asked for.
+        connected = get_molecule_connections(self.bonds_df, atoms[0], atoms[1]) if sub_structure else None
+        return get_sterimol_df(self.xyz_df, self.bonds_df, atoms, connected, radii,
+                                sub_structure=sub_structure, drop_atoms=drop_atoms, visualize=visualize)
+
+    def _auto_base_atom_candidates(self):
+        """
+        Candidate [origin, direction] pairs for auto-detected Sterimol, most
+        preferred first. `get_sterimol_indices` always returns the SAME single
+        pair (center-of-mass atom + whichever neighbor happens to sort first
+        in `bonds_df`, which is often a hydrogen) -- fine most of the time,
+        but on some geometries that particular direction is exactly collinear
+        with the coplane vector `calc_basis_vector` builds against, which
+        makes its `np.linalg.lstsq` singular ("SVD did not converge"). Seen
+        on ligand L25, where the default pick was a stray C-H bond.
+
+        This tries the standard pick first (so normal behavior/results don't
+        change), then every other neighbor of that same center atom -- heavy
+        atoms before hydrogens, since a substituent bond is chemically the
+        more sensible axis anyway -- so a single degenerate geometry doesn't
+        have to throw the whole conformer away.
+        """
+        default_pair = get_sterimol_indices(self.xyz_df, self.bonds_df)
+        center_id = default_pair[0]
+        neighbors = (
+            self.bonds_df[self.bonds_df[0] == center_id][1].tolist()
+            + self.bonds_df[self.bonds_df[1] == center_id][0].tolist()
+        )
+        atoms = self.xyz_df['atom'].values
+        seen = {default_pair[1]}
+        alt_heavy, alt_h = [], []
+        for n in neighbors:
+            n = int(n)
+            if n in seen:
+                continue
+            seen.add(n)
+            (alt_h if atoms[n - 1] == 'H' else alt_heavy).append(n)
+        return [default_pair] + [[center_id, n] for n in alt_heavy + alt_h]
+
+    def get_sterimol(self, base_atoms=None, radii='CPK', sub_structure=True, drop_atoms=None, visualize=False):
+        # NOTE: deliberately a single attempt at the default auto-pick here,
+        # not a per-conformer retry loop -- that turned out to multiply the
+        # cost of every failing conformer by the number of candidates (fine
+        # for a 6-conformer ensemble like L25, but on a 138-conformer one
+        # like L_10 with ~27 failures it pushed a ~34s ligand well past a
+        # minute). `ConformerEnsemble.get_sterimol` retries with an alternate
+        # atom pair at the ensemble level instead, and only when the DEFAULT
+        # pick fails for literally every conformer -- see there.
+        if base_atoms is None:
+            base_atoms = get_sterimol_indices(self.xyz_df, self.bonds_df)
+        if isinstance(base_atoms[0], list):
+            sterimol_list = [
+                self.process_sterimol_atom_group(atoms, radii, sub_structure, drop_atoms, visualize)
+                for atoms in base_atoms
+            ]
+            return pd.concat(sterimol_list, axis=0)
+        return self.process_sterimol_atom_group(base_atoms, radii, sub_structure, drop_atoms, visualize)
+
+    # ── Angles, dihedrals, bond lengths, buried volume ──────────────────────
+    # Mirrors of the equivalent `Molecule` methods, ported over so a single
+    # conformer frame (built in-memory, no file I/O) supports the same
+    # descriptor set `ConformerEnsemble` Boltzmann-averages across conformers.
+
+    def get_bond_angle(self, atom_indices: List[int]) -> pd.DataFrame:
+        """
+        Bond angle (3 indices, 1-based) or dihedral (4 indices, 1-based)
+        between the given atoms -- `get_angle_df` dispatches on length.
+        """
+        return get_angle_df(self.coordinates_array, atom_indices)
+
+    def get_bond_length_single(self, atom_pair):
+        bond_length = calc_single_bond_length(self.coordinates_array, atom_pair)
+        bond_length_df = pd.DataFrame([bond_length], index=[f'bond_length_{atom_pair[0]}-{atom_pair[1]}'])
+        return bond_length_df
+
+    def get_bond_length(self, atom_pairs):
+        """Bond length(s) between the given 1-based atom pair(s)."""
+        if isinstance(atom_pairs[0], list):
+            bond_length_list = [self.get_bond_length_single(pair) for pair in atom_pairs]
+            bond_df = pd.concat(bond_length_list, axis=0)
+        else:
+            bond_df = self.get_bond_length_single(atom_pairs)
+        return bond_df
+
+    def get_buried_volume(
+        self,
+        metal_index: int,
+        radii: str = 'bondi',
+        radius: float = 3.5,
+        radii_scale: float = 1.17,
+        include_hs: bool = False,
+        z_axis_atoms=None,
+        xz_plane_atoms=None,
+    ) -> pd.DataFrame:
+        """Buried volume around `metal_index` (1-based) via morfeus BuriedVolume."""
+        elements = self.xyz_df['atom'].tolist()
+        bv = BuriedVolume(
+            elements=elements,
+            coordinates=self.coordinates_array,
+            metal_index=metal_index,
+            radii_type=radii,
+            radius=radius,
+            radii_scale=radii_scale,
+            include_hs=include_hs,
+            z_axis_atoms=z_axis_atoms,
+            xz_plane_atoms=xz_plane_atoms,
+        )
+        return pd.DataFrame([{
+            'percent_buried_volume':   bv.percent_buried_volume,
+            'fraction_buried_volume':  bv.fraction_buried_volume,
+            'buried_volume':           bv.buried_volume,
+            'free_volume':             bv.free_volume,
+        }])
+
+
+class ConformerEnsemble:
+    """
+    One ligand's CREST conformer ensemble: parses the multi-structure XYZ file,
+    computes Boltzmann weights from the Hartree energies on each block's
+    comment line, and computes Sterimol per-conformer plus the weighted average.
+
+    Auto-discovers which file to parse inside `ligand_dir` (in priority order:
+    de-duplicated conformers -> raw CREST working-dir conformers -> rotamers ->
+    best-only), or pass `ensemble_file` directly to skip discovery.
+    """
+
+    CONFORMER_FILENAME_PRIORITY = (
+        '{name}_conformers.xyz',
+        os.path.join('raw_crest_run', 'crest_conformers.xyz'),
+        '{name}_rotamers.xyz',
+        os.path.join('raw_crest_run', 'crest_rotamers.xyz'),
+        '{name}_best.xyz',
+        os.path.join('raw_crest_run', 'crest_best.xyz'),
+    )
+
+    def __init__(self, ligand_dir=None, ensemble_file=None, molecule_name=None,
+                 temperature=298.15, threshold=1.82, energy_convention='first'):
+        self.temperature = temperature
+        self.threshold = threshold
+        self.energy_convention = energy_convention
+        self.warnings = []
+
+        if ensemble_file is None:
+            if ligand_dir is None:
+                raise ValueError("Provide either `ligand_dir` or `ensemble_file`.")
+            ligand_dir = os.path.abspath(ligand_dir)
+            name = molecule_name or os.path.basename(ligand_dir.rstrip(os.sep).rstrip('/'))
+            ensemble_file = self._discover_ensemble_file(ligand_dir, name)
+            self.molecule_name = name
+        else:
+            ensemble_file = os.path.abspath(ensemble_file)
+            self.molecule_name = molecule_name or os.path.splitext(os.path.basename(ensemble_file))[0]
+
+        self.ensemble_file = ensemble_file
+        self.used_fallback_single_structure = os.path.basename(ensemble_file) in ('L_best.xyz',) or \
+            os.path.basename(ensemble_file).endswith(('_best.xyz',)) or \
+            os.path.basename(ensemble_file) == 'crest_best.xyz'
+
+        blocks = parse_xyz_ensemble(ensemble_file, energy_convention=energy_convention)
+
+        natoms_set = {len(b['xyz_df']) for b in blocks}
+        if len(natoms_set) > 1:
+            raise ValueError(
+                f"[{self.molecule_name}] Inconsistent atom counts across conformers in "
+                f"{ensemble_file}: {sorted(natoms_set)}. Refusing to average a corrupted ensemble."
+            )
+
+        self.conformers = [
+            _ConformerFrame(b['xyz_df'], b['energy'], f"{self.molecule_name}_conf{i + 1}", threshold=threshold)
+            for i, b in enumerate(blocks)
+        ]
+        self.energies_hartree = np.array([c.energy for c in self.conformers], dtype=float)
+
+        if np.isnan(self.energies_hartree).any():
+            self.warnings.append(
+                f"[{self.molecule_name}] {int(np.isnan(self.energies_hartree).sum())} of "
+                f"{len(self.conformers)} conformer(s) had an unparsable energy comment line and "
+                f"will be excluded from the Boltzmann average."
+            )
+        self.weights = boltzmann_weights(self.energies_hartree, temperature=temperature)
+
+        if self.used_fallback_single_structure:
+            self.warnings.append(
+                f"[{self.molecule_name}] No conformer/rotamer ensemble found -- fell back to a single "
+                f"lowest-energy structure ({os.path.basename(ensemble_file)}). Reported values are "
+                f"NOT Boltzmann-averaged (n=1)."
+            )
+
+    @classmethod
+    def _discover_ensemble_file(cls, ligand_dir, name):
+        for pattern in cls.CONFORMER_FILENAME_PRIORITY:
+            candidate = os.path.join(ligand_dir, pattern.format(name=name))
+            if os.path.isfile(candidate):
+                return candidate
+        loose_xyz = sorted(glob.glob(os.path.join(ligand_dir, '*.xyz')))
+        if loose_xyz:
+            return loose_xyz[0]
+        raise FileNotFoundError(
+            f"No CREST conformer/rotamer/best .xyz file found for ligand '{name}' in {ligand_dir}."
+        )
+
+    @classmethod
+    def from_multiple(cls, sources, molecule_name, temperature=298.15, threshold=1.82,
+                      energy_convention='first'):
+        """
+        Pool conformers from several ligand directories (or explicit ensemble
+        files) into ONE ensemble and Boltzmann-weight across the union.
+
+        For merging duplicate/rerun CREST jobs for what's chemically the same
+        ligand (e.g. `L12` and a redone `L12_T`, or `L20`/`L20b`) into a single
+        result -- this re-derives one Boltzmann weighting over every conformer
+        from every source, which is the statistically correct way to combine
+        them (as opposed to averaging two already-Boltzmann-averaged numbers,
+        which double-counts/under-counts depending on how many conformers
+        backed each one).
+
+        Parameters
+        ----------
+        sources : list[str]
+            Ligand directories (auto-discovers the conformer file in each,
+            same priority order as the normal constructor) or explicit
+            ensemble .xyz file paths -- may mix both.
+        molecule_name : str
+            Name for the merged result (e.g. 'L12').
+
+        Raises
+        ------
+        ValueError
+            If the sources don't all have the same atom count (they aren't
+            actually the same ligand/molecule).
+        """
+        self = cls.__new__(cls)
+        self.temperature = temperature
+        self.threshold = threshold
+        self.energy_convention = energy_convention
+        self.warnings = []
+        self.molecule_name = molecule_name
+        self.used_fallback_single_structure = False
+        self.source_files = []
+
+        all_blocks = []
+        for src in sources:
+            if os.path.isdir(src):
+                name_guess = os.path.basename(os.path.normpath(src))
+                f = cls._discover_ensemble_file(src, name_guess)
+            else:
+                f = src
+            self.source_files.append(f)
+            all_blocks.extend(parse_xyz_ensemble(f, energy_convention=energy_convention))
+
+        natoms_set = {len(b['xyz_df']) for b in all_blocks}
+        if len(natoms_set) > 1:
+            raise ValueError(
+                f"[{molecule_name}] Sources don't agree on atom count -- refusing to merge "
+                f"{self.source_files}: {sorted(natoms_set)}."
+            )
+
+        self.ensemble_file = self.source_files
+        self.conformers = [
+            _ConformerFrame(b['xyz_df'], b['energy'], f"{molecule_name}_conf{i + 1}", threshold=threshold)
+            for i, b in enumerate(all_blocks)
+        ]
+        self.energies_hartree = np.array([c.energy for c in self.conformers], dtype=float)
+        if np.isnan(self.energies_hartree).any():
+            self.warnings.append(
+                f"[{molecule_name}] {int(np.isnan(self.energies_hartree).sum())} of "
+                f"{len(self.conformers)} merged conformer(s) had an unparsable energy comment "
+                f"line and will be excluded from the Boltzmann average."
+            )
+        self.weights = boltzmann_weights(self.energies_hartree, temperature=temperature)
+        return self
+
+    def get_sterimol(self, base_atoms=None, radii='CPK', sub_structure=False, drop_atoms=None,
+                      energy_cutoff_kcal=None, min_weight=None):
+        """
+        Compute Sterimol for every conformer and Boltzmann-average the result.
+
+        `sub_structure` defaults to False here (unlike `Molecule`/`Molecules_xyz`):
+        these are whole, standalone CREST-optimized ligands, not a substituent
+        hanging off a shared scaffold, so there's usually nothing to trim down
+        to and no reason to pay for the underlying path-enumeration search
+        (which can be slow-to-hanging on larger/cyclic ligands). Pass
+        `sub_structure=True` explicitly if you do want the substituent-only trim.
+
+        Parameters
+        ----------
+        base_atoms : list[int] | list[list[int]] | None
+            1-indexed [origin, direction] atom pair (or list of such pairs),
+            same convention as `Molecule.get_sterimol`. If None, the anchor
+            atoms are auto-detected per-conformer from the center of mass
+            (`get_sterimol_indices`) -- convenient for a first pass, but for
+            a publication table you almost certainly want to pass the actual
+            attachment-vector atoms explicitly.
+        radii : str, default 'CPK'
+        sub_structure, drop_atoms : passthrough to the underlying Sterimol calc.
+        energy_cutoff_kcal : float | None
+            If given, conformers above this relative energy (kcal/mol vs. the
+            ensemble minimum) are excluded from the average (weight forced to 0,
+            remaining weights renormalized).
+        min_weight : float | None
+            If given, conformers with raw Boltzmann weight below this threshold
+            are excluded the same way.
+
+        Returns
+        -------
+        (per_conformer_df, boltzmann_row) : (pd.DataFrame, pd.DataFrame)
+            `per_conformer_df` has one row per conformer (energy, rel. energy,
+            raw weight, weight actually used, and every Sterimol column) --
+            keep this around to sanity-check/audit what went into the average.
+            `boltzmann_row` is a single-row DataFrame (index = ligand name)
+            with the weighted-average Sterimol columns plus `n_conformers`
+            and `n_conformers_used`.
+        """
+        per_conformer_df, boltzmann_row = self._get_sterimol_once(
+            base_atoms, radii, sub_structure, drop_atoms, energy_cutoff_kcal, min_weight
+        )
+
+        # If auto-detection picked an atom pair that's degenerate for EVERY
+        # conformer (seen on ligand L25 -- a stray C-H bond exactly collinear
+        # with the coplane vector, singular `np.linalg.lstsq` every time),
+        # retry with the next candidate neighbor of that same center atom
+        # instead of reporting a flat NaN row. Retrying at the ensemble level
+        # (one atom pair applied to every conformer) rather than per-conformer
+        # keeps this cheap: it only fires when the WHOLE ensemble came back
+        # empty, not on the far more common case of a handful of individual
+        # conformers failing (e.g. L_10, 27/138 conformers) where the default
+        # pick already gives a perfectly good weighted average.
+        if base_atoms is None and boltzmann_row['n_conformers_used'].iloc[0] == 0 and self.conformers:
+            candidates = self.conformers[0]._auto_base_atom_candidates()[1:]
+            for candidate in candidates:
+                retry_per_conf, retry_boltz = self._get_sterimol_once(
+                    candidate, radii, sub_structure, drop_atoms, energy_cutoff_kcal, min_weight
+                )
+                if retry_boltz['n_conformers_used'].iloc[0] > 0:
+                    self.warnings.append(
+                        f"[{self.molecule_name}] default auto-detected atom pair failed for every "
+                        f"conformer; retried successfully with base_atoms={candidate}."
+                    )
+                    return retry_per_conf, retry_boltz
+            self.warnings.append(
+                f"[{self.molecule_name}] tried {1 + len(candidates)} auto-detected atom pairs, "
+                f"all failed for every conformer -- pass `base_atoms` explicitly for this ligand."
+            )
+
+        return per_conformer_df, boltzmann_row
+
+    def _get_sterimol_once(self, base_atoms, radii, sub_structure, drop_atoms,
+                            energy_cutoff_kcal, min_weight):
+        """One pass of the per-conformer Sterimol + Boltzmann-average computation
+        for a single fixed `base_atoms` choice -- see `get_sterimol` for the
+        public entry point (which adds the ensemble-level retry-on-total-failure
+        behavior on top of this)."""
+        rel_kcal = (self.energies_hartree - np.nanmin(self.energies_hartree)) * HARTREE_TO_KCAL
+        rows = []
+
+        # Fix the expected Sterimol column schema *before* running anything,
+        # purely from `base_atoms` (known regardless of success/failure). This
+        # matters for the edge case where EVERY conformer fails: without a
+        # pre-fixed schema, `per_conformer_df` would end up with zero value
+        # columns, the NaN-based failure check below would have nothing to
+        # check against, and a fully-failed ligand would silently get
+        # `n_conformers_used == n_conformers` with empty descriptor columns
+        # instead of being correctly flagged as a total failure.
+        _base_cols = ['B1', 'B5', 'L', 'loc_B5', 'B1_B5_angle']
+        if base_atoms is not None and isinstance(base_atoms[0], list):
+            expected_cols = [f"{g[0]}-{g[1]}_{c}" for g in base_atoms for c in _base_cols]
+        else:
+            expected_cols = list(_base_cols)
+
+        for conf, w, rel in zip(self.conformers, self.weights, rel_kcal):
+            row = {'energy_hartree': conf.energy, 'rel_energy_kcal': rel, 'weight': w}
+            row.update({c: np.nan for c in expected_cols})
+            try:
+                sdf = conf.get_sterimol(base_atoms, radii=radii, sub_structure=sub_structure, drop_atoms=drop_atoms)
+                single_group = len(sdf) == 1
+                for idx, srow in sdf.iterrows():
+                    for col, val in srow.items():
+                        key = col if single_group else f"{idx}_{col}"
+                        row[key] = val
+            except Exception as e:
+                self.warnings.append(f"[{self.molecule_name}] conformer {conf.molecule_name} failed Sterimol: {e}")
+            rows.append(row)
+
+        per_conformer_df = pd.DataFrame(rows, index=[c.molecule_name for c in self.conformers])
+
+        # Use the pre-fixed schema (not `per_conformer_df.columns`) so a
+        # totally-failed ensemble is still correctly detected below.
+        value_cols = expected_cols
+        eff_weight = per_conformer_df['weight'].copy()
+        eff_weight[per_conformer_df[value_cols].isna().any(axis=1)] = 0.0
+        if energy_cutoff_kcal is not None:
+            eff_weight[per_conformer_df['rel_energy_kcal'] > energy_cutoff_kcal] = 0.0
+        if min_weight is not None:
+            eff_weight[per_conformer_df['weight'].fillna(0) < min_weight] = 0.0
+
+        total = eff_weight.sum()
+        if not total or np.isnan(total) or total <= 0:
+            self.warnings.append(
+                f"[{self.molecule_name}] All conformers failed Sterimol or were excluded by the "
+                f"energy/weight cutoff -- no Boltzmann average computed."
+            )
+            eff_weight[:] = 0.0
+            boltzmann_row = pd.DataFrame([{c: np.nan for c in value_cols}], index=[self.molecule_name])
+        else:
+            eff_weight = eff_weight / total
+            # NaN * 0.0 is still NaN in IEEE754, so a failed conformer's NaN
+            # descriptor values would silently poison the whole ligand's
+            # average even though its (correctly zeroed) weight shouldn't
+            # contribute anything. Zero those cells out first -- their
+            # weight is already 0, so this doesn't change the math for any
+            # conformer that actually succeeded.
+            avg = per_conformer_df[value_cols].fillna(0.0).mul(eff_weight, axis=0).sum(skipna=False)
+            boltzmann_row = pd.DataFrame([avg], index=[self.molecule_name])
+
+        per_conformer_df.insert(3, 'weight_used', eff_weight)
+        boltzmann_row['n_conformers'] = len(self.conformers)
+        boltzmann_row['n_conformers_used'] = int((eff_weight > 0).sum())
+        return per_conformer_df, boltzmann_row
+
+    # ── Generic Boltzmann-averaging engine ──────────────────────────────────
+    # Same weighting/failure-handling logic as `_get_sterimol_once`, factored
+    # out so angle/dihedral/bond-length/buried-volume can reuse it instead of
+    # re-deriving the NaN-poisoning-fix, cutoff handling, and total-failure
+    # bookkeeping each time. `_get_sterimol_once` is left untouched (it
+    # predates this and is already verified against the real dataset).
+
+    def _boltzmann_average_descriptor(self, descriptor_name, expected_cols, per_conformer_calc,
+                                       energy_cutoff_kcal=None, min_weight=None):
+        """
+        Parameters
+        ----------
+        descriptor_name : str
+            Only used in warning messages (e.g. "angle[2, 1, 5]").
+        expected_cols : list[str]
+            Fixed column schema the average is computed over -- fixed up
+            front (not derived from results) so a total failure across every
+            conformer is still detected correctly, same reasoning as in
+            `_get_sterimol_once`.
+        per_conformer_calc : callable(conf) -> dict
+            Called once per `_ConformerFrame`; must return a dict mapping
+            (a subset of) `expected_cols` to scalar values. Raising inside
+            this callable marks that conformer as failed (NaN, weight forced
+            to 0 for the average) without aborting the rest of the ensemble.
+
+        Returns
+        -------
+        (per_conformer_df, boltzmann_row) -- same shape/convention as
+        `get_sterimol`'s return value.
+        """
+        rel_kcal = (self.energies_hartree - np.nanmin(self.energies_hartree)) * HARTREE_TO_KCAL
+        rows = []
+
+        for conf, w, rel in zip(self.conformers, self.weights, rel_kcal):
+            row = {'energy_hartree': conf.energy, 'rel_energy_kcal': rel, 'weight': w}
+            row.update({c: np.nan for c in expected_cols})
+            try:
+                values = per_conformer_calc(conf)
+                for c in expected_cols:
+                    if c in values:
+                        row[c] = values[c]
+            except Exception as e:
+                self.warnings.append(
+                    f"[{self.molecule_name}] conformer {conf.molecule_name} failed {descriptor_name}: {e}"
+                )
+            rows.append(row)
+
+        per_conformer_df = pd.DataFrame(rows, index=[c.molecule_name for c in self.conformers])
+
+        value_cols = expected_cols
+        eff_weight = per_conformer_df['weight'].copy()
+        eff_weight[per_conformer_df[value_cols].isna().any(axis=1)] = 0.0
+        if energy_cutoff_kcal is not None:
+            eff_weight[per_conformer_df['rel_energy_kcal'] > energy_cutoff_kcal] = 0.0
+        if min_weight is not None:
+            eff_weight[per_conformer_df['weight'].fillna(0) < min_weight] = 0.0
+
+        total = eff_weight.sum()
+        if not total or np.isnan(total) or total <= 0:
+            self.warnings.append(
+                f"[{self.molecule_name}] All conformers failed {descriptor_name} or were excluded "
+                f"by the energy/weight cutoff -- no Boltzmann average computed."
+            )
+            eff_weight[:] = 0.0
+            boltzmann_row = pd.DataFrame([{c: np.nan for c in value_cols}], index=[self.molecule_name])
+        else:
+            eff_weight = eff_weight / total
+            # See `_get_sterimol_once` -- NaN * 0.0 is still NaN in IEEE754,
+            # so failed-but-zero-weighted conformers must be zeroed first.
+            avg = per_conformer_df[value_cols].fillna(0.0).mul(eff_weight, axis=0).sum(skipna=False)
+            boltzmann_row = pd.DataFrame([avg], index=[self.molecule_name])
+
+        per_conformer_df.insert(3, 'weight_used', eff_weight)
+        boltzmann_row['n_conformers'] = len(self.conformers)
+        boltzmann_row['n_conformers_used'] = int((eff_weight > 0).sum())
+        return per_conformer_df, boltzmann_row
+
+    # ── Angles ───────────────────────────────────────────────────────────────
+
+    def get_angle(self, atoms, energy_cutoff_kcal=None, min_weight=None):
+        """
+        Boltzmann-average a bond angle across every conformer.
+
+        Parameters
+        ----------
+        atoms : list[int]
+            Exactly 3 atom indices, 1-based, e.g. [2, 1, 5].
+
+        Returns
+        -------
+        (per_conformer_df, boltzmann_row) -- `boltzmann_row` has a single
+        value column 'angle' (degrees) plus n_conformers/n_conformers_used.
+        """
+        if len(atoms) != 3:
+            raise ValueError(f"get_angle expects exactly 3 atom indices, got {atoms}")
+
+        def _calc(conf):
+            df = conf.get_bond_angle(atoms)
+            return {'angle': float(df.iloc[0, 0])}
+
+        return self._boltzmann_average_descriptor(
+            f"angle{atoms}", ['angle'], _calc,
+            energy_cutoff_kcal=energy_cutoff_kcal, min_weight=min_weight,
+        )
+
+    # ── Dihedrals ────────────────────────────────────────────────────────────
+
+    def get_dihedral(self, atoms, energy_cutoff_kcal=None, min_weight=None):
+        """
+        Boltzmann-average a dihedral angle across every conformer.
+
+        Parameters
+        ----------
+        atoms : list[int]
+            Exactly 4 atom indices, 1-based, e.g. [5, 1, 8, 6].
+
+        Returns
+        -------
+        (per_conformer_df, boltzmann_row) -- `boltzmann_row` has a single
+        value column 'dihedral' (degrees) plus n_conformers/n_conformers_used.
+        """
+        if len(atoms) != 4:
+            raise ValueError(f"get_dihedral expects exactly 4 atom indices, got {atoms}")
+
+        def _calc(conf):
+            # `get_angle_df`/`get_bond_angle` dispatch on index-list length,
+            # so a 4-atom group is automatically treated as a dihedral.
+            df = conf.get_bond_angle(atoms)
+            return {'dihedral': float(df.iloc[0, 0])}
+
+        return self._boltzmann_average_descriptor(
+            f"dihedral{atoms}", ['dihedral'], _calc,
+            energy_cutoff_kcal=energy_cutoff_kcal, min_weight=min_weight,
+        )
+
+    # ── Bond lengths ─────────────────────────────────────────────────────────
+
+    def get_bond_length(self, atoms, energy_cutoff_kcal=None, min_weight=None):
+        """
+        Boltzmann-average a bond length across every conformer.
+
+        Parameters
+        ----------
+        atoms : list[int]
+            Exactly 2 atom indices, 1-based, e.g. [1, 5].
+
+        Returns
+        -------
+        (per_conformer_df, boltzmann_row) -- `boltzmann_row` has a single
+        value column 'bond_length' (Angstrom) plus n_conformers/n_conformers_used.
+        """
+        if len(atoms) != 2:
+            raise ValueError(f"get_bond_length expects exactly 2 atom indices, got {atoms}")
+
+        def _calc(conf):
+            return {'bond_length': float(conf.get_bond_length_single(atoms).iloc[0, 0])}
+
+        return self._boltzmann_average_descriptor(
+            f"bond_length{atoms}", ['bond_length'], _calc,
+            energy_cutoff_kcal=energy_cutoff_kcal, min_weight=min_weight,
+        )
+
+    # ── Buried volume ────────────────────────────────────────────────────────
+
+    def get_buried_volume(self, metal_index, radii='bondi', radius=3.5, radii_scale=1.17,
+                           include_hs=False, z_axis_atoms=None, xz_plane_atoms=None,
+                           energy_cutoff_kcal=None, min_weight=None):
+        """
+        Boltzmann-average %V_bur (and related quantities) around `metal_index`
+        (1-based) across every conformer, via morfeus `BuriedVolume`.
+
+        Returns
+        -------
+        (per_conformer_df, boltzmann_row) -- `boltzmann_row` has columns
+        percent_buried_volume, fraction_buried_volume, buried_volume,
+        free_volume, plus n_conformers/n_conformers_used.
+        """
+        value_cols = ['percent_buried_volume', 'fraction_buried_volume', 'buried_volume', 'free_volume']
+
+        def _calc(conf):
+            df = conf.get_buried_volume(
+                metal_index=metal_index, radii=radii, radius=radius, radii_scale=radii_scale,
+                include_hs=include_hs, z_axis_atoms=z_axis_atoms, xz_plane_atoms=xz_plane_atoms,
+            )
+            return df.iloc[0].to_dict()
+
+        return self._boltzmann_average_descriptor(
+            f"buried_volume(metal={metal_index})", value_cols, _calc,
+            energy_cutoff_kcal=energy_cutoff_kcal, min_weight=min_weight,
+        )
+
+
+class GoatEnsemble(ConformerEnsemble):
+    """CREST-style Sterimol averaging on an ORCA GOAT multi-XYZ file.
+
+    Discovers ``{name}.ens.xyz`` / ``{name}.finalensemble.xyz`` and reads the
+    **last** float on each comment line as the energy. For metal-referenced
+    CS3 descriptors (``fromM_*``, ``q_anc_sum``, …) use
+    :class:`~MolFeatures.M2_data_extractor.metal_complex.MetalComplexEnsemble`
+    instead — this class is the generic Sterimol path, not the CS3 metal frame.
+    """
+
+    CONFORMER_FILENAME_PRIORITY = (
+        '{name}.ens.xyz',
+        '{name}.finalensemble.xyz',
+        os.path.join('results', '{name}.finalensemble.xyz'),
+        '{name}_conformers.xyz',
+        os.path.join('raw_crest_run', 'crest_conformers.xyz'),
+        '{name}_best.xyz',
+    )
+
+    def __init__(self, ligand_dir=None, ensemble_file=None, molecule_name=None,
+                 temperature=298.15, threshold=1.82, energy_convention='last'):
+        super().__init__(
+            ligand_dir=ligand_dir,
+            ensemble_file=ensemble_file,
+            molecule_name=molecule_name,
+            temperature=temperature,
+            threshold=threshold,
+            energy_convention=energy_convention,
+        )
+
+
+class CrestLigandSet:
+    """
+    Batch driver over a directory of CREST ligand subfolders, e.g.::
+
+        doyle_conformers/
+          L1/  L1_conformers.xyz  L1_best.xyz  ...
+          L2/  L2_conformers.xyz  L2_best.xyz  ...
+          ...
+
+    Every subfolder is treated as one ligand. Subfolders that don't contain a
+    usable CREST ensemble (empty directories, leftover Gaussian .log-only
+    folders, corrupted ensembles, etc.) are skipped rather than crashing the
+    whole batch -- check `self.failed_ligands` / `self.warnings` afterward.
+    """
+
+    def __init__(self, root_dir, temperature=298.15, threshold=1.82):
+        self.root_dir = os.path.abspath(root_dir)
+        self.temperature = temperature
+        self.threshold = threshold
+        self.warnings = []
+        self.failed_ligands = {}
+        self.ensembles = {}
+
+        def _looks_like_ligand_dir(d):
+            # Skip subfolders with no .xyz anywhere (e.g. a `sterimol_results/`
+            # output folder written by a previous run into this same root_dir) --
+            # avoids noisy false "failures" on re-run rather than actually
+            # signaling a broken ligand.
+            full = os.path.join(self.root_dir, d)
+            if not os.path.isdir(full):
+                return False
+            return bool(glob.glob(os.path.join(full, '**', '*.xyz'), recursive=True))
+
+        subdirs = sorted(d for d in os.listdir(self.root_dir) if _looks_like_ligand_dir(d))
+        for name in subdirs:
+            ligand_dir = os.path.join(self.root_dir, name)
+            try:
+                ensemble = ConformerEnsemble(
+                    ligand_dir=ligand_dir, molecule_name=name,
+                    temperature=temperature, threshold=threshold,
+                )
+                self.ensembles[name] = ensemble
+            except Exception as e:
+                self.failed_ligands[name] = str(e)
+                self.warnings.append(f"[{name}] skipped: {e}")
+
+    @staticmethod
+    def _natural_key(s):
+        return [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', str(s))]
+
+    def get_sterimol_df(self, base_atoms=None, radii='CPK', sub_structure=False, drop_atoms=None,
+                         energy_cutoff_kcal=None, min_weight=None, save_dir=None):
+        """
+        Compute Boltzmann-averaged Sterimol for every ligand in the set.
+
+        Parameters mirror `ConformerEnsemble.get_sterimol`. `base_atoms` may
+        also be a dict keyed by ligand name ({'L1': [1, 2], 'L2': [1, 3], ...})
+        for datasets where the anchor-atom numbering isn't consistent across
+        ligands; a plain list applies the same atom pair(s) to every ligand.
+
+        Returns
+        -------
+        (summary_df, detail_df) : (pd.DataFrame, pd.DataFrame)
+            `summary_df`: one row per ligand -- the Boltzmann-averaged Sterimol
+            table you'd put in an SI. `detail_df`: one row per conformer per
+            ligand, for auditing the averages before they go in the paper.
+        If `save_dir` is given, both are written there as CSVs, along with
+        `sterimol_run_warnings.txt` listing every skipped ligand/conformer.
+        """
+        summary_rows, detail_frames, run_warnings = [], [], list(self.warnings)
+
+        for name in sorted(self.ensembles, key=self._natural_key):
+            ensemble = self.ensembles[name]
+            atoms_for_ligand = base_atoms.get(name) if isinstance(base_atoms, dict) else base_atoms
+            per_conf, boltz = ensemble.get_sterimol(
+                base_atoms=atoms_for_ligand, radii=radii, sub_structure=sub_structure,
+                drop_atoms=drop_atoms, energy_cutoff_kcal=energy_cutoff_kcal, min_weight=min_weight,
+            )
+            run_warnings.extend(ensemble.warnings)
+            per_conf.insert(0, 'ligand', name)
+            detail_frames.append(per_conf)
+            summary_rows.append(boltz)
+
+        summary_df = pd.concat(summary_rows, axis=0) if summary_rows else pd.DataFrame()
+        detail_df = pd.concat(detail_frames, axis=0) if detail_frames else pd.DataFrame()
+        self.last_run_warnings = run_warnings
+
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+            summary_df.to_csv(os.path.join(save_dir, 'sterimol_boltzmann_avg.csv'))
+            detail_df.to_csv(os.path.join(save_dir, 'sterimol_per_conformer.csv'))
+            with open(os.path.join(save_dir, 'sterimol_run_warnings.txt'), 'w') as f:
+                f.write('\n'.join(run_warnings) if run_warnings else 'No warnings.')
+
+        return summary_df, detail_df
+
+
 if __name__=='__main__':
     pass
-
- 

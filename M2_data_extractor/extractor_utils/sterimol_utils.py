@@ -5,8 +5,12 @@ import igraph as ig
 import matplotlib.pyplot as plt
 plt.ion() 
 
-from utils.help_functions import * 
-from utils.visualize import *
+try:
+    from ...utils.help_functions import *
+    from ...utils.visualize import *
+except ImportError:
+    from utils.help_functions import * 
+    from utils.visualize import *
 
 
 class GeneralConstants(Enum):
@@ -454,13 +458,16 @@ def b1s_for_loop_function(degree_list, plane):
             angle_diff = 2 * np.pi - angle_diff
 
         # B1 plane normal in the original (pre-rotation) xz frame.
-        # The rotation maps original x → [cos θ, sin θ] and original z → [-sin θ, cos θ].
+        # The scan rotates the plane, t = R p, so a rotated axis is the original
+        # direction R^T applied to it: rotated x is [cos θ, -sin θ], rotated z is
+        # [sin θ, cos θ]. (R x̂ = [cos θ, sin θ] is the mirror image across x, and
+        # makes B1_B5_angle depend on how the frame is turned about the axis.)
         # B1 minimum falls along the rotated x-axis (min_index 0/1) or z-axis (2/3).
         theta = np.deg2rad(degree)
         if min_index in (0, 1):
-            b1_normal = np.array([np.cos(theta), np.sin(theta)])
+            b1_normal = np.array([np.cos(theta), -np.sin(theta)])
         else:
-            b1_normal = np.array([-np.sin(theta), np.cos(theta)])
+            b1_normal = np.array([np.sin(theta), np.cos(theta)])
 
         results.append({
             "degree": degree,
@@ -752,11 +759,11 @@ def scan_b1_over_angles(plane, degree_list):
         if angle_diff > np.pi:
             angle_diff = 2 * np.pi - angle_diff
 
-        theta = np.deg2rad(degree)
+        theta = np.deg2rad(degree)            # normal = R^T axis, as in b1s_for_loop_function
         if min_index in (0, 1):
-            b1_normal = np.array([np.cos(theta), np.sin(theta)])
+            b1_normal = np.array([np.cos(theta), -np.sin(theta)])
         else:
-            b1_normal = np.array([-np.sin(theta), np.cos(theta)])
+            b1_normal = np.array([np.sin(theta), np.cos(theta)])
 
         results.append({
             "degree": degree,
