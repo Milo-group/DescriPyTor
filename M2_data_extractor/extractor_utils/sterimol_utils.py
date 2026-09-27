@@ -471,13 +471,16 @@ def b1s_for_loop_function(degree_list, plane):
             angle_diff = 2 * np.pi - angle_diff
 
         # B1 plane normal in the original (pre-rotation) xz frame.
-        # The rotation maps original x → [cos θ, sin θ] and original z → [-sin θ, cos θ].
+        # The scan rotates the plane, t = R p, so a rotated axis is the original
+        # direction R^T applied to it: rotated x is [cos θ, -sin θ], rotated z is
+        # [sin θ, cos θ]. (R x̂ = [cos θ, sin θ] is the mirror image across x, and
+        # makes B1_B5_angle depend on how the frame is turned about the axis.)
         # B1 minimum falls along the rotated x-axis (min_index 0/1) or z-axis (2/3).
         theta = np.deg2rad(degree)
         if min_index in (0, 1):
-            b1_normal = np.array([np.cos(theta), np.sin(theta)])
+            b1_normal = np.array([np.cos(theta), -np.sin(theta)])
         else:
-            b1_normal = np.array([-np.sin(theta), np.cos(theta)])
+            b1_normal = np.array([np.sin(theta), np.cos(theta)])
 
         results.append({
             "degree": degree,
@@ -759,11 +762,11 @@ def scan_b1_over_angles(plane, degree_list):
         if angle_diff > np.pi:
             angle_diff = 2 * np.pi - angle_diff
 
-        theta = np.deg2rad(degree)
+        theta = np.deg2rad(degree)            # normal = R^T axis, as in b1s_for_loop_function
         if min_index in (0, 1):
-            b1_normal = np.array([np.cos(theta), np.sin(theta)])
+            b1_normal = np.array([np.cos(theta), -np.sin(theta)])
         else:
-            b1_normal = np.array([-np.sin(theta), np.cos(theta)])
+            b1_normal = np.array([np.sin(theta), np.cos(theta)])
 
         results.append({
             "degree": degree,
@@ -793,7 +796,13 @@ def get_b1s_list(extended_df, scans=1, plot_result=False):
     Returns
     -------
     list
-        [b1s, b1_b5_angle, planes]
+        [b1s, b1_b5_angle, planes, b1_normals]
+
+        b1_b5_angle is the DIRECTED azimuthal separation of the B1 and B5
+        directions, in [0, 180]. calc_sterimol folds it to [0, 90] before
+        reporting it as B1_B5_angle, because the B1 side choice is unstable
+        when the two supporting planes are near-equidistant; the directed value
+        is passed through as B1_B5_azimuth.
     """
     circles = []
 
@@ -826,6 +835,65 @@ def get_b1s_list(extended_df, scans=1, plot_result=False):
     return [b1s, b1_b5_angle, plane_xz, b1_normals]
 
 
+B1_TANGENT_TOL = 0.05
+
+
+def calc_loc_b1(best_plane, edited_coordinates_df, tol=B1_TANGENT_TOL):
+    """Position along the substituent axis of the contact that sets B1.
+
+    loc_B5 is unambiguous because B5 is realised by a single atom, so it has a
+    y of its own. B1 is not an atom: it is a plane containing the y-axis, and a
+    plane parallel to that axis has no position along it. What does have one is
+    the contact - the atoms whose vdW circles touch the plane - so loc_B1 is
+    reported as the y of that contact set.
+
+    The set almost never has one member. A minimum-width supporting plane is
+    minimal precisely because it lies flush against two atoms; if it touched
+    only one, rotating would narrow it further. Measured on the Ackermann set
+    the contact is a single atom in 0% of cases (median 2, up to 5), and on the
+    Corminboeuf ligands in 16%. Picking "the" tangent atom is therefore an
+    arbitrary tiebreak, and the y is averaged over the contact set instead,
+    weighted by how much of each atom lies on the plane. B1_tangent_atoms is
+    returned alongside so callers can see how sharp the contact was.
+
+    Parameters
+    ----------
+    best_plane : np.ndarray, shape (n_atoms * STERIMOL_CIRCLE_POINTS, 2)
+        The sampled vdW circles rotated to the angle that minimises B1 - the
+        same array get_b1s_list returns and calc_sterimol selects from.
+    edited_coordinates_df : pd.DataFrame
+        The substructure atoms, in the row order the circles were built in,
+        carrying 'y' (the position along the Sterimol axis).
+
+    Returns
+    -------
+    (loc_B1, n_tangent_atoms)
+    """
+    n_atoms = len(edited_coordinates_df)
+    if n_atoms == 0 or len(best_plane) != n_atoms * STERIMOL_CIRCLE_POINTS:
+        return float('nan'), 0
+
+    owner = np.repeat(np.arange(n_atoms), STERIMOL_CIRCLE_POINTS)
+    y_vals = edited_coordinates_df['y'].to_numpy(dtype=float)
+
+    # Which of the four extents is B1, i.e. which edge the plane sits on.
+    extents = [best_plane[:, 0].max(), best_plane[:, 0].min(),
+               best_plane[:, 1].max(), best_plane[:, 1].min()]
+    min_index = int(np.argmin(np.abs(extents)))
+    column = 0 if min_index in (0, 1) else 1
+    take_max = min_index in (0, 2)
+
+    values = best_plane[:, column]
+    edge = values.max() if take_max else values.min()
+    touching = np.abs(values - edge) < tol
+    if not touching.any():                      # tolerance too tight
+        touching = values == edge
+
+    atoms, counts = np.unique(owner[touching], return_counts=True)
+    loc_b1 = float(np.average(y_vals[atoms], weights=counts))
+    return loc_b1, int(len(atoms))
+
+
 def calc_sterimol(bonded_atoms_df, extended_df, visualize_bool=False):
     edited_coordinates_df, index_list = filter_atoms_for_sterimol(bonded_atoms_df, extended_df)
 
@@ -840,14 +908,42 @@ def calc_sterimol(bonded_atoms_df, extended_df, visualize_bool=False):
     best_loc_b5 = float(edited_coordinates_df.loc[best_b5_index, "loc_B5"])
     best_L = float(np.max(edited_coordinates_df["L"]))
 
-    # B1-B5 angle: angle from the 3D B5 vector to the B1 plane.
-    # The B1 plane contains the y-axis (substituent direction) and is defined by its
-    # normal n̂ in xz. This correctly accounts for the y-position of the B5 atom,
-    # unlike the old xz-projection approach which discarded it.
+    best_loc_b1, n_tangent = calc_loc_b1(planes[best_idx], edited_coordinates_df)
+
+    # Three related angles, reported separately because they are not the same
+    # quantity and the literature has used more than one of them.
+    #
+    #   B1_B5_angle    the documented descriptor: the acute angle between the
+    #                  B5 atom's origin-to-atom vector and the B1 plane, in
+    #                  [0, 90]. This is what parts/desc_sterimol.tex defines
+    #                  and what case studies 1 and 2 contain, so its meaning is
+    #                  left unchanged.
+    #   B1_B5_azimuth  the DIRECTED separation of the B1 and B5 directions
+    #                  measured in the projection plane, in [0, 180].
+    #   B1_B5_acute    the same separation folded to [0, 90].
+    #
+    # They are related but not interchangeable. n lies in the projection plane,
+    # so v.n = p.n for the perpendicular part p, giving
+    #     sin(B1_B5_angle) = |cos(azimuth)| * (|p| / |v|)
+    # -- the in-plane angle scaled by how far along the axis the B5 atom sits,
+    # which loc_B5 already reports. The scale factor runs down to 0.46 in
+    # practice, so B1_B5_angle is partly confounded with loc_B5 and the two
+    # in-plane forms are not.
+    #
+    # Which of the in-plane forms is safe depends on the ligands. B1 is the
+    # closer of two supporting planes, so its normal points to whichever side
+    # is nearer; where the two sides are near-equidistant that choice flips and
+    # the directed value jumps to its supplement. Measuring the gap
+    # |d_far - d_near|: below 0.5 A in 23 of 44 arms on the Ackermann set, but
+    # in only 23 of 1178 arm-conformers on the Corminboeuf bidentates. Prefer
+    # B1_B5_acute unless the gap has been checked for the set in hand.
+    best_azimuth = float(b1_b5_angle[best_idx])
+    best_acute = float(min(best_azimuth, 180.0 - best_azimuth))
+
     b5_row = edited_coordinates_df.loc[best_b5_index]
     v_b5 = np.array([float(b5_row["x"]), float(b5_row["y"]), float(b5_row["z"])])
-    n_xz = b1_normals[best_idx]                          # [x, z] in original frame
-    n_3d = np.array([n_xz[0], 0.0, n_xz[1]])             # [x, y=0, z]
+    n_xz = b1_normals[best_idx]
+    n_3d = np.array([n_xz[0], 0.0, n_xz[1]])
     v_norm = np.linalg.norm(v_b5)
     if v_norm > 1e-10:
         sin_val = np.clip(np.abs(np.dot(v_b5, n_3d)) / v_norm, 0.0, 1.0)
@@ -858,8 +954,12 @@ def calc_sterimol(bonded_atoms_df, extended_df, visualize_bool=False):
         "B1": best_b1,
         "B5": best_b5,
         "L": best_L,
+        "loc_B1": best_loc_b1,
         "loc_B5": best_loc_b5,
-        "B1_B5_angle": best_angle
+        "B1_tangent_atoms": n_tangent,
+        "B1_B5_angle": best_angle,
+        "B1_B5_azimuth": best_azimuth,
+        "B1_B5_acute": best_acute
     }])
 
     if visualize_bool:

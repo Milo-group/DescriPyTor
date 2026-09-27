@@ -1371,7 +1371,7 @@
           <div class="info-banner" style="margin-bottom:16px;">
             <span class="icon">ℹ️</span>
             B1 is found by rotating the perpendicular plane and finding the minimum-width tangent wall.
-            Coarse scan: 18°→108° in 9° steps · Fine scan: ±9° around best angle in 1° steps.
+            Coarse scan: 18°→108° in 1° steps · Fine scan: ±1° around best angle in 1° steps.
           </div>
           <div class="form-grid form-grid-3">
             <div class="field">
@@ -1384,14 +1384,14 @@
             </div>
             <div class="field">
               <label>Coarse step (°)</label>
-              <input type="number" id="b1-step" value="9" min="1" max="45" />
+              <input type="number" id="b1-step" value="1" min="1" max="45" />
             </div>
           </div>
           <hr class="divider" />
           <div class="form-grid form-grid-2">
             <div class="field">
               <label>Fine scan window (±°)</label>
-              <input type="number" id="b1-fine-window" value="9" min="1" max="45" />
+              <input type="number" id="b1-fine-window" value="1" min="1" max="45" />
             </div>
             <div class="field">
               <label>Fine scan step (°)</label>
@@ -3731,7 +3731,7 @@ function generateCode() {
   // B1 scan params
   const b1Start  = val('b1-start') || '18';
   const b1End    = val('b1-end')   || '108';
-  const b1Step   = val('b1-step')  || '9';
+  const b1Step   = val('b1-step')  || '1';
 
   // Steriplot colors
   const colB1 = val('sp-b1-color-txt');
