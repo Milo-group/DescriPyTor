@@ -64,11 +64,11 @@ if __name__ == '__main__':
     if len(sys.argv) > 2:
         name = sys.argv[2]
         out = os.path.join(HERE, 'fixtures', name + '.data.json')
-        with open(out, 'w') as f:
+        with open(out, 'w', newline='\n') as f:
             json.dump(dict(dipole=p['dipole'], charges=p['charges']), f)
         xyz = os.path.join(HERE, 'fixtures', name + '.xyz')      # the same atom order the charges are in
         if not os.path.exists(xyz):
-            with open(xyz, 'w') as f:
+            with open(xyz, 'w', newline='\n') as f:
                 f.write(p['xyz'])
             print('wrote', xyz)
         print('wrote', out, '| dipole', p['dipole'], '| charges', sorted(p['charges']))

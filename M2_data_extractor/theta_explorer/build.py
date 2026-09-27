@@ -320,6 +320,6 @@ if __name__ == '__main__':
         sys.exit(0)
     html = assemble()
     out = os.path.join(HERE, 'theta_explorer.html')
-    with open(out, 'w', encoding='utf-8') as f:
+    with open(out, 'w', encoding='utf-8', newline='\n') as f:
         f.write(html)
     print('%s  %.0f KB' % (out, len(html.encode()) / 1024))

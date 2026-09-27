@@ -47,6 +47,6 @@ for name, axes in AXES.items():
         r = de.get_sterimol_df(xyz, bonds, [a, b], None, radii='CPK').iloc[0]
         cases.append(dict(file=name, a=a, b=b, ref={k: float(r[k]) for k in KEYS}, phi=round(_phi['v'], 4)))
 
-with open(os.path.join(HERE, 'refs.json'), 'w') as f:
+with open(os.path.join(HERE, 'refs.json'), 'w', newline='\n') as f:
     json.dump(cases, f, indent=1)
 print('%d reference axes -> refs.json' % len(cases))

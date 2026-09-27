@@ -43,6 +43,6 @@ for name, job in CASES.items():
         out.append(dict(file=name, kind='cone', atom=i,
                         ref=round(float(ca.cone_angle), 6),
                         tangent=sorted(int(t) for t in getattr(ca, 'tangent_atoms', []))))
-with open(os.path.join(HERE, 'pos_refs.json'), 'w') as f:
+with open(os.path.join(HERE, 'pos_refs.json'), 'w', newline='\n') as f:
     json.dump(out, f, indent=1)
 print('%d reference values -> pos_refs.json' % len(out))
