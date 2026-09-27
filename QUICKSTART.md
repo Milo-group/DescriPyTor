@@ -47,7 +47,7 @@ Example molecules ship with the package (10 substituted benzenes, including `bas
 from M2_data_extractor import Molecules
 from descripytor.examples import feather_example_dir
 
-mols = Molecules(str(feather_example_dir()), threshold=1.82)
+mols = Molecules(str(feather_example_dir()))
 print(mols.success_molecules)
 ```
 

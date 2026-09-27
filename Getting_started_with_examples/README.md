@@ -105,7 +105,7 @@ Opens the picker on a molecule from the set. Click atoms, then **Extract CSV**. 
 from M2_data_extractor.data_extractor import Molecules
 from descripytor.examples import feather_example_dir
 
-molset = Molecules(str(feather_example_dir()), threshold=1.82)
+molset = Molecules(str(feather_example_dir()))
 print(molset.success_molecules, molset.failed_molecules)
 
 features = molset.get_molecules_features_set(
@@ -131,7 +131,7 @@ Full API: [M2_data_extractor/README.md](../M2_data_extractor/README.md) for extr
   trusting the matrix.
 - **Empty descriptor** — indices usually do not match what the extractor needs (a stretch
   pair must be bonded; a bend pair must share a centre). Indices are 1-based.
-- **Wrong bonds** — raise or lower `threshold` in `Molecules` (default 1.82 Å).
+- **Wrong bonds** — check `mol.bonds_df`. Bonds come from covalent radii × 1.15 (metal–ligand up to 2.8 Å); pass `threshold=<Å>` to `Molecules` for a flat cutoff instead (`threshold=1.82` is the rule before September 2026).
 - **Import errors** — `pip install -e .` from the repo root; keep `numpy<2`.
 
 A guided walkthrough with more context:

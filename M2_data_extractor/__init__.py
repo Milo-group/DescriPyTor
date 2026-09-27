@@ -15,6 +15,7 @@ The public API centers on:
 Exports are loaded lazily so importing lightweight utility modules does not
 eagerly import pandas, PyArrow, RDKit, or other heavy scientific dependencies.
 """
+from utils.console import make_console_safe as _mcs; _mcs()
 
 from importlib import import_module
 

@@ -1,3 +1,7 @@
+try:
+    from utils.console import make_console_safe as _mcs; _mcs()
+except ImportError:
+    pass
 import pandas as pd
 import numpy as np
 import os

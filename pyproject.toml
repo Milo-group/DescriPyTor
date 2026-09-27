@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "descripytor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Molecular feature extraction, alignment, and modeling tools."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -89,6 +89,10 @@ exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*", "tests*"
 
 [tool.setuptools.package-data]
 "M2_data_extractor" = ["*.html", "static/*"]
+# the Sterimol / theta / cone / %Vbur explorer, served at /theta by `descripytor visual`
+"M2_data_extractor.theta_explorer" = ["*.js", "*.html", "*.json", "fixtures/*", "rdkit/*"]
+# the vibration-mode viewer, served at /modes
+"utils" = ["*.html"]
 "descripytor.examples" = [
     "*.json",
     "feather_example/*.feather",

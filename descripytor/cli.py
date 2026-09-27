@@ -110,7 +110,7 @@ def get_local_setup_version():
         from descripytor import __version__ as version
         return version
     except Exception:
-        return "0.1.0"
+        return "0.2.0"
 
 __version__ = get_local_setup_version()
 
@@ -1694,11 +1694,8 @@ def interactive_modeling(csv_path):
 def main():
     # A Windows console with a legacy code page (cp1252, cp1255, ...) cannot print every
     # character a report may contain; replace those instead of stopping the run.
-    for stream in (sys.stdout, sys.stderr):
-        try:
-            stream.reconfigure(errors="replace")
-        except (AttributeError, ValueError):
-            pass
+    from utils.console import make_console_safe
+    make_console_safe()
     parser = argparse.ArgumentParser(prog="descripytor", description="DescriPyTor")
     subparsers = parser.add_subparsers(dest="command")
 

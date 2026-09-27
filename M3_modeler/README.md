@@ -215,6 +215,23 @@ This project provides several cross-validation (CV) strategies designed for hone
 
 > Tip: For reproducibility, set a fixed random seed where applicable. For highly imbalanced data, consider pairing Stratified K-Fold with the built-in similarity-based sampling or stratified sampling utilities before CV.
 
+## Exhaustive search and selection controls
+
+`ridge_search` and `validation` are the protocol of the paper's Case Study 3: every k-descriptor
+model scored by closed-form leave-one-out (no refitting), selection repeated inside each fold, and
+controls for the search itself. Each is checked against a number the paper deposits.
+
+| function | what it returns |
+|---|---|
+| `ridge_search.loo_predictions(X, y, combos, lam=1.0)` | LOO predictions of every model; `lam=0` is OLS |
+| `ridge_search.adj_q2(pred, y, k)`, `q2(pred, y)` | scores of those predictions |
+| `ridge_search.nested_loo(X, y, combos)` | outer LOO around the whole search: nested R², the model picked in each fold |
+| `ridge_search.constraint_null(X, y, combos)` | nested R² when a given descriptor pair is required, for every pair |
+| `validation.selection_null(X, y, combos, n_perm=1000)` | the best score of the same search on permuted y: noise floor (`p95`) and p |
+| `validation.paired_sign_flip(y, pred_a, pred_b)` | which of two models is closer, sample by sample, with a sign-flip p |
+
+Worked example: [docs/WORKFLOW.md §6](../docs/WORKFLOW.md#6-validating-a-model).
+
 ## Core Classes
 
 ### `LinearRegressionModel`

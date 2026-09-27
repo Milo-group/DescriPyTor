@@ -1,0 +1,53 @@
+# Changelog
+
+## 0.2.0 — 2026-09-27
+
+Descriptor values change in this release; the list is below. `descripytor.compat.paper_v3()`
+restores the 0.1-era definitions the DescriPyTor paper was computed with (git tag `paper-v3`).
+
+### Changed definitions
+
+- **Bonds**: a non-metal pair is bonded below 1.15 × the sum of covalent radii instead of a
+  flat 1.82 Å. S–CF₃, P–C, C–Br, C–I, Si–C and S–S bonds are kept; an agostic metal···H
+  contact is not a bond. `threshold_distance=1.82` gives the old rule.
+- **Sterimol**:
+  - the B1 plane normal is no longer mirrored, so θ (`B1_B5_angle`) no longer depends on how
+    the frame is turned about the axis;
+  - every copy scans every degree;
+  - `MetalComplex` reports θ instead of φ, and starts its scan from the molecule rather than the
+    lab frame, so its values no longer depend on how the input file is oriented.
+- **Vibrations**: one window everywhere: stretch 1400–3500 cm⁻¹, bend from 1300 cm⁻¹. The 3D
+  picker's old bend default (3000) only ever found X–H stretches.
+- **Rings**: ortho/meta/para are measured from the atom you give (they were measured from another
+  atom in most cases), and the two ring angles are real values (they were always 90°).
+
+Details and the measured effect of each: [docs/STERIMOL_FIXES.md](docs/STERIMOL_FIXES.md),
+[docs/FEATURE_FIXES.md](docs/FEATURE_FIXES.md).
+
+### Added
+
+- `M3_modeler.ridge_search`: exhaustive k-descriptor search by closed-form ridge / OLS LOO,
+  nested LOO and the constraint null.
+- `M3_modeler.validation`: `selection_null` (the search on permuted y, 1000 permutations in about
+  a second) and `paired_sign_flip`.
+- `descripytor.compat.paper_v3()`.
+- The Sterimol / θ / cone-angle / %V_bur explorer (`/theta` in `descripytor visual`), gated
+  against the Python.
+- `Molecules({label: folder, ...})`: several folders pooled into one set.
+- New columns: `loc_B1`, `B1_tangent_atoms`, `B1_B5_azimuth`, `B1_B5_acute`.
+- [docs/WORKFLOW.md](docs/WORKFLOW.md): the workflow step by step, and every option.
+
+### Fixed
+
+- `descripytor extractor` crashed on Windows consoles before writing its CSV.
+- `descripytor model -t target.csv` ignored the target file; features and target are now joined
+  on the molecule name.
+- The model search waited for input with no terminal attached (cluster jobs, pipes).
+- A stretch or bend with no frequency window silently dropped its columns.
+- Tuples of atom pairs gave one meaningless number.
+- A bend given as a triplet a-b-c (as the forms GUI sends it) used the wrong atoms.
+- Opening a feather file needed dash and torch.
+
+## 0.1.0 — 2026-08-30
+
+First release on PyPI: the pip package and the `descripytor visual` first-run path.

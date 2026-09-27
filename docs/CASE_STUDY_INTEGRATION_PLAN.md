@@ -54,6 +54,9 @@ What the paper still runs outside the package (counted 2026-09-27):
 
 ## Decide first (blocks phase 2 onward)
 
+0. **Standardisation in the transfer test.** The draft's BOX→PyOx number (0.330) fits ridge on columns
+   scaled with `ddof=0`; every other CS3 fit uses `ddof=1`. Pick one before `group_holdout` is ported.
+
 1. **Deposit scripts: thin wrappers or frozen?** Either regenerate the deposit scripts from the
    package (one source, but the deposit changes), or freeze them as they are and point only
    `notes/analysis` at the package. Recommended: freeze the deposit, since its scripts
@@ -71,8 +74,8 @@ package or listed as retired.
 
 | # | phase | output | size |
 |---|---|---|---|
-| 1 | **Controls** | `validation.py` + tests; `ridge_search.stability` | about a day; every gate is a deposited number |
-| 2 | **Reproduction switch** | `compat.paper_v3()`; the whole gate set runs on `main` inside it | half a day; removes the need to check out the tag |
+| 1 | **Controls** — done 2026-09-27: `validation.selection_null`, `paired_sign_flip` (group_holdout waits for the ddof decision) | `validation.py` + tests; `ridge_search.stability` | about a day; every gate is a deposited number |
+| 2 | **Reproduction switch** — done 2026-09-27: `descripytor.compat.paper_v3()` | `compat.paper_v3()`; the whole gate set runs on `main` inside it | half a day; removes the need to check out the tag |
 | 3 | **Frames** | `frames.py`; CS1/CS2/CS3 frame tables reproduced | 1–2 days; three different frame conventions to unify |
 | 4 | **Case-study notebooks** | CS1, CS2, CS3 notebooks on the package, asserting the README table | 2 days, after decision 2 |
 | 5 | **Explorer from Python** | `render.py`; `figure_studio` becomes data plus calls | 1 day |

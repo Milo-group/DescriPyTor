@@ -19,6 +19,7 @@ Modeled after the R package *MoleculaR* ([docs](https://barkais.github.io/)).
 - [Install](#install)
 - [**One-page install + GUI (for a first run)**](QUICKSTART.md)
 - [**Visual start guide**](docs/visual-guide.md)
+- [**Workflow and every option** — logs → features → model → validation](docs/WORKFLOW.md)
 - [The three ways to use it](#the-three-ways-to-use-it)
 - [Feature extraction](#feature-extraction)
   - [Descriptor families](#descriptor-families)
@@ -63,16 +64,30 @@ Dipole components and ring vibrations are read in this frame.
 
 ## Install
 
-Needs conda and Python 3.10 or 3.11.
+Needs Python 3.10 or 3.11; a conda environment is the easiest way to get RDKit.
+
+**From PyPI** (to use the package):
+
+```bash
+conda create -n descripytor python=3.10 -y
+conda activate descripytor
+pip install descripytor
+descripytor visual
+```
+
+**From a clone** (to change the code, run the tests, or use the case-study scripts):
 
 ```bash
 git clone https://github.com/Milo-group/DescriPyTor.git
 cd DescriPyTor
 conda create -n descripytor python=3.10 -y
 conda activate descripytor
-pip install -e .
+pip install -e ".[dev]"
 descripytor visual
 ```
+
+The whole workflow, from Gaussian logs to a validated model, with every option:
+**[docs/WORKFLOW.md](docs/WORKFLOW.md)**.
 
 That opens the 3D picker at **http://127.0.0.1:7432**. If the port is already taken, stop the old process (the command prints a PID) and run `descripytor visual` again, then hard-refresh the browser (Ctrl+F5).
 
@@ -224,7 +239,7 @@ python descriptor_extractor.py --csearch molecules.csv --csearch-out xyz_out \
 from M2_data_extractor.data_extractor import Molecules
 from descripytor.examples import feather_example_dir
 
-molset = Molecules(str(feather_example_dir()), threshold=1.82)
+molset = Molecules(str(feather_example_dir()))
 
 features = molset.get_molecules_features_set(
     entry_widgets={
@@ -489,6 +504,10 @@ Deeper documentation:
 - [M3_modeler/README.md](M3_modeler/README.md) — modeling classes, CV, sampling, reports
 - [descriptor_extraction_toolkit/README.md](Getting_started_with_examples/descriptor_extraction_toolkit/README.md) — picker, engines, config format
 - [DescriPyTor_Tutorial.md](Getting_started_with_examples/descriptor_extraction_toolkit/DescriPyTor_Tutorial.md) — guided walkthrough
+- [docs/WORKFLOW.md](docs/WORKFLOW.md) — the workflow step by step, and every option (input keys, bond rule, windows, CLI flags, validation)
+- [docs/STERIMOL_FIXES.md](docs/STERIMOL_FIXES.md) and [docs/FEATURE_FIXES.md](docs/FEATURE_FIXES.md) — what changed in the descriptor definitions, and why
+- [docs/CASE_STUDY_INTEGRATION_PLAN.md](docs/CASE_STUDY_INTEGRATION_PLAN.md) — bringing the paper's case-study code into the package
+- [CHANGELOG.md](CHANGELOG.md) — releases
 
 ---
 
@@ -496,17 +515,20 @@ Deeper documentation:
 
 ```text
 pyproject.toml                  Package metadata and dependencies (single source of truth)
-descripytor/                    Installable package: CLI (`descripytor`) and `__version__`
+descripytor/                    Installable package: CLI (`descripytor`), `__version__`, compat.paper_v3()
 __main__.py                     Thin shim: `python __main__.py` → `descripytor.cli:main`
 LICENSE                         MIT
 M1_pre_calculations/            Prepare and submit calculations (SMILES to xyz, .com files)
-M2_data_extractor/              Descriptor extraction; Molecules / Molecule / MetalComplex
-M3_modeler/                     Regression and classification model search
+M2_data_extractor/              Descriptor extraction; Molecules / Molecule / MetalComplex;
+                                theta_explorer/ (the Sterimol / cone / %Vbur explorer, gated against the Python)
+M3_modeler/                     Regression and classification model search; ridge_search (exhaustive
+                                ridge LOO, nested LOO), validation (selection null, paired sign-flip)
 MolAlign/                       Alignment and atom renumbering
 utils/                          Shared file handling, geometry, visualization
 Getting_started_with_examples/  Notebooks, example data, the 3D picker toolkit, webapp
 descripytor/examples/           Bundled feathers + extractor JSON (also in the wheel)
 tests/data/small_set/           Small XYZ + modeling table used by pytest
+tests/data/cs3_reference/       Case Study 3 descriptor tables the metal-complex tests check against
 docs/images/                    Screenshots and figures used by this README
 docs/animations/                Animated SVGs, and the script that generates them
 work/                           Docker-visible scratch folder

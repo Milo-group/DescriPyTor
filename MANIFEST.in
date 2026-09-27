@@ -2,3 +2,6 @@ recursive-include descripytor/examples *.feather *.json *.csv README.md
 recursive-include M2_data_extractor/static *
 include Getting_started_with_examples/input_example.json
 include Getting_started_with_examples/descriptor_extraction_toolkit/config_example.json
+recursive-include M2_data_extractor/theta_explorer *.js *.html *.json *.xyz *.wasm
+prune M2_data_extractor/theta_explorer/goldens
+include utils/*.html

@@ -1,3 +1,7 @@
+try:
+    from utils.console import make_console_safe as _mcs; _mcs()
+except ImportError:
+    pass
 # -*- coding: latin-1 -*-
 import cProfile
 import copy
@@ -1046,8 +1050,8 @@ class LinearRegressionModel:
         msg = (
             f"Processed {'DataFrame' if path_used is None else os.path.basename(path_used)}\n"
             f"Molecule names: {name_src_note} | Target: {target_col}\n"
-            f"Rows: {df.shape[0]} → {summary['n_final_rows']} (dropped NaN targets: {n_nan_targets}) | "
-            f"Features: {n_features_total} → {numeric_df.shape[1]}"
+            f"Rows: {df.shape[0]} -> {summary['n_final_rows']} (dropped NaN targets: {n_nan_targets}) | "
+            f"Features: {n_features_total} -> {numeric_df.shape[1]}"
         )
         for key, lst in {
             "SMILES-like": dropped_smiles_like_cols,
@@ -2776,7 +2780,7 @@ class ClassificationModel:
         msg = (
             f"Processed {'DataFrame' if path_used is None else os.path.basename(path_used)}\n"
             f"Molecule names: {name_src_note} | Target: {target_col}\n"
-            f"Rows: {df.shape[0]} | Features: {n_features_total} → {numeric_df.shape[1]}"
+            f"Rows: {df.shape[0]} | Features: {n_features_total} -> {numeric_df.shape[1]}"
         )
         for key, lst in {
             "SMILES-like": dropped_smiles_like_cols,

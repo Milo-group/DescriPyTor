@@ -18,7 +18,7 @@ Turns quantum-chemistry output into model-ready descriptors.
 from M2_data_extractor.data_extractor import Molecules
 from descripytor.examples import feather_example_dir
 
-molset = Molecules(str(feather_example_dir()), threshold=1.82)
+molset = Molecules(str(feather_example_dir()))
 
 molset.success_molecules   # files that parsed
 molset.failed_molecules    # files that did not — check these before trusting a run
@@ -129,7 +129,7 @@ molset.get_charge_diff_df_dict([[1,2],[3,4]], type='all')
 
 ```python
 from M2_data_extractor.data_extractor import Molecule
-mol = Molecule("LS1716_optimized.feather", threshold=1.82)
+mol = Molecule("LS1716_optimized.feather")
 ```
 
 Populates geometry (`xyz_df`, `coordinates_array`), connectivity (`bonds_df`, `atype_list`)
@@ -188,8 +188,9 @@ components you get are measured from the same origin.
 ### Vibrations
 
 ```python
-mol.get_stretch_vibration([1,2], threshold=1600, upper_threshold=3000)
-mol.get_bend_vibration([1,2], threshold=1300)
+mol.get_stretch_vibration([1,2])                  # window STRETCH_WINDOW = (1400, 3500) cm^-1
+mol.get_stretch_vibration([1,2], upper_threshold=3800)   # widen it for an O-H stretch
+mol.get_bend_vibration([1,2])                     # pair sharing a centre; a triplet a-b-c works too
 mol.get_ring_vibrations([[1,4],[2,5]], return_nan_on_empty=True)
 ```
 
@@ -243,8 +244,10 @@ electronic environment. Driven from the CLI with `descripytor cube`.
 
 ## Practical notes
 
-- **Connectivity**: default cutoff is 1.82 Å. Check `bonds_df` if a descriptor looks wrong —
-  a missing bond is the usual cause of a failed stretch lookup.
+- **Connectivity**: a non-metal pair is bonded below 1.15 × the sum of covalent radii (Pyykkö);
+  metal–ligand pairs up to 2.8 Å, at most 6 per metal. `Molecule(..., threshold=1.82)` gives the old
+  flat cutoff, and `descripytor.compat.paper_v3()` restores it for a whole block. Check `bonds_df` if
+  a descriptor looks wrong — a missing bond is the usual cause of a failed stretch lookup.
 - **Failures are per-molecule**: batch methods report and skip, so one bad log doesn't lose
   the run. Always check `failed_molecules`.
 - **Re-extract after renumbering** — descriptors are index-based.
