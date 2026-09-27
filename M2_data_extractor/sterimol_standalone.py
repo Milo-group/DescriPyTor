@@ -621,6 +621,10 @@ def remove_atom_bonds(bonded_atoms_df,atom_remove='H'):
 # gives the same bonds.
 BOND_SCALE = 1.15
 
+# The flat cutoff (A) used when a caller passes no threshold_distance. None means the covalent
+# rule; descripytor.compat.paper_v3() sets 1.82 for the duration of a block.
+DEFAULT_BOND_THRESHOLD = None
+
 
 def extract_connectivity(xyz_df, threshold_distance=None, metals=None,
                          metal_threshold=2.8, max_coordination=6, scale=BOND_SCALE):
@@ -666,6 +670,8 @@ def extract_connectivity(xyz_df, threshold_distance=None, metals=None,
     remove_list = []
     dist_array = np.array(dist_df)
     special_atoms = {'Cl', 'Br', 'F', 'I'}
+    if threshold_distance is None:
+        threshold_distance = DEFAULT_BOND_THRESHOLD
     flat = threshold_distance is not None
     radii = GeneralConstants.COVALENT_RADII.value
 
