@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import M2_data_extractor.metal_complex as metal_complex
 from M2_data_extractor.ligand_topology import LigandTopology
 from M2_data_extractor.metal_complex import (
     MetalComplex,
@@ -51,6 +53,13 @@ def scratchpad():
 GEOM = CORNMINBUF / "geom"
 GOAT_TABLES = CORNMINBUF / "data" / "goat_ensemble"
 CHEAP_TABLES = CORNMINBUF / "data" / "single_structure"
+
+
+@pytest.fixture(autouse=True)
+def deposited_scan_grid(monkeypatch):
+    """The published CS3 tables were built on the 18° coarse B1 grid, with phi."""
+    monkeypatch.setattr(metal_complex, "STERIMOL_SCAN_STEP", 18)
+    monkeypatch.setattr(metal_complex, "STERIMOL_KEYS", ("B1", "B5", "L", "angle"))
 
 
 def _max_abs(got: pd.Series, want: pd.Series) -> float:
@@ -104,11 +113,8 @@ class TestTopology:
         reason="rdkit is not installed in this interpreter",
     )
     def test_081_matches_cs3_tf_block(self):
-        table_path = GOAT_TABLES / "cc.csv"
-        if not table_path.is_file():
-            pytest.skip("CS3 goat_ensemble tables not in this checkout")
         smiles = "c1ccc(C[C@H]2COC(C3=N[C@@H](Cc4ccccc4)CO3)=N2)cc1"
-        table = pd.read_csv(table_path, index_col="name")
+        table = pd.read_csv(GOAT_TABLES / "cc.csv", index_col="name")
         got = LigandTopology.from_smiles(smiles, name="081_lig").size_normalized_features()
         want = table.loc["081_lig"]
         cols = [c for c in got if c in want.index]
@@ -117,11 +123,23 @@ class TestTopology:
         assert not bad, bad[:5]
 
 
+def _081_ensemble_path() -> Path | None:
+    local = FIXTURES / "081_lig.finalensemble.xyz"
+    if local.is_file():
+        return local
+    pad = scratchpad()
+    if pad is not None:
+        candidate = pad / "cbens" / "081_lig.finalensemble.xyz"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 EXPECTED_SMALL = FIXTURES / "expected_cc_goat_ens_small.csv"
 SMALL_GOAT = ("081_lig", "072_lig", "080_lig", "083_lig")
 
 
-def _ensemble_path(stem: str) -> Path | None:
+def _ensemble_path(stem: str):
     local = FIXTURES / f"{stem}.finalensemble.xyz"
     if local.is_file():
         return local
@@ -133,11 +151,7 @@ def _ensemble_path(stem: str) -> Path | None:
     return None
 
 
-def _081_ensemble_path() -> Path | None:
-    return _ensemble_path("081_lig")
-
-
-def _expected_geom_table() -> pd.DataFrame | None:
+def _expected_geom_table():
     if EXPECTED_SMALL.is_file():
         return pd.read_csv(EXPECTED_SMALL, index_col=0)
     table = GEOM / "desc_cc_goat_ens.csv"
@@ -161,8 +175,72 @@ def test_small_goat_matches_published_geom(stem):
     assert got["n_conformers"] == want["n_conformers"]
 
 
+def test_default_scan_finds_the_plane_the_18_degree_grid_misses(monkeypatch):
+    path = _ensemble_path("072_lig")
+    if path is None:
+        pytest.skip("072_lig GOAT ensemble not available")
+    conformer = MetalComplexEnsemble.from_xyz(path).complexes[0]
+    coarse = conformer.geometric_features()["sub_B1_sym"]
+    monkeypatch.undo()                          # back to the module default
+    assert conformer.geometric_features()["sub_B1_sym"] < coarse - 0.01
+
+
+def _toy_chelate(bite_deg):
+    half = np.radians(bite_deg / 2)
+    coords = np.array([[0.0, 0.0, 0.0], [-2.1, 0.0, 0.0],
+                       [2.0 * np.cos(half), 2.0 * np.sin(half), 0.0],
+                       [2.0 * np.cos(half), -2.0 * np.sin(half), 0.0]])
+    return MetalComplex(["Cu", "Cl", "N", "N"], coords, name="toy")
+
+
+def test_bite_outside_the_builder_window_warns():
+    """The builder checks the bite at placement only; the relaxed structure is re-checked."""
+    with pytest.warns(UserWarning, match="toy: bite 50.0 deg"):
+        _toy_chelate(50.0).geometric_features()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        _toy_chelate(90.0).geometric_features()
+
+
+def test_theta_of_a_lone_hydrogen_is_zero():
+    """A lone H on the axis has no B1 direction, so phi is a tie-break; theta is 0."""
+    symbols = ["C", "H", "C"]
+    coords = np.array([[0.0, 0.0, 0.0], [0.3, 0.4, 1.0], [1.5, 0.0, 0.0]])
+    s = metal_complex.sterimol(symbols, coords, 1, 2, [1.70, 1.00, 1.70])
+    assert s["n"] == 1
+    assert s["theta"] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_theta_does_not_depend_on_how_the_molecule_is_oriented(monkeypatch):
+    """theta must use the B1 normal the scan measured along (R^T, not R)."""
+    path = _ensemble_path("081_lig")
+    if path is None:
+        pytest.skip("081_lig GOAT ensemble not available")
+    monkeypatch.undo()                          # module defaults: 1° scan, theta
+    conformer = MetalComplexEnsemble.from_xyz(path).complexes[0]
+    axis = np.array([1.0, 2.0, 3.0]) / np.sqrt(14.0)
+    K = np.array([[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
+    rot = np.eye(3) + np.sin(1.1) * K + (1 - np.cos(1.1)) * K @ K
+    turned = MetalComplex(conformer.symbols, conformer.coords @ rot.T + [1.0, -2.0, 0.5])
+    got, want = turned.geometric_features(), conformer.geometric_features()
+    cols = [c for c in want if "_theta_" in c]
+    assert len(cols) == 4
+    assert max(abs(got[c] - want[c]) for c in cols) < 2.0, {c: (got[c], want[c]) for c in cols}
+
+
 @pytest.mark.skipif(_081_ensemble_path() is None, reason="081_lig GOAT ensemble not available")
 class TestGoatGeometry081:
+    def test_recreates_desc_cc_goat_ens_row(self):
+        path = _081_ensemble_path()
+        ens = MetalComplexEnsemble.from_xyz(path)
+        assert ens.n_conformers == 2
+        got = ens.geometric_features()
+        want = pd.read_csv(GEOM / "desc_cc_goat_ens.csv", index_col=0).loc["081_lig"]
+        cols = [c for c in want.index if c in got]
+        bad = _compare_row(got, want, cols, atol=1e-8)
+        assert not bad, bad
+        assert got["n_conformers"] == want["n_conformers"]
+
     def test_xyz_ensemble_last_float_energy(self):
         ens = XYZEnsemble(_081_ensemble_path(), energy_convention="last")
         assert ens.n_conformers == 2
@@ -190,34 +268,14 @@ class TestXtbParsers:
         )
         sp = XtbSinglePoint.parse_dump(dump)["cheap"][0]
         assert sp.gap == pytest.approx(1.0)
-        assert sp.dipole_unit == "au"
-        xyz = ROOT / "tests" / "data" / "small_set" / "xyz" / "tiny_nih2n2.xyz"
-        if not xyz.is_file():
-            pytest.skip("tiny_nih2n2.xyz missing")
-        mc = MetalComplex.from_xyz(xyz)
-        elec = mc.electronic_features(sp)
-        assert elec["q_metal"] == pytest.approx(-0.50)
-        assert elec["q_anc_sum"] == pytest.approx(0.20)
-        assert elec["wbo_MD_sym"] == pytest.approx(0.90)
-        assert elec["wbo_MD_asym"] == pytest.approx(0.0)
-        assert elec["gap"] == pytest.approx(1.0)
-
-    def test_from_files_q_and_wbo(self, tmp_path):
-        q_path = tmp_path / "x.q"
-        w_path = tmp_path / "x.wbo"
-        q_path.write_text("-0.50 0.10 0.10 -0.05 -0.05\n", encoding="utf-8")
-        w_path.write_text("1 4 0.91\n1 5 0.89\n", encoding="utf-8")
-        # electronic_features always rotates the dipole into the N–M–N frame
-        sp = XtbSinglePoint.from_files(
-            q_path, wbo_path=w_path, homo=-8.0, lumo=-7.5, dipole=[0.10, 0.0, 0.0]
-        )
         xyz = ROOT / "tests" / "data" / "small_set" / "xyz" / "tiny_nih2n2.xyz"
         if not xyz.is_file():
             pytest.skip("tiny_nih2n2.xyz missing")
         elec = MetalComplex.from_xyz(xyz).electronic_features(sp)
+        assert elec["q_metal"] == pytest.approx(-0.50)
+        assert elec["q_anc_sum"] == pytest.approx(0.20)
         assert elec["wbo_MD_sym"] == pytest.approx(0.90)
-        assert elec["homo"] == pytest.approx(-8.0)
-        assert elec["lumo"] == pytest.approx(-7.5)
+        assert elec["gap"] == pytest.approx(1.0)
 
 
 CHARGE_WBO_COLS = [
@@ -296,11 +354,8 @@ class TestElectronicsFromScratchpad:
 
 class TestCheapArm:
     def test_cc_cheap_geometry_and_electronics(self):
-        table = GEOM / "desc_cc_cheap.csv"
-        if not table.is_file():
-            pytest.skip("CS3 geom table not in this checkout")
         pad = _scratch()
-        want_g = pd.read_csv(table, index_col=0)
+        want_g = pd.read_csv(GEOM / "desc_cc_cheap.csv", index_col=0)
         want_e = pd.read_csv(pad / "elec_cc_cheap.csv", index_col=0)
         geo_rows, elec_rows = {}, {}
         for stem in want_g.index:

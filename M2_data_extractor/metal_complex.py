@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import glob
 import os
+import warnings
 from collections import deque
 
 import numpy as np
@@ -66,7 +67,24 @@ VDW_BURIAL = {
 }
 
 ANCILLARY_ELEMENTS = ("H", "Cl", "F", "Br")
-STERIMOL_KEYS = ("B1", "B5", "L", "angle")
+# Per-arm Sterimol values written as <frame>_<key>_sym/_asym. "theta" is the angle
+# between the vector to the B5 atom and the B1 plane; it is defined for every arm
+# (0 for a lone H on the axis). "angle" is phi, the in-plane azimuth, which has no
+# defined value when the B5 atom sits on the axis; add it to rebuild the deposited
+# CS3 tables.
+STERIMOL_KEYS = ("B1", "B5", "L", "theta")
+
+# Coarse step of the B1 rotation scan, in degrees. The best coarse angle is
+# refined at 1° within one step either side, so 1 tries every degree. The
+# deposited CS3 tables were built with 18, which misses the narrowest plane on
+# some arms; set it to 18 to rebuild them.
+STERIMOL_SCAN_STEP = 1
+
+# build_general.py rejects a metal placement whose bite falls outside this window,
+# but only before relaxation; a donor can still come off during it (009_lig in the
+# CS3 oxy-alkynylation set: 87 deg placed, 58 deg relaxed). geometric_features
+# re-checks the structure it is given.
+BITE_WINDOW = (65.0, 105.0)
 ELECTRONIC_COLUMNS = (
     "mu_bisector", "mu_outofplane", "mu_desym", "homo", "lumo", "gap",
     "q_metal", "q_donor_sym", "q_donor_asym", "q_anc_sum", "q_absmax",
@@ -157,7 +175,17 @@ def fragment(symbols, coords, a, b, block=()):
 
 
 def sterimol(symbols, coords, a, b, radii, block=()):
-    """Verloop B1/B5/L and B1–B5 angle for the fragment on the a→b axis."""
+    """Verloop B1/B5/L and the two B1–B5 angles for the fragment on the a→b axis.
+
+    ``angle`` is phi, measured in the plane perpendicular to the axis; ``theta``
+    is the angle between the full vector to the B5 atom and the B1 plane, so
+    sin(theta) = |cos(phi)| * rho with rho the in-plane share of that vector.
+
+    Besides the numbers, the result carries the frame they were measured in --
+    ``origin``, ``axis``, ``normal`` (the unit normal of the B1 plane, pointing at
+    the supporting plane), ``b5_atom`` and ``atoms`` -- so a caller can draw the
+    construction without running the rotation scan again.
+    """
     idx = fragment(symbols, coords, a, b, block)
     if not idx:
         return None
@@ -198,12 +226,25 @@ def sterimol(symbols, coords, a, b, radii, block=()):
         delta = abs(a5 - a1)
         if delta > np.pi:
             delta = 2 * np.pi - delta
-        return abs(ev[k]), float(np.degrees(delta)), float(np.linalg.norm(t[j]))
+        return abs(ev[k]), float(np.degrees(delta)), float(np.linalg.norm(t[j])), (c, s, k, j)
 
-    coarse = [(at(x)[0], x) for x in range(18, 108, 18)]
+    step = STERIMOL_SCAN_STEP
+    coarse = [(at(x)[0], x) for x in range(18, 108, step)]
     best_deg = min(coarse)[1]
-    B1, ang, B5 = min((at(x) for x in range(best_deg - 18, best_deg + 19)), key=lambda q: q[0])
-    return dict(B1=B1, B5=B5, angle=ang, L=float(np.max(along + R)), n=len(idx))
+    B1, ang, B5, (c, s, k, j) = min((at(x) for x in range(best_deg - step, best_deg + step + 1)),
+                                    key=lambda q: q[0])
+    # The scan rotates the cloud, t = R p, so the B1 axis maps back with R^T:
+    # rotated x is [c, -s] and rotated y is [s, c] in the (e1, e2) frame.
+    n1, n2 = (c, -s) if k in (0, 1) else (s, c)
+    b5 = idx[j // len(theta)]                             # cloud rows are per atom, idx order
+    v5 = coords[b5] - origin
+    tilt = float(np.degrees(np.arcsin(min(1.0, abs(v5 @ (n1 * e1 + n2 * e2)) / np.linalg.norm(v5)))))
+    # Orient the normal towards the supporting plane, so origin + B1 * normal lies on it.
+    d = np.array([n1, n2])
+    if abs((P @ d + R).max() - B1) > abs((P @ -d + R).max() - B1):
+        d = -d
+    return dict(B1=B1, B5=B5, angle=ang, theta=tilt, L=float(np.max(along + R)), n=len(idx),
+                origin=origin, axis=axis, normal=d[0] * e1 + d[1] * e2, b5_atom=b5, atoms=list(idx))
 
 
 def centre_index_guard(centre, coords):
@@ -416,6 +457,14 @@ class MetalComplex:
             np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)), -1, 1)))
         out["MD_mean"] = (np.linalg.norm(v1) + np.linalg.norm(v2)) / 2
         out["MD_asym"] = abs(np.linalg.norm(v1) - np.linalg.norm(v2))
+        lo, hi = BITE_WINDOW
+        if not lo <= out["bite"] <= hi:
+            warnings.warn(
+                f"{self.name or 'complex'}: bite {out['bite']:.1f} deg is outside {lo:g}-{hi:g} deg "
+                f"(M-D {np.linalg.norm(v1):.2f} / {np.linalg.norm(v2):.2f} A); a donor has probably "
+                "come off the metal, so the sym/asym descriptors compare a bound arm with a free one",
+                stacklevel=2,
+            )
 
         for tag, donor in (("a", d1), ("b", d2)):
             other = d2 if donor == d1 else d1

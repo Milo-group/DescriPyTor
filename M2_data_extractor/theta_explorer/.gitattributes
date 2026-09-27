@@ -1,0 +1,6 @@
+# The smoke gate compares rendered SVG text byte for byte, and the fixtures are hashed
+# into the built page: keep everything here LF on every platform.
+* text=auto eol=lf
+*.png binary
+*.wasm binary
+*.ico binary
