@@ -13,11 +13,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install test runtime
+      - name: Install the package as users do, plus the test tools
         run: |
           python -m pip install --upgrade pip
-          pip install pytest numpy pandas scipy scikit-learn statsmodels \
-            matplotlib seaborn joblib tqdm pillow flask
+          pip install -e ".[dev]"
       - name: Fast tests
         env:
           MPLBACKEND: Agg
