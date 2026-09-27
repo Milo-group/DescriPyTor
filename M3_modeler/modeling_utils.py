@@ -1172,26 +1172,26 @@ def check_linear_regression_assumptions(X, y, dir=None, plot=False, k_best=10):
 #         dw_stat = durbin_watson(residuals)
 #         print(f"Durbin-Watson statistic: {dw_stat:.3f}")
 #         if 1.5 < dw_stat < 2.5:
-#             print("✅ No autocorrelation detected.")
+#             print("OK: No autocorrelation detected.")
 #         else:
-#             print("⚠️ Possible autocorrelation in residuals.")
+#             print("WARNING: Possible autocorrelation in residuals.")
 
 #         print("\n----- Homoscedasticity (Breusch-Pagan Test) -----")
 #         bp_test = het_breuschpagan(residuals, model.model.exog)
 #         p_value_bp = bp_test[1]
 #         print(f"Breusch-Pagan p-value: {p_value_bp:.3f}")
 #         if p_value_bp > 0.05:
-#             print("✅ Homoscedasticity assumed (good).")
+#             print("OK: Homoscedasticity assumed (good).")
 #         else:
-#             print("⚠️ Heteroscedasticity detected (bad).")
+#             print("WARNING: Heteroscedasticity detected (bad).")
 
 #         print("\n----- Normality of Errors (Shapiro-Wilk Test) -----")
 #         shapiro_stat, shapiro_p = shapiro(residuals)
 #         print(f"Shapiro-Wilk p-value: {shapiro_p:.3f}")
 #         if shapiro_p > 0.05:
-#             print("✅ Residuals appear normally distributed.")
+#             print("OK: Residuals appear normally distributed.")
 #         else:
-#             print("⚠️ Residuals may not be normally distributed.")
+#             print("WARNING: Residuals may not be normally distributed.")
 
 #         print("\n----- Normality of Errors (Q-Q Plot) -----")
 #         plt.figure()

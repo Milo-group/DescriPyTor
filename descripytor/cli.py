@@ -1555,6 +1555,8 @@ def run_experiment(
     }
 
     leave_out = list(leave_out or [])
+    if target_csv and process_method == "one csv":
+        process_method = "two csvs"      # -t given: the target comes from its own file
 
     # Instantiate correct model class
     if mode.lower() == "regression":
@@ -1690,6 +1692,13 @@ def interactive_modeling(csv_path):
 
 
 def main():
+    # A Windows console with a legacy code page (cp1252, cp1255, ...) cannot print every
+    # character a report may contain; replace those instead of stopping the run.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
     parser = argparse.ArgumentParser(prog="descripytor", description="DescriPyTor")
     subparsers = parser.add_subparsers(dest="command")
 

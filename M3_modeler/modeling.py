@@ -74,6 +74,40 @@ for _p in (_this_dir, _parent_dir):
 
 
 
+
+_NAME_COLUMNS = ("name", "names", "molecule", "molecule_name", "mol", "compound", "sample", "id")
+
+
+def merge_features_and_target(features_csv, target_csv, y_value: str) -> pd.DataFrame:
+    """One table from a features CSV and a separate target CSV, joined on the molecule name.
+
+    Each file's name column is the first of ``name``, ``molecule``, ``id``, ... it has, or else
+    its first column (the extractor writes names as an unnamed first column). Rows present in
+    only one file are dropped, and the drop is reported.
+    """
+    feats, target = pd.read_csv(features_csv), pd.read_csv(target_csv)
+
+    def name_col(df):
+        return next((c for c in df.columns if str(c).strip().lower() in _NAME_COLUMNS), df.columns[0])
+
+    tcol = next((c for c in target.columns if str(c).strip().lower() == str(y_value).strip().lower()), None)
+    if tcol is None:
+        raise KeyError(f"Target column {y_value!r} not found in {target_csv}. Available: {list(target.columns)}")
+    fn, tn = name_col(feats), name_col(target)
+    feats = feats.rename(columns={fn: "name"})
+    feats = feats.drop(columns=[c for c in feats.columns if str(c).strip().lower() == str(y_value).strip().lower()])
+    t = target[[tn, tcol]].rename(columns={tn: "name", tcol: y_value})
+    feats["name"], t["name"] = feats["name"].astype(str), t["name"].astype(str)
+    merged = feats.merge(t, on="name", how="inner")
+    only_f = sorted(set(feats["name"]) - set(merged["name"]))
+    only_t = sorted(set(t["name"]) - set(merged["name"]))
+    if only_f or only_t:
+        print(f"merge_features_and_target: {len(merged)} molecules in both files; "
+              f"dropped {len(only_f)} without a target {only_f[:5]} and {len(only_t)} without features {only_t[:5]}")
+    if merged.empty:
+        raise ValueError("No molecule name is shared by the features CSV and the target CSV.")
+    return merged
+
 def _combo_key(combo: Sequence[str]) -> str:
     """Canonical string key for a combo (order-insensitive)."""
     return ",".join(sorted(map(str, combo)))
@@ -183,7 +217,7 @@ def _sort_results(df: pd.DataFrame) -> pd.DataFrame:
         Sorted dataframe (copy), cleaned of non-metric columns.
     """
     if df is None or df.empty:
-        print("⚠️ Empty DataFrame received in _sort_results.")
+        print("WARNING: Empty DataFrame received in _sort_results.")
         return pd.DataFrame()
 
     # drop non-metric columns if they exist
@@ -196,7 +230,7 @@ def _sort_results(df: pd.DataFrame) -> pd.DataFrame:
         df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=numeric_cols, how="any")
 
     if df.empty:
-        print("⚠️ No valid rows after cleaning in _sort_results.")
+        print("WARNING: No valid rows after cleaning in _sort_results.")
         return df
 
     # --- your existing logic follows ---
@@ -629,8 +663,9 @@ class LinearRegressionModel:
             if process_method == "one csv":
                 self.process_features_csv(drop_columns=drop_columns)
             elif process_method == "two csvs":
+                self.csv_filepaths = merge_features_and_target(
+                    csv_filepaths.get("features_csv_filepath"), csv_filepaths.get("target_csv_filepath"), self.y_value)
                 self.process_features_csv(drop_columns=drop_columns)
-                self.process_target_csv(csv_filepaths.get("target_csv_filepath"))
 
         # Scale features
         self.scaler              = StandardScaler()
@@ -741,10 +776,10 @@ class LinearRegressionModel:
                 if sort_key in df.columns:
                     df = df.sort_values(by=sort_key, ascending=ascending).reset_index(drop=True)
                 else:
-                    print(f"⚠️ Column '{sort_key}' not found in {csv_file.name}, returning unsorted.")
+                    print(f"WARNING: Column '{sort_key}' not found in {csv_file.name}, returning unsorted.")
                 results_dict[csv_file.stem] = df
             except Exception as e:
-                print(f"❌ Failed to load {csv_file.name}: {e}")
+                print(f"ERROR: Failed to load {csv_file.name}: {e}")
         return results_dict
 
 
@@ -1471,7 +1506,7 @@ class LinearRegressionModel:
                 leftout_mae_values.append(mae)
                 
             except Exception as e:
-                print(f"⚠️ Failed to compute left-out MAE for combination {row.get('combination')}: {e}")
+                print(f"WARNING: Failed to compute left-out MAE for combination {row.get('combination')}: {e}")
                 leftout_mae_values.append(np.nan)
         
         results['leftout_mae'] = leftout_mae_values
@@ -2199,8 +2234,9 @@ class ClassificationModel:
             if process_method == 'one csv':
                 self.process_features_csv()
             elif process_method == 'two csvs':
+                self.csv_filepaths = merge_features_and_target(
+                    csv_filepaths.get('features_csv_filepath'), csv_filepaths.get('target_csv_filepath'), self.y_value)
                 self.process_features_csv()
-                self.process_target_csv(csv_filepaths.get('target_csv_filepath'))
             self.compute_correlation()
             self.scaler = StandardScaler()
             if exclude_columns is None:
@@ -2292,10 +2328,10 @@ class ClassificationModel:
                 if sort_key in df.columns:
                     df = df.sort_values(by=sort_key, ascending=ascending).reset_index(drop=True)
                 else:
-                    print(f"⚠️ Column '{sort_key}' not found in {csv_file.name}, returning unsorted.")
+                    print(f"WARNING: Column '{sort_key}' not found in {csv_file.name}, returning unsorted.")
                 results_dict[csv_file.stem] = df
             except Exception as e:
-                print(f"❌ Failed to load {csv_file}: {e}")
+                print(f"ERROR: Failed to load {csv_file}: {e}")
 
         for df in results_dict.values():
             df.drop(columns=['threshold', 'model', 'predictions'], errors='ignore', inplace=True)
@@ -3227,7 +3263,7 @@ class ClassificationModel:
                 print(f"No new combos left at threshold {threshold:.3f}.")
                 return results_df
 
-            print(f"Evaluating {len(combos_to_run)} new combos with McFadden R² >= {threshold:.3f}...")
+            print(f"Evaluating {len(combos_to_run)} new combos with McFadden R2 >= {threshold:.3f}...")
             if effective_jobs == 1:
                 new_results = []
                 for combo in tqdm(combos_to_run, desc=f"Threshold {threshold:.3f} (single-core)"):

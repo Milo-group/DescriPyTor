@@ -92,14 +92,14 @@ def _validate_and_build_maps(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Validate a 1-based renumbering dictionary and build:
-      - old_to_new (0-based): index i (old) ג†’ new index
-      - new_to_old (0-based): index j (new) ג†’ old index
+      - old_to_new (0-based): index i (old) → new index
+      - new_to_old (0-based): index j (new) → old index
 
     Key improvements:
-      ג€¢ Removes self-maps.
-      ג€¢ Automatically detects and closes open renumbering chains.
-      ג€¢ Prevents duplicate targets (enforces bijection).
-      ג€¢ Fills missing indices as identity.
+      • Removes self-maps.
+      • Automatically detects and closes open renumbering chains.
+      • Prevents duplicate targets (enforces bijection).
+      • Fills missing indices as identity.
     """
     import numpy as np
 
@@ -538,11 +538,11 @@ class Molecule:
 
                     # Range check
                     if not (1 <= old_atom_1b <= n):
-                        print(f"[WARN] old_atom_1b={old_atom_1b} out of valid range 1ג€“{n}, keeping as-is")
+                        print(f"[WARN] old_atom_1b={old_atom_1b} out of valid range 1-{n}, keeping as-is")
                         new_vib_dict[key] = val
                         continue
 
-                    # Map 1-based old ג†’ 0-based ג†’ 1-based new
+                    # Map 1-based old → 0-based → 1-based new
                     try:
                         new_atom_1b = int(old_to_new[old_atom_1b - 1] + 1)
                     except Exception as e:
@@ -1101,7 +1101,7 @@ class Molecule:
                 except Exception:
                     pass
 
-                # 4) Visualize: dipole_df is already in the same LOCAL frame ג†’ no basis needed
+                # 4) Visualize: dipole_df is already in the same LOCAL frame → no basis needed
                 visualize = _import_visualize()
                 visualize.show_single_molecule(
                     molecule_name=self.molecule_name,
@@ -1816,7 +1816,7 @@ class Molecules():
                 records[mol.molecule_name] = ["?"] * n
                 continue
             atoms = xyz["atom"].tolist()[:n]
-            atoms += ["ג€”"] * (n - len(atoms))   # pad if molecule has < n atoms
+            atoms += ["—"] * (n - len(atoms))   # pad if molecule has < n atoms
             records[mol.molecule_name] = atoms
 
         df = pd.DataFrame(records, index=[f"atom_{i+1}" for i in range(n)])
@@ -1838,7 +1838,7 @@ class Molecules():
 
         Example
         -------
-        # L5 has N at position 7 instead of 2 ג€” swap them:
+        # L5 has N at position 7 instead of 2 — swap them:
         mols.swap_atoms({"L5": {2: 7, 7: 2}})
 
         # Multiple molecules at once:
@@ -1909,14 +1909,14 @@ class Molecules():
             Example:
                 molecule_1.get_ring_vibrations([[8,11],[9,12]])
 
-        For example ג€“ for a ring of atoms 1ג€“6 where atom 4 is connected to the main group
+        For example – for a ring of atoms 1–6 where atom 4 is connected to the main group
         and 1 is para to it (ortho would be 3 & 5, meta would be 2 & 6),
-        youג€™d enter [1,4].
+        you’d enter [1,4].
 
         Returns
         -------
         pd.DataFrame
-            Each moleculeג€™s ring vibration data combined horizontally into one table.
+            Each molecule’s ring vibration data combined horizontally into one table.
         """
         import traceback
         import pandas as pd
@@ -2313,7 +2313,7 @@ class Molecules():
                     res_df = safe_concat(res_df, new_df)
                 except Exception as e:
                     print(f"Error processing {key} for {getattr(self.molecules[0], 'molecule_name', 'unknown')}: {e}")
-                    log_exception(f"get_molecules_comp_set_app ג€“ {key}")
+                    log_exception(f"get_molecules_comp_set_app – {key}")
                     continue
 
         # --- 4. Polarizability & energy block ---
@@ -2341,7 +2341,7 @@ class Molecules():
                     res_df = safe_concat(res_df, polar_energy_concat)
             except Exception as e:
                 print(f"Error processing polarizability/Energy: {e}")
-                log_exception("get_molecules_comp_set_app ג€“ polarizability/energy")
+                log_exception("get_molecules_comp_set_app – polarizability/energy")
 
         # --- 5. Correlation analysis (optional visualization) ---
         # interactive_corr_heatmap_with_highlights(res_df)
@@ -2358,7 +2358,7 @@ class Molecules():
                 missing_pct = res_df[c].isna().mean() * 100
                 print(f"    - {c} ({missing_pct:.1f}% missing)")
         else:
-            print("[ג“] No columns with NaN values.")
+            print("[ok] No columns with NaN values.")
 
         # (b) Check for identical or nearly identical columns
         numeric_df = res_df.select_dtypes(include=[np.number])
@@ -2374,9 +2374,9 @@ class Molecules():
         if near_dupes:
             print(f"[!] Columns with nearly identical values (>0.999 correlation):")
             for (a, b) in near_dupes:
-                print(f"    - {a}  ג‰ˆ  {b}")
+                print(f"    - {a}  ~  {b}")
         else:
-            print("[ג“] No nearly identical numeric columns detected.")
+            print("[ok] No nearly identical numeric columns detected.")
 
         print("========================================\n")
 

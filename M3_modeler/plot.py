@@ -41,6 +41,15 @@ except ImportError as e:
     from modeling import fit_and_evaluate_single_combination_regression , fit_and_evaluate_single_combination_classification
     from modeling_utils import _normalize_combination_to_columns, check_linear_regression_assumptions
 
+
+def _ask(prompt, default):
+    """input() that answers ``default`` when there is no one to ask (a batch job, a pipe, CI)."""
+    try:
+        return input(prompt)
+    except EOFError:
+        print(prompt + default + "  (no input available)")
+        return default
+
 def show_table_window(title, df):
     """
     Creates a new Tkinter window to display the DataFrame in a Treeview widget.
@@ -1082,7 +1091,7 @@ def print_models_classification_table(results , app=None , model=None):
             selected_model = get_valid_integer('Select a model number: default is 0', 0)
         else:
             try:
-                selected_model = int(input("Select a model number (or -1 to exit): "))
+                selected_model = int(_ask("Select a model number (or -1 to exit): ", "-1"))
             except ValueError:
                 print("Invalid input. Please enter a number.")
                 continue
@@ -1121,7 +1130,7 @@ def print_models_classification_table(results , app=None , model=None):
 
         # Ask the user if they want to select another model or exit
         if not app:
-            cont = input("Do you want to select another model? (y/n): ").strip().lower()
+            cont = _ask("Do you want to select another model? (y/n): ", "n").strip().lower()
             if cont != 'y':
                 print("Exiting model selection.")
                 break
@@ -1745,7 +1754,7 @@ def print_models_regression_table(results, app=None ,model=None):
         else:
             # print(df.head().to_markdown(index=False, tablefmt="pipe"))
             try:
-                selected_model = int(input("Select a model number (or -1 to exit): "))
+                selected_model = int(_ask("Select a model number (or -1 to exit): ", "-1"))
             except ValueError:
                 print("Invalid input. Please enter a number.")
                 continue
@@ -1889,7 +1898,7 @@ def print_models_regression_table(results, app=None ,model=None):
                     print("\n[Colab detected] Skipping interactive input prompt.")
                     cont = "n"  # or auto-continue if you prefer: cont = "y"
                 else:
-                    cont = input("Do you want to select another model? (y/n): ").strip().lower()
+                    cont = _ask("Do you want to select another model? (y/n): ", "n").strip().lower()
 
                 if cont != "y":
                     print("Exiting model selection.")
@@ -3005,8 +3014,8 @@ def _emit_combo_report(
 ):
     """Shared PDF + inline display path used by OLS and ridge combo reports."""
     figs_dir, base_name, pdf_path, png_dir = _prepare_paths(model, features, pdf_name)
-    print(f"Report → {pdf_path}")
-    print(f"PNGs   → {png_dir}")
+    print(f"Report -> {pdf_path}")
+    print(f"PNGs   -> {png_dir}")
 
     display_figs = {}
     if show:
@@ -3020,8 +3029,8 @@ def _emit_combo_report(
         print("\n" + "=" * 58)
         print(f"  {'Metric':<22} {'Value':>10}")
         print("-" * 58)
-        print(f"  {'R² (in-sample)':<22} {r2_in:>10.4f}")
-        print(f"  {'adj R²':<22} {adj_r2:>10.4f}")
+        print(f"  {'R2 (in-sample)':<22} {r2_in:>10.4f}")
+        print(f"  {'adj R2':<22} {adj_r2:>10.4f}")
         print(f"  {'MAE (in-sample)':<22} {mae_in:>10.4f}")
         if folds_df is not None and not folds_df.empty:
             q = folds_df.iloc[0]
@@ -3029,7 +3038,7 @@ def _emit_combo_report(
                 if col in q:
                     print(f"  {col:<22} {float(q[col]):>10.4f}")
         if r2_lo is not None:
-            print(f"  {'R² (held-out)':<22} {r2_lo:>10.4f}")
+            print(f"  {'R2 (held-out)':<22} {r2_lo:>10.4f}")
         if mae_lo is not None:
             print(f"  {'MAE (held-out)':<22} {mae_lo:>10.4f}")
         print("=" * 58 + "\n")
@@ -3045,28 +3054,28 @@ def _emit_combo_report(
             print(f"[display scatter] {e}")
 
         if folds_df is not None and not folds_df.empty:
-            print("\n── Cross-validation metrics ──")
+            print("\n-- Cross-validation metrics --")
             if _has_ipy:
                 ipy_display(folds_df.round(4))
             else:
                 print(folds_df.round(4).to_string())
 
         if coef_df is not None and not coef_df.empty:
-            print("\n── Coefficients ──")
+            print("\n-- Coefficients --")
             if _has_ipy:
                 ipy_display(coef_df.round(4))
             else:
                 print(coef_df.round(4).to_string())
 
         if vif_df is not None and not vif_df.empty:
-            print("\n── VIF ──")
+            print("\n-- VIF --")
             if _has_ipy:
                 ipy_display(vif_df.round(3))
             else:
                 print(vif_df.round(3).to_string())
 
         if leftout_pred_df is not None and not leftout_pred_df.empty:
-            print("\n── Held-out set predictions ──")
+            print("\n-- Held-out set predictions --")
             if _has_ipy:
                 ipy_display(leftout_pred_df.round(4))
             else:

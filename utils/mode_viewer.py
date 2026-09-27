@@ -549,7 +549,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     if not args.inputs:
         ap.print_help()
-        print("\nNo files given — starting drop server. Ctrl+C to stop.")
+        print("\nNo files given - starting drop server. Ctrl+C to stop.")
         serve(port=args.port)
         return 0
 

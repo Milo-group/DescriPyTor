@@ -259,7 +259,7 @@ def log_exception(location="<unknown>"):
         code_line = "<Could not retrieve code line>"
 
     print("\n" + "="*60)
-    print(f"🔥 Exception in {location}")
+    print(f" Exception in {location}")
     print(f"  File      : {filename}")
     print(f"  Function  : {func_name}")
     print(f"  Line      : {lineno}")
