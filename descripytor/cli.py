@@ -774,9 +774,9 @@ class MoleculeApp:
         elif question.startswith("Ring Vibration atoms"):
             Button(frame_q, text="Show", command=lambda: self.open_image(r"pictures\rings.png")).pack(side="left", padx=5)
         elif question.startswith("Stretching Vibration atoms"):
-            self._add_threshold_entry("Stretch Threshold", frame_q, entry_widgets, loaded_entries, default=1600)
+            self._add_threshold_entry("Stretch Threshold", frame_q, entry_widgets, loaded_entries, default=1400)
         elif question.startswith("Bending Vibration atoms"):
-            self._add_threshold_entry("Bend Threshold", frame_q, entry_widgets, loaded_entries, default=1600)
+            self._add_threshold_entry("Bend Threshold", frame_q, entry_widgets, loaded_entries, default=1300)
         elif question.startswith("Sterimol atoms"):
             Button(frame_q, text="Show", command=self.morfeus_visualize).pack(side="left", padx=5)
             # add a button to drop 

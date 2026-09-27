@@ -22,7 +22,7 @@
 <circle class="ball" cx="141.8" cy="295.4" r="7.1" fill="url(#sgglossyBFC3C8)" style="stroke:#3B424C;stroke-width:1.1px"/>
 <circle class="ball" cx="335.6" cy="257.5" r="7.1" fill="url(#sgglossyBFC3C8)" style="stroke:#3B424C;stroke-width:1.1px"/>
 <g class="bond"><line x1="512.8" y1="352.8" x2="545.0" y2="364.0" style="stroke:#3B424C;stroke-width:5.7px;stroke-linecap:round"/><line x1="512.8" y1="352.8" x2="545.0" y2="364.0" style="stroke:#1D2025;stroke-width:3.5px;stroke-linecap:round"/></g>
-<g class="bond xb"><line x1="478.4" y1="310.3" x2="512.8" y2="352.8" style="stroke:#3B424C;stroke-width:5.7px;stroke-linecap:round" stroke-dasharray="3.1 2.6"/><line x1="478.4" y1="310.3" x2="512.8" y2="352.8" style="stroke:#1D2025;stroke-width:3.5px;stroke-linecap:round" stroke-dasharray="3.1 2.6"/></g>
+<g class="bond"><line x1="478.4" y1="310.3" x2="512.8" y2="352.8" style="stroke:#3B424C;stroke-width:5.7px;stroke-linecap:round"/><line x1="478.4" y1="310.3" x2="512.8" y2="352.8" style="stroke:#1D2025;stroke-width:3.5px;stroke-linecap:round"/></g>
 <g class="bond"><line x1="141.8" y1="295.4" x2="127.8" y2="339.2" style="stroke:#3B424C;stroke-width:5.7px;stroke-linecap:round"/><line x1="141.8" y1="295.4" x2="127.8" y2="339.2" style="stroke:#1D2025;stroke-width:3.5px;stroke-linecap:round"/></g>
 <g class="bond"><line x1="335.6" y1="257.5" x2="370.2" y2="287.8" style="stroke:#3B424C;stroke-width:5.7px;stroke-linecap:round"/><line x1="335.6" y1="257.5" x2="370.2" y2="287.8" style="stroke:#1D2025;stroke-width:3.5px;stroke-linecap:round"/></g>
 <circle class="ball" cx="127.8" cy="339.2" r="7.1" fill="url(#sgglossyBFC3C8)" style="stroke:#3B424C;stroke-width:1.1px"/>

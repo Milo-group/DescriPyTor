@@ -12,29 +12,42 @@ import numpy.typing as npt
 # Add the parent directory to the sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-try:
-    # Now you can import from the parent directory
-    from gaussian_handler import feather_file_handler, save_to_feather
+# NOTE: MolAlign.renumbering (needs torch) and utils.visualize (needs
+# dash/ipywidgets) are NOT imported here - they're only used by
+# get_renumbering_dict() and the visualize_*/get_dipole_gaussian_df_single
+# methods respectively, both opt-in features most callers (including the
+# webapp's basic "load a feather set" path) never touch. Importing them
+# eagerly meant torch/dash/ipywidgets were hard requirements just to open
+# a feather file. They're imported lazily inside those specific methods
+# instead - see _import_batch_renumbering() and _import_visualize() below.
+from gaussian_handler import feather_file_handler, save_to_feather
+from utils.help_functions import *
+from utils.help_functions import json_file_handler  # structured-JSON loader
+from extractor_utils.sterimol_utils import *
+from extractor_utils.bond_angle_length_utils import *
+from extractor_utils.dipole_utils import *
+from extractor_utils.vibrations_utils import *
+
+
+def _import_batch_renumbering():
+    """
+    Lazy import of MolAlign.renumbering.batch_renumbering - only needed by
+    get_renumbering_dict(). Isolated here so the rest of data_extractor.py
+    (feather loading, descriptor extraction, etc.) never needs torch.
+    """
+    from MolAlign.renumbering import batch_renumbering
+    return batch_renumbering
+
+
+def _import_visualize():
+    """
+    Lazy import of utils.visualize - only needed by the visualize_* / optional
+    dipole-visualization methods. Isolated here so basic feather loading and
+    descriptor extraction never need dash/ipywidgets.
+    """
     from utils import visualize
-    from utils.help_functions import *
-    from utils.help_functions import json_file_handler  # structured-JSON loader
-    # from utils.rdkit_utils import xyz_list_to_mols, visualize_mols, mols_to_fingerprint_df
-    from extractor_utils.sterimol_utils import *
-    from extractor_utils.bond_angle_length_utils import *
-    from extractor_utils.dipole_utils import *
-    from extractor_utils.vibrations_utils import *
-    
-except ImportError:
-    from .gaussian_handler import feather_file_handler, save_to_feather
-    from ..utils import visualize
-    from ..utils.help_functions import *
-    from ..utils.help_functions import json_file_handler  # structured-JSON loader
-    # from ..utils.rdkit_utils import xyz_list_to_mols, visualize_mols, mols_to_fingerprint_df
-    from .extractor_utils.sterimol_utils import *
-    from .extractor_utils.bond_angle_length_utils import *
-    from .extractor_utils.dipole_utils import *
-    from .extractor_utils.vibrations_utils import *
-    
+    return visualize
+
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -282,7 +295,7 @@ def _remap_bonds_df(bonds_df: pd.DataFrame, old_to_new: np.ndarray, assume_0_bas
 
 
 class Molecule:
-    def __init__(self, molecule_feather_filename, parameter_list=None, new_xyz_df=None , threshold: float = 1.82):
+    def __init__(self, molecule_feather_filename, parameter_list=None, new_xyz_df=None , threshold: Optional[float] = None):
         """
         Initialize a Molecule object with structural and computational data.
         
@@ -701,6 +714,7 @@ class Molecule:
         """
         Visualizes the molecule using the `visualize` module.
         """
+        visualize = _import_visualize()
         if vector is not None:
             visualize.show_single_molecule(molecule_name=self.molecule_name, xyz_df=self.xyz_df, dipole_df=vector,origin=[0,0,0])
         else:
@@ -837,10 +851,10 @@ class Molecule:
             # If the first element of diff_indices is a list, assume multiple pairs are provided.
             try:
                 
-                if isinstance(diff_indices[0], list):
+                if isinstance(diff_indices[0], (list, tuple, np.ndarray)):
                     diff_list = []
                     for atoms in diff_indices:
-                        atoms = adjust_indices(atoms)
+                        atoms = adjust_indices(list(atoms))
                         # Calculate difference between the two specified atoms.
                         diff = pd.DataFrame(
                             [df.iloc[atoms[0]].values - df.iloc[atoms[1]].values],
@@ -1088,6 +1102,7 @@ class Molecule:
                     pass
 
                 # 4) Visualize: dipole_df is already in the same LOCAL frame ג†’ no basis needed
+                visualize = _import_visualize()
                 visualize.show_single_molecule(
                     molecule_name=self.molecule_name,
                     xyz_df=xyz_df,
@@ -1155,9 +1170,9 @@ class Molecule:
             Returns:
                 pd.DataFrame: A DataFrame with the bond lengths.
             """
-        if isinstance(atom_pairs[0], list):
-            # If atom_pairs is a list of lists, process each pair individually and concatenate the results
-            bond_length_list = [self.get_bond_length_single(pair) for pair in atom_pairs]
+        if isinstance(atom_pairs[0], (list, tuple, np.ndarray)):
+            # If atom_pairs is a list of pairs, process each pair individually and concatenate the results
+            bond_length_list = [self.get_bond_length_single(list(pair)) for pair in atom_pairs]
             bond_df = pd.concat(bond_length_list, axis=0)
         else:
             # If atom_pairs is a single pair, just process that pair
@@ -1178,7 +1193,9 @@ class Molecule:
         vibration_array: Union[List[float], None] = self.vibration_dict.get('vibration_atom_{}'.format(str(vibration_atom_num)))
         return calc_max_frequency_magnitude(vibration_array, self.info_df.T)
 
-    def get_stretch_vibration_single(self, atom_pair: List[int],threshold=1600,upper_threshold=3000)-> pd.DataFrame:
+    def get_stretch_vibration_single(self, atom_pair: List[int], threshold=None, upper_threshold=None) -> pd.DataFrame:
+        threshold = STRETCH_WINDOW[0] if threshold is None else threshold
+        upper_threshold = STRETCH_WINDOW[1] if upper_threshold is None else upper_threshold
         
        
         if check_pair_in_bonds(atom_pair, self.bonds_df) == True:
@@ -1196,7 +1213,7 @@ class Molecule:
         else:
             print(f'Strech Vibration Error: the following bonds do not exist-check atom numbering in molecule: \n {self.molecule_name} for {atom_pair} \n')
             
-            df=pd.DataFrame([[np.nan,np.nan]],columns=[['Frequency','Amplitude']])
+            df=pd.DataFrame([[np.nan,np.nan]],columns=['Frequency','Amplitude'])
             df.rename(index={0: f'Stretch_{atom_pair[0]}_{atom_pair[1]}'},inplace=True)
             
             return df
@@ -1206,7 +1223,7 @@ class Molecule:
     ### split all the vibrations to symmetric and asymmetric
     ## if you found symmetric look for the asymmetric
 
-    def get_stretch_vibration(self, atom_pairs: List[int],threshold=1600,upper_threshold=3500)-> pd.DataFrame:
+    def get_stretch_vibration(self, atom_pairs: List[int], threshold=None, upper_threshold=None) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -1225,9 +1242,9 @@ class Molecule:
          Frequency  1689.59450]
 
         """
-        if isinstance(atom_pairs[0], list):
-            # If atom_pairs is a list of lists, process each pair individually and concatenate the results
-            vibration_list = [self.get_stretch_vibration_single(pair,threshold,upper_threshold) for pair in atom_pairs]
+        if isinstance(atom_pairs[0], (list, tuple, np.ndarray)):
+            # If atom_pairs is a list of pairs, process each pair individually and concatenate the results
+            vibration_list = [self.get_stretch_vibration_single(list(pair),threshold,upper_threshold) for pair in atom_pairs]
             # Filter out None results
             vibration_list = [vib for vib in vibration_list if vib is not None]
             vibration_df = pd.concat(vibration_list, axis=0)
@@ -1417,8 +1434,11 @@ class Molecule:
     #         max_frequency_vibration = max_frequency_vibration.rename(index={index_max: f'Bending_{atom_pair[0]}-{atom_pair[1]}'})
     #         return max_frequency_vibration
 
-    def get_bend_vibration_single(self, atom_pair: List[int], threshold: float = 1300) -> pd.DataFrame:
-        print(f"[get_bend_vibration_single] molecule={self.molecule_name}, atom_pair={atom_pair}, threshold={threshold}")
+    def get_bend_vibration_single(self, atom_pair: List[int], threshold: Optional[float] = None) -> pd.DataFrame:
+        threshold = BEND_MIN_FREQUENCY if threshold is None else threshold
+        atom_pair = [int(a) for a in atom_pair]
+        if len(atom_pair) == 3:          # an angle a-b-c (the forms GUI picks triplets): bend its two ends
+            atom_pair = [atom_pair[0], atom_pair[2]]
 
         # bonds_df is 1-based
         adjacency_dict = create_adjacency_dict_for_pair(self.bonds_df, atom_pair)
@@ -1430,13 +1450,8 @@ class Molecule:
                 f'- for atoms {atom_pair} check atom numbering in molecule'
             )
 
-        # extended_df_for_stretch expects 0-based
-        # atom_pair_0 = [a - 1 for a in atom_pair]
-        print(f"[get_bend_vibration_single] converted to 0-based: {atom_pair}")
-        
+        # vibration_dict keys are 1-based (vibration_atom_<n>), like atom_pair
         extended_df = extended_df_for_stretch(self.vibration_dict, self.info_df, atom_pair, threshold)
-        print(f"[get_bend_vibration_single] extended_df shape={extended_df.shape}")
-        print(f"[get_bend_vibration_single] extended_df head:\n{extended_df.head()}")
 
         if extended_df.empty:
             raise ValueError(f"[get_bend_vibration_single] No modes found above threshold {threshold} for {self.molecule_name}")
@@ -1451,17 +1466,14 @@ class Molecule:
         extended_df.reset_index(drop=True, inplace=True)
 
         index_max = extended_df['Cross_mag'].idxmax()
-        print(f"[get_bend_vibration_single] index_max={index_max}, max Cross_mag={cross_mag_list[index_max]:.4f}")
-        print(f"[get_bend_vibration_single] winning row:\n{extended_df.iloc[index_max]}")
 
         max_frequency_vibration = pd.DataFrame(extended_df.iloc[index_max]).T[['Frequency', 'Cross_mag']]
         max_frequency_vibration = max_frequency_vibration.rename(
             index={index_max: f'Bending_{atom_pair[0]}-{atom_pair[1]}'}
         )
-        print(f"[get_bend_vibration_single] result:\n{max_frequency_vibration}")
         return max_frequency_vibration
 
-    def get_bend_vibration(self, atom_pairs: List[str], threshold: float = 1300) -> pd.DataFrame:
+    def get_bend_vibration(self, atom_pairs: List[str], threshold: Optional[float] = None) -> pd.DataFrame:
         """"
 
         Finds the bending frequency for a pair of atoms in a molecule.
@@ -1478,9 +1490,9 @@ class Molecule:
 
         """
         
-        if isinstance(atom_pairs[0], list):
-            # If atom_pairs is a list of lists, process each pair individually and concatenate the results
-            vibration_list = [self.get_bend_vibration_single(pair, threshold) for pair in atom_pairs]
+        if isinstance(atom_pairs[0], (list, tuple, np.ndarray)):
+            # If atom_pairs is a list of pairs, process each pair individually and concatenate the results
+            vibration_list = [self.get_bend_vibration_single(list(pair), threshold) for pair in atom_pairs]
             vibration_df = pd.concat(vibration_list, axis=0)
             return vibration_df
         else:
@@ -1550,7 +1562,7 @@ def _molecules_folder_files(path, file_limit=None):
 def _molecules_cache_key(path, threshold, file_limit):
     folder, files = _molecules_folder_files(path, file_limit)
     limit = None if file_limit is None else int(file_limit)
-    return (folder, float(threshold), tuple(files), limit)
+    return (folder, None if threshold is None else float(threshold), tuple(files), limit)
 
 
 def _molecules_cache_put(key, mols):
@@ -1579,7 +1591,7 @@ def _molecules_worker_count(n_files):
 
 class Molecules():
 
-    def __init__(self, molecules_dir_name, renumber=False, threshold=1.82, progress=None, file_limit=None):
+    def __init__(self, molecules_dir_name, renumber=False, threshold=None, progress=None, file_limit=None):
         """
         Load Molecule objects from a directory, or from several directories at once.
 
@@ -2047,7 +2059,7 @@ class Molecules():
                 pass
         return dict_to_horizontal_df(bond_length_dict)
     
-    def get_stretch_vibration_dict(self,atom_pairs,threshold=1400,upper_threshold=3500):
+    def get_stretch_vibration_dict(self, atom_pairs, threshold=None, upper_threshold=None):
         """
         Returns a dictionary with the stretch vibrations calculated for the specified atom pairs.
 
@@ -2143,13 +2155,13 @@ class Molecules():
                 pass
         return charge_dict_to_horizontal_df(charge_diff_dict)
     
-    def get_bend_vibration_dict(self, atom_pairs, threshold=1300):
+    def get_bend_vibration_dict(self, atom_pairs, threshold=None):
         bending_dict = {}
 
         for molecule in self.molecules:
             molecule_results = []
             
-            for pair in atom_pairs:
+            for pair in as_pairs(atom_pairs):
                 try:
                     # Call a version that handles a SINGLE pair
                     res = molecule.get_bend_vibration_single(pair, threshold)
@@ -2283,8 +2295,8 @@ class Molecules():
         # --- 2. Feature extraction steps ---
         feature_steps = [
             ('ring', lambda a: self.get_ring_vibration_dict(a)),
-            ('stretching', lambda a: self.get_stretch_vibration_dict(a, answers.get('stretch', [None])[0], answers.get('upper_stretch', [None])[0])),
-            ('bending', lambda a: self.get_bend_vibration_dict(a, answers.get('bend', [None])[0])),
+            ('stretching', lambda a: self.get_stretch_vibration_dict(a, (answers.get('stretch') or [None])[0], (answers.get('upper_stretch') or [None])[0])),
+            ('bending', lambda a: self.get_bend_vibration_dict(a, (answers.get('bend') or [None])[0])),
             ('dipole', lambda a: self.get_dipole_dict(a, center_atoms=answers.get('center_atoms') or None)),
             ('charges', lambda a: self.get_charge_df_dict(a)),
             ('charge_diff', lambda a: self.get_charge_diff_df_dict(a)),
@@ -2391,10 +2403,7 @@ class Molecules():
         
         self.export_all_xyz()
         os.chdir('xyz_files')
-        try:
-            from MolAlign.renumbering import batch_renumbering
-        except ImportError:
-            from ..MolAlign.renumbering import batch_renumbering
+        batch_renumbering = _import_batch_renumbering()
         self.renumbering_list, target_idx = batch_renumbering(os.getcwd())
       
         # self.renumbering_list = [

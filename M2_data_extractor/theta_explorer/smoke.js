@@ -14,7 +14,7 @@ const MOLS = JSON.parse(fs.readFileSync(path.join(__dirname, 'theta_explorer.htm
 
 function mol(entry) {
   const m = S.parseXYZ(entry.xyz);
-  m.bonds = S.connectivity(m.el, m.X, entry.thr || 1.82); m.types = S.atomTypes(m.el, m.bonds);
+  m.bonds = S.connectivity(m.el, m.X, entry.thr); m.types = S.atomTypes(m.el, m.bonds);
   m.displayBonds = SC.displayBonds(m.el, m.X, m.bonds).all;
   m.dipole = entry.dipole || null; m.charges = entry.charges || null;
   return m;

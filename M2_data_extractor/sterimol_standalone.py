@@ -615,15 +615,28 @@ def remove_atom_bonds(bonded_atoms_df,atom_remove='H'):
 
 
 
-def extract_connectivity(xyz_df, threshold_distance=1.82, metals=None,
-                         metal_threshold=2.8, max_coordination=6):
+# A non-metal pair is bonded below BOND_SCALE x (sum of Pyykko covalent radii). Over 462
+# structures (22,210 atoms: CS1-3, their ligands, the explorer fixtures) real bonds reach 1.05x
+# and the closest non-bonded pair sits at 1.26x (a P...N contact); every scale from 1.10 to 1.25
+# gives the same bonds.
+BOND_SCALE = 1.15
+
+
+def extract_connectivity(xyz_df, threshold_distance=None, metals=None,
+                         metal_threshold=2.8, max_coordination=6, scale=BOND_SCALE):
     """
     Build a connectivity table from XYZ coordinates.
 
     Parameters
     ----------
-    threshold_distance : float
-        Max bond distance (Å) for non-metal pairs.
+    threshold_distance : float or None
+        None (the default): a non-metal pair is bonded when it is closer than
+        ``scale`` x the sum of the two covalent radii, so long single bonds (S-CF3
+        1.84 A, P-C 1.82-1.85 A, C-Br, C-I, Si-C, S-S) are kept. A number restores
+        the old flat cutoff for non-metal pairs; 1.82 reproduces every table built
+        before this change (tag paper-v3), including its halogen window up to 2.6 A.
+    scale : float
+        Covalent-radius multiple for the default rule.
     metals : None | str | list[str]
         Metal element symbols to treat with relaxed distance rules.
         None → auto-detect from the full periodic-table metal set.
@@ -653,6 +666,8 @@ def extract_connectivity(xyz_df, threshold_distance=1.82, metals=None,
     remove_list = []
     dist_array = np.array(dist_df)
     special_atoms = {'Cl', 'Br', 'F', 'I'}
+    flat = threshold_distance is not None
+    radii = GeneralConstants.COVALENT_RADII.value
 
     for idx, row in enumerate(dist_array):
         i, j, dist, atom1, atom2 = row
@@ -663,20 +678,27 @@ def extract_connectivity(xyz_df, threshold_distance=1.82, metals=None,
 
         if ((atom1 == 'H') and (atom2 not in XYZConstants.NOF_ATOMS.value)) or \
            ((atom1 == 'H') and (atom2 == 'H')) or \
-           ((atom1 == 'H' or atom2 == 'H') and float(dist) >= 1.5):
+           (flat and (atom1 == 'H' or atom2 == 'H') and float(dist) >= 1.5):
             remove_flag = True
 
         involves_metal = atom1 in active_metals or atom2 in active_metals
 
         if not involves_metal:
-            if float(dist) >= threshold_distance or float(dist) == 0:
+            limit = threshold_distance if flat else \
+                scale * (radii.get(atom1, 0.77) + radii.get(atom2, 0.77))
+            if float(dist) >= limit or float(dist) == 0:
                 remove_flag = True
         else:
             if float(dist) > metal_threshold or float(dist) == 0:
                 remove_flag = True
+            # A metal-H pair has to be a hydride, not an agostic contact (Cu...H 2.5-2.7 A);
+            # the flat rule got that from its 1.5 A limit on every H.
+            if not flat and 'H' in (atom1, atom2) and                     float(dist) >= scale * (radii.get(atom1, 0.77) + radii.get(atom2, 0.77)):
+                remove_flag = True
 
-        # Halogens bonded between threshold and 2.6 Å are allowed (e.g. C–I, C–Br)
-        if (atom1 in special_atoms or atom2 in special_atoms) and \
+        # Flat rule only: halogens bonded between threshold and 2.6 Å are allowed
+        # (C–Br, C–I); the covalent rule already reaches them.
+        if flat and (atom1 in special_atoms or atom2 in special_atoms) and \
            (threshold_distance <= float(dist) < 2.6) and not involves_metal:
             remove_flag = False
 
@@ -722,6 +744,7 @@ def extract_connectivity(xyz_df, threshold_distance=1.82, metals=None,
 
     final = pd.concat([non_metal[[0, 1]], metal_kept], ignore_index=True)
     return pd.DataFrame(final[[0, 1]].apply(pd.to_numeric).astype(int) + 1)
+
 
 def get_center_of_mass(xyz_df):
     coordinates=np.array(xyz_df[['x','y','z']].values,dtype=float)
@@ -1915,7 +1938,7 @@ class _ConformerFrame:
     of conformers never has to `os.chdir()` per-structure.
     """
 
-    def __init__(self, xyz_df, energy, molecule_name, threshold=1.82):
+    def __init__(self, xyz_df, energy, molecule_name, threshold=None):
         self.molecule_name = molecule_name
         self.energy = energy
         self.xyz_df = xyz_df.reset_index(drop=True)
@@ -2064,7 +2087,7 @@ class ConformerEnsemble:
     )
 
     def __init__(self, ligand_dir=None, ensemble_file=None, molecule_name=None,
-                 temperature=298.15, threshold=1.82, energy_convention='first'):
+                 temperature=298.15, threshold=None, energy_convention='first'):
         self.temperature = temperature
         self.threshold = threshold
         self.energy_convention = energy_convention
@@ -2130,7 +2153,7 @@ class ConformerEnsemble:
         )
 
     @classmethod
-    def from_multiple(cls, sources, molecule_name, temperature=298.15, threshold=1.82,
+    def from_multiple(cls, sources, molecule_name, temperature=298.15, threshold=None,
                       energy_convention='first'):
         """
         Pool conformers from several ligand directories (or explicit ensemble
@@ -2559,7 +2582,7 @@ class GoatEnsemble(ConformerEnsemble):
     )
 
     def __init__(self, ligand_dir=None, ensemble_file=None, molecule_name=None,
-                 temperature=298.15, threshold=1.82, energy_convention='last'):
+                 temperature=298.15, threshold=None, energy_convention='last'):
         super().__init__(
             ligand_dir=ligand_dir,
             ensemble_file=ensemble_file,
@@ -2585,7 +2608,7 @@ class CrestLigandSet:
     whole batch -- check `self.failed_ligands` / `self.warnings` afterward.
     """
 
-    def __init__(self, root_dir, temperature=298.15, threshold=1.82):
+    def __init__(self, root_dir, temperature=298.15, threshold=None):
         self.root_dir = os.path.abspath(root_dir)
         self.temperature = temperature
         self.threshold = threshold

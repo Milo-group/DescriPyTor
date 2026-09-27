@@ -129,11 +129,13 @@ def get_angle_df(coordinates_array, atom_indices):
     """
     import pandas as pd
 
-    if isinstance(atom_indices, list) and all(isinstance(elem, list) for elem in atom_indices):
+    if isinstance(atom_indices, (list, tuple)) and all(isinstance(elem, (list, tuple, np.ndarray)) for elem in atom_indices):
+        atom_indices = [list(index) for index in atom_indices]
         indices_list=['angle_{}'.format(index) if len(index)==3 else 'dihedral_{}'.format(index) for index in atom_indices]
         angle_list=[calc_angle_between_atoms(coordinates_array,index) for index in atom_indices]
         return pd.DataFrame(angle_list,index=indices_list)
     else:
+        atom_indices = list(atom_indices)
         indices_list=['angle_{}'.format(atom_indices) if len(atom_indices)==3 else 'dihedral_{}'.format(atom_indices)]
         angle=[calc_angle_between_atoms(coordinates_array,atom_indices)]
         return pd.DataFrame(angle,index=indices_list)

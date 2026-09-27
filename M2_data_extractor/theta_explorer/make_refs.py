@@ -42,7 +42,7 @@ KEYS = ('B1', 'B5', 'L', 'loc_B5', 'B1_B5_angle')
 cases = []
 for name, axes in AXES.items():
     xyz = pd.read_csv(os.path.join(HERE, 'fixtures', name), sep=r'\s+', skiprows=2, names=['atom', 'x', 'y', 'z'])
-    bonds = de.extract_connectivity(xyz, threshold_distance=1.82)
+    bonds = de.extract_connectivity(xyz)
     for a, b in axes:
         r = de.get_sterimol_df(xyz, bonds, [a, b], None, radii='CPK').iloc[0]
         cases.append(dict(file=name, a=a, b=b, ref={k: float(r[k]) for k in KEYS}, phi=round(_phi['v'], 4)))

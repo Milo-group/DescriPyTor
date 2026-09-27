@@ -1258,13 +1258,13 @@ designSync(); sheetLoad(); sheetSync();
 function pythonSnippet() {
   const name = st.name.replace(/[^\w.-]+/g, '_'), out = [];
   out.push(`# ${st.name} — from the Sterimol theta explorer`);
-  out.push('# Sterimol as the platform reads it: CPK radii, 1 deg scan, bonds from extract_connectivity at 1.82 A.');
+  out.push('# Sterimol as the platform reads it: CPK radii, 1 deg scan, bonds from extract_connectivity (covalent radii x 1.15).');
   out.push('# (MetalComplex measures its arms in its own frame and scans an 18 deg grid, so its values differ.)');
   out.push('import pandas as pd');
   out.push('import data_extractor as de                       # MolFeatures/M2_data_extractor');
   out.push('');
   out.push(`xyz = pd.read_csv('${name}.xyz', sep=r'\\s+', skiprows=2, names=['atom', 'x', 'y', 'z'])`);
-  out.push('bonds = de.extract_connectivity(xyz, threshold_distance=1.82)');
+  out.push('bonds = de.extract_connectivity(xyz)             # threshold_distance=1.82 gives the pre-2026-09-27 bonds');
   (st.LR.axes || []).forEach((x) => {
     const ax = st.L.axes[x.j], r = x.res;
     out.push('');

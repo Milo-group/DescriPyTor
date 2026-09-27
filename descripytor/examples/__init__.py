@@ -3,7 +3,7 @@
 After ``pip install descripytor``::
 
     from descripytor.examples import feather_example_dir, input_example_json
-    molset = Molecules(str(feather_example_dir()), threshold=1.82)
+    molset = Molecules(str(feather_example_dir()))
 """
 
 from __future__ import annotations

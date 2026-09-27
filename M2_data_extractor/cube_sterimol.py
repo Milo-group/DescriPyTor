@@ -237,47 +237,12 @@ def dens_to_pt(point, dense_points, x_origin, y_origin, z_origin, x_size, y_size
 
 from scipy.spatial.distance import pdist, squareform
 
-def extract_connectivity(xyz_df, threshhold_distance=1.82):
-    coordinates=np.array(xyz_df[['x','y','z']].values)
-    atoms_symbol=np.array(xyz_df['atom'].values)
-    # compute the pairwise distances between the points
-    distances = pdist(coordinates)
-    # convert the flat array of distances into a distance matrix
-    dist_matrix = squareform(distances)
-    dist_df=pd.DataFrame(dist_matrix).stack().reset_index()
-    dist_df.columns = ['a1', 'a2', 'value']
-    dist_df['first_atom']=[atoms_symbol[i] for i in dist_df['a1']]
-    dist_df['second_atom']=[atoms_symbol[i] for i in dist_df['a2']]
-    remove_list=[]
-    dist_array=np.array(dist_df)
-    remove_list = []
-    for idx, row in enumerate(dist_array):
-        remove_flag = False
-      
-        if row[0] == row[1]:
-            remove_flag = True
-          
-        if ((row[3] == 'H') & (row[4] not in help_functions.XYZConstants.NOF_ATOMS.value)):
-            remove_flag = True
-           
-        if ((row[3] == 'H') & (row[4] == 'H')):
-            remove_flag = True
-          
-        if (((row[3] == 'H') | (row[4] == 'H')) & (row[2] >= 1.5)):
-            remove_flag = True
-           
-        if ((row[2] >= threshhold_distance) | (row[2] == 0)):
-            remove_flag = True
-      
+def extract_connectivity(xyz_df, threshhold_distance=None):
+    """The package bond rule (help_functions.extract_connectivity). This module used to
+    carry its own flat 1.82 A copy without the halogen window, so C-Br and C-I were
+    never bonded here."""
+    return help_functions.extract_connectivity(xyz_df, threshold_distance=threshhold_distance)
 
-        if remove_flag:
-            remove_list.append(idx)
-
-    dist_df=dist_df.drop(remove_list)
-    dist_df[['min_col', 'max_col']] = pd.DataFrame(np.sort(dist_df[['a1', 'a2']], axis=1), index=dist_df.index)
-    dist_df = dist_df.drop(columns=['a1', 'a2']).rename(columns={'min_col': 0, 'max_col': 1})
-    dist_df = dist_df.drop_duplicates(subset=[0, 1])
-    return pd.DataFrame(dist_df[[0,1]]+1)
 
 def direction_atoms_for_sterimol(bonds_df,base_atoms)->list: #help function for sterinol
     """

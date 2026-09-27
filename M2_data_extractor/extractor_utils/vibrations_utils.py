@@ -7,6 +7,19 @@ import networkx as nx
 
 from utils.help_functions import *
 
+# One definition of the vibration windows (cm^-1), used by every entry point and GUI. The
+# lower edge keeps C=O / C=N / aromatic C=C; the upper edge keeps C-H and N-H but stops
+# short of free O-H (3600-3700): widen upper_threshold for an O-H stretch.
+STRETCH_WINDOW = (1400, 3500)
+BEND_MIN_FREQUENCY = 1300
+
+
+def as_pairs(x):
+    """[a, b] or (a, b) -> [[a, b]]; a list/tuple of pairs -> list of lists."""
+    if len(x) and isinstance(x[0], (list, tuple, np.ndarray)):
+        return [list(p) for p in x]
+    return [list(x)]
+
 def find_atoms_with_similar_amplitude(
     vibration_mode_dict: dict,
     coordinates_array: np.ndarray,
@@ -141,6 +154,7 @@ def check_pair_in_bonds(pair, bonds_df):  ##help functions for gen_vibration
     a function that checks that the all given atom pair exists as a bond in the bonds_df
     """
     bonds_list = (bonds_df.astype(int)).values.tolist()
+    pair = [int(a) for a in pair]
     bool_check = (pair in bonds_list) or (pair[::-1] in bonds_list)
     
     return bool_check
@@ -547,40 +561,33 @@ def get_filtered_ring_df(info_df: pd.DataFrame,
 
 def calc_min_max_ring_vibration(filtered_df: pd.DataFrame, ring_atom_indices: list) -> pd.DataFrame:
     """
-    Calculates the minimum and maximum vibration frequency and the angle between the vibration vector
-    and the plane of the ring, safely handling asin domain errors.
+    The two ring modes the feature reports: ``cross`` is the mode whose displacement lies most
+    along the primary-para axis (smallest sin), ``para`` the one most across it (largest sin).
+    Each comes with its frequency and its angle to that axis, asin(Sin_angle) in degrees.
+
+    The angle used to be read from the Frequency column, which the clip to [-1, 1] turned into
+    a constant 90 degrees for every molecule.
     """
     import math
     import numpy as np
     import pandas as pd
 
-    freq_col = XYZConstants.RING_VIBRATION_INDEX.value[2]
+    sin_col, freq_col = XYZConstants.RING_VIBRATION_INDEX.value[2], XYZConstants.RING_VIBRATION_INDEX.value[1]
+    cross_idx = filtered_df[sin_col].idxmin()
+    para_idx = filtered_df[sin_col].idxmax()
 
-    max_idx = filtered_df[freq_col].idxmin()
-    min_idx = filtered_df[freq_col].idxmax()
-
-    max_vibration_frequency = filtered_df.iloc[max_idx, 2]
-    min_vibration_frequency = filtered_df.iloc[min_idx, 2]
-
-    # ---- fix: safely clip the values to [-1, 1] before asin ----
-    def safe_asin(x):
-        return math.degrees(math.asin(float(np.clip(x, -1.0, 1.0))))
-
-    asin_max = safe_asin(filtered_df.iloc[max_idx, 2])
-    asin_min = safe_asin(filtered_df.iloc[min_idx, 2])
+    def angle(i):
+        return math.degrees(math.asin(float(np.clip(filtered_df.loc[i, sin_col], -1.0, 1.0))))
 
     df = pd.DataFrame(
-        [(max_vibration_frequency, asin_max, min_vibration_frequency, asin_min)],
+        [(filtered_df.loc[cross_idx, freq_col], angle(cross_idx),
+          filtered_df.loc[para_idx, freq_col], angle(para_idx))],
         columns=XYZConstants.RING_VIBRATION_COLUMNS.value
     )
-
     df.columns = [f"{col}" for col in df.columns]
-
     return df
 
 
-
-### bending vibration
 def find_center_atom(atom1: str, atom2: str, adjacency_dict: Dict[str, List[str]]) -> bool:
     
     neighbors1 = adjacency_dict.get(atom1, [])
@@ -627,63 +634,48 @@ def reindex_and_preserve(df, new_index_order):
         return pd.concat([reindexed_part, non_reindexed_part])
 
 
+def six_rings_through(G, start):
+    """Every six-membered ring through ``start``, each as its atoms in ring order from ``start``."""
+    found = {}
+
+    def walk(path):
+        if len(path) == 6:
+            if start in G[path[-1]]:
+                found.setdefault(frozenset(path), path)
+            return
+        for nb in sorted(G[path[-1]]):
+            if nb not in path:
+                walk(path + [nb])
+
+    walk([start])
+    return sorted(found.values(), key=sorted)
+
+
 def get_benzene_ring_indices(bonds_df, ring_atoms):
     """
-    Identifies benzene ring indices from a bond dataframe and a set of ring atoms.
-    Also detects and prints fused benzene rings (two rings sharing an edge).
-    """
-    # Read atom indices
-    atom1_idx = ring_atoms[0]
-    atom2_idx = ring_atoms[1] if len(ring_atoms) > 1 else None
+    Ring positions relative to the given atom, for the ring-vibration feature.
 
-    # Build the molecular graph
+    ``ring_atoms[0]`` is the primary atom (usually the one carrying the substituent); an
+    optional ``ring_atoms[1]`` picks the ring when the primary atom sits on two fused rings.
+    With the ring walked in order r0 (primary), r1 ... r5, returns
+    ``(r3, r0, r1, r5, r2, r4)``: para and primary, the two ortho atoms, the two meta atoms.
+    The caller pairs them as [[r3, r0], [r1, r5], [r2, r4]]; the r0->r3 axis is the reference
+    direction, and {r1, r3, r5} / {r0, r2, r4} are the alternating halves of the ring.
+
+    The previous version took the atom order of ``networkx.cycle_basis``, which neither starts
+    at the given atom nor follows the ring, so on 181 of 216 queries over the CS1 substrates
+    the positions were measured from another atom.
+    """
     G = nx.Graph()
     for _, row in bonds_df.iterrows():
-        a1, a2 = int(row[0]), int(row[1])
-        G.add_edge(a1, a2)
-
-    # Find all simple cycles and filter 6-membered rings that include atom1_idx
-    cycles = nx.cycle_basis(G)
-    # print(f"Debug: Found {len(cycles)} cycles in the graph: {cycles}")
-    benzene_rings = [cycle for cycle in cycles if len(cycle) == 6 and atom1_idx in cycle]
-
-    if not benzene_rings:
-
-
-        # Check if atom2_idx was provided and is expected to be in a ring
-        if atom2_idx is not None:
-            rings_with_atom2 = [i for i, ring in enumerate(benzene_rings) if atom2_idx in ring]
-            print(f"Debug: Rings containing atom {atom2_idx}: {rings_with_atom2}")
-            
-            # Find rings containing both atoms (if atom2_idx was specified)
-            rings_with_both = [i for i, ring in enumerate(benzene_rings) 
-                    if atom1_idx in ring and atom2_idx in ring]
-            if rings_with_both:
-                print(f"Debug: Rings containing both atoms {atom1_idx} and {atom2_idx}: {rings_with_both}")
-            else:
-                print(f"Debug: No rings found containing both atoms {atom1_idx} and {atom2_idx}")
-        
+        G.add_edge(int(row[0]), int(row[1]))
+    start = int(ring_atoms[0])
+    if start not in G:
         return None
-
-  
-
-    # Detect fused rings: those sharing exactly two atoms
-    if len(benzene_rings) > 1:
-        print("\nDetected fused benzene ring pairs:")
-        for i in range(len(benzene_rings)):
-            for j in range(i + 1, len(benzene_rings)):
-                shared = set(benzene_rings[i]).intersection(benzene_rings[j])
-                if len(shared) == 2:
-                    print(f"  Ring1: {benzene_rings[i]}\n  Ring2: {benzene_rings[j]}\n  Shared atoms: {sorted(shared)}\n")
-                # take the second ring if it exists
-
-    # fix for future
-    selected_ring = benzene_rings[1] if len(benzene_rings) > 1 else benzene_rings[0]
-    return (
-        selected_ring[3],
-        selected_ring[0],
-        selected_ring[1],
-        selected_ring[-1],
-        selected_ring[2],
-        selected_ring[4]
-    )
+    rings = six_rings_through(G, start)
+    if len(ring_atoms) > 1:
+        rings = [r for r in rings if int(ring_atoms[1]) in r]
+    if not rings:
+        return None
+    r = rings[0]
+    return (r[3], r[0], r[1], r[5], r[2], r[4])

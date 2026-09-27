@@ -1015,7 +1015,7 @@ def theta_check():
             lines = lines[2:]
         xyz = pd.read_csv(io.StringIO("\n".join(lines)), sep=r"\s+", header=None,
                           names=["atom", "x", "y", "z"], usecols=range(4))
-        bonds = extract_connectivity(xyz, threshold_distance=1.82)
+        bonds = extract_connectivity(xyz)
         r = get_sterimol_df(xyz, bonds, [int(data["a"]), int(data["b"])], None, radii="CPK").iloc[0]
         return jsonify({k: float(r[k]) for k in ("B1", "B5", "L", "loc_B5", "B1_B5_angle")})
     except Exception as e:

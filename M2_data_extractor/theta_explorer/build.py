@@ -6,7 +6,9 @@ no server and no network. gui_server.py serves assemble() at /theta; running
 this file writes a standalone theta_explorer.html next to it.
 
     node gate.js && python build.py
-    python build.py --inject ..\..\Getting_started_with_examples\descriptor_extraction_toolkit\atom_picker.html
+    python build.py --inject ..\..\Getting_started_with_examples\descriptor_extraction_toolkit\atom_picker.html ..\atom_picker.html
+
+Inject into both copies of the picker: tests/test_gui_server.py requires them to be identical.
 """
 import json
 import os
@@ -219,8 +221,8 @@ _POS_PANEL = dict(style=dict(_PANEL, values=True, labelScale=1.3),
                   layers=_L(axes=[], active=-1))
 
 
-# P-C runs 1.83-1.87 A, past the package's flat 1.82 A cutoff, so the phosphines declare their own
-PHOS_THR = 1.95
+# P-C runs 1.83-1.87 A. The package's covalent-radius bond rule keeps it; the old flat 1.82 A cutoff
+# did not, which is why these fixtures used to carry thr=1.95.
 MORE = [
     ('026_box_CuCl.xyz', 'Cu-BOX', 'bis(oxazoline) complex', 1, 3, _POS_PANEL),
     # a %Vbur ladder on one scaffold, 48 to 77 % at the metal, over two metals: something to
@@ -261,7 +263,6 @@ MORE = [
     ('046_lig.xyz', '046_lig', 'Case Study 3 CuCl complex (aryl-BOX)', 8, 12, _cs3_panel((8, 12), (22, 24))),
 ]
 FIXTURES += [dict(file=f, name=n, sub=s, a=a, b=b,
-                  **({'thr': PHOS_THR} if 'phos' in f else {}),
                   presets=[dict(panel, name='%s panel: the published construction on %s' % (s.split(' ligand')[0].split(' substrate')[0].split(' CuCl')[0], n)),
                            _theta(a, b)])
              for f, n, s, a, b, panel in MORE]

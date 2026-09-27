@@ -27,6 +27,7 @@ reproduces the paper's deposited tables.
 | 6 | **`origin` argument ignored.** `preform_coordination_transformation(origin=…)` centred on the basis atoms instead of the atoms passed | `sterimol_utils` | any caller passing `origin` got the wrong centre | `c78d2ca` | — |
 | 7 | Circle sampling in the plot and the scan disagreed | `sterimol_utils` (`STERIMOL_CIRCLE_POINTS`) | B1 plot slices misaligned | `5713c51` | — |
 | 8 | steriplot endpoint unpacked a DataFrame into two names | `gui_server` | endpoint crashed | `ae36eb0` | — |
+| 9 | **Flat 1.82 Å bond cutoff** dropped S–CF₃ (p-OTf, L 7.82 → 10.32 Å) and P–C bonds, and changed the CPK type of the atom left behind | `utils.help_functions.extract_connectivity` and its copies | Sterimol of any group containing a long single bond | after `paper-v3`: covalent radii × 1.15; `threshold_distance=1.82` restores the old rule (see FEATURE_FIXES.md #1) | `tests/test_connectivity.py` |
 
 ### Explorer port (`theta_explorer/sterimol.js`)
 
@@ -62,10 +63,9 @@ reproduces the paper's deposited tables.
 
 ## Open
 
-- **Flat 1.82 Å bond cutoff** in `extract_connectivity` drops long single bonds: S–CF3 in CS1
-  p-OTf (1.841 Å, L 7.82 → 10.32 Å once restored) and P–C in 009_lig (1.821, 1.842 Å). The
-  explorer draws these dashed and warns. Proposed fix: element-aware cutoffs (≈1.15 × covalent
-  radius sum), followed by a before/after audit of every deposited table.
+- **B1 resolution about ±0.01 Å.** B1 is a minimum that usually sits on a kink where two atoms tie, and the
+  scan samples it every 1°, so the scan's starting direction moves B1 by up to 0.01 Å. An exact
+  minimisation (rotating calipers on the projected discs) would remove it.
 - **Deposited CS1/CS2 Sterimol tables** were computed with each molecule's last atom missing from
   the bond table. This is a defect in how the data was generated, not in current code, and its
   origin is not identified. `*_sterimol_regenerated.csv` holds the corrected values; they are not
