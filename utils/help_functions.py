@@ -1163,10 +1163,6 @@ def extract_connectivity(xyz_df, threshold_distance=1.82, metals=None,
     return pd.DataFrame(final[[0, 1]] + 1)
 
 
-import plotly.graph_objs as go
-from ipywidgets import interact, FloatSlider
-import plotly.io as pio
-
 def interactive_corr_heatmap_with_highlights(
     df,
     initial_threshold=0.9,
@@ -1182,6 +1178,11 @@ def interactive_corr_heatmap_with_highlights(
     Plotly correlation heatmap with a built-in slider to control min |r|.
     Works in Colab, Jupyter, and non-notebook contexts.
     """
+    # Imported here rather than at module scope so that headless callers --
+    # cluster jobs, descriptor extraction -- do not need plotly installed just
+    # to import this module. M3_modeler/plot.py already does the same.
+    import plotly.graph_objs as go
+    import plotly.io as pio
 
     # ---- Choose a renderer that works in current environment (Colab-aware) ----
     def _pick_renderer(r):
