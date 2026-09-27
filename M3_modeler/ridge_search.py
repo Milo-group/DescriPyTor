@@ -23,7 +23,7 @@ import itertools
 
 import numpy as np
 
-__all__ = ["all_combos", "loo_predictions", "adj_q2", "nested_loo", "constraint_null"]
+__all__ = ["all_combos", "hat_matrices", "loo_predictions", "q2", "adj_q2", "nested_loo", "constraint_null"]
 
 
 def all_combos(n_features: int, k: int) -> np.ndarray:
@@ -41,20 +41,39 @@ def _penalty(k, lam):
     return R
 
 
+def hat_matrices(X, combos, lam: float = 1.0):
+    """Hat matrices H (n_combos, n, n) and 1 - diag(H) of every combination.
+
+    ``lam = 0`` is ordinary least squares, solved with the pseudo-inverse so that a
+    rank-deficient combination (a duplicated or constant column) still gives its
+    lower-rank fit, as Case Study 1's scripts do. With an intercept, OLS
+    predictions do not depend on how the columns are scaled.
+    """
+    X = np.asarray(X, float)
+    m, k = X.shape[0], combos.shape[1]
+    Xs = _standardize(X) if lam else X
+    Z = np.ones((len(combos), m, k + 1))
+    Z[:, :, 1:] = Xs[:, combos].transpose(1, 0, 2)
+    G = np.einsum("bmi,bmj->bij", Z, Z)
+    G = np.linalg.inv(G + _penalty(k, lam)) if lam else np.linalg.pinv(G)
+    H = Z @ G @ Z.transpose(0, 2, 1)
+    return H, np.clip(1 - np.einsum("bmm->bm", H), 1e-9, None)
+
+
 def loo_predictions(X, y, combos, lam: float = 1.0, batch: int = 4000) -> np.ndarray:
     """LOO predictions of every combination, from the hat matrix. Returns (n_combos, n)."""
-    X, y = np.asarray(X, float), np.asarray(y, float)
-    m, k = len(y), combos.shape[1]
-    Xs, R = _standardize(X), _penalty(k, lam)
-    out = np.empty((len(combos), m))
+    y = np.asarray(y, float)
+    out = np.empty((len(combos), len(y)))
     for s in range(0, len(combos), batch):
-        idx = combos[s:s + batch]
-        Z = np.ones((len(idx), m, k + 1))
-        Z[:, :, 1:] = Xs[:, idx].transpose(1, 0, 2)
-        H = Z @ np.linalg.inv(np.einsum("bmi,bmj->bij", Z, Z) + R) @ Z.transpose(0, 2, 1)
-        h = 1 - np.einsum("bmm->bm", H)
+        H, h = hat_matrices(X, combos[s:s + batch], lam)
         out[s:s + batch] = y - (y - H @ y) / h
     return out
+
+
+def q2(pred, y):
+    """Q2 of LOO predictions (last axis = samples)."""
+    y = np.asarray(y, float)
+    return 1 - ((y - pred) ** 2).sum(-1) / ((y - y.mean()) ** 2).sum()
 
 
 def adj_q2(pred, y, k: int):
