@@ -35,9 +35,9 @@ from M2_data_extractor.xyz_io import XYZEnsemble, energy_from_comment
 
 HERE = Path(__file__).resolve().parent
 FIXTURES = HERE / "fixtures"
-CORNMINBUF = (
-    ROOT / "Getting_started_with_examples" / "case_study_notebooks" / "cornminbuf"
-)
+# The CS3 reference tables (descriptor tables of the Corminboeuf ligand sets) ship with the
+# tests; the case-study notebooks that produced them live in ../DescriPyTor_workspace.
+CORNMINBUF = HERE / "data" / "cs3_reference"
 
 def scratchpad():
     import os

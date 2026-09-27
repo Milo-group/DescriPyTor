@@ -277,7 +277,9 @@ def test_extract_stream_emits_start(client):
     lines = [ln for ln in response.get_data(as_text=True).splitlines() if ln.strip()]
     events = [json.loads(ln) for ln in lines]
     assert events[0]["event"] == "start"
-    assert events[0]["n"] >= 18
+    # the bundled example set (10 benzenes since 82742d0), counted rather than hard-coded
+    n_files = len(list(Path(directory).glob("*.feather")))
+    assert events[0]["n"] == n_files > 0
     assert any(e.get("event") == "error" for e in events)
 
 
