@@ -58,7 +58,16 @@ Per frame, then Boltzmann-averaged at 298.15 K (`HARTREE_TO_KCAL = 627.5095`):
   table (Ni 1.63 Å, Cu 1.40 Å), not Alvarez
 
 Sterimol uses Verloop CPK types from coordination number, same kernel as the
-CS3 scratchpad (not morfeus).
+CS3 scratchpad (not morfeus). Each arm reports B1, B5, L and θ (the tilt of the
+B5 vector out of the B1 plane, 0° for a lone H). Module settings:
+
+| setting | default | set it to |
+|---|---|---|
+| `STERIMOL_SCAN_STEP` | `1` (every degree) | `18` for the pre-September tables |
+| `STERIMOL_FRAME` | `"fragment"` (scan starts from the molecule) | `"lab"` for tag `paper-v3` |
+| `STERIMOL_KEYS` | `("B1", "B5", "L", "theta")` | add `"angle"` for the in-plane azimuth φ |
+
+`descripytor.compat.paper_v3()` sets the frame (and the flat bond cutoff) for a whole block.
 
 ## Electronic block
 
@@ -70,8 +79,8 @@ From one xTB single point on a geometry in that same atom order:
 - `mu_bisector`, `mu_outofplane`, `mu_desym` in the M–D1–D2 frame
 - `homo`, `lumo`, `gap`
 
-`sub_angle_*` on a **hydrogen substituent** (1-atom Sterimol fragment) is
-ill-defined: B1 ≈ B5 ≈ 1.0 Å and the B1–B5 angle comes out near 180°. The
+φ (`sub_angle_*`, only with `"angle"` in `STERIMOL_KEYS`) on a **hydrogen substituent**
+(1-atom Sterimol fragment) is ill-defined, which is why θ is the default: B1 ≈ B5 ≈ 1.0 Å and the B1–B5 angle comes out near 180°. The
 package matches the current scratchpad `extract_cb.py` on those ligands.
 `geom/desc_cp_goat_ens.csv` does **not** — nine Cu cyclopropanation ligands
 differ by 30–90° on `sub_angle` while `sub_B1` / `sub_B5` / `sub_L` still
@@ -105,7 +114,7 @@ from M2_data_extractor import MetalComplexEnsemble
 
 ens = MetalComplexEnsemble.from_xyz("081_lig.finalensemble.xyz")
 row = ens.geometric_features()
-# row['fromM_angle_sym'], row['n_conformers'], ...
+# row['fromM_theta_sym'], row['n_conformers'], ...
 ```
 
 xTB electronics (recreates a row of `elec_ni.csv`):
