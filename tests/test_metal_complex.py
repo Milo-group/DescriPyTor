@@ -57,8 +57,11 @@ CHEAP_TABLES = CORNMINBUF / "data" / "single_structure"
 
 @pytest.fixture(autouse=True)
 def deposited_scan_grid(monkeypatch):
-    """The published CS3 tables were built on the 18° coarse B1 grid, with phi, in the lab frame."""
+    """The published CS3 tables were built on the 18° coarse B1 grid, with phi, in the lab frame,
+    with the C*->R fragment bounded only at the donor and signed dipole projections."""
     monkeypatch.setattr(metal_complex, "STERIMOL_SCAN_STEP", 18)
+    monkeypatch.setattr(metal_complex, "SUB_FRAGMENT_BOUND", "donor")
+    monkeypatch.setattr(metal_complex, "DIPOLE_ABS", False)
     monkeypatch.setattr(metal_complex, "STERIMOL_FRAME", "lab")
     monkeypatch.setattr(metal_complex, "STERIMOL_KEYS", ("B1", "B5", "L", "angle"))
 

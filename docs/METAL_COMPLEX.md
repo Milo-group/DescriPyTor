@@ -65,6 +65,9 @@ B5 vector out of the B1 plane, 0° for a lone H). Module settings:
 |---|---|---|
 | `STERIMOL_SCAN_STEP` | `1` (every degree) | `18` for the pre-September tables |
 | `STERIMOL_FRAME` | `"fragment"` (scan starts from the molecule) | `"lab"` for tag `paper-v3` |
+| `STERIMOL_THETA_RULE` | `"soft"` (θ averaged over tied B1 directions) | `"scan"`: θ at the direction the scan lands on |
+| `SUB_FRAGMENT_BOUND` | `"donor_ring"` (C\*→R walk stops at the donor's ring) | `"donor"`: blocked only at the donor and metal |
+| `DIPOLE_ABS` | `True` (\|mu_desym\|, \|mu_outofplane\|) | `False`: signed, flips with donor order |
 | `STERIMOL_KEYS` | `("B1", "B5", "L", "theta")` | add `"angle"` for the in-plane azimuth φ |
 
 `descripytor.compat.paper_v3()` sets the frame (and the flat bond cutoff) for a whole block.

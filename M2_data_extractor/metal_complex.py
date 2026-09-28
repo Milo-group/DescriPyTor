@@ -86,6 +86,27 @@ STERIMOL_SCAN_STEP = 1
 # of the axis with the lab z-axis); set it to rebuild those tables.
 STERIMOL_FRAME = "fragment"
 
+# How theta is read when several B1 directions nearly tie (a tBu group has three within
+# 0.01 A, giving theta 4.7, 38.8 or 45.5 deg depending on which the scan meets first).
+# "soft" (the default) averages the tilt over every direction, weighted by
+# exp(-(width - B1) / THETA_SOFT_TAU), so equal directions count equally and the value moves
+# continuously with the geometry. "scan" is the direction the rotation scan picks, which is
+# how every table up to tag paper-v3 was built.
+STERIMOL_THETA_RULE = "soft"
+THETA_SOFT_TAU = 0.02          # A
+THETA_SOFT_STEP = 0.05         # deg, direction grid for the soft rule
+
+# Where the substituent fragment (C* -> R) stops. "donor_ring" (the default) blocks every atom
+# of the donor's own ring, so a substituent fused to that ring cannot walk into the chelate
+# backbone and the other arm (7 of 60 arms in the CS3 cyclopropanation set did). "donor" blocks
+# only the donor and the metal, as tag paper-v3 did.
+SUB_FRAGMENT_BOUND = "donor_ring"
+
+# mu_outofplane and mu_desym are components along axes whose sign follows which donor is listed
+# first in the file (the plane normal is D1 x D2). True reports their magnitudes, the only
+# meaningful part; False reports the signed values of tag paper-v3.
+DIPOLE_ABS = True
+
 # build_general.py rejects a metal placement whose bite falls outside this window,
 # but only before relaxation; a donor can still come off during it (009_lig in the
 # CS3 oxy-alkynylation set: 87 deg placed, 58 deg relaxed). geometric_features
@@ -180,6 +201,57 @@ def fragment(symbols, coords, a, b, block=()):
     return sorted(out)
 
 
+def _theta_soft(coords, idx, origin, axis, radii):
+    """theta under the soft tie rule: the tilt of the B5 vector out of the plane normal to each
+    in-plane direction, averaged over directions with weights exp(-(width - B1) / tau).
+
+    ``radii`` is aligned with ``idx``. The B5 atom is the one furthest off the axis (centre
+    distance plus radius). A one-atom fragment, or one lying on the axis, has theta 0.
+    """
+    V = coords[idx] - origin
+    perp = V - np.outer(V @ axis, axis)
+    if len(idx) == 1 or np.linalg.norm(perp, axis=1).max() < 1e-6:
+        return 0.0
+    e1 = perp[int(np.argmax((perp ** 2).sum(1)))]
+    e1 = e1 / np.linalg.norm(e1)
+    e2 = np.cross(axis, e1)
+    P = np.c_[V @ e1, V @ e2]
+    r = np.asarray(radii, float)
+    phis = np.radians(np.arange(0, 360, THETA_SOFT_STEP))
+    dirs = np.c_[np.cos(phis), np.sin(phis)]
+    width = (P @ dirs.T + r[:, None]).max(0)
+    v5 = V[int(np.argmax(np.linalg.norm(P, axis=1) + r))]
+    tilt = np.degrees(np.arcsin(np.minimum(1.0, np.abs((dirs @ np.c_[e1, e2].T) @ v5) / np.linalg.norm(v5))))
+    w = np.exp(-(width - width.min()) / THETA_SOFT_TAU)
+    return float((w * tilt).sum() / w.sum())
+
+
+def donor_ring(adj, donor, metal=0):
+    """Atoms of the smallest ring through ``donor`` that does not pass through the metal
+    (0-based), or ``{donor}`` when the donor is in no such ring."""
+    best = None
+    nb = [x for x in adj[donor] if x != metal]
+    for i, s in enumerate(nb):
+        for t in nb[i + 1:]:
+            prev = {s: None}
+            queue = deque([s])
+            while queue:
+                x = queue.popleft()
+                for y in adj[x]:
+                    if y in (donor, metal) or y in prev:
+                        continue
+                    prev[y] = x
+                    queue.append(y)
+            if t in prev:
+                path = [t]
+                while prev[path[-1]] is not None:
+                    path.append(prev[path[-1]])
+                ring = set(path) | {donor}
+                if best is None or len(ring) < len(best):
+                    best = ring
+    return best or {donor}
+
+
 def sterimol(symbols, coords, a, b, radii, block=()):
     """Verloop B1/B5/L and the two B1–B5 angles for the fragment on the a→b axis.
 
@@ -253,6 +325,8 @@ def sterimol(symbols, coords, a, b, radii, block=()):
     b5 = idx[j // len(theta)]                             # cloud rows are per atom, idx order
     v5 = coords[b5] - origin
     tilt = float(np.degrees(np.arcsin(min(1.0, abs(v5 @ (n1 * e1 + n2 * e2)) / np.linalg.norm(v5)))))
+    if STERIMOL_THETA_RULE == "soft":
+        tilt = _theta_soft(coords, idx, origin, axis, R)
     # Orient the normal towards the supporting plane, so origin + B1 * normal lies on it.
     d = np.array([n1, n2])
     if abs((P @ d + R).max() - B1) > abs((P @ -d + R).max() - B1):
@@ -486,7 +560,11 @@ class MetalComplex:
             if sc is None:
                 continue
             stereo, subst = sc
-            s = sterimol(symbols, xyz, stereo + 1, subst + 1, radii, block=(donor + 1, metal + 1))
+            if SUB_FRAGMENT_BOUND == "donor_ring":
+                block = tuple(sorted({x + 1 for x in donor_ring(self.adj, donor, metal) | {metal}} - {stereo + 1}))
+            else:
+                block = (donor + 1, metal + 1)
+            s = sterimol(symbols, xyz, stereo + 1, subst + 1, radii, block=block)
             if s:
                 for key in STERIMOL_KEYS:
                     out[f"_sub_{key}_{tag}"] = s[key]
@@ -529,8 +607,8 @@ class MetalComplex:
         gap = None if homo is None or lumo is None else lumo - homo
         return {
             "mu_bisector": float(dip @ bis),
-            "mu_outofplane": float(dip @ nrm),
-            "mu_desym": float(dip @ des),
+            "mu_outofplane": float(abs(dip @ nrm) if DIPOLE_ABS else dip @ nrm),
+            "mu_desym": float(abs(dip @ des) if DIPOLE_ABS else dip @ des),
             "homo": homo,
             "lumo": lumo,
             "gap": gap,

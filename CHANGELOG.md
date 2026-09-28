@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.1 — 2026-09-28
+
+Metal-complex (`MetalComplex`) values change; nothing else does. `descripytor.compat.paper_v3()`
+restores the old definitions, and each one also has its own switch.
+
+- **Substituent-arm fragment** (`sub_*`): the C\*→R walk stops at the donor's own ring, so a
+  substituent fused to that ring no longer reaches the backbone and the other donor.
+  `SUB_FRAGMENT_BOUND = "donor"` for the old walk.
+- **θ at tied B1 directions**: averaged over every direction with weight exp(−(width − B1)/0.02 Å),
+  so chemically identical groups (tBu: 4.7 / 38.8 / 45.5° before) get one θ. B1, B5 and L are
+  unchanged. `STERIMOL_THETA_RULE = "scan"` for the old value.
+- **`mu_desym`, `mu_outofplane`** are magnitudes; the sign depended on which donor was listed
+  first. `DIPOLE_ABS = False` for the signed values.
+
+With the defaults, the 16 Sterimol/θ columns of the paper's corrected cyclopropanation table
+(`cp_fix_soft.csv`) rebuild to within 5e-7 from the deposited geometries.
+
 ## 0.2.0 — 2026-09-27
 
 Descriptor values change in this release; the list is below. `descripytor.compat.paper_v3()`

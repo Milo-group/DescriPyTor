@@ -19,6 +19,7 @@ numbers are rebuilt from that tag, and everything below is on `main` after it.
 | 9 | the "not bonded" placeholder of a stretch row had MultiIndex columns | misaligned on concatenation | plain columns | — |
 | 10 | `get_bend_vibration_single` printed five debug blocks per call | noise | removed | — |
 | 11 | **Merge regression (2026-09-27)**: the integration merge put back eager imports of `utils.visualize` (needs dash / ipywidgets) and `MolAlign.renumbering` (needs torch) at the top of `data_extractor` | opening a feather file required dash; four GUI-server tests failed | the lazy imports are restored | `tests/test_gui_server.py` |
+| 12 | **Signed `mu_desym` / `mu_outofplane`** (0.2.1). The M–D1–D2 frame's normal is u × v, so swapping which donor is D1 flips the sign of both projections | the same complex gave ±μ depending on atom order in the file | `metal_complex.DIPOLE_ABS = True`: both are reported as magnitudes; `False` restores the signed values | — |
 
 `tests/data/small_set/modeling_table.csv` was regenerated. Its B1 values moved by up to 0.009 Å
 because of the Sterimol scan-start fix (STERIMOL_FIXES #5), not because of anything above.

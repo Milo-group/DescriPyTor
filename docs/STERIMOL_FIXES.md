@@ -28,6 +28,8 @@ reproduces the paper's deposited tables.
 | 7 | Circle sampling in the plot and the scan disagreed | `sterimol_utils` (`STERIMOL_CIRCLE_POINTS`) | B1 plot slices misaligned | `5713c51` | — |
 | 8 | steriplot endpoint unpacked a DataFrame into two names | `gui_server` | endpoint crashed | `ae36eb0` | — |
 | 9 | **Flat 1.82 Å bond cutoff** dropped S–CF₃ (p-OTf, L 7.82 → 10.32 Å) and P–C bonds, and changed the CPK type of the atom left behind | `utils.help_functions.extract_connectivity` and its copies | Sterimol of any group containing a long single bond | after `paper-v3`: covalent radii × 1.15; `threshold_distance=1.82` restores the old rule (see FEATURE_FIXES.md #1) | `tests/test_connectivity.py` |
+| 10 | **C\*→R fragment leaked into the backbone.** The walk was blocked only at the donor and the metal, so a substituent fused to the donor's ring ran round the ring into the backbone and the other donor | `MetalComplex.geometric_features` (`sub_*`) | wrong B1/B5/L/θ on 7 of 60 cp arms (024 a/b, 025b, 042b, 037b–039b) | 0.2.1: the walk also stops at every atom of the donor's own ring (`donor_ring`). `SUB_FRAGMENT_BOUND = "donor"` restores the old walk | `tests/test_arm_fixes.py` |
+| 11 | **θ at tied B1 directions.** B1 is often reached along several directions within 0.01 Å of each other (a tBu has three), and θ was read at whichever one the scan hit first: 4.7, 38.8 or 45.5° for chemically identical tBu arms; 23 of 60 cp arms had ties whose θ differed by > 5° | `metal_complex.sterimol` | θ was set by scan order, not by the molecule | 0.2.1: `STERIMOL_THETA_RULE = "soft"`, θ averaged over every in-plane direction with weights exp(−(width − B1)/0.02 Å) on a 0.05° grid. B1, B5 and L are unchanged. `"scan"` restores the old value | `tests/test_arm_fixes.py`; defaults reproduce the paper's corrected `cp_fix_soft.csv` (16 columns, ≤ 5e-7) |
 
 ### Explorer port (`theta_explorer/sterimol.js`)
 
@@ -77,7 +79,8 @@ reproduces the paper's deposited tables.
 git checkout paper-v3
 ```
 
-Or on `main`: `metal_complex.STERIMOL_FRAME = "lab"` (and `STERIMOL_SCAN_STEP = 18`,
+Or on `main`: `with descripytor.compat.paper_v3():`, which sets `metal_complex.STERIMOL_FRAME = "lab"`,
+`STERIMOL_THETA_RULE = "scan"`, `SUB_FRAGMENT_BOUND = "donor"` and `DIPOLE_ABS = False` (plus `STERIMOL_SCAN_STEP = 18`,
 `STERIMOL_KEYS = ("B1", "B5", "L", "angle")` for the pre-September 18° tables).
 
 Checked 2026-09-27: CS1/CS2 regenerated Sterimol blocks, every cell exact. CS3 single-structure

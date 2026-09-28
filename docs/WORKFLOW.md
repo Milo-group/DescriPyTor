@@ -165,6 +165,9 @@ ens = MetalComplexEnsemble.from_xyz("081_lig.finalensemble.xyz").geometric_featu
 |---|---|---|
 | `metal_complex.STERIMOL_SCAN_STEP` | `1` | B1 rotation scan step in degrees; `18` rebuilds the pre-September tables |
 | `metal_complex.STERIMOL_FRAME` | `"fragment"` | where the scan starts; `"lab"` is the frame of tag `paper-v3` |
+| `metal_complex.STERIMOL_THETA_RULE` | `"soft"` | θ over tied B1 directions; `"scan"` is the 0.2.0 value |
+| `metal_complex.SUB_FRAGMENT_BOUND` | `"donor_ring"` | where the C\*→R fragment stops; `"donor"` is the 0.2.0 walk |
+| `metal_complex.DIPOLE_ABS` | `True` | unsigned `mu_desym` / `mu_outofplane`; `False` is the 0.2.0 value |
 | `metal_complex.STERIMOL_KEYS` | `("B1", "B5", "L", "theta")` | add `"angle"` for the in-plane azimuth φ |
 | `metal_complex.BITE_WINDOW` | `(65, 105)` | warn when the bite angle says a donor has come off the metal |
 
