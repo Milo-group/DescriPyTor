@@ -1,6 +1,6 @@
-"""SGE array scripts for each stage, rendered from one skeleton.
+"""SGE job scripts for each stage, rendered from one skeleton.
 
-Every task: pick its molecule from ids.txt, take the previous stage's ``out/<id>.xyz`` (the build
+Every job: pick its molecule from ids.txt (line PIPE_TASK), take the previous stage's ``out/<id>.xyz`` (the build
 for stage 1), refuse it if the element order differs from the manifest, run in node scratch
 (falling back to $TMPDIR), write ``out/<id>.xyz`` and the marker ``status/<id>.<stage>``:
 ``running``, ``done`` or ``failed: <reason>``. A task whose output is already done exits at once,
@@ -21,14 +21,16 @@ SKELETON = r"""#!/bin/bash
 #$ -pe shared @@CORES@@
 #$ -j y
 #$ -o @@ROOT@@/@@STAGE@@/logs
-#$ -t 1-@@N@@
 @@DIRECTIVES@@
 # @@PROTOCOL@@, stage @@STAGE@@ (@@KIND@@). Written by descripytor pipeline.
 set -u
 ROOT=@@ROOT@@
 STAGE=@@STAGE@@
-NAME=$(sed -n "${SGE_TASK_ID}p" "$ROOT/ids.txt")
-[ -n "$NAME" ] || { echo "no molecule for task $SGE_TASK_ID"; exit 1; }
+# the molecule: its line in ids.txt, from qsub -v PIPE_TASK=n (N1GE 6.0 rejects qsub -t),
+# or the array task id if this script is ever submitted as an array
+TASK=${PIPE_TASK:-${SGE_TASK_ID:-}}
+NAME=$(sed -n "${TASK}p" "$ROOT/ids.txt")
+[ -n "$NAME" ] || { echo "no molecule for task $TASK"; exit 1; }
 OUT="$ROOT/$STAGE/out"; WORK="$ROOT/$STAGE/work"; MARK="$ROOT/status/$NAME.$STAGE"
 mkdir -p "$OUT" "$WORK" "$ROOT/status"
 fail() { echo "failed: $*" > "$MARK"; echo "FAILED $NAME: $*"; exit 1; }
@@ -41,7 +43,7 @@ want=$(xargs < "$ROOT/elements/$NAME.elements")
 echo running > "$MARK"
 SCR=@@SCRATCH@@
 if mkdir -p "$SCR/$USER" 2>/dev/null; then SCR="$SCR/$USER"; else SCR="${TMPDIR:-/tmp}"; fi
-W="$SCR/@@JOB@@_${JOB_ID}.${SGE_TASK_ID}"
+W="$SCR/@@JOB@@_${JOB_ID}.${TASK}"
 rm -rf "$W"; mkdir -p "$W"; cd "$W" || fail "no scratch $W"
 trap 'cd /; rm -rf "$W"' EXIT
 echo "=== $NAME $STAGE host=$(hostname) scratch=$W start=$(date) ==="
@@ -168,6 +170,26 @@ echo "== queue"
 qstat -u "$USER" 2>/dev/null | awk -v p="@@PREFIX@@" 'NR>2 && index($3, p) == 1 {n[$3" "$5]++} END {for (k in n) print k, n[k]}'
 """
 
+CHAIN = r"""#!/bin/bash
+# submit_chain.sh PLAN - written by descripytor pipeline.
+# Each PLAN line is "task stage stage ...": that molecule's stages are submitted as single-task
+# jobs, each held on the one before (-hold_jid), so every molecule moves on as soon as its own
+# previous step ends. N1GE 6.0 has no -terse, no -hold_jid_ad and rejects qsub -t, so the
+# molecule goes in as -v PIPE_TASK=n.
+ROOT=@@ROOT@@
+while read -r t rest; do
+  [ -z "$t" ] && continue
+  prev=""
+  for s in $rest; do
+    out=$(qsub -v PIPE_TASK="$t" ${prev:+-hold_jid "$prev"} "$ROOT/$s/run.sh" < /dev/null 2>&1)
+    id=$(printf '%s\n' "$out" | sed -n 's/^Your job[-a-z]* \([0-9][0-9]*\).*/\1/p' | head -n 1)
+    if [ -z "$id" ]; then echo "QSUB_FAIL $t $s $(printf '%s' "$out" | tr '\n' ' ')"; break; fi
+    echo "JOB $t $s $id"
+    prev=$id
+  done
+done < "$1"
+"""
+
 DEFAULTS = {
     "goat": dict(keywords="! GOAT XTB", maxcore=2000),
     "orca": dict(keywords="! r2SCAN-3c Opt Freq", maxcore=3000),
@@ -221,5 +243,6 @@ def render_all(p: Protocol, n: int) -> dict[str, str]:
     files = {}
     for i in range(1, len(p.stages) + 1):
         files.update(render_stage(p, i, n))
+    files["submit_chain.sh"] = _fill(CHAIN, dict(ROOT=p.remote_root))
     files["status.sh"] = _fill(STATUS, dict(ROOT=p.remote_root, STAGES=" ".join(p.stage_dirs()), PREFIX=job_prefix(p)))
     return files

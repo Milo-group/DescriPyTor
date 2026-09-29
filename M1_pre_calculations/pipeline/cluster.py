@@ -1,12 +1,15 @@
 """Talk to an SGE cluster over ssh: upload a run, chain its stages, report, retry, fetch.
 
-Everything runs as bash on the login node (no python there). Each molecule's stage k waits only
-for its own stage k-1 (``qsub -hold_jid_ad``), so nothing has to poll: a molecule moves on the
-moment its previous step ends. A failed step writes ``failed: <reason>`` and the steps after it
+Everything runs as bash on the login node (no python there). Each molecule's stages are plain jobs
+chained with ``qsub -hold_jid`` and told their molecule with ``-v PIPE_TASK=n`` (the cluster's
+N1GE 6.0 has no ``-terse``, no per-task ``-hold_jid_ad``, and rejects ``qsub -t``), so nothing has
+to poll: a molecule moves on the moment its previous step ends. A failed step writes ``failed: <reason>`` and the steps after it
 fail at once with "missing input"; ``retry`` resubmits exactly those.
 
-File transfer is base64 over ssh, because the login banner corrupts scp: uploads go in chunks
-appended remotely and are checked by md5; downloads are a tar stream between markers.
+File transfer is base64 over ssh, because the login banner corrupts scp. The login shell (tcsh)
+swallows ssh's stdin and rejects any command-line word over about 8000 characters, so an upload
+goes as 4000-character parts, each written to its own numbered file (a retry cannot duplicate
+data), joined remotely and checked by md5. Downloads are a tar stream between markers.
 """
 from __future__ import annotations
 
@@ -25,7 +28,7 @@ from .protocol import Protocol
 from .stages import job_prefix, render_all
 
 BEGIN, END = "___DPT_BEGIN___", "___DPT_END___"
-CHUNK = 20000          # base64 characters per ssh call; stays under the Windows command-line limit
+PART = 4000            # base64 characters per ssh call; tcsh rejects words over ~8000
 
 
 class ClusterError(RuntimeError):
@@ -46,6 +49,8 @@ class Remote:
         """Run a bash script remotely; returns its stdout. Retries when the reply comes back empty
         or cut short (the end marker is missing). Scripts must be safe to run twice."""
         payload = base64.b64encode(f"echo {BEGIN}\n{script}\necho {END}\n".encode()).decode()
+        if len(payload) > 7000:
+            raise ClusterError("remote script too long for the tcsh login shell; upload it as a file instead")
         last = ""
         for _ in range(tries):
             last = self._ssh(f"echo {payload} | base64 -d | bash")
@@ -63,12 +68,15 @@ class Remote:
         data = buf.getvalue()
         digest = hashlib.md5(data).hexdigest()
         b64 = base64.b64encode(data).decode()
-        self.run(f"mkdir -p {remote} && rm -f {remote}/.upload.b64")
-        for i in range(0, len(b64), CHUNK):
-            out = self._ssh(f"printf %s {b64[i:i + CHUNK]} >> {remote}/.upload.b64 && echo CHUNK_OK")
-            if "CHUNK_OK" not in out:
-                raise ClusterError(f"upload chunk {i // CHUNK} failed")
-        out = self.run(f"cd {remote} && base64 -d .upload.b64 > .upload.tar && md5sum .upload.tar")
+        self.run(f"mkdir -p {remote} && rm -f {remote}/.upload.part.*")
+        for k, i in enumerate(range(0, len(b64), PART)):
+            for _ in range(3):
+                if "PART_OK" in self._ssh(f"printf %s {b64[i:i + PART]} > {remote}/.upload.part.{k:06d} && echo PART_OK"):
+                    break
+            else:
+                raise ClusterError(f"upload part {k} failed three times")
+        out = self.run(f"cd {remote} && cat .upload.part.* > .upload.b64 && rm -f .upload.part.* "
+                       f"&& base64 -d .upload.b64 > .upload.tar && md5sum .upload.tar")
         if digest not in out:
             raise ClusterError(f"upload corrupted: local md5 {digest}, remote {out!r}")
         self.run(f"cd {remote} && tar xf .upload.tar && rm -f .upload.tar .upload.b64")
@@ -99,16 +107,35 @@ def stage_files(p: Protocol) -> dict[str, str]:
     return render_all(p, len(_ids(p)))
 
 
-def qsub_commands(p: Protocol, first_stage: int = 1, task: int | None = None) -> list[tuple[str, str]]:
-    """(stage dir, qsub command) in submission order. ``{prev}`` is replaced by the job id of the
-    stage before, so each task waits for the same task of that stage (array dependency)."""
-    out = []
-    for i in range(first_stage, len(p.stages) + 1):
-        sdir = p.stages[i - 1].dirname(i)
-        t = f" -t {task}-{task}" if task else ""
-        hold = " -hold_jid_ad {prev}" if i > first_stage else ""
-        out.append((sdir, f"qsub -terse{t}{hold} {p.remote_root}/{sdir}/run.sh"))
-    return out
+def plan_lines(p: Protocol, tasks) -> str:
+    """Plan text for submit_chain.sh: one line per (task, first stage)."""
+    stages = p.stage_dirs()
+    return "".join(f"{t} {' '.join(stages[first - 1:])}\n" for t, first in tasks)
+
+
+def _put_file(r: Remote, remote_dir: str, name: str, text: str) -> None:
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        Path(tmp, name).write_text(text, encoding="utf-8", newline="\n")
+        r.upload_tree(Path(tmp), remote_dir)
+
+
+def _run_chain(r: Remote, p: Protocol, plan: str, plan_name: str) -> dict:
+    """Upload a plan and submit it. Returns {task: {stage: job id}}. Raises on any qsub failure,
+    reporting what was submitted, and never resubmits blindly."""
+    _put_file(r, p.remote_root, plan_name, plan)
+    out = r.run(f"bash {p.remote_root}/submit_chain.sh {p.remote_root}/{plan_name}", tries=1)
+    jobs, failed = {}, []
+    for line in out.splitlines():
+        f = line.split()
+        if f[:1] == ["JOB"] and len(f) == 4:
+            jobs.setdefault(f[1], {})[f[2]] = f[3]
+        elif f[:1] == ["QSUB_FAIL"]:
+            failed.append(line)
+    if failed:
+        raise ClusterError(f"qsub failed ({len(failed)}); submitted so far: {jobs}; first failure: {failed[0]}")
+    return jobs
 
 
 def submit(p: Protocol, dry_run: bool = False, force: bool = False) -> dict:
@@ -126,26 +153,20 @@ def submit(p: Protocol, dry_run: bool = False, force: bool = False) -> dict:
     for name in ("ids.txt", "manifest.json"):
         (stage_dir / name).write_bytes((p.workdir / name).read_bytes())
     (stage_dir / "protocol.json").write_bytes(p.path.read_bytes())
-    cmds = qsub_commands(p)
+    plan = plan_lines(p, [(t, 1) for t in range(1, len(ids) + 1)])
     if dry_run:
-        return dict(dry_run=True, n=len(ids), files=sorted(files), commands=[c for _, c in cmds], local=str(stage_dir))
+        return dict(dry_run=True, n=len(ids), files=sorted(files), plan=plan.splitlines(), local=str(stage_dir))
 
     r = remote_for(p)
     root = p.remote_root
     if not force and "EXISTS" in r.run(f"[ -f {root}/jobs.json ] && echo EXISTS || true"):
         raise ClusterError(f"{root} already has a submitted run; use status / retry, or --force to overwrite")
     r.upload_tree(stage_dir, root)
-    r.run(f"cd {root} && chmod +x status.sh */run.sh && mkdir -p status " + " ".join(f"{d}/logs {d}/out {d}/work" for d in p.stage_dirs()))
-    jobs, prev = {}, None
-    for sdir, cmd in cmds:
-        out = r.run(cmd.replace("{prev}", str(prev)) if prev else cmd)
-        m = re.search(r"^(\d+)", out.strip().splitlines()[-1] if out.strip() else "")
-        if not m:
-            raise ClusterError(f"qsub for {sdir} gave no job id: {out!r}")
-        jobs[sdir] = prev = m.group(1)
+    r.run(f"cd {root} && chmod +x *.sh */run.sh && mkdir -p status " + " ".join(f"{d}/logs {d}/out {d}/work" for d in p.stage_dirs()))
+    jobs = _run_chain(r, p, plan, "plan.txt")
     record = dict(submitted=time.strftime("%Y-%m-%d %H:%M:%S"), root=root, n=len(ids), jobs=jobs)
     (p.workdir / "jobs.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
-    r.run(f"cat > {root}/jobs.json <<'EOF'\n{json.dumps(record, indent=2)}\nEOF")
+    _put_file(r, root, "jobs.json", json.dumps(record, indent=2) + "\n")
     return record
 
 
@@ -189,16 +210,11 @@ def retry(p: Protocol, dry_run: bool = False) -> list[dict]:
         return plan
     rem = remote_for(p)
     for item in plan:
-        clear = " ".join(f"{p.remote_root}/status/{item['id']}.{s}" for s in stages[item["from_stage"] - 1:])
+        clear = " ".join(f"{p.remote_root}/status/{item['id']}.{st}" for st in stages[item["from_stage"] - 1:])
         rem.run(f"rm -f {clear}")
-        prev = None
-        for sdir, cmd in qsub_commands(p, item["from_stage"], item["task"]):
-            out = rem.run(cmd.replace("{prev}", str(prev)) if prev else cmd)
-            m = re.search(r"^(\d+)", out.strip().splitlines()[-1] if out.strip() else "")
-            if not m:
-                raise ClusterError(f"retry qsub for {item['id']} {sdir} gave no job id: {out!r}")
-            prev = m.group(1)
-        item["job"] = prev
+    jobs = _run_chain(rem, p, plan_lines(p, [(i["task"], i["from_stage"]) for i in plan]), "retry_plan.txt")
+    for item in plan:
+        item["jobs"] = jobs.get(str(item["task"]), {})
     return plan
 
 

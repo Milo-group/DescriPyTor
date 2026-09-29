@@ -3,7 +3,7 @@
 `descripytor pipeline` takes a CSV of SMILES and does five things:
 
 1. builds starting geometries with a fixed atom numbering;
-2. writes one SGE array script per stage (ORCA GOAT, UMA, GFN2-xTB, ORCA DFT, Gaussian);
+2. writes one SGE job script per stage (ORCA GOAT, UMA, GFN2-xTB, ORCA DFT, Gaussian);
 3. uploads the run;
 4. chains the stages so each molecule moves on the moment its previous step ends;
 5. reports status, retries failures and fetches the results.
@@ -86,15 +86,19 @@ Ids are `m001`, `m002`, … unless the CSV has an `id_column`.
 
 ## Stages
 
-Every stage is one SGE array over the molecules. Task *i* of stage *k* waits only for task *i* of
-stage *k−1* (`qsub -hold_jid_ad`), so nothing polls. Every task does the same checks:
+Every molecule's stages are separate SGE jobs, each held on that molecule's previous stage
+(`qsub -hold_jid`), so nothing polls and one slow molecule never holds up another. The molecule
+reaches the script as `-v PIPE_TASK=<line in ids.txt>`. The BGU cluster runs N1GE 6.0u8, which
+has no `-terse`, no per-task `-hold_jid_ad`, and rejects `qsub -t`, so the chain is built by
+`submit_chain.sh` from a plan file. `jobs.json` records every job id. Every job does the same
+checks:
 
 - it reads the previous stage's `out/<id>.xyz`;
 - it refuses the input if the element order differs from the manifest;
 - it runs in node scratch, falling back to `$TMPDIR`;
 - it writes `status/<id>.<stage>`: `running`, `done`, or `failed: <reason>`.
 
-A task that is already `done` exits at once.
+A job whose molecule is already `done` at that stage exits at once.
 
 | kind | does | output | options (defaults) |
 |---|---|---|---|
@@ -111,15 +115,16 @@ All stages also take `cores` and `resources` (a list of extra `#$ -l` lines, e.g
 
 - **On the cluster:** only bash on the login node (`status.sh`, `qsub`); UMA and xTB run on the
   compute nodes inside the jobs.
-- **Transfers:** base64 over ssh, because a login banner corrupts scp. Uploads go in 20,000-character
-  chunks and are checked by md5.
+- **Transfers:** base64 over ssh, because a login banner corrupts scp. The tcsh login shell
+  swallows ssh's standard input and rejects any command-line word over about 8,000 characters, so
+  an upload goes as 4,000-character parts in numbered files, joined remotely and checked by md5.
 - **`watch`** is a loop on your machine; if the machine sleeps, run `status` later instead.
 
 ## Remote layout
 
 ```
 <root>/<name>/
-  protocol.json  manifest.json  ids.txt  jobs.json  status.sh
+  protocol.json  manifest.json  ids.txt  jobs.json  plan.txt  status.sh  submit_chain.sh
   build/<id>.xyz   elements/<id>.elements   status/<id>.<stage>
   s1_goat/  run.sh  logs/  work/<id>.out  out/<id>.xyz
   s2_uma/   run.sh  uma_one.py  logs/  work/  out/

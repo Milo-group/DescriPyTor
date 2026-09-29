@@ -69,7 +69,7 @@ def test_every_stage_script_renders_and_targets_the_queue(tmp_path):
     for name, text in files.items():
         assert "@@" not in text
         if name.endswith("run.sh"):
-            assert "#$ -q fairshare.q" in text and "#$ -t 1-7" in text
+            assert "#$ -q fairshare.q" in text and "#$ -t" not in text and "PIPE_TASK" in text
     assert "/s1_goat/out/$NAME.xyz" in files["s2_uma/run.sh"]            # stage 2 reads stage 1
     assert "/build/$NAME.xyz" in files["s1_goat/run.sh"]
     if shutil.which("bash"):
@@ -79,16 +79,34 @@ def test_every_stage_script_renders_and_targets_the_queue(tmp_path):
                 assert r.returncode == 0, (name, r.stderr.decode())
 
 
-def test_submit_dry_run_chains_each_stage_on_the_one_before(tmp_path):
+def test_submit_dry_run_plans_every_molecule_through_every_stage(tmp_path):
     p = _protocol(tmp_path, ["PMe3,CP(C)C", "PPh3,P(c1ccccc1)(c1ccccc1)c1ccccc1"])
     pl.build_all(p)
     out = pl.submit(p, dry_run=True)
-    assert out["n"] == 2
-    c = out["commands"]
-    assert "-hold_jid_ad" not in c[0] and all("-hold_jid_ad {prev}" in x for x in c[1:])
-    assert (Path(out["local"]) / "s1_goat" / "run.sh").exists()
-    one = pl.qsub_commands(p, first_stage=2, task=2)
-    assert one[0][1].startswith("qsub -terse -t 2-2 ") and "-hold_jid_ad" not in one[0][1]
+    assert out["n"] == 2 and out["plan"] == ["1 s1_goat s2_uma s3_xtb", "2 s1_goat s2_uma s3_xtb"]
+    chain = (Path(out["local"]) / "submit_chain.sh").read_text()
+    qsub_line = next(l for l in chain.splitlines() if "out=$(qsub" in l)
+    assert '-hold_jid "$prev"' in qsub_line and '-v PIPE_TASK="$t"' in qsub_line
+    assert "-hold_jid_ad" not in qsub_line and "-terse" not in qsub_line and " -t " not in qsub_line
+    assert pl.plan_lines(p, [(2, 2)]) == "2 s2_uma s3_xtb\n"
+
+
+def test_submit_chain_script_reads_sge6_output(tmp_path):
+    """submit_chain.sh against a fake qsub that answers the way SGE 6 does."""
+    if not shutil.which("bash"):
+        pytest.skip("no bash")
+    p = _protocol(tmp_path, ["PMe3,CP(C)C"])
+    chain = pl.render_all(p, 1)["submit_chain.sh"]
+    fake = ('qsub() { n=$(( $(cat counter 2>/dev/null || echo 100) + 1 )); echo $n > counter; '
+            'echo "$*" >> args; echo "Your job-array $n.1-1:1 (\\"x\\") has been submitted"; }\n')
+    script = fake + chain.replace('done < "$1"', "done <<'PLAN'\n1 s1_goat s2_uma s3_xtb\nPLAN")
+    r = subprocess.run(["bash"], input=script.encode(), capture_output=True, cwd=tmp_path)
+    out = r.stdout.decode()
+    assert r.returncode == 0 and out.split().count("JOB") == 3, out + r.stderr.decode()
+    args = (tmp_path / "args").read_text().splitlines()
+    assert "-hold_jid" not in args[0] and "-hold_jid 101" in args[1] and "-hold_jid 102" in args[2]
+    assert all("PIPE_TASK=1" in a for a in args)
+    assert "JOB 1 s1_goat 101" in out and "JOB 1 s3_xtb 103" in out
 
 
 def test_protocol_rejects_bad_input(tmp_path):
