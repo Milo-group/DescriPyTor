@@ -2,7 +2,8 @@
 
 From Gaussian output to a validated model, three ways: the command line, Python, and the
 browser. Then every option the steps take. Atom numbers are **1-based** everywhere, as in
-Gaussian.
+Gaussian. What to decide and check at each step, before trusting a table:
+[EXTRACTION_PROTOCOL.md](EXTRACTION_PROTOCOL.md).
 
 - [1. Install](#1-install)
 - [2. The workflow on the command line](#2-the-workflow-on-the-command-line)
