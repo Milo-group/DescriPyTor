@@ -1,0 +1,27 @@
+{
+  "name": "example_phosphines",
+  "molecules": "phosphines.csv",
+  "smiles_column": "smiles",
+  "name_column": "ligand",
+  "charge": 0,
+  "multiplicity": 1,
+  "build": {"type": "metal_mono", "metal": "Ni", "donor_smarts": "[PX3]", "metal_distance": 2.2,
+            "n_conformers": 10, "seed": 0},
+  "stages": [
+    {"kind": "goat", "cores": 8},
+    {"kind": "uma", "cores": 8},
+    {"kind": "xtb", "cores": 4}
+  ],
+  "cluster": {
+    "host": "edenspec@hpcgate.bgu.ac.il",
+    "key": "~/.ssh/id_ed25519",
+    "root": "/gpfs0/gaus/users/edenspec/Computations/pipelines",
+    "queue": "fairshare.q",
+    "scratch": "/local/gaus",
+    "orca": "/gpfs0/gaus/projects/orca_6_0_1",
+    "mpi": "/gpfs0/system/openmpi-4.1.3",
+    "g16root": "/gpfs0/gaus/projects/G16C",
+    "uma_env": "/gpfs0/gaus/users/edenspec/local_enviroment/UmaVib",
+    "hf_token_file": "/gpfs0/gaus/users/edenspec/hugging_face_token/uma_token.txt"
+  }
+}

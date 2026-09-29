@@ -21,6 +21,7 @@ Modeled after the R package *MoleculaR* ([docs](https://barkais.github.io/)).
 - [**Visual start guide**](docs/visual-guide.md)
 - [**Workflow and every option** — logs → features → model → validation](docs/WORKFLOW.md)
 - [**Extraction protocol** — what to decide and check at each step](docs/EXTRACTION_PROTOCOL.md)
+- [**Cluster pipeline** — SMILES → GOAT / UMA / xTB / ORCA / Gaussian, chained on SGE](docs/PIPELINE.md)
 - [The three ways to use it](#the-three-ways-to-use-it)
 - [Feature extraction](#feature-extraction)
   - [Descriptor families](#descriptor-families)

@@ -1691,6 +1691,37 @@ def interactive_modeling(csv_path):
     model_bool=input("Do you want to model the data? (yes/no): ").strip().lower()
 
 
+def run_pipeline(args):
+    import json as _json
+    from M1_pre_calculations import pipeline as pl
+
+    p = pl.load(args.protocol)
+    if args.action == "build":
+        rows = pl.build_all(p, strict=not args.keep_going)
+        for r in rows:
+            print(f"{r['id']:>8}  {r['status']:<8} {r.get('n_atoms', ''):>4}  {r.get('formula', '')}  {r['name']}")
+        print(f"built {sum(r['status'] == 'built' for r in rows)} of {len(rows)} into {p.workdir}")
+    elif args.action == "submit":
+        print(_json.dumps(pl.submit(p, dry_run=args.dry_run, force=args.force), indent=2))
+    elif args.action == "status":
+        rows, queue = pl.status(p)
+        stages = p.stage_dirs()
+        print("	".join(["id"] + stages))
+        for r in rows:
+            print("	".join([r["id"]] + [r.get(s, "") for s in stages]))
+        for s, c in pl.summarize(p, rows).items():
+            print(f"{s}: {c}")
+        print("queue:", queue or "empty")
+    elif args.action == "retry":
+        plan = pl.retry(p, dry_run=args.dry_run)
+        print(_json.dumps(plan, indent=2) if plan else "nothing to retry")
+    elif args.action == "watch":
+        print(pl.watch(p, interval=args.interval))
+    elif args.action == "fetch":
+        print("fetched into", pl.fetch(p, all_stages=args.all_stages))
+    return 0
+
+
 def main():
     # A Windows console with a legacy code page (cp1252, cp1255, ...) cannot print every
     # character a report may contain; replace those instead of stopping the run.
@@ -1719,6 +1750,15 @@ def main():
     conver_parser = subparsers.add_parser("logs_to_feather", help="Convert log files to feather files")
     cube_parser = subparsers.add_parser("cube", help="Calculates cube sterimol from cube files")
     sterimol_parser = subparsers.add_parser("sterimol", help="Calculate sterimol values from xyz files")
+    pipeline_parser = subparsers.add_parser(
+        "pipeline", help="SMILES -> structures -> chained cluster stages (GOAT/UMA/xTB/ORCA/Gaussian)")
+    pipeline_parser.add_argument("action", choices=["build", "submit", "status", "retry", "watch", "fetch"])
+    pipeline_parser.add_argument("protocol", help="Protocol JSON (see docs/PIPELINE.md)")
+    pipeline_parser.add_argument("--dry-run", action="store_true", help="submit/retry: show what would be sent, send nothing")
+    pipeline_parser.add_argument("--force", action="store_true", help="submit: overwrite a run already on the cluster")
+    pipeline_parser.add_argument("--keep-going", action="store_true", help="build: skip molecules that fail to build")
+    pipeline_parser.add_argument("--interval", type=int, default=600, help="watch: seconds between reports")
+    pipeline_parser.add_argument("--all-stages", action="store_true", help="fetch: every stage's outputs, not only the last")
 
     
     model_parser.add_argument("-m", "--mode", choices=["regression", "classification"], required=True,
@@ -1739,6 +1779,8 @@ def main():
     feature_extraction.add_argument("-f", "--feather_directory", default=".", help="Directory of feather files set to extract features from.")
 
     args = parser.parse_args()
+    if args.command == "pipeline":
+        return run_pipeline(args)
     if args.command == "visual":
         run_visual_app(
             host=args.host,

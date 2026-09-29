@@ -93,6 +93,8 @@ exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*", "tests*"
 "M2_data_extractor.theta_explorer" = ["*.js", "*.html", "*.json", "fixtures/*", "rdkit/*"]
 # the vibration-mode viewer, served at /modes
 "utils" = ["*.html"]
+# example protocol for the cluster pipeline
+"M1_pre_calculations.pipeline" = ["examples/*.json", "examples/*.csv"]
 "descripytor.examples" = [
     "*.json",
     "feather_example/*.feather",

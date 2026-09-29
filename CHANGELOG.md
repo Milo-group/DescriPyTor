@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Cluster pipeline** (`descripytor pipeline`, `M1_pre_calculations/pipeline/`, [docs/PIPELINE.md](docs/PIPELINE.md)):
+  SMILES → numbered starting geometries (organic with a fixed core numbering, one metal on one
+  donor, or a chelate with ancillaries in `MetalComplex` order) → chained SGE array stages
+  (ORCA GOAT, UMA, GFN2-xTB, ORCA DFT, Gaussian) with per-molecule dependencies, status, retry,
+  watch and fetch. Driven by one protocol JSON.
+- [docs/EXTRACTION_PROTOCOL.md](docs/EXTRACTION_PROTOCOL.md): what to decide and check from
+  structures to a feature table.
+
 ## 0.2.1 — 2026-09-28
 
 Metal-complex (`MetalComplex`) values change; nothing else does. `descripytor.compat.paper_v3()`
