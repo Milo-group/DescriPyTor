@@ -30,6 +30,7 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdMolDescriptors
 
+from .checks import write_refs
 from .protocol import Protocol
 
 # M-donor and M-ancillary distances, as in build_general.py
@@ -347,6 +348,7 @@ def build_all(p: Protocol, strict: bool = True) -> list[dict]:
             continue
         write_xyz(wd / "build" / f"{m['id']}.xyz", r["symbols"], r["coords"], f"{m['id']} {m['name']}")
         (wd / "elements" / f"{m['id']}.elements").write_text(" ".join(r["symbols"]) + "\n", encoding="utf-8", newline="\n")
+        write_refs(wd, m["id"], r["symbols"], r["coords"], r["key"].get("donor_1based", ()), r["key"].get("ancillary_1based", ()))
         formula = rdMolDescriptors.CalcMolFormula(r["mol"]) + ("" if p.build["type"] == "organic" else f" + {p.build['metal']}")
         rows.append(dict(m, status="built", n_atoms=len(r["symbols"]), formula=formula, conformer=r["conformer"], **r["key"]))
     built = [r["id"] for r in rows if r["status"] == "built"]

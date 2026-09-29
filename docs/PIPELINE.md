@@ -17,7 +17,8 @@ descripytor pipeline submit  protocol.json --dry-run  # render the scripts, show
 descripytor pipeline submit  protocol.json            # upload, submit every stage at once
 descripytor pipeline status  protocol.json            # one row per molecule, one column per stage
 descripytor pipeline watch   protocol.json            # report every 10 min until finished
-descripytor pipeline retry   protocol.json            # resubmit each molecule from its first failed stage
+descripytor pipeline retry   protocol.json            # resubmit transient failures from their first failed stage
+descripytor pipeline reset   protocol.json --only m001,m006 --from-stage 2   # forget markers, to run those stages again
 descripytor pipeline fetch   protocol.json            # last stage's outputs -> <name>_pipeline/fetched/
 descripytor pipeline adopt   protocol.json --stage 1 --sources sources.csv   # outside results as a finished stage
 descripytor pipeline submit  protocol.json --from-stage 2 --only-adopted     # continue from the next stage
@@ -112,6 +113,29 @@ A job whose molecule is already `done` at that stage exits at once.
 
 All stages also take `cores` and `resources` (a list of extra `#$ -l` lines, e.g.
 `["h_vmem=4G"]`). The queue is `cluster.queue`, the same for every stage.
+
+## Checks: what makes a stage fail
+
+A stage is `done` only when every one of these checks passes. When one fails, the output is
+moved to `out/rejected/` and the next stage cannot start: each stage requires the molecule's
+previous stage to be marked `done`, not just an output file to exist.
+
+| check | stages | fails when |
+|---|---|---|
+| program errors | GOAT, ORCA | "aborting the run", "error termination", no "ORCA TERMINATED NORMALLY"; ORCA also fails on an optimisation or SCF that did not converge |
+| | xTB | "abnormal termination", "failed to converge", `#ERROR`, "convergence criteria cannot be satisfied", no "normal termination of xtb", an optimisation that did not converge |
+| | UMA | a Python error, or the step limit reached without convergence (`allow_unconverged: true` turns this into a warning) |
+| | Gaussian | "Error termination", or no "Normal termination" at the end of the log |
+| imaginary frequencies | xTB (`hess`, on by default: `--ohess`), ORCA and Gaussian frequency jobs | any mode below −`imag_tol` (default 20 cm⁻¹). Smaller ones are logged as warnings. xTB first restarts `imag_retry` times (default 1) from its geometry displaced along the mode (`xtbhess.xyz`), the usual cure for a saddle point. |
+| structure | every stage that writes an xyz, and `adopt` | a non-metal bond broken or formed relative to the build (package bond rule: 1.15 × Pyykkö radii); two atoms closer than 0.6 × their radii sum; a donor or ancillary more than 1.25 × (r_M + r_X) from the metal; a chelate bite outside 65–105° |
+
+Warnings don't stop a molecule. They go to `checks/<id>.<stage>`, show as `done*` in `status`, and
+`status` lists them. Examples: a new metal contact such as an arene or agostic interaction, a GOAT
+worker that did not converge, an imaginary mode removed by a restart.
+
+**Retrying:** `retry` resubmits transient failures only, such as a killed job or a node problem.
+A rejected structure, imaginary frequencies or an unconverged UMA run would repeat with the same
+input, so those need a change first. `retry --all` resubmits them anyway.
 
 ## Adopting finished outside results
 

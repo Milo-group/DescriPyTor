@@ -47,6 +47,15 @@ while IFS=$'\t' read -r id src; do
   got=$(awk 'NR>2 && NF>=4 {print $1}' "$tmp" | xargs)
   want=$(xargs < "$ROOT/elements/$id.elements")
   if [ "$got" != "$want" ]; then echo "FAILED $id elements"; echo "failed: adopted structure has the wrong element order" > "$mark"; rm -f "$tmp"; continue; fi
+  chk=$(awk -v ref="$ROOT/refs/$id.bonds" -v donors="$(cat "$ROOT/refs/$id.donors" 2>/dev/null)" \
+      -v anc="$(cat "$ROOT/refs/$id.anc" 2>/dev/null)" -f "$ROOT/check_structure.awk" "$tmp")
+  mkdir -p "$ROOT/checks"
+  printf '%s\n' "$chk" | grep -E '^(WARN|FAIL)' > "$ROOT/checks/$id.$STAGE" || rm -f "$ROOT/checks/$id.$STAGE"
+  if printf '%s\n' "$chk" | grep -q '^FAIL'; then
+    mkdir -p "$ROOT/$STAGE/out/rejected"; mv "$tmp" "$ROOT/$STAGE/out/rejected/$id.xyz"
+    echo "failed: structure: $(printf '%s\n' "$chk" | grep '^FAIL' | head -n 3 | cut -c6- | paste -sd ';' -)" > "$mark"
+    echo "FAILED $id structure"; continue
+  fi
   mv "$tmp" "$ROOT/$STAGE/out/$id.xyz"
   echo done > "$mark"
   echo "ADOPTED $id"
@@ -101,7 +110,7 @@ def adopt(p: Protocol, stage: int, sources: list[dict]) -> dict:
         f = tree / name
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(text, encoding="utf-8", newline="\n")
-    for sub in ("build", "elements"):
+    for sub in ("build", "elements", "refs"):
         (tree / sub).mkdir(exist_ok=True)
         for f in (p.workdir / sub).glob("*"):
             (tree / sub / f.name).write_bytes(f.read_bytes())

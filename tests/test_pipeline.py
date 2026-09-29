@@ -1,5 +1,6 @@
 """The cluster pipeline without a cluster: numbering, metal placement, stage scripts, the job chain."""
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -154,3 +155,121 @@ def test_adopt_script_reorders_and_checks_elements(tmp_path):
     got = (root / "s1_goat" / "out" / "m001.xyz").read_text().splitlines()[2:5]
     assert [l.split()[0] for l in got] == ["Ni", "P", "C"]
     assert (root / "status" / "m001.s1_goat").read_text().strip() == "done"
+
+
+# ---------------------------------------------------------------- structure and frequency checks
+def _bash_path(path):
+    """The folder as the first bash on PATH sees it (Git Bash: /c/..., WSL: /mnt/c/...)."""
+    return subprocess.run(["bash"], input=b"pwd" + bytes([10]), capture_output=True, cwd=path).stdout.decode().strip()
+
+
+def _run_check(tmp_path, p, mid, sym, X):
+    from M1_pre_calculations.pipeline.checks import check_awk
+    f = tmp_path / "probe.xyz"
+    f.write_bytes((f"{len(sym)}\nprobe\n" + "".join(f"{s} {x:.6f} {y:.6f} {z:.6f}\n" for s, (x, y, z) in zip(sym, X))).encode())
+    (tmp_path / "check.awk").write_bytes(check_awk().encode())
+    for ext in ("bonds", "donors", "anc"):
+        (tmp_path / f"ref.{ext}").write_bytes((p.workdir / "refs" / f"{mid}.{ext}").read_bytes())
+    cmd = b'awk -v ref=ref.bonds -v donors="$(cat ref.donors)" -v anc="$(cat ref.anc)" -f check.awk probe.xyz' + bytes([10])
+    r = subprocess.run(["bash"], input=cmd, capture_output=True, cwd=tmp_path)     # stdin: no Windows quoting
+    assert not r.stderr, r.stderr.decode()
+    return r.stdout.decode().splitlines()
+
+
+def test_structure_check_passes_the_build_and_catches_each_fault(tmp_path):
+    if not shutil.which("bash"):
+        pytest.skip("no bash")
+    p = _protocol(tmp_path, ["PMe3,CP(C)C"])
+    pl.build_all(p)
+    sym, X = _xyz(p.workdir / "build" / "m001.xyz")
+    assert _run_check(tmp_path, p, "m001", sym, X) == []                      # awk agrees with the python rule
+    c = next(i for i, s in enumerate(sym) if s == "C")
+    far = X.copy(); far[1] = X[0] + (X[1] - X[0]) * 1.8                         # P pulled 4 A off the Ni
+    assert any("donor P2" in l and l.startswith("FAIL") for l in _run_check(tmp_path, p, "m001", sym, far))
+    broken = X.copy(); broken[c] = X[c] + (X[c] - X[1]) * 1.5                   # a P-C bond stretched
+    assert any(l.startswith("FAIL broken bond") for l in _run_check(tmp_path, p, "m001", sym, broken))
+    clash = X.copy(); clash[c] = X[c + 1] + 0.1                                 # two atoms on top of each other
+    assert any("apart" in l and l.startswith("FAIL") for l in _run_check(tmp_path, p, "m001", sym, clash))
+
+
+def test_structure_check_flags_a_bad_bite_and_warns_on_a_contact(tmp_path):
+    if not shutil.which("bash"):
+        pytest.skip("no bash")
+    p = _protocol(tmp_path, ["bipy,c1ccc(nc1)-c1ccccn1"],
+                  build={"type": "metal_chelate", "metal": "Ni", "ancillary": "H", "n_ancillary": 2})
+    pl.build_all(p)
+    sym, X = _xyz(p.workdir / "build" / "m001.xyz")
+    assert _run_check(tmp_path, p, "m001", sym, X) == []
+    lost_h = X.copy(); lost_h[1] = X[0] + (X[1] - X[0]) * 3                     # a hydride left the metal
+    assert any("ancillary H2" in l for l in _run_check(tmp_path, p, "m001", sym, lost_h))
+    extra = np.vstack([X, X[0] + np.array([0.0, 0.0, 2.0])])                     # a carbon parked on the metal
+    ref = p.workdir / "refs"
+    out = _run_check(tmp_path, p, "m001", sym + ["C"], extra)
+    assert any(l.startswith("WARN metal contact C") for l in out)
+
+
+def test_xtb_stage_restarts_once_along_an_imaginary_mode(tmp_path):
+    """The whole xtb run.sh against a fake otool_xtb: the first Hessian has a -85 cm-1 mode and
+    writes xtbhess.xyz; the restart is clean. The stage must end done, with a warning."""
+    if not shutil.which("bash"):
+        pytest.skip("no bash")
+    fake = tmp_path / "orca"
+    fake.mkdir()
+    (fake / "otool_xtb").write_bytes(b"""#!/bin/bash
+in=$1; mode=$2
+if [ "$mode" = "--sp" ]; then
+  printf 'molecular dipole:\n full:  0.1 0.2 0.3 0.4\n  -8.1 (HOMO)\n -6.2 (LUMO)\n normal termination of xtb\n'
+  echo "q" > charges; echo "w" > wbo; exit 0
+fi
+cp "$in" xtbopt.xyz
+printf ' *** GEOMETRY OPTIMIZATION CONVERGED AFTER 5 ITERATIONS ***\n normal termination of xtb\n'
+n=$(cat "$CALLS" 2>/dev/null || echo 0); echo $((n+1)) > "$CALLS"
+if [ "$n" -eq 0 ]; then f=-85.0; cp "$in" xtbhess.xyz; else f=45.0; fi
+printf '$vibrational spectrum\n#  mode  symmetry  wave number  IR intensity  selection rules\n     1             -0.00    0.00000    -    -\n     7      a     %s    0.1    YES    YES\n$end\n' "$f" > vibspectrum
+""")
+    stages = [{"kind": "xtb", "cores": 1}]
+    p = _protocol(tmp_path, ["PMe3,CP(C)C"], stages=stages)
+    bt = _bash_path(tmp_path)
+    raw = json.loads(p.path.read_text())
+    raw["cluster"].update(root=f"{bt}/remote_root", orca=f"{bt}/orca", scratch=f"{bt}/scr")
+    p.path.write_text(json.dumps(raw)); p = pl.load(p.path)
+    pl.build_all(p)
+    run = tmp_path / "remote_root" / p.name
+    files = pl.render_all(p, 1)
+    for sub in ("build", "elements", "refs"):
+        (run / sub).mkdir(parents=True, exist_ok=True)
+        for f in (p.workdir / sub).glob("*"):
+            (run / sub / f.name).write_bytes(f.read_bytes())
+    (run / "ids.txt").write_bytes(b"m001\n")
+    for name, text in files.items():
+        (run / name).parent.mkdir(parents=True, exist_ok=True)
+        (run / name).write_bytes(text.encode())
+    script = f"export PIPE_TASK=1 JOB_ID=7 USER=t CALLS; chmod +x {bt}/orca/otool_xtb; cd {bt}/remote_root/{p.name}; CALLS=$PWD/.calls bash s1_xtb/run.sh"
+    r = subprocess.run(["bash"], input=script.encode(), capture_output=True, cwd=tmp_path)
+    log = r.stdout.decode() + r.stderr.decode()
+    assert (run / "status" / "m001.s1_xtb").read_text().strip() == "done", log
+    assert "restart 1 from xtbhess.xyz" in log
+    assert "imaginary frequency removed" in (run / "checks" / "m001.s1_xtb").read_text()
+    assert (run / "s1_xtb" / "out" / "m001.props").read_text().split()[-2:] == ["-8.1", "-6.2"]
+
+
+def test_orca_and_gaussian_imaginary_checks_use_the_tolerance(tmp_path):
+    """The imag=$(awk ...) lines of the rendered scripts, run on sample output: -12 cm-1 is under
+    the 20 cm-1 tolerance, -85 and -312 are not."""
+    if not shutil.which("bash"):
+        pytest.skip("no bash")
+    stages = [{"kind": "orca"}, {"kind": "gaussian", "route": "#p hf/sto-3g freq"}]
+    files = pl.render_all(_protocol(tmp_path, ["PMe3,CP(C)C"], stages=stages), 1)
+    samples = {
+        "s1_orca/run.sh": ("VIBRATIONAL FREQUENCIES\n   6:     -12.10 cm**-1 ***imaginary mode***\n"
+                           "   7:     -85.40 cm**-1 ***imaginary mode***\n   8:      55.00 cm**-1\n"),
+        "s2_gaussian/run.sh": (" Frequencies --   -312.1480    -12.0000     45.2000\n"
+                               " Frequencies --     88.1000    120.0000    150.0000\n"),
+    }
+    for name, text in samples.items():
+        line = next(l for l in files[name].splitlines() if l.startswith("imag=$(awk"))
+        (tmp_path / "sample.out").write_bytes(text.encode())
+        cmd = line.replace('"$WORK/$NAME.out"', "sample.out").replace('"$OUT/$NAME.log"', "sample.out") + '; echo "[$imag]"'
+        r = subprocess.run(["bash"], input=cmd.encode(), capture_output=True, cwd=tmp_path)
+        r.stdout, r.stderr = r.stdout.decode(), r.stderr.decode()
+        assert r.stdout.strip() == ("[-85.40 ]" if "orca" in name else "[-312.1480 ]"), (name, r.stdout, r.stderr)

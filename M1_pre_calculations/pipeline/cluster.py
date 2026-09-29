@@ -151,7 +151,7 @@ def submit(p: Protocol, dry_run: bool = False, force: bool = False, from_stage: 
         f = stage_dir / name
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(text, encoding="utf-8", newline="\n")
-    for sub in ("build", "elements"):
+    for sub in ("build", "elements", "refs"):
         for f in (p.workdir / sub).glob("*"):
             (stage_dir / sub).mkdir(exist_ok=True)
             (stage_dir / sub / f.name).write_bytes(f.read_bytes())
@@ -189,14 +189,15 @@ def submit(p: Protocol, dry_run: bool = False, force: bool = False, from_stage: 
     return record
 
 
-def status(p: Protocol) -> tuple[list[dict], str]:
-    """Rows {id, <stage>: marker} and the queue summary."""
+def status(p: Protocol) -> tuple[list[dict], str, str]:
+    """Rows {id, <stage>: marker}, the queue summary, and the checks (warnings and failures)."""
     out = remote_for(p).run(f"bash {p.remote_root}/status.sh")
-    table, _, queue = out.partition("== queue")
+    table, _, rest = out.partition("== checks")
+    checks, _, queue = rest.partition("== queue")
     lines = [l for l in table.strip().splitlines() if l.strip()]
     head = lines[0].split("\t")
     rows = [dict(zip(head, l.split("\t"))) for l in lines[1:]]
-    return rows, queue.strip()
+    return rows, queue.strip(), checks.strip()
 
 
 def summarize(p: Protocol, rows: list[dict]) -> dict:
@@ -205,16 +206,21 @@ def summarize(p: Protocol, rows: list[dict]) -> dict:
         c = {}
         for r in rows:
             v = r.get(s, "waiting")
-            v = "failed" if v.startswith("failed") else v
+            v = "failed" if v.startswith("failed") else ("done" if v == "done*" else v)
             c[v] = c.get(v, 0) + 1
         out[s] = c
     return out
 
 
-def retry(p: Protocol, dry_run: bool = False) -> list[dict]:
+DETERMINISTIC = ("structure:", "imaginary", "UMA did not converge", "element order")
+
+
+def retry(p: Protocol, dry_run: bool = False, all_failures: bool = False) -> list[dict]:
     """Resubmit every molecule from its first failed stage onwards. A stage left 'running' with
-    none of this pipeline's jobs in the queue (a killed task) counts as failed."""
-    rows, queue = status(p)
+    none of this pipeline's jobs in the queue (a killed task) counts as failed. Failures that the
+    same input would repeat (a rejected structure, imaginary frequencies, an unconverged UMA run)
+    are left alone unless ``all_failures``: fix the cause first."""
+    rows, queue, _ = status(p)
     idle = not queue.strip()
     ids = _ids(p)
     stages = p.stage_dirs()
@@ -223,7 +229,8 @@ def retry(p: Protocol, dry_run: bool = False) -> list[dict]:
         for k, s in enumerate(stages, 1):
             v = r.get(s, "waiting")
             if v.startswith("failed") or (idle and v == "running"):
-                plan.append(dict(id=r["id"], task=ids.index(r["id"]) + 1, from_stage=k, reason=v))
+                if all_failures or not any(t in v for t in DETERMINISTIC):
+                    plan.append(dict(id=r["id"], task=ids.index(r["id"]) + 1, from_stage=k, reason=v))
                 break
     if dry_run or not plan:
         return plan
@@ -237,14 +244,33 @@ def retry(p: Protocol, dry_run: bool = False) -> list[dict]:
     return plan
 
 
+def reset(p: Protocol, ids: list[str], from_stage: int) -> None:
+    """Forget the markers and checks of ``ids`` from stage ``from_stage`` on, so those stages run
+    again (outputs are overwritten when they do). For re-running under changed scripts or settings."""
+    known = set(_ids(p))
+    if set(ids) - known:
+        raise ClusterError(f"not molecules of this run: {sorted(set(ids) - known)}")
+    stages = p.stage_dirs()[from_stage - 1:]
+    paths = [f"{p.remote_root}/{d}/{i}.{s}" for i in ids for s in stages for d in ("status", "checks")]
+    remote_for(p).run("rm -f " + " ".join(paths))
+    rec = p.workdir / "jobs.json"
+    if rec.exists():
+        record = json.loads(rec.read_text(encoding="utf-8"))
+        order = _ids(p)
+        for i in ids:
+            for s in stages:
+                record["jobs"].get(str(order.index(i) + 1), {}).pop(s, None)
+        rec.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+
+
 def watch(p: Protocol, interval: int = 600, echo=print) -> dict:
     """Report every ``interval`` seconds until every molecule is done or failed at some stage."""
     last = p.stage_dirs()[-1]
     while True:
-        rows, queue = status(p)
+        rows, queue, _ = status(p)
         summary = summarize(p, rows)
         echo(time.strftime("%H:%M ") + "  ".join(f"{s} {c}" for s, c in summary.items()))
-        finished = all(r.get(last) == "done" or any(r.get(s, "").startswith("failed") for s in p.stage_dirs()) for r in rows)
+        finished = all(r.get(last, "").startswith("done") or any(r.get(s, "").startswith("failed") for s in p.stage_dirs()) for r in rows)
         if finished and not queue.strip():
             return summary
         time.sleep(interval)

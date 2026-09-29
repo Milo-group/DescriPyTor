@@ -1712,17 +1712,25 @@ def run_pipeline(args):
             only = f.read_text(encoding="utf-8").split() if f.exists() else []
         print(_json.dumps(pl.submit(p, dry_run=args.dry_run, force=args.force, from_stage=args.from_stage, only=only), indent=2))
     elif args.action == "status":
-        rows, queue = pl.status(p)
+        rows, queue, checks = pl.status(p)
         stages = p.stage_dirs()
         print("	".join(["id"] + stages))
         for r in rows:
             print("	".join([r["id"]] + [r.get(s, "") for s in stages]))
         for s, c in pl.summarize(p, rows).items():
             print(f"{s}: {c}")
+        if checks:
+            print("checks (done* = finished with warnings):")
+            print(checks)
         print("queue:", queue or "empty")
     elif args.action == "retry":
-        plan = pl.retry(p, dry_run=args.dry_run)
+        plan = pl.retry(p, dry_run=args.dry_run, all_failures=args.all)
         print(_json.dumps(plan, indent=2) if plan else "nothing to retry")
+    elif args.action == "reset":
+        if not args.only:
+            raise SystemExit("reset needs --only ids and --from-stage")
+        pl.reset(p, args.only.split(","), args.from_stage)
+        print("reset", args.only, "from stage", args.from_stage)
     elif args.action == "watch":
         print(pl.watch(p, interval=args.interval))
     elif args.action == "fetch":
@@ -1760,7 +1768,7 @@ def main():
     sterimol_parser = subparsers.add_parser("sterimol", help="Calculate sterimol values from xyz files")
     pipeline_parser = subparsers.add_parser(
         "pipeline", help="SMILES -> structures -> chained cluster stages (GOAT/UMA/xTB/ORCA/Gaussian)")
-    pipeline_parser.add_argument("action", choices=["build", "adopt", "submit", "status", "retry", "watch", "fetch"])
+    pipeline_parser.add_argument("action", choices=["build", "adopt", "submit", "status", "retry", "reset", "watch", "fetch"])
     pipeline_parser.add_argument("protocol", help="Protocol JSON (see docs/PIPELINE.md)")
     pipeline_parser.add_argument("--dry-run", action="store_true", help="submit/retry: show what would be sent, send nothing")
     pipeline_parser.add_argument("--force", action="store_true", help="submit: overwrite a run already on the cluster")
@@ -1772,6 +1780,7 @@ def main():
     pipeline_parser.add_argument("--from-stage", type=int, default=1, help="submit: first stage to submit (1-based)")
     pipeline_parser.add_argument("--only", default=None, help="submit: comma-separated ids to submit")
     pipeline_parser.add_argument("--only-adopted", action="store_true", help="submit: only the ids in adopted.txt")
+    pipeline_parser.add_argument("--all", action="store_true", help="retry: also failures the same input would repeat (structure, imaginary)")
 
     
     model_parser.add_argument("-m", "--mode", choices=["regression", "classification"], required=True,
