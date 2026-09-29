@@ -9,8 +9,9 @@ in awk (``CHECK_AWK``), runs on the cluster after each stage, with no python the
 - FAIL: two atoms closer than 0.6 x their radii sum, or a coordinate that is not a number;
 - FAIL: a donor or ancillary more than 1.25 x (r_M + r_X) from its metal (it came off);
 - FAIL: a chelate bite angle outside 65-105 deg;
-- WARN: a new metal contact (other than the donors) inside 1.25 x (r_M + r_X), e.g. an arene
-  or agostic contact: chemistry to look at, not an error.
+- WARN: a new metal contact (other than the donors and ancillaries): a heavy atom inside
+  1.25 x (r_M + r_X), e.g. an arene, or a hydrogen inside 1.6 x (r_M + r_H), an agostic C-H (Ni-H
+  2.27 A). Chemistry to look at, not an error; xtb metal_contacts="constrain" acts on it.
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ RADII = dict(GeneralConstants.PYYKKO_RADII.value)
 METALS = set(_METAL_ELEMENTS)
 CLASH = 0.6          # x radii sum: closer than this is two atoms on top of each other
 METAL_BOND = 1.25    # x radii sum: a metal-ligand bond / contact
+AGOSTIC = 1.6        # x radii sum: a metal...H-C contact (agostic Ni...H runs 1.8-2.3 A)
 BITE = (65.0, 105.0)
 
 
@@ -57,7 +59,7 @@ def check_awk() -> str:
     metals = " ".join(f"m[\"{k}\"]=1;" for k in sorted(METALS))
     return CHECK_AWK.replace("@@RADII@@", table).replace("@@METALS@@", metals) \
         .replace("@@SCALE@@", str(BOND_SCALE)).replace("@@CLASH@@", str(CLASH)) \
-        .replace("@@METALBOND@@", str(METAL_BOND)).replace("@@BITELO@@", str(BITE[0])).replace("@@BITEHI@@", str(BITE[1]))
+        .replace("@@METALBOND@@", str(METAL_BOND)).replace("@@AGOSTIC@@", str(AGOSTIC)).replace("@@BITELO@@", str(BITE[0])).replace("@@BITEHI@@", str(BITE[1]))
 
 
 # awk -v ref=refs/<id>.bonds -v donors="<i j>" -v anc="<k l>" -f check_structure.awk <xyz>
@@ -66,7 +68,7 @@ CHECK_AWK = r"""
 BEGIN {
   @@RADII@@
   @@METALS@@
-  scale = @@SCALE@@; clash = @@CLASH@@; mb = @@METALBOND@@
+  scale = @@SCALE@@; clash = @@CLASH@@; mb = @@METALBOND@@; ag = @@AGOSTIC@@
   while ((getline l < ref) > 0) { split(l, p, " "); refb[p[1] " " p[2]] = 1; nref++ }
   nd = split(donors, dn, " ")
   na = split(anc, an, " ")
@@ -109,9 +111,9 @@ END {
       bite = atan2(sqrt(1 - c*c), c) * 180 / 3.14159265358979
       if (bite < @@BITELO@@ || bite > @@BITEHI@@) print "FAIL bite angle " sprintf("%.1f", bite) " deg"
     }
-    for (i = 1; i <= n; i++) if (i != metal && !(i in isd) && !(i in isa) && !(s[i] in m) && s[i] != "H") {
-      d = dist(metal, i)
-      if (d < mb * (rad(s[metal]) + rad(s[i]))) print "WARN metal contact " s[i] i " at " sprintf("%.2f", d) " A"
+    for (i = 1; i <= n; i++) if (i != metal && !(i in isd) && !(i in isa) && !(s[i] in m)) {
+      d = dist(metal, i); f = (s[i] == "H") ? ag : mb
+      if (d < f * (rad(s[metal]) + rad(s[i]))) print "WARN metal contact " s[i] i " at " sprintf("%.2f", d) " A" (s[i] == "H" ? " (agostic)" : "")
     }
   }
 }

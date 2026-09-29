@@ -348,3 +348,15 @@ printf '$vibrational spectrum\n     1                      -0.00         0.00000
     cons = (run / "s1_xtb" / "work" / "m001.constrain.inp").read_text().splitlines()
     assert cons[0] == "$constrain" and sum(l.strip().startswith("angle: 1,2,") for l in cons) == 3, cons
     assert "restrained" in (run / "checks" / "m001.s1_xtb").read_text()
+
+
+def test_structure_check_flags_an_agostic_hydrogen(tmp_path):
+    if not shutil.which("bash"):
+        pytest.skip("no bash")
+    p = _protocol(tmp_path, ["PMe3,CP(C)C"])
+    pl.build_all(p)
+    sym, X = _xyz(p.workdir / "build" / "m001.xyz")
+    h = next(i for i, e in enumerate(sym) if e == "H")
+    ag = X.copy(); ag[h] = X[0] + (X[h] - X[0]) / np.linalg.norm(X[h] - X[0]) * 1.85   # a C-H pointing at Ni
+    out = _run_check(tmp_path, p, "m001", sym, ag)
+    assert any(l.startswith(f"WARN metal contact H{h + 1}") and "agostic" in l for l in out), out
