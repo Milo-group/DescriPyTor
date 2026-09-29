@@ -107,7 +107,7 @@ A job whose molecule is already `done` at that stage exits at once.
 |---|---|---|---|
 | `goat` | ORCA GOAT conformer search | lowest conformer; the ensemble in `work/` | `keywords` (`! GOAT XTB`), `maxcore` |
 | `uma` | FAIRChem UMA reoptimisation (LBFGS) | reoptimised xyz; the comment line says whether it converged | `fmax` (0.05), `steps` (300), `model` (`uma-s-1p1`), `task` (`omol`) |
-| `xtb` | GFN2-xTB optimisation (with the Hessian, `--ohess`), then a single point | xyz, `.q` charges, `.wbo`, `.props` (dipole, HOMO, LUMO), `.vibspectrum` in `work/` | `level` (`--gfn 2`), `opt_level` (xtb's `crude` … `vtight` … `extreme`; default xtb's `normal`), `hess` (true), `imag_tol` (20), `imag_retry` (1; 0 = never displace along a mode) |
+| `xtb` | GFN2-xTB optimisation (with the Hessian, `--ohess`), then a single point | xyz, `.q` charges, `.wbo`, `.props` (dipole, HOMO, LUMO), `.vibspectrum` in `work/` | `level` (`--gfn 2`), `opt_level` (xtb's `crude` … `vtight` … `extreme`; default xtb's `normal`), `hess` (true), `imag_tol` (20), `imag_retry` (1; 0 = never displace along a mode), `metal_contacts` (`allow`; `constrain`: when the free optimisation puts the metal on the ligand, e.g. Ni(0) side-on to an arene, re-optimise from the input with every M–D–X angle fixed at its input value, so the metal stays σ-bound on the donor axis; labelled in `checks/`) |
 | `orca` | any ORCA job; fails on imaginary frequencies | optimised xyz; `.out`, `.property.txt` and `.hess` in `work/` | `keywords` (`! r2SCAN-3c Opt Freq`), `maxcore` |
 | `gaussian` | Gaussian 16; must be the last stage | `out/<id>.log`, ready for `descripytor logs_to_feather` | `route` (**required**), `mem_gb` (32), `tail` (text after the coordinates) |
 

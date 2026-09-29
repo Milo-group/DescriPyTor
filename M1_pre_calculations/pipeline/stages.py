@@ -106,6 +106,17 @@ if [ -f "$NAME.xyz" ]; then cp "$NAME.xyz" "$OUT/$NAME.xyz"; else cp start.xyz "
 XTB_BODY = r"""export PATH="@@ORCA@@:$PATH" LD_LIBRARY_PATH="@@ORCA@@:@@ORCA@@/lib:${LD_LIBRARY_PATH:-}" XTBPATH="@@ORCA@@"
 export OMP_NUM_THREADS=@@CORES@@
 ERR="abnormal termination|failed to converge|#ERROR|convergence criteria cannot be satisfied"
+imag_modes() {  # imaginary wavenumbers beyond the tolerance in ./vibspectrum; fails when unreadable
+  # rows are "mode [symmetry] wavenumber intensity selection": the first decimal after the mode
+  local out
+  out=$(awk -v t=@@IMAG_TOL@@ '!/^[$#]/ && NF >= 4 {
+      f = ($2 ~ /^-?[0-9]+\.[0-9]+$/) ? $2 : $3
+      if (f !~ /^-?[0-9]+\.[0-9]+$/) { bad++; next }
+      n++; if (f + 0 < -t) printf "%s ", f
+    } END { if (n == 0 || bad) printf "UNREADABLE" }' vibspectrum)
+  case "$out" in *UNREADABLE*) fail "could not read the frequencies in vibspectrum";; esac
+  printf '%s' "$out"
+}
 xtb_ok() {  # $1 output file, $2 label
   grep -Eiq "$ERR" "$1" && fail "xtb $2: $(grep -Ei "$ERR" "$1" | head -n 1)"
   grep -q "normal termination of xtb" "$1" || fail "xtb $2 did not terminate normally"
@@ -123,13 +134,7 @@ while :; do
   if [ "@@XTBMODE@@" = "--ohess" ]; then
     [ -f vibspectrum ] || fail "no vibspectrum from --ohess"
     cp vibspectrum "$WORK/$NAME.vibspectrum"
-    # rows are "mode [symmetry] wavenumber intensity selection": the first decimal after the mode
-    imag=$(awk -v t=@@IMAG_TOL@@ '!/^[$#]/ && NF >= 4 {
-        f = ($2 ~ /^-?[0-9]+\.[0-9]+$/) ? $2 : $3
-        if (f !~ /^-?[0-9]+\.[0-9]+$/) { bad++; next }
-        n++; if (f + 0 < -t) printf "%s ", f
-      } END { if (n == 0 || bad) printf "UNREADABLE" }' vibspectrum)
-    case "$imag" in *UNREADABLE*) fail "could not read the frequencies in vibspectrum";; esac
+    imag=$(imag_modes)
   fi
   [ -z "$imag" ] && break
   if [ "$tries" -lt @@IMAG_RETRY@@ ] && [ -f xtbhess.xyz ]; then
@@ -139,6 +144,44 @@ while :; do
   fail "imaginary frequencies (cm-1): $imag after $tries restart(s)"
 done
 [ "$tries" -gt 0 ] && echo "WARN imaginary frequency removed by $tries restart(s) along the mode" >> "$CHECKS"
+if [ "@@METALCONTACTS@@" = "constrain" ] && [ -n "$(xargs < "$ROOT/refs/$NAME.donors" 2>/dev/null)" ]; then
+  contact() { awk -v ref="$ROOT/refs/$NAME.bonds" -v donors="$(cat "$ROOT/refs/$NAME.donors")" \
+      -v anc="$(cat "$ROOT/refs/$NAME.anc" 2>/dev/null)" -f "$ROOT/check_structure.awk" "$1" | grep '^WARN metal contact'; }
+  mc=$(contact xtbopt.xyz)
+  if [ -n "$mc" ]; then
+    # hold the metal (atom 1) on each donor's axis: every M-D-X angle fixed at its value in the input
+    {
+      echo '$constrain'
+      echo '  force constant=1.0'
+      for d in $(cat "$ROOT/refs/$NAME.donors"); do
+        for x in $(awk -v d="$d" '$1 == d {print $2} $2 == d {print $1}' "$ROOT/refs/$NAME.bonds"); do
+          awk -v d="$d" -v x="$x" 'NR == 3 {m1 = $2; m2 = $3; m3 = $4}
+            NR == d + 2 {d1 = $2; d2 = $3; d3 = $4} NR == x + 2 {x1 = $2; x2 = $3; x3 = $4}
+            END { a1 = m1-d1; a2 = m2-d2; a3 = m3-d3; b1 = x1-d1; b2 = x2-d2; b3 = x3-d3
+                  c = (a1*b1 + a2*b2 + a3*b3) / (sqrt(a1*a1+a2*a2+a3*a3) * sqrt(b1*b1+b2*b2+b3*b3))
+                  printf "  angle: 1,%d,%d,%.4f\n", d, x, atan2(sqrt(1 - c*c), c) * 180 / 3.14159265358979 }' start.xyz
+        done
+      done
+      echo '$end'
+    } > constrain.inp
+    cp constrain.inp "$WORK/$NAME.constrain.inp"
+    echo "metal contact at the free minimum ($(printf '%s' "$mc" | cut -c6- | paste -sd ';' -)): rerun with the metal held on the donor axis"
+    rm -f xtbopt.xyz xtbhess.xyz vibspectrum
+    "@@ORCA@@/otool_xtb" start.xyz @@XTBMODE@@ @@OPTLEVEL@@ @@LEVEL@@ --chrg @@CHARGE@@ --uhf @@UHF@@ --input constrain.inp > opt.out 2>&1
+    cp opt.out "$WORK/$NAME.opt.out"
+    xtb_ok opt.out "restrained optimization"
+    [ -f xtbopt.xyz ] || fail "no xtbopt.xyz from the restrained optimization"
+    grep -q "GEOMETRY OPTIMIZATION CONVERGED" opt.out || fail "restrained xtb optimization did not converge"
+    if [ "@@XTBMODE@@" = "--ohess" ]; then
+      [ -f vibspectrum ] || fail "no vibspectrum from the restrained --ohess"
+      cp vibspectrum "$WORK/$NAME.vibspectrum"
+      imag=$(imag_modes)
+      [ -z "$imag" ] || fail "imaginary frequencies (cm-1) with the metal held on the donor axis: $imag"
+    fi
+    [ -z "$(contact xtbopt.xyz)" ] || fail "metal contact persists with the metal held on the donor axis"
+    echo "WARN restrained: the free GFN2 minimum has a metal contact ($(printf '%s' "$mc" | cut -c6- | paste -sd ';' -)); the metal is held on the donor axis (M-D-X angles fixed at the input values, work/$NAME.constrain.inp); frequencies are on the restrained surface" >> "$CHECKS"
+  fi
+fi
 "@@ORCA@@/otool_xtb" xtbopt.xyz --sp --chrg @@CHARGE@@ --uhf @@UHF@@ > sp.out 2>&1 || fail "xtb single point exit $?"
 cp sp.out "$WORK/$NAME.sp.out"
 xtb_ok sp.out "single point"
@@ -253,7 +296,8 @@ done < "$1"
 DEFAULTS = {
     "goat": dict(keywords="! GOAT XTB", maxcore=2000),
     "orca": dict(keywords="! r2SCAN-3c Opt Freq", maxcore=3000, imag_tol=20),
-    "xtb": dict(level="--gfn 2", hess=True, imag_tol=20, imag_retry=1, opt_level=""),    # opt_level: xtb's crude ... vtight
+    "xtb": dict(level="--gfn 2", hess=True, imag_tol=20, imag_retry=1, opt_level="",     # opt_level: xtb's crude ... vtight
+                metal_contacts="allow"),                                                # or "constrain": keep the metal on the donor axis
     "uma": dict(fmax=0.05, steps=300, model="uma-s-1p1", task="omol", allow_unconverged=False),
     "gaussian": dict(route="", mem_gb=32, tail="", imag_tol=20),          # route is required: the level is a choice
 }
@@ -270,6 +314,12 @@ def _opt_level(level: str) -> str:
     if level not in XTB_OPT_LEVELS:
         raise ValueError(f"xtb opt_level {level!r} is not one of {XTB_OPT_LEVELS[1:]}")
     return level
+
+
+def _metal_contacts(mode: str) -> str:
+    if mode not in ("allow", "constrain"):
+        raise ValueError(f"xtb metal_contacts {mode!r} must be 'allow' or 'constrain'")
+    return mode
 
 
 def job_prefix(p: Protocol) -> str:
@@ -304,7 +354,8 @@ def render_stage(p: Protocol, index: int, n: int) -> dict[str, str]:
         TASK=shlex.quote(str(opt.get("task", ""))), UMA_ENV=c.get("uma_env", ""), HF_TOKEN_FILE=c.get("hf_token_file", ""),
         G16ROOT=c.get("g16root", ""), MEM=opt.get("mem_gb", 32), ROUTE=opt.get("route", ""), TAIL=opt.get("tail", ""),
         IMAG_TOL=float(opt.get("imag_tol", 20)), IMAG_RETRY=int(opt.get("imag_retry", 1)),
-        XTBMODE="--ohess" if opt.get("hess", True) else "--opt", OPTLEVEL=_opt_level(opt.get("opt_level", "")), ALLOW_UNCONV="yes" if opt.get("allow_unconverged") else "no",
+        XTBMODE="--ohess" if opt.get("hess", True) else "--opt", OPTLEVEL=_opt_level(opt.get("opt_level", "")),
+        METALCONTACTS=_metal_contacts(opt.get("metal_contacts", "allow")), ALLOW_UNCONV="yes" if opt.get("allow_unconverged") else "no",
         PREVMARK="" if index == 1 else p.stages[index - 2].dirname(index - 1),
     )
     body = _fill(BODIES[stage.kind], values)

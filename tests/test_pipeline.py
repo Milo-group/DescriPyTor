@@ -282,16 +282,17 @@ def test_xtb_frequency_parser_reads_the_real_vibspectrum(tmp_path):
         pytest.skip("no bash")
     run = pl.render_all(_protocol(tmp_path, ["PMe3,CP(C)C"], stages=[{"kind": "xtb"}]), 1)["s1_xtb/run.sh"]
     lines = run.splitlines()
-    a = next(i for i, l in enumerate(lines) if l.strip().startswith("imag=$(awk"))
-    b = next(i for i in range(a, len(lines)) if "UNREADABLE" in lines[i] and "printf" in lines[i])
-    snippet = "\n".join(lines[a:b + 1]) + '\necho "[$imag]"\n'
+    a = next(i for i, l in enumerate(lines) if l.startswith("imag_modes() {"))
+    b = next(i for i in range(a, len(lines)) if lines[i] == "}")
+    nl = chr(10)
+    snippet = 'fail() { echo "[UNREADABLE]"; exit 0; }' + nl + nl.join(lines[a:b + 1]) + nl + 'imag=$(imag_modes)' + nl + 'echo "[$imag]"' + nl
     real = ("$vibrational spectrum\n#  mode     symmetry     wave number   IR intensity    selection rules\n"
             "#                         cm**(-1)      (km*mol-1)        IR\n"
             "     1                      -0.00         0.00000          -\n"
             "     7        a            -34.07         0.63990         YES\n"
             "     8        a            -12.88         0.59398         YES\n"
             "     9        a             28.06         0.10190         YES\n$end\n")
-    for text, want in ((real, "[-34.07 ]"), ("$vibrational spectrum\n     7   a   x   y   YES\n$end\n", "[UNREADABLE]")):
+    for text, want in ((real, "[-34.07 ]"), ("$vibrational spectrum\n     7   a   x   y   YES\n$end\n", "[[UNREADABLE]]")):
         (tmp_path / "vibspectrum").write_bytes(text.encode())
         r = subprocess.run(["bash"], input=snippet.encode(), capture_output=True, cwd=tmp_path)
         assert r.stdout.decode().strip() == want, (r.stdout.decode(), r.stderr.decode())
@@ -302,3 +303,48 @@ def test_xtb_opt_level_reaches_the_command_line(tmp_path):
     assert "cur.xyz --ohess vtight --gfn 2" in run and '[ "$tries" -lt 0 ]' in run
     with pytest.raises(ValueError):
         pl.render_all(_protocol(tmp_path, ["PMe3,CP(C)C"], stages=[{"kind": "xtb", "opt_level": "supertight"}]), 1)
+
+
+
+def test_xtb_holds_the_metal_on_the_donor_axis_when_it_lands_on_the_ligand(tmp_path):
+    """Fake otool_xtb: without --input the optimised Ni sits 1.9 A from a carbon (a side-on
+    contact); with --input (the restraints) it stays where it started. The stage must write one
+    M-D-X angle per P-C bond, end done, and label the result as restrained."""
+    if not shutil.which("bash"):
+        pytest.skip("no bash")
+    fake = tmp_path / "orca"
+    fake.mkdir()
+    (fake / "otool_xtb").write_bytes(b"""#!/bin/bash
+in=$1; mode=$2
+if [ "$mode" = "--sp" ]; then
+  printf 'molecular dipole:\n full:  0.1 0.2 0.3 0.4\n  -8.1 (HOMO)\n -6.2 (LUMO)\n normal termination of xtb\n'
+  echo q > charges; echo w > wbo; exit 0
+fi
+if printf '%s ' "$@" | grep -q -- "--input"; then cp "$in" xtbopt.xyz
+else awk 'NR == 3 {print "Ni", $2 - 0.5, $3, $4; next} NR == 5 {print $1, X, Y, Z; next} {print}' X=0 Y=0 Z=0 "$in" > tmp.xyz
+     awk 'NR == 3 {nx = $2; ny = $3; nz = $4} {line[NR] = $0} END {for (i = 1; i <= NR; i++) if (i == 5) print "C", nx + 1.9, ny, nz; else print line[i]}' tmp.xyz > xtbopt.xyz; fi
+printf ' *** GEOMETRY OPTIMIZATION CONVERGED AFTER 5 ITERATIONS ***\n normal termination of xtb\n'
+printf '$vibrational spectrum\n     1                      -0.00         0.00000          -\n     7        a             45.00         0.63990         YES\n$end\n' > vibspectrum
+""")
+    p = _protocol(tmp_path, ["PMe3,CP(C)C"], stages=[{"kind": "xtb", "cores": 1, "metal_contacts": "constrain", "imag_retry": 0}])
+    bt = _bash_path(tmp_path)
+    raw = json.loads(p.path.read_text())
+    raw["cluster"].update(root=f"{bt}/remote_root", orca=f"{bt}/orca", scratch=f"{bt}/scr")
+    p.path.write_text(json.dumps(raw)); p = pl.load(p.path)
+    pl.build_all(p)
+    run = tmp_path / "remote_root" / p.name
+    for sub in ("build", "elements", "refs"):
+        (run / sub).mkdir(parents=True, exist_ok=True)
+        for f in (p.workdir / sub).glob("*"):
+            (run / sub / f.name).write_bytes(f.read_bytes())
+    (run / "ids.txt").write_bytes(b"m001\n")
+    for name, text in pl.render_all(p, 1).items():
+        (run / name).parent.mkdir(parents=True, exist_ok=True)
+        (run / name).write_bytes(text.encode())
+    script = f"export PIPE_TASK=1 JOB_ID=7 USER=t; chmod +x {bt}/orca/otool_xtb; cd {bt}/remote_root/{p.name}; bash s1_xtb/run.sh"
+    r = subprocess.run(["bash"], input=script.encode(), capture_output=True, cwd=tmp_path)
+    log = r.stdout.decode() + r.stderr.decode()
+    assert (run / "status" / "m001.s1_xtb").read_text().strip() == "done", log
+    cons = (run / "s1_xtb" / "work" / "m001.constrain.inp").read_text().splitlines()
+    assert cons[0] == "$constrain" and sum(l.strip().startswith("angle: 1,2,") for l in cons) == 3, cons
+    assert "restrained" in (run / "checks" / "m001.s1_xtb").read_text()
