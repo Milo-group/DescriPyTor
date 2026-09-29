@@ -225,7 +225,7 @@ cp "$in" xtbopt.xyz
 printf ' *** GEOMETRY OPTIMIZATION CONVERGED AFTER 5 ITERATIONS ***\n normal termination of xtb\n'
 n=$(cat "$CALLS" 2>/dev/null || echo 0); echo $((n+1)) > "$CALLS"
 if [ "$n" -eq 0 ]; then f=-85.0; cp "$in" xtbhess.xyz; else f=45.0; fi
-printf '$vibrational spectrum\n#  mode  symmetry  wave number  IR intensity  selection rules\n     1             -0.00    0.00000    -    -\n     7      a     %s    0.1    YES    YES\n$end\n' "$f" > vibspectrum
+printf '$vibrational spectrum\n#  mode     symmetry     wave number   IR intensity    selection rules\n#                         cm**(-1)      (km*mol-1)        IR\n     1                      -0.00         0.00000          -\n     7        a            %s         0.63990         YES\n     8        a             28.06         0.10190         YES\n$end\n' "$f" > vibspectrum
 """)
     stages = [{"kind": "xtb", "cores": 1}]
     p = _protocol(tmp_path, ["PMe3,CP(C)C"], stages=stages)
@@ -273,3 +273,25 @@ def test_orca_and_gaussian_imaginary_checks_use_the_tolerance(tmp_path):
         r = subprocess.run(["bash"], input=cmd.encode(), capture_output=True, cwd=tmp_path)
         r.stdout, r.stderr = r.stdout.decode(), r.stderr.decode()
         assert r.stdout.strip() == ("[-85.40 ]" if "orca" in name else "[-312.1480 ]"), (name, r.stdout, r.stderr)
+
+
+def test_xtb_frequency_parser_reads_the_real_vibspectrum(tmp_path):
+    """Rows 1-6 carry no symmetry label, later rows do; one selection column. A file with no
+    readable frequency must fail the stage, not pass it."""
+    if not shutil.which("bash"):
+        pytest.skip("no bash")
+    run = pl.render_all(_protocol(tmp_path, ["PMe3,CP(C)C"], stages=[{"kind": "xtb"}]), 1)["s1_xtb/run.sh"]
+    lines = run.splitlines()
+    a = next(i for i, l in enumerate(lines) if l.strip().startswith("imag=$(awk"))
+    b = next(i for i in range(a, len(lines)) if "UNREADABLE" in lines[i] and "printf" in lines[i])
+    snippet = "\n".join(lines[a:b + 1]) + '\necho "[$imag]"\n'
+    real = ("$vibrational spectrum\n#  mode     symmetry     wave number   IR intensity    selection rules\n"
+            "#                         cm**(-1)      (km*mol-1)        IR\n"
+            "     1                      -0.00         0.00000          -\n"
+            "     7        a            -34.07         0.63990         YES\n"
+            "     8        a            -12.88         0.59398         YES\n"
+            "     9        a             28.06         0.10190         YES\n$end\n")
+    for text, want in ((real, "[-34.07 ]"), ("$vibrational spectrum\n     7   a   x   y   YES\n$end\n", "[UNREADABLE]")):
+        (tmp_path / "vibspectrum").write_bytes(text.encode())
+        r = subprocess.run(["bash"], input=snippet.encode(), capture_output=True, cwd=tmp_path)
+        assert r.stdout.decode().strip() == want, (r.stdout.decode(), r.stderr.decode())

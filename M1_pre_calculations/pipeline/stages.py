@@ -94,6 +94,9 @@ ERR="optimization did not converge|scf not converged|scf is not converged|aborti
 grep -Eiq "$ERR" "$WORK/$NAME.out" && fail "orca: $(grep -Ei "$ERR" "$WORK/$NAME.out" | head -n 1)"
 grep -q "ORCA TERMINATED NORMALLY" "$WORK/$NAME.out" || fail "orca did not terminate normally"
 cp -f "$NAME".property.txt "$NAME".hess "$WORK/" 2>/dev/null
+if grep -qiE '^!.*\b(num)?freq\b' "$NAME.inp" && ! grep -q "VIBRATIONAL FREQUENCIES" "$WORK/$NAME.out"; then
+  fail "frequencies were requested but none were printed"
+fi
 imag=$(awk -v t=@@IMAG_TOL@@ '/imaginary mode/ {f = $2 + 0; if (-f > t) printf "%s ", $2}' "$WORK/$NAME.out")
 [ -z "$imag" ] || fail "imaginary frequencies (cm-1): $imag"
 awk -v t=@@IMAG_TOL@@ '/imaginary mode/ {f = $2 + 0; if (-f <= t) printf "WARN small imaginary frequency %s cm-1 (below the %s tolerance)\n", $2, t}' "$WORK/$NAME.out" >> "$CHECKS"
@@ -120,7 +123,13 @@ while :; do
   if [ "@@XTBMODE@@" = "--ohess" ]; then
     [ -f vibspectrum ] || fail "no vibspectrum from --ohess"
     cp vibspectrum "$WORK/$NAME.vibspectrum"
-    imag=$(awk -v t=@@IMAG_TOL@@ '!/^[$#]/ && NF >= 5 {f = $(NF-3) + 0; if (f < -t) printf "%s ", $(NF-3)}' vibspectrum)
+    # rows are "mode [symmetry] wavenumber intensity selection": the first decimal after the mode
+    imag=$(awk -v t=@@IMAG_TOL@@ '!/^[$#]/ && NF >= 4 {
+        f = ($2 ~ /^-?[0-9]+\.[0-9]+$/) ? $2 : $3
+        if (f !~ /^-?[0-9]+\.[0-9]+$/) { bad++; next }
+        n++; if (f + 0 < -t) printf "%s ", f
+      } END { if (n == 0 || bad) printf "UNREADABLE" }' vibspectrum)
+    case "$imag" in *UNREADABLE*) fail "could not read the frequencies in vibspectrum";; esac
   fi
   [ -z "$imag" ] && break
   if [ "$tries" -lt @@IMAG_RETRY@@ ] && [ -f xtbhess.xyz ]; then
@@ -192,6 +201,9 @@ cp "$NAME.com" "$WORK/"
 "$g16root/g16/g16" < "$NAME.com" > "$OUT/$NAME.log" 2>&1
 grep -q "Error termination" "$OUT/$NAME.log" && reject "gaussian: $(grep -B 3 'Error termination' "$OUT/$NAME.log" | head -n 1 | cut -c1-80)"
 tail -n 3 "$OUT/$NAME.log" | grep -q "Normal termination" || reject "gaussian did not terminate normally"
+if grep -qi "freq" "$NAME.com" && ! grep -q "Frequencies --" "$OUT/$NAME.log"; then
+  reject "frequencies were requested but none were printed"
+fi
 imag=$(awk -v t=@@IMAG_TOL@@ '/Frequencies --/ {for (i = 3; i <= NF; i++) if ($i + 0 < -t) printf "%s ", $i}' "$OUT/$NAME.log")
 [ -z "$imag" ] || reject "imaginary frequencies (cm-1): $imag"
 """
