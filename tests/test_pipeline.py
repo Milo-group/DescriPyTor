@@ -295,3 +295,10 @@ def test_xtb_frequency_parser_reads_the_real_vibspectrum(tmp_path):
         (tmp_path / "vibspectrum").write_bytes(text.encode())
         r = subprocess.run(["bash"], input=snippet.encode(), capture_output=True, cwd=tmp_path)
         assert r.stdout.decode().strip() == want, (r.stdout.decode(), r.stderr.decode())
+
+
+def test_xtb_opt_level_reaches_the_command_line(tmp_path):
+    run = pl.render_all(_protocol(tmp_path, ["PMe3,CP(C)C"], stages=[{"kind": "xtb", "opt_level": "vtight", "imag_retry": 0}]), 1)["s1_xtb/run.sh"]
+    assert "cur.xyz --ohess vtight --gfn 2" in run and '[ "$tries" -lt 0 ]' in run
+    with pytest.raises(ValueError):
+        pl.render_all(_protocol(tmp_path, ["PMe3,CP(C)C"], stages=[{"kind": "xtb", "opt_level": "supertight"}]), 1)

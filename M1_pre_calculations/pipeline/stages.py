@@ -114,7 +114,7 @@ cp start.xyz cur.xyz
 tries=0
 while :; do
   rm -f xtbopt.xyz xtbhess.xyz vibspectrum
-  "@@ORCA@@/otool_xtb" cur.xyz @@XTBMODE@@ @@LEVEL@@ --chrg @@CHARGE@@ --uhf @@UHF@@ > opt.out 2>&1
+  "@@ORCA@@/otool_xtb" cur.xyz @@XTBMODE@@ @@OPTLEVEL@@ @@LEVEL@@ --chrg @@CHARGE@@ --uhf @@UHF@@ > opt.out 2>&1
   cp opt.out "$WORK/$NAME.opt.out"
   xtb_ok opt.out optimization
   [ -f xtbopt.xyz ] || fail "no xtbopt.xyz"
@@ -253,7 +253,7 @@ done < "$1"
 DEFAULTS = {
     "goat": dict(keywords="! GOAT XTB", maxcore=2000),
     "orca": dict(keywords="! r2SCAN-3c Opt Freq", maxcore=3000, imag_tol=20),
-    "xtb": dict(level="--gfn 2", hess=True, imag_tol=20, imag_retry=1),
+    "xtb": dict(level="--gfn 2", hess=True, imag_tol=20, imag_retry=1, opt_level=""),    # opt_level: xtb's crude ... vtight
     "uma": dict(fmax=0.05, steps=300, model="uma-s-1p1", task="omol", allow_unconverged=False),
     "gaussian": dict(route="", mem_gb=32, tail="", imag_tol=20),          # route is required: the level is a choice
 }
@@ -261,6 +261,15 @@ BODIES = {"goat": GOAT_BODY, "orca": ORCA_BODY, "xtb": XTB_BODY, "uma": UMA_BODY
 
 
 STRUCTCHECK = '# structure check on the output: bonds against the build, clashes, donors and bite angle\nCHK=$(awk -v ref="$ROOT/refs/$NAME.bonds" -v donors="$(cat "$ROOT/refs/$NAME.donors" 2>/dev/null)" \\\n    -v anc="$(cat "$ROOT/refs/$NAME.anc" 2>/dev/null)" -f "$ROOT/check_structure.awk" "$OUT/$NAME.xyz")\nprintf \'%s\\n\' "$CHK" | grep \'^WARN\' >> "$CHECKS"\nif printf \'%s\\n\' "$CHK" | grep -q \'^FAIL\'; then\n  printf \'%s\\n\' "$CHK" | grep \'^FAIL\' >> "$CHECKS"\n  reject "structure: $(printf \'%s\\n\' "$CHK" | grep \'^FAIL\' | head -n 3 | cut -c6- | paste -sd \';\' -)"\nfi\n[ -s "$CHECKS" ] || rm -f "$CHECKS"'
+
+
+XTB_OPT_LEVELS = ("", "crude", "sloppy", "loose", "lax", "normal", "tight", "vtight", "extreme")
+
+
+def _opt_level(level: str) -> str:
+    if level not in XTB_OPT_LEVELS:
+        raise ValueError(f"xtb opt_level {level!r} is not one of {XTB_OPT_LEVELS[1:]}")
+    return level
 
 
 def job_prefix(p: Protocol) -> str:
@@ -295,7 +304,7 @@ def render_stage(p: Protocol, index: int, n: int) -> dict[str, str]:
         TASK=shlex.quote(str(opt.get("task", ""))), UMA_ENV=c.get("uma_env", ""), HF_TOKEN_FILE=c.get("hf_token_file", ""),
         G16ROOT=c.get("g16root", ""), MEM=opt.get("mem_gb", 32), ROUTE=opt.get("route", ""), TAIL=opt.get("tail", ""),
         IMAG_TOL=float(opt.get("imag_tol", 20)), IMAG_RETRY=int(opt.get("imag_retry", 1)),
-        XTBMODE="--ohess" if opt.get("hess", True) else "--opt", ALLOW_UNCONV="yes" if opt.get("allow_unconverged") else "no",
+        XTBMODE="--ohess" if opt.get("hess", True) else "--opt", OPTLEVEL=_opt_level(opt.get("opt_level", "")), ALLOW_UNCONV="yes" if opt.get("allow_unconverged") else "no",
         PREVMARK="" if index == 1 else p.stages[index - 2].dirname(index - 1),
     )
     body = _fill(BODIES[stage.kind], values)
