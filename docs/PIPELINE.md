@@ -19,6 +19,8 @@ descripytor pipeline status  protocol.json            # one row per molecule, on
 descripytor pipeline watch   protocol.json            # report every 10 min until finished
 descripytor pipeline retry   protocol.json            # resubmit each molecule from its first failed stage
 descripytor pipeline fetch   protocol.json            # last stage's outputs -> <name>_pipeline/fetched/
+descripytor pipeline adopt   protocol.json --stage 1 --sources sources.csv   # outside results as a finished stage
+descripytor pipeline submit  protocol.json --from-stage 2 --only-adopted     # continue from the next stage
 ```
 
 ## The protocol
@@ -110,6 +112,28 @@ A job whose molecule is already `done` at that stage exits at once.
 
 All stages also take `cores` and `resources` (a list of extra `#$ -l` lines, e.g.
 `["h_vmem=4G"]`). The queue is `cluster.queue`, the same for every stage.
+
+## Adopting finished outside results
+
+Structures computed before a pipeline existed can join it as a completed stage. The typical case
+is GOAT minima from a hand-written job. `sources.csv` has three columns:
+
+- `id`: the pipeline id (`m001`, …);
+- `remote_source`: the finished file on the cluster;
+- `local_start`: the outside run's input xyz, relative to the CSV.
+
+**How it works:**
+
+1. The outside run may use another atom order. The permutation is found by matching the
+   pipeline's build to `local_start` atom by atom on coordinates. This works only when both were
+   built identically; anything else is refused, never guessed.
+2. On the cluster, `adopt.sh` reorders each source into `<stage>/out/<id>.xyz`, checks the element
+   order, and marks the stage done.
+3. Sources that are not there yet are reported as `missing` and left alone.
+
+**Continuing:** `submit --from-stage k+1 --only-adopted` submits the adopted molecules from the next
+stage. `jobs.json` is merged, and a molecule already submitted at that stage is refused. Re-run
+`adopt` and `submit` as the outside jobs finish.
 
 ## What runs where
 

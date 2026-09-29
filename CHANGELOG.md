@@ -8,7 +8,8 @@
   SMILES → numbered starting geometries (organic with a fixed core numbering, one metal on one
   donor, or a chelate with ancillaries in `MetalComplex` order) → chained SGE array stages
   (ORCA GOAT, UMA, GFN2-xTB, ORCA DFT, Gaussian), each molecule's stages chained with `-hold_jid`, status, retry,
-  watch and fetch. Driven by one protocol JSON.
+  watch, fetch, and `adopt` (finished outside results join a run as a completed stage). Driven by one
+  protocol JSON.
 - [docs/EXTRACTION_PROTOCOL.md](docs/EXTRACTION_PROTOCOL.md): what to decide and check from
   structures to a feature table.
 

@@ -138,7 +138,12 @@ def _run_chain(r: Remote, p: Protocol, plan: str, plan_name: str) -> dict:
     return jobs
 
 
-def submit(p: Protocol, dry_run: bool = False, force: bool = False) -> dict:
+def submit(p: Protocol, dry_run: bool = False, force: bool = False, from_stage: int = 1,
+           only: list[str] | None = None) -> dict:
+    """Upload the run and submit each molecule's chain from ``from_stage`` (1-based). ``only``
+    limits it to those ids (e.g. the ones adopted at the stage before). Job ids are merged into
+    jobs.json; a molecule whose chain from that stage is already on record is refused unless
+    ``force``."""
     ids = _ids(p)
     files = stage_files(p)
     stage_dir = p.workdir / "remote"
@@ -153,19 +158,33 @@ def submit(p: Protocol, dry_run: bool = False, force: bool = False) -> dict:
     for name in ("ids.txt", "manifest.json"):
         (stage_dir / name).write_bytes((p.workdir / name).read_bytes())
     (stage_dir / "protocol.json").write_bytes(p.path.read_bytes())
-    plan = plan_lines(p, [(t, 1) for t in range(1, len(ids) + 1)])
+    if only is not None:
+        unknown = set(only) - set(ids)
+        if unknown:
+            raise ClusterError(f"not molecules of this run: {sorted(unknown)}")
+    tasks = [(t, from_stage) for t, mid in enumerate(ids, 1) if only is None or mid in only]
+    first = p.stage_dirs()[from_stage - 1]
+    rec_file = p.workdir / "jobs.json"
+    record = json.loads(rec_file.read_text(encoding="utf-8")) if rec_file.exists() else dict(root=p.remote_root, n=len(ids), jobs={})
+    clash = [ids[t - 1] for t, _ in tasks if first in record["jobs"].get(str(t), {})]
+    if clash and not force:
+        raise ClusterError(f"already submitted at {first}: {clash}; use status / retry, or --force")
+    plan = plan_lines(p, tasks)
     if dry_run:
-        return dict(dry_run=True, n=len(ids), files=sorted(files), plan=plan.splitlines(), local=str(stage_dir))
+        return dict(dry_run=True, n=len(tasks), files=sorted(files), plan=plan.splitlines(), local=str(stage_dir))
+    if not tasks:
+        return dict(record, note="nothing to submit")
 
     r = remote_for(p)
     root = p.remote_root
-    if not force and "EXISTS" in r.run(f"[ -f {root}/jobs.json ] && echo EXISTS || true"):
-        raise ClusterError(f"{root} already has a submitted run; use status / retry, or --force to overwrite")
     r.upload_tree(stage_dir, root)
     r.run(f"cd {root} && chmod +x *.sh */run.sh && mkdir -p status " + " ".join(f"{d}/logs {d}/out {d}/work" for d in p.stage_dirs()))
     jobs = _run_chain(r, p, plan, "plan.txt")
-    record = dict(submitted=time.strftime("%Y-%m-%d %H:%M:%S"), root=root, n=len(ids), jobs=jobs)
-    (p.workdir / "jobs.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    for t, stages in jobs.items():
+        record["jobs"].setdefault(t, {}).update(stages)
+    record.setdefault("submissions", []).append(dict(at=time.strftime("%Y-%m-%d %H:%M:%S"), from_stage=first,
+                                                     molecules=[ids[int(t) - 1] for t in jobs]))
+    rec_file.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     _put_file(r, root, "jobs.json", json.dumps(record, indent=2) + "\n")
     return record
 

@@ -1701,8 +1701,16 @@ def run_pipeline(args):
         for r in rows:
             print(f"{r['id']:>8}  {r['status']:<8} {r.get('n_atoms', ''):>4}  {r.get('formula', '')}  {r['name']}")
         print(f"built {sum(r['status'] == 'built' for r in rows)} of {len(rows)} into {p.workdir}")
+    elif args.action == "adopt":
+        if not args.sources:
+            raise SystemExit("adopt needs --sources")
+        print(_json.dumps(pl.adopt(p, args.stage, pl.read_sources(args.sources)), indent=2))
     elif args.action == "submit":
-        print(_json.dumps(pl.submit(p, dry_run=args.dry_run, force=args.force), indent=2))
+        only = args.only.split(",") if args.only else None
+        if args.only_adopted:
+            f = p.workdir / "adopted.txt"
+            only = f.read_text(encoding="utf-8").split() if f.exists() else []
+        print(_json.dumps(pl.submit(p, dry_run=args.dry_run, force=args.force, from_stage=args.from_stage, only=only), indent=2))
     elif args.action == "status":
         rows, queue = pl.status(p)
         stages = p.stage_dirs()
@@ -1752,13 +1760,18 @@ def main():
     sterimol_parser = subparsers.add_parser("sterimol", help="Calculate sterimol values from xyz files")
     pipeline_parser = subparsers.add_parser(
         "pipeline", help="SMILES -> structures -> chained cluster stages (GOAT/UMA/xTB/ORCA/Gaussian)")
-    pipeline_parser.add_argument("action", choices=["build", "submit", "status", "retry", "watch", "fetch"])
+    pipeline_parser.add_argument("action", choices=["build", "adopt", "submit", "status", "retry", "watch", "fetch"])
     pipeline_parser.add_argument("protocol", help="Protocol JSON (see docs/PIPELINE.md)")
     pipeline_parser.add_argument("--dry-run", action="store_true", help="submit/retry: show what would be sent, send nothing")
     pipeline_parser.add_argument("--force", action="store_true", help="submit: overwrite a run already on the cluster")
     pipeline_parser.add_argument("--keep-going", action="store_true", help="build: skip molecules that fail to build")
     pipeline_parser.add_argument("--interval", type=int, default=600, help="watch: seconds between reports")
     pipeline_parser.add_argument("--all-stages", action="store_true", help="fetch: every stage's outputs, not only the last")
+    pipeline_parser.add_argument("--sources", help="adopt: CSV of id, remote_source, local_start")
+    pipeline_parser.add_argument("--stage", type=int, default=1, help="adopt: the stage the sources complete (1-based)")
+    pipeline_parser.add_argument("--from-stage", type=int, default=1, help="submit: first stage to submit (1-based)")
+    pipeline_parser.add_argument("--only", default=None, help="submit: comma-separated ids to submit")
+    pipeline_parser.add_argument("--only-adopted", action="store_true", help="submit: only the ids in adopted.txt")
 
     
     model_parser.add_argument("-m", "--mode", choices=["regression", "classification"], required=True,

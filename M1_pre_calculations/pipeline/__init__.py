@@ -6,6 +6,7 @@
 
 See docs/PIPELINE.md.
 """
+from .adopt import adopt, permutation, read_sources
 from .build import BuildError, build_all, build_one
 from .cluster import ClusterError, Remote, fetch, plan_lines, retry, status, submit, summarize, watch
 from .protocol import Protocol, ProtocolError, load

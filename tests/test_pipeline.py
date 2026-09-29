@@ -117,3 +117,40 @@ def test_protocol_rejects_bad_input(tmp_path):
     p = _protocol(tmp_path, ["PMe3,CP(C)C"], stages=[{"kind": "gaussian"}])
     with pytest.raises(ValueError, match="route"):
         pl.render_all(p, 1)
+
+
+def test_adopt_permutation_maps_an_outside_run_onto_the_build(tmp_path):
+    """An outside run kept RDKit order (Ni first, P where RDKit put it); the build puts P second."""
+    p = _protocol(tmp_path, ["PMe3,CP(C)C"])
+    pl.build_all(p)
+    sym, X = _xyz(p.workdir / "build" / "m001.xyz")
+    old_order = [0, 2, 3, 1] + list(range(4, len(sym)))           # P moved to fourth place
+    start = tmp_path / "outside.xyz"
+    start.write_text(f"{len(sym)}\nx\n" + "".join(f"{sym[k]} {X[k][0]:.8f} {X[k][1]:.8f} {X[k][2]:.8f}\n" for k in old_order))
+    perm = pl.permutation(p.workdir / "build" / "m001.xyz", start)
+    assert [old_order[j - 1] for j in perm] == list(range(len(sym)))
+    X2 = X.copy(); X2[5] += 0.5                                    # a different start structure
+    bad = tmp_path / "other.xyz"
+    bad.write_text(f"{len(sym)}\nx\n" + "".join(f"{s} {x:.8f} {y:.8f} {z:.8f}\n" for s, (x, y, z) in zip(sym, X2)))
+    with pytest.raises(pl.ClusterError):
+        pl.permutation(p.workdir / "build" / "m001.xyz", bad)
+
+
+def test_adopt_script_reorders_and_checks_elements(tmp_path):
+    if not shutil.which("bash"):
+        pytest.skip("no bash")
+    from M1_pre_calculations.pipeline.adopt import ADOPT
+    root = tmp_path / "run"
+    for d in ("adopt", "elements", "s1_goat/out", "status"):
+        (root / d).mkdir(parents=True)
+    files = {"elements/m001.elements": "Ni P C\n", "adopt/m001.perm": "1\n3\n2\n",
+             "src.xyz": "3\ngoat\nNi 0 0 0\nC 1 0 0\nP 0 1 0\n", "adopt/s1.tsv": "m001\tsrc.xyz\nm002\tnone.xyz\n"}
+    for name, text in files.items():
+        (root / name).write_bytes(text.encode())                   # LF only, as the pipeline writes them
+    script = ADOPT.replace("@@ROOT@@", ".")
+    r = subprocess.run(["bash", "-s", "s1_goat", "adopt/s1.tsv"], input=script.encode(), capture_output=True, cwd=root)
+    out = r.stdout.decode()
+    assert "ADOPTED m001" in out and "MISSING m002" in out, out + r.stderr.decode()
+    got = (root / "s1_goat" / "out" / "m001.xyz").read_text().splitlines()[2:5]
+    assert [l.split()[0] for l in got] == ["Ni", "P", "C"]
+    assert (root / "status" / "m001.s1_goat").read_text().strip() == "done"
