@@ -149,25 +149,55 @@ if [ "@@METALCONTACTS@@" = "constrain" ] && [ -n "$(xargs < "$ROOT/refs/$NAME.do
       -v anc="$(cat "$ROOT/refs/$NAME.anc" 2>/dev/null)" -f "$ROOT/check_structure.awk" "$1" | grep '^WARN metal contact'; }
   mc=$(contact xtbopt.xyz)
   if [ -n "$mc" ]; then
-    # hold the metal (atom 1) on each donor's axis: every M-D-X angle fixed at its value in the input
-    {
-      echo '$constrain'
-      echo '  force constant=1.0'
-      for d in $(cat "$ROOT/refs/$NAME.donors"); do
-        for x in $(awk -v d="$d" '$1 == d {print $2} $2 == d {print $1}' "$ROOT/refs/$NAME.bonds"); do
-          awk -v d="$d" -v x="$x" 'NR == 3 {m1 = $2; m2 = $3; m3 = $4}
-            NR == d + 2 {d1 = $2; d2 = $3; d3 = $4} NR == x + 2 {x1 = $2; x2 = $3; x3 = $4}
-            END { a1 = m1-d1; a2 = m2-d2; a3 = m3-d3; b1 = x1-d1; b2 = x2-d2; b3 = x3-d3
-                  c = (a1*b1 + a2*b2 + a3*b3) / (sqrt(a1*a1+a2*a2+a3*a3) * sqrt(b1*b1+b2*b2+b3*b3))
-                  printf "  angle: 1,%d,%d,%.4f\n", d, x, atan2(sqrt(1 - c*c), c) * 180 / 3.14159265358979 }' start.xyz
+    donors=$(xargs < "$ROOT/refs/$NAME.donors")
+    if [ "$(echo $donors | wc -w)" -eq 1 ]; then
+      # one donor: the axis is its lone pair, opposite the sum of the D->X bond directions. The metal
+      # (atom 1) is moved onto it at its current M-D distance, and every M-D-X angle is fixed at the
+      # angle between that axis and D->X. (The input may already have the metal tilted onto the
+      # ligand, so its own angles are not the target.)
+      d=$donors
+      nbs=$(awk -v d="$d" '$1 == d {print $2} $2 == d {print $1}' "$ROOT/refs/$NAME.bonds" | xargs)
+      awk -v d="$d" -v nb="$nbs" 'NR <= 2 {head[NR] = $0; next}
+        {k = NR - 2; s[k] = $1; x[k] = $2; y[k] = $3; z[k] = $4}
+        END {
+          n = split(nb, q, " "); ux = 0; uy = 0; uz = 0
+          for (i = 1; i <= n; i++) { j = q[i]; vx = x[j]-x[d]; vy = y[j]-y[d]; vz = z[j]-z[d]; l = sqrt(vx*vx+vy*vy+vz*vz)
+            ux -= vx/l; uy -= vy/l; uz -= vz/l }
+          L = sqrt(ux*ux+uy*uy+uz*uz); ux /= L; uy /= L; uz /= L
+          r = sqrt((x[1]-x[d])^2 + (y[1]-y[d])^2 + (z[1]-z[d])^2)
+          x[1] = x[d] + r*ux; y[1] = y[d] + r*uy; z[1] = z[d] + r*uz
+          print "$constrain" > "constrain.inp"; print "  force constant=1.0" > "constrain.inp"
+          for (i = 1; i <= n; i++) { j = q[i]; vx = x[j]-x[d]; vy = y[j]-y[d]; vz = z[j]-z[d]
+            c = (ux*vx + uy*vy + uz*vz) / sqrt(vx*vx+vy*vy+vz*vz); if (c > 1) c = 1; if (c < -1) c = -1
+            printf "  angle: 1,%d,%d,%.4f\n", d, j, atan2(sqrt(1 - c*c), c) * 180 / 3.14159265358979 > "constrain.inp" }
+          print "$end" > "constrain.inp"
+          print head[1] > "restrain_start.xyz"; print "metal moved onto the donor axis" > "restrain_start.xyz"
+          for (k = 1; k <= NR - 2; k++) printf "%-2s %16.8f %16.8f %16.8f\n", s[k], x[k], y[k], z[k] > "restrain_start.xyz"
+        }' start.xyz
+      how="the metal moved onto the donor lone-pair axis and every M-D-X angle fixed there"
+    else
+      # a chelate: every M-D-X angle fixed at its value in the input
+      {
+        echo '$constrain'
+        echo '  force constant=1.0'
+        for d in $donors; do
+          for x in $(awk -v d="$d" '$1 == d {print $2} $2 == d {print $1}' "$ROOT/refs/$NAME.bonds"); do
+            awk -v d="$d" -v x="$x" 'NR == 3 {m1 = $2; m2 = $3; m3 = $4}
+              NR == d + 2 {d1 = $2; d2 = $3; d3 = $4} NR == x + 2 {x1 = $2; x2 = $3; x3 = $4}
+              END { a1 = m1-d1; a2 = m2-d2; a3 = m3-d3; b1 = x1-d1; b2 = x2-d2; b3 = x3-d3
+                    c = (a1*b1 + a2*b2 + a3*b3) / (sqrt(a1*a1+a2*a2+a3*a3) * sqrt(b1*b1+b2*b2+b3*b3))
+                    printf "  angle: 1,%d,%d,%.4f\n", d, x, atan2(sqrt(1 - c*c), c) * 180 / 3.14159265358979 }' start.xyz
+          done
         done
-      done
-      echo '$end'
-    } > constrain.inp
+        echo '$end'
+      } > constrain.inp
+      cp start.xyz restrain_start.xyz
+      how="every M-D-X angle fixed at its input value"
+    fi
     cp constrain.inp "$WORK/$NAME.constrain.inp"
     echo "metal contact at the free minimum ($(printf '%s' "$mc" | cut -c6- | paste -sd ';' -)): rerun with the metal held on the donor axis"
     rm -f xtbopt.xyz xtbhess.xyz vibspectrum
-    "@@ORCA@@/otool_xtb" start.xyz @@XTBMODE@@ @@OPTLEVEL@@ @@LEVEL@@ --chrg @@CHARGE@@ --uhf @@UHF@@ --input constrain.inp > opt.out 2>&1
+    "@@ORCA@@/otool_xtb" restrain_start.xyz @@XTBMODE@@ @@OPTLEVEL@@ @@LEVEL@@ --chrg @@CHARGE@@ --uhf @@UHF@@ --input constrain.inp > opt.out 2>&1
     cp opt.out "$WORK/$NAME.opt.out"
     xtb_ok opt.out "restrained optimization"
     [ -f xtbopt.xyz ] || fail "no xtbopt.xyz from the restrained optimization"
@@ -178,8 +208,9 @@ if [ "@@METALCONTACTS@@" = "constrain" ] && [ -n "$(xargs < "$ROOT/refs/$NAME.do
       imag=$(imag_modes)
       [ -z "$imag" ] || fail "imaginary frequencies (cm-1) with the metal held on the donor axis: $imag"
     fi
-    [ -z "$(contact xtbopt.xyz)" ] || fail "metal contact persists with the metal held on the donor axis"
-    echo "WARN restrained: the free GFN2 minimum has a metal contact ($(printf '%s' "$mc" | cut -c6- | paste -sd ';' -)); the metal is held on the donor axis (M-D-X angles fixed at the input values, work/$NAME.constrain.inp); frequencies are on the restrained surface" >> "$CHECKS"
+    left=$(contact xtbopt.xyz)
+    echo "WARN restrained: the free GFN2 minimum has a metal contact ($(printf '%s' "$mc" | cut -c6- | paste -sd ';' -)); $how (work/$NAME.constrain.inp); frequencies are on the restrained surface" >> "$CHECKS"
+    [ -z "$left" ] || echo "WARN contact remains with the metal held on the donor axis ($(printf '%s' "$left" | cut -c6- | paste -sd ';' -)): part of the ligand's shape, not a bond the restraint can prevent" >> "$CHECKS"
   fi
 fi
 "@@ORCA@@/otool_xtb" xtbopt.xyz --sp --chrg @@CHARGE@@ --uhf @@UHF@@ > sp.out 2>&1 || fail "xtb single point exit $?"

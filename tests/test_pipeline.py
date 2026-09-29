@@ -341,12 +341,26 @@ printf '$vibrational spectrum\n     1                      -0.00         0.00000
     for name, text in pl.render_all(p, 1).items():
         (run / name).parent.mkdir(parents=True, exist_ok=True)
         (run / name).write_bytes(text.encode())
+    sym, X = _xyz(run / "build" / "m001.xyz")                    # start with Ni tilted 40 deg off the P axis
+    u = X[0] - X[1]; r = np.linalg.norm(u); u /= r
+    w = np.cross(u, [0.0, 0.0, 1.0]); w /= np.linalg.norm(w)
+    X[0] = X[1] + r * (np.cos(np.radians(40)) * u + np.sin(np.radians(40)) * w)
+    (run / "build" / "m001.xyz").write_bytes((f"{len(sym)}\ntilted\n" + "".join(
+        f"{s} {a:.8f} {b:.8f} {c:.8f}\n" for s, (a, b, c) in zip(sym, X))).encode())
     script = f"export PIPE_TASK=1 JOB_ID=7 USER=t; chmod +x {bt}/orca/otool_xtb; cd {bt}/remote_root/{p.name}; bash s1_xtb/run.sh"
     r = subprocess.run(["bash"], input=script.encode(), capture_output=True, cwd=tmp_path)
     log = r.stdout.decode() + r.stderr.decode()
     assert (run / "status" / "m001.s1_xtb").read_text().strip() == "done", log
     cons = (run / "s1_xtb" / "work" / "m001.constrain.inp").read_text().splitlines()
     assert cons[0] == "$constrain" and sum(l.strip().startswith("angle: 1,2,") for l in cons) == 3, cons
+    angles = [float(l.split(",")[-1]) for l in cons if l.strip().startswith("angle:")]
+    lp = -sum((X[k] - X[1]) / np.linalg.norm(X[k] - X[1]) for k in range(2, len(sym)) if sym[k] == "C" and np.linalg.norm(X[k] - X[1]) < 2.0)
+    lp /= np.linalg.norm(lp)
+    want = sorted(np.degrees(np.arccos((X[k] - X[1]) @ lp / np.linalg.norm(X[k] - X[1]))) for k in range(2, len(sym))
+                  if sym[k] == "C" and np.linalg.norm(X[k] - X[1]) < 2.0)
+    assert np.allclose(sorted(angles), want, atol=0.01), (angles, want)     # the axis, not the tilted input
+    s2, Y = _xyz(run / "s1_xtb" / "out" / "m001.xyz")
+    assert np.degrees(np.arccos(np.clip((Y[0] - Y[1]) @ lp / np.linalg.norm(Y[0] - Y[1]), -1, 1))) < 0.1                # Ni moved onto the axis
     assert "restrained" in (run / "checks" / "m001.s1_xtb").read_text()
 
 
