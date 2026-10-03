@@ -146,7 +146,8 @@ This opens the 3D atom picker at `http://127.0.0.1:7432/visual`. Load a folder, 
 build the selections, extract, and run the model search, all on one page. The forms-based
 page is at `/forms`, the Sterimol / θ / cone-angle / %V_bur explorer at `/theta`, and the
 vibration-mode viewer at `/modes`. A walkthrough with screenshots is in
-[visual-guide.md](visual-guide.md).
+[visual-guide.md](visual-guide.md); the explorer has its own manual with screenshots,
+[THETA_EXPLORER.md](THETA_EXPLORER.md).
 
 ## 5. Metal complexes (Case Study 3 route)
 
