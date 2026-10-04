@@ -1626,12 +1626,20 @@ def run_gui_app():
     # Your code to launch the GUI app goes here
 
 
-def run_visual_app(host=None, port=None, open_browser=True):
+def run_visual_app(host=None, port=None, open_browser=True, page="/visual"):
     """Open the 3D atom picker in a browser (no Tk / customtkinter)."""
     _ensure_project_on_path()
     from M2_data_extractor.gui_server import serve
 
-    serve(host=host, port=port, open_browser=open_browser)
+    serve(host=host, port=port, open_browser=open_browser, page=page)
+
+
+def theta_page(mol=None, preset=None):
+    """The explorer's address, with the structure and preset the URL parameters ask for."""
+    from urllib.parse import urlencode
+
+    query = urlencode({k: v for k, v in (("mol", mol), ("preset", preset)) if v})
+    return "/theta" + ("?" + query if query else "")
 
 def run_feature_extraction(input_file, output_file = 'features_set', molecules_dir_name=None):
     _load_runtime_dependencies()
@@ -1760,6 +1768,15 @@ def main():
     )
     visual_parser.add_argument("--host", default=None, help="Bind address (default 127.0.0.1)")
     visual_parser.add_argument("--port", type=int, default=None, help="Port (default 7432)")
+    theta_parser = subparsers.add_parser(
+        "theta", help="Open the Sterimol theta explorer in a browser"
+    )
+    theta_parser.add_argument("--mol", default=None, help="Open this built-in structure, e.g. FL_lig_13")
+    theta_parser.add_argument("--preset", default=None,
+                              help="Apply this preset (a number, or the start of its name), e.g. 'theta construction'")
+    theta_parser.add_argument("--no-browser", action="store_true", help="Start the server without opening a browser tab")
+    theta_parser.add_argument("--host", default=None, help="Bind address (default 127.0.0.1)")
+    theta_parser.add_argument("--port", type=int, default=None, help="Port (default 7432)")
     # interactive_parser = subparsers.add_parser("interactive", help="Start interactive CLI for cmd line operations")
     model_parser = subparsers.add_parser("model", help="Run regression or classification")
     feature_extraction = subparsers.add_parser("extractor", help="Run feature extraction - complete set - from input file")
@@ -1803,7 +1820,10 @@ def main():
     args = parser.parse_args()
     if args.command == "pipeline":
         return run_pipeline(args)
-    if args.command == "visual":
+    if args.command == "theta":
+        run_visual_app(host=args.host, port=args.port, open_browser=not args.no_browser,
+                       page=theta_page(args.mol, args.preset))
+    elif args.command == "visual":
         run_visual_app(
             host=args.host,
             port=args.port,

@@ -2242,11 +2242,11 @@ def _pid_listening_on_port(port):
     return pids[0] if pids else None
 
 
-def _reuse_or_refuse_existing_gui(host, port, open_browser):
+def _reuse_or_refuse_existing_gui(host, port, open_browser, page="/visual"):
     """If 7432 is already taken, reuse a current GUI or tell the user to stop the old one."""
     import webbrowser
 
-    url = f"http://127.0.0.1:{port}/visual"
+    url = f"http://127.0.0.1:{port}{page}"
     payload = _status_from_running_gui(port)
     if _gui_payload_is_current(payload):
         print(f"\n  DescriPyTor GUI is already running.")
@@ -2276,8 +2276,11 @@ def _reuse_or_refuse_existing_gui(host, port, open_browser):
     return None
 
 
-def serve(host=None, port=None, open_browser=True):
-    """Start the Flask GUI. Used by `descripytor visual` and `__main__`."""
+def serve(host=None, port=None, open_browser=True, page="/visual"):
+    """Start the Flask GUI. Used by `descripytor visual`, `descripytor theta` and `__main__`.
+
+    ``page`` is the address the browser opens: "/visual" (the atom picker) or "/theta?mol=..." (the explorer).
+    """
     import threading
     import time
     import urllib.request
@@ -2285,15 +2288,16 @@ def serve(host=None, port=None, open_browser=True):
 
     host = host or os.environ.get("GUI_HOST", "127.0.0.1")
     port = int(port or os.environ.get("GUI_PORT", str(PORT)))
-    existing = _reuse_or_refuse_existing_gui(host, port, open_browser)
+    existing = _reuse_or_refuse_existing_gui(host, port, open_browser, page)
     if existing is True:
         return
     if existing is False:
         sys.exit(1)
-    url = f"http://127.0.0.1:{port}/visual"
+    url = f"http://127.0.0.1:{port}{page}"
     print(f"\n  DescriPyTor GUI")
     print(f"  Open:  {url}")
     print(f"  Forms: http://127.0.0.1:{port}/forms")
+    print(f"  Sterimol theta explorer: http://127.0.0.1:{port}/theta")
     print(f"  Press Ctrl+C to stop\n")
     if open_browser:
         def _open():

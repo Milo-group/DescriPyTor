@@ -4,6 +4,8 @@
 
 ### Added
 
+- `descripytor theta`: opens the Sterimol θ explorer in the browser, as `descripytor visual` opens the atom
+  picker (`--mol`, `--preset`, `--port`, `--no-browser`); it reuses a server that is already running.
 - **Cluster pipeline** (`descripytor pipeline`, `M1_pre_calculations/pipeline/`, [docs/PIPELINE.md](docs/PIPELINE.md)):
   SMILES → numbered starting geometries (organic with a fixed core numbering, one metal on one
   donor, or a chelate with ancillaries in `MetalComplex` order) → chained SGE array stages

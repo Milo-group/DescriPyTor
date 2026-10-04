@@ -44,10 +44,16 @@ Atom numbers are **1-based**, as in Gaussian, throughout.
 **From the package (recommended).**
 
 ```bash
-descripytor visual                 # then open http://127.0.0.1:7432/theta
+descripytor theta                                     # opens the explorer in your browser
+descripytor theta --mol FL_lig_13 --preset "theta construction"      # straight to a structure and a preset
 ```
 
-This serves the page from the Flask server, and the page then compares its numbers with the
+`descripytor theta` starts the same local server as `descripytor visual` (default port 7432, `--port` to
+change it, `--no-browser` to skip opening a tab) and opens `/theta`. If a server is already running on
+that port, it reuses it and just opens the page. `descripytor visual` still opens the atom picker; the
+explorer is at `/theta` on the same server either way.
+
+The page is served from the Flask server, and it then compares its numbers with the
 package's Python on every pick ([section 12](#12-checking-the-numbers)). Inside the atom picker
 (`/visual`) the explorer runs embedded, with a **Use in Sterimol ↗** button that sends the active
 base → axis pair back as a Sterimol selection.

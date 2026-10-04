@@ -698,3 +698,20 @@ def test_numbering_without_reference_uses_folder_basic(client):
     body = response.get_json()
     assert body["reference"] == "basic"
     assert body["n_mols"] == 2
+
+
+def test_theta_explorer_is_served_with_its_query():
+    """`descripytor theta` opens /theta; the page, and the live check it calls, are on the same server."""
+    app = _load_app()
+    client = app.test_client()
+    r = client.get("/theta?mol=FL_lig_13&preset=theta%20construction")
+    assert r.status_code == 200 and b"Sterimol" in r.data and b"explorer" in r.data
+
+
+def test_theta_command_builds_the_explorer_address():
+    from descripytor.cli import theta_page
+
+    assert theta_page() == "/theta"
+    assert theta_page("FL_lig_13") == "/theta?mol=FL_lig_13"
+    assert theta_page("FL_lig_13", "theta construction") == "/theta?mol=FL_lig_13&preset=theta+construction"
+    assert theta_page(preset="2") == "/theta?preset=2"
