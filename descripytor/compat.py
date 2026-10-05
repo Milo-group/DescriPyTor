@@ -20,6 +20,8 @@ What ``paper_v3`` changes (see docs/STERIMOL_FIXES.md and docs/FEATURE_FIXES.md)
   on, not the soft average over tied directions (STERIMOL_FIXES #11);
 - ``metal_complex.SUB_FRAGMENT_BOUND = "donor"``: the C*->R fragment is blocked only at the
   donor and the metal, so a fused substituent can run into the backbone (STERIMOL_FIXES #10);
+- ``metal_complex.STEREOCENTRE_RULE = "first"``: among equally sized substituents the first in
+  atom order is the arm's (C*, R), and a P-aryl arm is measured along ipso -> ortho;
 - ``metal_complex.DIPOLE_ABS = False``: signed mu_desym / mu_outofplane (FEATURE_FIXES #12).
 
 It does not undo the feature fixes that only removed wrong results (ring positions, ring angles,
@@ -38,7 +40,7 @@ def _settings():
     from M2_data_extractor import metal_complex
     out = [(help_functions, "DEFAULT_BOND_THRESHOLD", 1.82), (metal_complex, "STERIMOL_FRAME", "lab"),
            (metal_complex, "STERIMOL_THETA_RULE", "scan"), (metal_complex, "SUB_FRAGMENT_BOUND", "donor"),
-           (metal_complex, "DIPOLE_ABS", False)]
+           (metal_complex, "DIPOLE_ABS", False), (metal_complex, "STEREOCENTRE_RULE", "first")]
     try:                                    # needs morfeus; skip it where morfeus is absent
         from M2_data_extractor import sterimol_standalone
         out.append((sterimol_standalone, "DEFAULT_BOND_THRESHOLD", 1.82))

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Changed
+
+- `MetalComplex`: the arm's (C\*, R) pair no longer depends on the atom order of the file
+  (`STEREOCENTRE_RULE = "alpha"`, [docs/STERIMOL_FIXES.md](docs/STERIMOL_FIXES.md) #12). Values change for
+  arms with several equally sized substituents (`a_R_Cstereo_N` on unsubstituted arms) and for P-aryl
+  arms, which now have no C\*→R block. `descripytor.compat.paper_v3()` and `STEREOCENTRE_RULE = "first"`
+  restore the old pick.
+- `sterimol`: φ (`angle`) follows `STERIMOL_THETA_RULE`; under `"soft"` it is averaged over tied B1
+  directions like θ.
+
 ### Added
 
 - `descripytor theta`: opens the Sterimol θ explorer in the browser, as `descripytor visual` opens the atom

@@ -159,7 +159,7 @@ def chelate_placements():
         dn = sorted([j for j in m.adj[M] if m.symbols[j] in ("N", "P", "O", "S")], key=lambda j: np.linalg.norm(m.coords[j] - m.coords[M]))[:2]
         if len(dn) < 2: return None
         dn = sorted(dn); D, Do = (dn[0], dn[1]) if arm == "a" else (dn[1], dn[0])
-        sc = stereocentre(m.symbols, m.adj, D, Do, metal=M)
+        sc = stereocentre(m.symbols, m.adj, D, Do, metal=M, coords=m.coords)
         if sc is None: return None
         C, R = sc; ring = ring_of(m, D + 1, avoid=(M + 1,)) or [D + 1]; ring0 = {x - 1 for x in ring}
         heavy = [k for k in m.adj[R] if k != C and m.symbols[k] != "H" and k not in ring0]

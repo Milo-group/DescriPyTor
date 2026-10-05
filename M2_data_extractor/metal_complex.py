@@ -71,7 +71,7 @@ ANCILLARY_ELEMENTS = ("H", "Cl", "F", "Br")
 # between the vector to the B5 atom and the B1 plane; it is defined for every arm
 # (0 for a lone H on the axis). "angle" is phi, the in-plane azimuth, which has no
 # defined value when the B5 atom sits on the axis; add it to rebuild the deposited
-# CS3 tables.
+# CS3 tables. Both follow STERIMOL_THETA_RULE.
 STERIMOL_KEYS = ("B1", "B5", "L", "theta")
 
 # Coarse step of the B1 rotation scan, in degrees. The best coarse angle is
@@ -101,6 +101,14 @@ THETA_SOFT_STEP = 0.05         # deg, direction grid for the soft rule
 # backbone and the other arm (7 of 60 arms in the CS3 cyclopropanation set did). "donor" blocks
 # only the donor and the metal, as tag paper-v3 did.
 SUB_FRAGMENT_BOUND = "donor_ring"
+
+# Which (C*, R) pair stands for an arm's substituent when several qualify. "alpha" (the default):
+# the largest substituent on the donor's ring; among equals the one on the carbon bonded to the
+# donor, then the one nearest the metal, so the choice does not depend on the atom order of the
+# file. A donor outside any ring whose only candidates are bonds inside a ring (ipso -> ortho of a
+# P-aryl group) has no substituent axis and the arm is skipped. "first" keeps the first of the
+# largest in atom order, as every release up to 0.2.1 did.
+STEREOCENTRE_RULE = "alpha"
 
 # mu_outofplane and mu_desym are components along axes whose sign follows which donor is listed
 # first in the file (the plane normal is D1 x D2). True reports their magnitudes, the only
@@ -202,16 +210,17 @@ def fragment(symbols, coords, a, b, block=()):
 
 
 def _theta_soft(coords, idx, origin, axis, radii):
-    """theta under the soft tie rule: the tilt of the B5 vector out of the plane normal to each
-    in-plane direction, averaged over directions with weights exp(-(width - B1) / tau).
+    """(theta, phi) under the soft tie rule: the tilt of the B5 vector out of the plane normal to
+    each in-plane direction, and the in-plane angle between that direction and the B5 atom, both
+    averaged over directions with weights exp(-(width - B1) / tau).
 
     ``radii`` is aligned with ``idx``. The B5 atom is the one furthest off the axis (centre
-    distance plus radius). A one-atom fragment, or one lying on the axis, has theta 0.
+    distance plus radius). A one-atom fragment, or one lying on the axis, has theta = phi = 0.
     """
     V = coords[idx] - origin
     perp = V - np.outer(V @ axis, axis)
     if len(idx) == 1 or np.linalg.norm(perp, axis=1).max() < 1e-6:
-        return 0.0
+        return 0.0, 0.0
     e1 = perp[int(np.argmax((perp ** 2).sum(1)))]
     e1 = e1 / np.linalg.norm(e1)
     e2 = np.cross(axis, e1)
@@ -220,10 +229,13 @@ def _theta_soft(coords, idx, origin, axis, radii):
     phis = np.radians(np.arange(0, 360, THETA_SOFT_STEP))
     dirs = np.c_[np.cos(phis), np.sin(phis)]
     width = (P @ dirs.T + r[:, None]).max(0)
-    v5 = V[int(np.argmax(np.linalg.norm(P, axis=1) + r))]
+    j5 = int(np.argmax(np.linalg.norm(P, axis=1) + r))
+    v5 = V[j5]
     tilt = np.degrees(np.arcsin(np.minimum(1.0, np.abs((dirs @ np.c_[e1, e2].T) @ v5) / np.linalg.norm(v5))))
+    p5 = np.linalg.norm(P[j5])
+    phi = np.degrees(np.arccos(np.clip(dirs @ P[j5] / p5, -1, 1))) if p5 > 1e-6 else np.zeros(len(dirs))
     w = np.exp(-(width - width.min()) / THETA_SOFT_TAU)
-    return float((w * tilt).sum() / w.sum())
+    return float((w * tilt).sum() / w.sum()), float((w * phi).sum() / w.sum())
 
 
 def donor_ring(adj, donor, metal=0):
@@ -326,7 +338,7 @@ def sterimol(symbols, coords, a, b, radii, block=()):
     v5 = coords[b5] - origin
     tilt = float(np.degrees(np.arcsin(min(1.0, abs(v5 @ (n1 * e1 + n2 * e2)) / np.linalg.norm(v5)))))
     if STERIMOL_THETA_RULE == "soft":
-        tilt = _theta_soft(coords, idx, origin, axis, R)
+        tilt, ang = _theta_soft(coords, idx, origin, axis, R)
     # Orient the normal towards the supporting plane, so origin + B1 * normal lies on it.
     d = np.array([n1, n2])
     if abs((P @ d + R).max() - B1) > abs((P @ -d + R).max() - B1):
@@ -446,9 +458,31 @@ def ring_through(adj, a, b, metal=0, cap=8):
     return {a, b}
 
 
-def stereocentre(symbols, adj, donor, other, metal=0):
-    """``(C*, R)`` for one chelate arm: substituted ring carbon and substituent."""
+def stereocentre(symbols, adj, donor, other, metal=0, coords=None):
+    """``(C*, R)`` for one chelate arm: substituted ring carbon and substituent.
+
+    ``coords`` lets the "alpha" rule break its last tie by distance to the metal; without them
+    the first candidate in atom order is kept.
+    """
     bb = backbone(adj, donor, other, metal)
+    if STEREOCENTRE_RULE == "alpha":
+        cand = []
+        for carbon in adj[donor]:
+            if carbon == metal or symbols[carbon] == "H" or carbon in bb:
+                continue
+            ring = ring_through(adj, donor, carbon, metal)
+            for cc in sorted(ring):
+                if cc in bb or symbols[cc] != "C":
+                    continue
+                for r in adj[cc]:
+                    if r in (donor, metal) or r in ring:
+                        continue
+                    if len(ring) == 2 and len(ring_through(adj, cc, r, metal)) > 2:
+                        continue                      # acyclic donor, bond inside a ring: not a substituent axis
+                    size = -1 if symbols[r] == "H" else len([k for k in adj[r] if symbols[k] != "H"])
+                    far = 0.0 if coords is None else float(np.linalg.norm(coords[r] - coords[metal]))
+                    cand.append((-size, cc not in adj[donor], far, len(cand), cc, r))
+        return None if not cand else min(cand)[4:]
     best = None
     for carbon in adj[donor]:
         if carbon == metal or symbols[carbon] == "H" or carbon in bb:
@@ -556,7 +590,7 @@ class MetalComplex:
 
         for tag, donor in (("a", d1), ("b", d2)):
             other = d2 if donor == d1 else d1
-            sc = stereocentre(symbols, self.adj, donor, other, metal=metal)
+            sc = stereocentre(symbols, self.adj, donor, other, metal=metal, coords=xyz)
             if sc is None:
                 continue
             stereo, subst = sc

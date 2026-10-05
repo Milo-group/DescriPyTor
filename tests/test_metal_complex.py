@@ -64,6 +64,8 @@ def deposited_scan_grid(monkeypatch):
     monkeypatch.setattr(metal_complex, "DIPOLE_ABS", False)
     monkeypatch.setattr(metal_complex, "STERIMOL_FRAME", "lab")
     monkeypatch.setattr(metal_complex, "STERIMOL_KEYS", ("B1", "B5", "L", "angle"))
+    monkeypatch.setattr(metal_complex, "STERIMOL_THETA_RULE", "scan")
+    monkeypatch.setattr(metal_complex, "STEREOCENTRE_RULE", "first")
 
 
 def _max_abs(got: pd.Series, want: pd.Series) -> float:

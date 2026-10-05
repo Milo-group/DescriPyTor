@@ -62,3 +62,27 @@ def test_defaults_reproduce_v5_cp_fix_soft():
     cols = [f"{fr}_{k}_{p}" for fr in ("sub", "fromM") for k in ("B1", "B5", "L", "theta") for p in ("sym", "asym")]
     got = pd.DataFrame({n: mc.MetalComplex.from_xyz(str(geo / f"{n}_CuCl_xtbopt.xyz")).geometric_features() for n in ref.index}).T
     assert float((got[cols].astype(float) - ref[cols]).abs().max().max()) < 1e-6
+
+
+def test_arm_values_do_not_depend_on_atom_order():
+    """The (C*, R) pick and everything read from it survive a shuffle of the ligand atoms."""
+    m = mc.MetalComplex.from_xyz(str(LEAKY))
+    first = m.donor_2 + 1
+    order = list(range(first)) + list(np.random.default_rng(0).permutation(np.arange(first, len(m.symbols))))
+    shuffled = mc.MetalComplex([m.symbols[i] for i in order], m.coords[order])
+    a, b = m.geometric_features(), shuffled.geometric_features()
+    assert a.keys() == b.keys()
+    for k in a:
+        assert abs(a[k] - b[k]) < 1e-6, k
+
+
+def test_p_aryl_arm_has_no_substituent_axis():
+    """P bonded to two phenyls and a backbone carbon: ipso -> ortho is a ring bond, not a substituent."""
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    mol = Chem.AddHs(Chem.MolFromSmiles("[Cu](Cl)(N(C)(C)CC1)P1(c1ccccc1)c1ccccc1"))
+    AllChem.EmbedMolecule(mol, randomSeed=1)
+    sym = [a.GetSymbol() for a in mol.GetAtoms()]
+    adj = [[n.GetIdx() for n in a.GetNeighbors()] for a in mol.GetAtoms()]
+    p, n = sym.index("P"), sym.index("N")
+    assert mc.stereocentre(sym, adj, p, n, metal=0) is None
