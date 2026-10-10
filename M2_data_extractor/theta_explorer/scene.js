@@ -378,7 +378,7 @@
     const K = sty.labelScale || 1, eq = ink.eq, V = sty.values !== false;   // V: labels carry their values, or only the symbols
     const el = mol.el, X = mol.X, n = el.length;
     const axes = L.axes || [], dp = L.dipole && L.dipole.res, fade = L.fade || new Set();
-    const dp2 = L.dipole2 && L.dipole2.res;
+    const dips = [L.dipole, L.dipole2].concat(L.dipoles || []).filter((d) => d && d.res);   // the active structure's frame, then one per stacked structure
     const on = (ax, f) => (f === 'axis' ? (ax.show || {}).axis !== false : !!(ax.show || {})[f]);
     const c = [0, 1, 2].map((k) => X.reduce((s, p) => s + p[k], 0) / n);
 
@@ -393,18 +393,17 @@
       if (on(ax, 'plane')) ends.push(...g.ref, ...g.patch);
     });
     let muScale = 0;
-    [dp, L.dipole2 && L.dipole2.res].forEach((dpx) => {      // both frames share one arrow scale
-      if (!dpx) return;
+    dips.forEach((DL0) => {                 // every frame shares one arrow scale
+      const dpx = DL0.res;
       if (!muScale) {
         muScale = sty.muPerD > 0 ? sty.muPerD : Math.min(0.6, 2.6 / (len(dpx.mu) || 1));
         if (sty.dipoleArrow === 'chemistry') muScale = -muScale;      // the textbook arrow points + -> -, Gaussian's vector - -> +
       }
       ends.push(add(dpx.origin, scl(dpx.mu, muScale)));
       dpx.basis.forEach((b) => ends.push(add(dpx.origin, scl(b, 1.7))));
-      const DL0 = dpx === dp ? L.dipole : L.dipole2;
-      if (DL0 && DL0.atOrigin) ends.push([0, 0, 0], scl(dpx.mu, muScale), [1.55, 0, 0], [0, 1.55, 0], [0, 0, 1.55]);   // the raw arrow and axes have to fit too
+      if (DL0.atOrigin) ends.push([0, 0, 0], scl(dpx.mu, muScale), [1.55, 0, 0], [0, 1.55, 0], [0, 0, 1.55]);   // the raw arrow and axes have to fit too
     });
-    const structs = [{ el, X, bonds: mol.displayBonds || mol.bonds.map(([a, b]) => [a, b, 'pkg']), types: mol.types, primary: true }]
+    const structs = [{ el, X, bonds: mol.displayBonds || mol.bonds.map(([a, b]) => [a, b, 'pkg']), types: mol.types, charges: mol.charges, primary: true }]
       .concat((L.overlays || []).filter((s) => s && s.X && s.X.length).map((s) => Object.assign({ primary: false }, s)));
     // fadeHide: atoms no axis measures are dropped rather than ghosted, and leave the framing too --
     // on a stacked structure too, each judged by the axis that is measured on it
@@ -452,14 +451,15 @@
     const shades = new Set(), markers = new Set();
     const fillRef = (col) => { if (pre.shade === 'flat' || pre.shade === 'toon') return col; shades.add(col); return `url(#sg${pre.shade}${col.slice(1)})`; };
     // never hide an atom a drawn number stands on: B5's atom, L's (all tied), B1's tangent atoms, the dipole's frame atoms, charge sites
-    const keepH = new Set([...(L.sites || []).map((q) => q.i), ...axes.flatMap((ax) => [ax.res.b5, ...ax.g.lAtoms, ...ax.g.touch]),
+    const keepH = new Set([...(L.sites || []).filter((q) => !q.onStruct).map((q) => q.i), ...axes.flatMap((ax) => [ax.res.b5, ...ax.g.lAtoms, ...ax.g.touch]),
       ...((L.dipole && L.dipole.keep) || []).map((k) => k - 1)]);
+    const keepOn = new Set((L.sites || []).filter((q) => q.onStruct).map((q) => q.onStruct + ':' + q.i));   // the same for sites on stacked structures
     structs.forEach((t) => {                // hydrogens: all, polar only, or none -- never one a layer is drawn on
       t.hidden = new Set();
       if (sty.hydrogens === 'all') return;
       const nb = t.el.map(() => []);
       t.bonds.forEach(([a, b]) => { nb[a - 1].push(t.el[b - 1]); nb[b - 1].push(t.el[a - 1]); });
-      t.el.forEach((e, i) => { if (e === 'H' && (sty.hydrogens === 'none' || nb[i].every((x) => x === 'C')) && !(t.primary && keepH.has(i))) t.hidden.add(i); });
+      t.el.forEach((e, i) => { if (e === 'H' && (sty.hydrogens === 'none' || nb[i].every((x) => x === 'C')) && !(t.primary ? keepH.has(i) : keepOn.has(t.id + ':' + i))) t.hidden.add(i); });
     });
     drop.forEach((i) => structs[0].hidden.add(i));
     structs.forEach((t) => { const d = dropOf.get(t.id); if (d) d.forEach((i) => t.hidden.add(i)); });
@@ -823,14 +823,14 @@
     let sideY = 34;
     sideBoxes.forEach((b) => { b.y = sideY; sideY += b.h + 30; lab.boxes.push([W - Math.max(IS, PW) - 16, b.y - 16, W, b.y + b.h + 4]); });
 
-    // one dipole frame, or two when a stacked structure carries its own
-    let muSaid = false;                     // the arrow scale is the same for both: say it once
-    [[L.dipole, dp], [L.dipole2, dp2]].forEach(([DL, dpx]) => {
-      if (!dpx) return;
+    // one dipole frame, or more when stacked structures carry their own
+    let muSaid = false;                     // the arrow scale is the same for all: say it once
+    dips.forEach((DL) => {
+      const dpx = DL.res;
       const ink = DL.colors ? Object.assign({}, ink0, DL.colors) : ink0;
       const sh = DL.show || {}, O = dpx.origin, po = pr(O);
       const axs = [['v', dpx.basis[0], dpx.dipole_x], ['u', dpx.basis[1], dpx.dipole_y], ['w', dpx.basis[2], dpx.dipole_z]];
-      if ((DL.originSet || []).length > 1) DL.originSet.forEach((a) => over.push(ln(O, X[a - 1], 'dp-spoke', ink.origin)));
+      if ((DL.originSet || []).length > 1) (DL.spokes || DL.originSet.map((a) => X[a - 1])).forEach((p) => over.push(ln(O, p, 'dp-spoke', ink.origin)));
       if (sh.frame !== false) axs.forEach(([k, b]) => {
         const tip = add(O, scl(b, 1.7)), p = pr(add(O, scl(b, 1.95)));
         over.push(ln(O, tip, 'dp-ax', ink[k], ` marker-end="${mk(ink[k])}"`),
@@ -898,9 +898,10 @@
     });
 
     (L.sites || []).forEach((q0) => {        // charge sites; the rings are obstacles for every label
-      const q = mol.charges && mol.charges[q0.type] && mol.charges[q0.type][q0.i];
-      if (q == null || !P[q0.i]) return;
-      const [x, y] = P[q0.i], r = rb(q0.i), colr = ink.mono ? ink.text : q0.color, d = r + 10;
+      const t = q0.onStruct ? structs.find((s) => s.id === q0.onStruct) : structs[0];   // a site on a stacked structure sits at its superposed atom
+      const q = t && t.charges && t.charges[q0.type] && t.charges[q0.type][q0.i];
+      if (q == null || !t.P[q0.i] || (q0.onStruct && t.hidden.has(q0.i))) return;
+      const [x, y] = t.P[q0.i], r = rbOf(t, q0.i), colr = ink.mono ? ink.text : q0.color, d = r + 10;
       over.push(`<circle class="q-ring" cx="${f1(x)}" cy="${f1(y)}" r="${f1(r + 4)}" stroke="${colr}"/>`);
       lab.circles.push([x, y, r + 8]);
       jobs.push([11, () => lab.put([[x + d, y - d * 0.4, 'start'], [x - d, y - d * 0.4, 'end'], [x, y - d - 4, 'middle'], [x, y + d + 12, 'middle'],
@@ -916,16 +917,19 @@
 
     const alabs = [];
     if (sty.atomLabels && sty.atomLabels !== 'off') {
+      // 'q': the mapped charge written on the atom; style.labelAtoms (1-based) keeps the labels to those atoms
+      const only = sty.labelAtoms && new Set(sty.labelAtoms), asQ = sty.atomLabels === 'q';
       el.forEach((e, i) => {
-        if (fade.has(i) || hidden.has(i) || (sty.atomLabels === 'heavy' && e === 'H')) return;
-        alabs.push(`<text class="alab" x="${f1(P[i][0])}" y="${f1(P[i][1] + 3 * K)}" text-anchor="middle" font-size="${f1(FS.alab * K)}" fill="#1F2937">${sty.atomLabels === 'num' ? i + 1 : e + (i + 1)}</text>`);
+        if (fade.has(i) || hidden.has(i) || (sty.atomLabels === 'heavy' && e === 'H') || (only && !only.has(i + 1)) || (asQ && !qmap)) return;
+        const t = asQ ? (+qmap[i].toFixed(2) === 0 ? '' : qmap[i] < 0 ? '&#8722;' : '+') + Math.abs(qmap[i]).toFixed(2) : sty.atomLabels === 'num' ? i + 1 : e + (i + 1);
+        alabs.push(`<text class="alab" x="${f1(P[i][0])}" y="${f1(P[i][1] + 3 * K)}" text-anchor="middle" font-size="${f1(FS.alab * K)}" fill="${asQ ? '#4B5563' : '#1F2937'}">${t}</text>`);
       });
     }
 
     // keys sit just under the drawing, not pinned to the bottom edge
     const yDrawn = Math.max(...structs.flatMap((t) => t.P.map((p, i) => (t.hidden.has(i) ? -Infinity : p[1] + rbOf(t, i)))), ...ends.map((q) => pr(q)[1]));
     const keys = [];
-    if (qmap) {
+    if (qmap && sty.mapKey !== false) {       // mapKey false: a row of panels shares one key, drawn by the caller
       const x0 = 22, y0 = Math.min(H - 30, yDrawn + 26), w = 120;
       const ramp = RAMPS[sty.qRamp] || RAMPS.bwr;
       keys.push(`<defs><linearGradient id="qbar"><stop offset="0" stop-color="${ramp.neg}"/><stop offset=".5" stop-color="#FFFFFF"/><stop offset="1" stop-color="${ramp.pos}"/></linearGradient></defs>`,

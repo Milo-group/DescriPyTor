@@ -404,24 +404,15 @@ DescriPyTor 0.2.1.
 
 ## 13. Known differences from the package
 
-**The explorer's bond rule is still the flat 1.82 Å cutoff (open, as of 2026-10-03).**
-DescriPyTor 0.2.0 changed the package's bond rule to 1.15 × the sum of covalent radii, which keeps
-S–CF₃ and P–C bonds that are longer than 1.82 Å. The page still bonds at 1.82 Å, unless a structure
-sets its own cutoff. For most molecules the two rules give the same bonds. Where they differ, Sterimol
-fragments through the long bond differ, and so do the numbers.
+**The page bonds with the package rule: 1.15 × the sum of Pyykkö covalent radii.**
+That keeps S–CF₃ and P–C bonds longer than 1.82 Å (a P–C pair is bonded out to 2.10 Å). A structure
+or a saved session can still pass a number as `thr`, and `1.82` restores the flat cutoff the page
+used before this change. Under that old cutoff the p-OTf S–CF₃ bond was drawn dashed and L was
+7.8160 against the package's 10.3217.
 
-![p-OTf: the page's S–CF₃ bond is above its 1.82 Å cutoff, so its L (7.8160) differs from the package's (10.3217)](images/theta_explorer/15_live_check_otf.png)
-
-The page draws such a bond dashed and says so in red, and, when served by `descripytor visual`, the
-live check reports the difference (*"gives a different L (10.3217)"*). B₁, B₅, loc B₅ and θ agree for
-p-OTf; only L differs. The consequence for you:
-
-- Numbers for a molecule with a long single bond (a triflate, a phosphine carbon) can differ from the
-  package's. The Copy Python assertion fails for p-OTf under 0.2.1 (L 7.8160 against 10.3217).
-- The old rule is the one the paper's tables were built with (tag `paper-v3`); the package reproduces
-  them inside `with descripytor.compat.paper_v3():`.
-- Until the explorer's default is changed, take numbers you will publish from the package, and use the
-  explorer to see the construction.
+The page still draws a bond dashed, and says so, when a pair sits inside 1.15 × the covalent radii
+but the package's connectivity leaves it out. The paper's deposited tables were built with the flat
+cutoff (tag `paper-v3`); the package reproduces them inside `with descripytor.compat.paper_v3():`.
 
 **Metal-complex arms.** The Case Study 3 numbers in the paper's tables were produced by
 `MetalComplex`, which measures each arm in its own frame and fragment, so they differ slightly from the

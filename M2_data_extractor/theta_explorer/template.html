@@ -516,10 +516,10 @@ const emptyLayers = () => ({ axes: [], active: -1, dip: { on: false, origin: '',
 // ---------- structures: the measured one (the alignment reference) and any stacked on it ----------
 function makeStruct(entry, k) {
   const mol = S.parseXYZ(entry.xyz);
-  // The package bonds at a flat 1.82 A, which misses P-C (1.83-1.87): a phosphorus then looks
-  // three-coordinate short and its Sterimol fragment loses whole substituents. A fixture or a
-  // session may raise the cutoff for its own structure; everything else keeps the package value.
-  mol.thr = entry.thr || 1.82;
+  // Package default: a non-metal pair is bonded below 1.15 x the sum of Pyykko covalent radii
+  // (P-C out to 2.10 A, S-CF3 included). A number on the entry restores the old flat cutoff;
+  // 1.82 is the pre-2026-09-27 rule and drops those bonds.
+  mol.thr = (entry.thr === undefined || entry.thr === null || entry.thr === '') ? null : entry.thr;
   mol.bonds = S.connectivity(mol.el, mol.X, mol.thr);
   mol.types = S.atomTypes(mol.el, mol.bonds);
   mol.dipole = entry.dipole || null;                  // from a .feather/.log (the calculation), never guessed
@@ -632,7 +632,7 @@ function overlays() {                       // what the scene draws besides the 
   return vis.filter((s) => s !== act).map((s) => {
     const off = st.align.spread * (vis.indexOf(s) - k0);
     return { id: s.id, name: s.name, el: s.mol.el, X: off ? s.Xd.map((p) => [p[0] + R0[0] * off, p[1] + R0[1] * off, p[2] + R0[2] * off]) : s.Xd,
-      bonds: s.mol.displayBonds, types: s.mol.types, color: s.color, rmsd: s.rmsd };
+      bonds: s.mol.displayBonds, types: s.mol.types, color: s.color, rmsd: s.rmsd, charges: s.mol.charges };
   });
 }
 
@@ -706,19 +706,26 @@ function layerInputs() {                    // the gated computations, done once
     const R = own && own.Rm, mu = R ? R.map((r) => r[0] * M.dipole[0] + r[1] * M.dipole[1] + r[2] * M.dipole[2]) : M.dipole.slice(0, 3);
     return { res: S.dipoleFrame(X, mu.concat(M.dipole[3]), o, y, p), originSet: Array.isArray(o) ? o : [],
       show: spec.show, colors: spec.colors || null, atOrigin: !!spec.atOrigin, rawAxes: !!spec.rawAxes,
-      keep: own ? [] : [].concat(o, y, p), onStruct: own ? own.id : '' };
+      spokes: Array.isArray(o) ? o.map((a) => X[a - 1]) : [], keep: own ? [] : [].concat(o, y, p), onStruct: own ? own.id : '' };
   };
   if (L.dip.on) dipole = dipOn(L.dip, L.dip.onStruct || '');
   if (L.dip2 && L.dip2.on) dipole2 = dipOn(L.dip2, L.dip2.onStruct || '');
-  const sites = L.sites.filter((q) => q.i >= 1 && q.i <= mol.el.length).map((q) => ({ i: q.i - 1, type: q.type, color: q.color }));
+  // L.dips: any number of further frames, one per stacked structure (dip2 is the first of them, kept for old sessions)
+  const dipoles = (L.dips || []).filter((d) => d && d.on).map((d) => dipOn(d, d.onStruct || '')).filter(Boolean);
+  // a site may name a stacked structure (on), as an axis does; one that names a structure not loaded is dropped, not moved
+  const sites = L.sites.map((q) => {
+    const own = q.on ? st.structs.find((s) => s.id === q.on || s.name === q.on) : null;
+    if ((q.on && !own) || q.i < 1 || q.i > (own ? own.mol : mol).el.length) return null;
+    return Object.assign({ i: q.i - 1, type: q.type, color: q.color }, own ? { onStruct: own.id, q: (own.mol.charges || {})[q.type], name: own.name } : {});
+  }).filter(Boolean);
   const fade = new Set(selList(L.fade).map((k) => k - 1));
   if (L.fadeOff && axes.length) {
     const keep = new Set();
     axes.forEach((x) => { if (x.onStruct) return; x.res.atoms.forEach((i) => keep.add(i)); keep.add(L.axes[x.j].a - 1); });
-    sites.forEach((q) => keep.add(q.i));
+    sites.forEach((q) => { if (!q.onStruct) keep.add(q.i); });
     mol.el.forEach((_, i) => { if (!keep.has(i)) fade.add(i); });
   }
-  return { axes, dipole, dipole2, sites, map: L.map && mol.charges && mol.charges[L.map] ? { type: L.map } : null, fade, legend: L.legend, fadeHide: L.fadeHide,
+  return { axes, dipole, dipole2, dipoles, sites, map: L.map && mol.charges && mol.charges[L.map] ? { type: L.map } : null, fade, legend: L.legend, fadeHide: L.fadeHide,
     labShift: L.labShift || {}, cones: L.cones || [], vburs: L.vburs || [], errs };
 }
 
@@ -759,7 +766,7 @@ function writeVals() {
     const d = R.dipole.res, mu = SC.INKS[st.style.ink].mu;
     cells.push(cell('μ<sub>u</sub> D', d.dipole_y.toFixed(4), mu), cell('μ<sub>v</sub> D', d.dipole_x.toFixed(4)), cell('μ<sub>w</sub> D', d.dipole_z.toFixed(4)), cell('|μ| D', d.total.toFixed(4)));
   }
-  R.sites.forEach((q) => { const v = st.mol.charges[q.type][q.i]; cells.push(cell(`q<sub>${QN[q.type] || q.type}</sub> ${lbl(q.i + 1)}`, (v >= 0 ? '+' : '') + v.toFixed(5), q.color)); });
+  R.sites.forEach((q) => { const v = (q.onStruct ? q.q || [] : st.mol.charges[q.type])[q.i]; if (v == null) return; cells.push(cell(`q<sub>${QN[q.type] || q.type}</sub> ${q.onStruct ? q.name + ' ' + (q.i + 1) : lbl(q.i + 1)}`, (v >= 0 ? '+' : '') + v.toFixed(5), q.color)); });
   $('vals').innerHTML = cells.join('');
   $('vals').hidden = !cells.length;
   const dp = st.L.dip, nm = (t) => selList(t).map((k) => lbl(k)).join(', ') || '—';
@@ -808,7 +815,8 @@ function missingBondsNote() {
   const x = (st.mol && st.mol.extraBonds) || [];
   if (!x.length) return '';
   const pairs = x.map(([a, b, d]) => `${lbl(a)}–${lbl(b)} (${d.toFixed(3)} Å)`).join(', ');
-  return `<span class="err">DescriPyTor does not bond ${pairs}: above its 1.82 Å cutoff. Drawn dashed here; Sterimol, as in the package, treats the atoms beyond as detached.</span>`;
+  const why = st.mol.thr == null ? 'above 1.15 × the sum of its covalent radii' : `above its ${st.mol.thr} Å cutoff`;
+  return `<span class="err">DescriPyTor does not bond ${pairs}: ${why}. Drawn dashed here; Sterimol, as in the package, treats the atoms beyond as detached.</span>`;
 }
 let checkSeq = 0;
 async function liveCheck(r) {               // the Python on the same coordinates and axis
@@ -1283,6 +1291,7 @@ function pythonSnippet() {
     out.push(`assert [round(float(dip[k]), 4) for k in ('dipole_y', 'dipole_x', 'dipole_z')] == [${+d.dipole_y.toFixed(4)}, ${+d.dipole_x.toFixed(4)}, ${+d.dipole_z.toFixed(4)}]   # mu_u, mu_v, mu_w`);
   }
   (st.LR.sites || []).forEach((q) => {
+    if (q.onStruct) return;                  // the script reproduces the active structure
     const v = st.mol.charges[q.type][q.i];
     out.push(`assert round(float(m.charge_dict['${q.type}'].iloc[${q.i}, 0]), 5) == ${+v.toFixed(5)}   # q_${q.type} on ${lbl(q.i + 1)}`);
   });
@@ -1444,8 +1453,9 @@ function syncLayerUI() {                    // state -> panel
   $('qType').innerHTML = types.map((t) => `<option value="${t}">${QN[t] || t}</option>`).join('') || '<option value="">(no charges)</option>';
   $('qMap').innerHTML = '<option value="">off</option>' + types.map((t) => `<option value="${t}"${L.map === t ? ' selected' : ''}>${QN[t] || t}</option>`).join('');
   $('qList').innerHTML = L.sites.map((q, j) => {
-    const v = st.mol.charges && st.mol.charges[q.type] ? st.mol.charges[q.type][q.i - 1] : null;
-    return `<div class="lrow"><input type="color" value="${q.color}" data-qc="${j}" aria-label="colour"><b>${lbl(q.i)}</b> ${QN[q.type] || q.type}
+    const qm = q.on ? (st.structs.find((s) => s.id === q.on || s.name === q.on) || {}).mol : st.mol;
+    const v = qm && qm.charges && qm.charges[q.type] ? qm.charges[q.type][q.i - 1] : null;
+    return `<div class="lrow"><input type="color" value="${q.color}" data-qc="${j}" aria-label="colour"><b>${q.on ? esc(q.on) + ' ' + q.i : lbl(q.i)}</b> ${QN[q.type] || q.type}
       <span class="v" style="flex-basis:auto">${v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(4)}</span>
       <button class="x" type="button" data-qx="${j}" aria-label="remove">&times;</button></div>`;
   }).join('');
