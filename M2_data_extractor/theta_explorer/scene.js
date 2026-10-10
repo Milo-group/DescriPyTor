@@ -453,7 +453,8 @@
     // never hide an atom a drawn number stands on: B5's atom, L's (all tied), B1's tangent atoms, the dipole's frame atoms, charge sites
     const keepH = new Set([...(L.sites || []).filter((q) => !q.onStruct).map((q) => q.i), ...axes.flatMap((ax) => [ax.res.b5, ...ax.g.lAtoms, ...ax.g.touch]),
       ...((L.dipole && L.dipole.keep) || []).map((k) => k - 1)]);
-    const keepOn = new Set((L.sites || []).filter((q) => q.onStruct).map((q) => q.onStruct + ':' + q.i));   // the same for sites on stacked structures
+    (L.marks || []).forEach((m) => { if (!m.onStruct) m.atoms.forEach((i) => keepH.add(i)); });
+    const keepOn = new Set((L.sites || []).filter((q) => q.onStruct).map((q) => q.onStruct + ':' + q.i).concat((L.marks || []).filter((m) => m.onStruct).flatMap((m) => m.atoms.map((i) => m.onStruct + ':' + i))));   // the same for sites on stacked structures
     structs.forEach((t) => {                // hydrogens: all, polar only, or none -- never one a layer is drawn on
       t.hidden = new Set();
       if (sty.hydrogens === 'all') return;
@@ -595,6 +596,8 @@
       // ax.ink recolours one axis's whole construction, so two structures can be told apart
       const ink = ax.ink ? Object.assign({}, ink0, ax.ink) : ink0;
       const g = ax.g, r = ax.res, col = ink.axis || ax.color, pb = pr(g.base), ptip = pr(g.tip);
+      const touchRings = () => { const t = ax.onStruct ? structs.find((s) => s.id === ax.onStruct) : structs[0]; if (!t || !t.P) return;      // the atoms that set B1
+        g.touch.forEach((i) => { if (t.P[i] && !t.hidden.has(i)) over.push(`<circle class="sx-touch" cx="${f1(t.P[i][0])}" cy="${f1(t.P[i][1])}" r="${f1(rbOf(t, i) + 3)}" stroke="${ink.b1}"/>`); }); };
       if (ax.preview) {                   // one of the scan's other rotations, replayed
         const gp = axisGeometry(r, ax.preview);
         under.push(path(gp.patch, 'sx-patch trial', ` fill="${ink.b1}" stroke="${ink.b1}"`));
@@ -605,7 +608,7 @@
       }
       if (on(ax, 'plane')) {
         under.push(path(g.ref, 'sx-ref', ` fill="${ink.plane}" stroke="${ink.plane}"`), path(g.patch, 'sx-patch', ` fill="${ink.b1}" stroke="${ink.b1}"`));
-        g.touch.forEach((i) => { if (!hidden.has(i)) over.push(`<circle class="sx-touch" cx="${f1(P[i][0])}" cy="${f1(P[i][1])}" r="${f1(rb(i) + 3)}" stroke="${ink.b1}"/>`); });
+        touchRings();
         const pc = g.patch.map(pr), rc = g.ref.map(pr), edge = rc.map((p, i) => [(p[0] + rc[(i + 1) % 4][0]) / 2, (p[1] + rc[(i + 1) % 4][1]) / 2]);
         jobs.push([6, () => lab.put(pc.flatMap(([x, y]) => [[x, y - 5, 'middle'], [x, y + 13, 'middle'], [x - 6, y + 3, 'end'], [x + 6, y + 3, 'start']]),
           `B${sub(1)} plane</tspan>`, 'mark', fill(ink.b1))]);
@@ -697,6 +700,7 @@
         }]);
       }
       if (on(ax, 'b1')) {
+        if (!on(ax, 'plane') && sty.touch) touchRings();      // style.touch: ring the atoms that set B1 even when its plane is not drawn
         over.push(...marked(g.b1From, g.b1To, 'sx-b1', ink.b1, { w: 2.8, numbers: false }));
         if (!on(ax, 'plane')) { over.push(ln(g.plane[0], g.plane[1], 'sx-trace', ink.b1)); lab.along(pr(g.plane[0]), pr(g.plane[1]), 3.5); }
         const p1 = pr(g.b1From), p2 = pr(g.b1To), pm = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
@@ -854,7 +858,7 @@
         const p = pr(foot), mid = pr(add(O, scl(b, comp * muScale * 0.55)));
         jobs.push([9, () => lab.put([[mid[0], mid[1] - 11, 'middle'], [mid[0], mid[1] + 20, 'middle'],
           [p[0] + 9, p[1] + 4, 'start'], [p[0] - 9, p[1] + 4, 'end'], [p[0], p[1] + 17, 'middle'], [p[0], p[1] - 10, 'middle']],
-          `&#956;<tspan dy="2.6" font-size="0.75em">${k}</tspan>${V ? `<tspan dy="-2.6"> ${comp.toFixed(2)} D</tspan>` : ''}`, 'lab mu', fill(ink[k]))]);
+          `&#956;<tspan dy="2.6" font-size="0.75em">${k}</tspan>${V ? `<tspan dy="-2.6"> ${(Math.abs(comp) < 0.005 ? 0 : comp).toFixed(2)} D</tspan>` : ''}`, 'lab mu', fill(ink[k]))]);
       });
       if (sh.mu !== false) {
         over.push(ln(O, muTip, 'dp-mu', ink.mu, ` marker-end="${mk(ink.mu)}"`));
@@ -907,6 +911,16 @@
       jobs.push([11, () => lab.put([[x + d, y - d * 0.4, 'start'], [x - d, y - d * 0.4, 'end'], [x, y - d - 4, 'middle'], [x, y + d + 12, 'middle'],
         [x + d, y + d, 'start'], [x - d, y + d, 'end']],
       `q<tspan dy="2.6" font-size="0.72em">${QNAME[q0.type] || q0.type}</tspan>${V ? `<tspan dy="-2.6"> ${q >= 0 ? '+' : '&#8722;'}${Math.abs(q).toFixed(3)}</tspan>` : ''}`, 'lab q', fill(colr), [x, y])]);
+    });
+
+    (L.marks || []).forEach((m) => {
+      const t = m.onStruct ? structs.find((s) => s.id === m.onStruct) : structs[0];
+      if (!t || !t.P || m.atoms.some((i) => !t.P[i] || t.hidden.has(i))) return;
+      const pts = m.atoms.map((i) => t.P[i]), colr = ink0.mono ? ink0.text : m.color, cx = pts.reduce((s, p) => s + p[0], 0) / pts.length, cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+      over.push(`<polyline class="mk-line" points="${pts.map((p) => f1(p[0]) + ',' + f1(p[1])).join(' ')}" stroke="${colr}"/>`);
+      jobs.push([12, () => lab.put([[cx, cy - 12, 'middle'], [cx, cy + 20, 'middle'], [cx + 14, cy + 4, 'start'], [cx - 14, cy + 4, 'end'], [cx, cy - 26, 'middle'], [cx, cy + 34, 'middle'],
+        [cx + 26, cy - 12, 'start'], [cx - 26, cy - 12, 'end'], [cx + 26, cy + 20, 'start'], [cx - 26, cy + 20, 'end'], [cx, cy - 40, 'middle'], [cx, cy + 48, 'middle'],
+        [cx + 40, cy - 26, 'start'], [cx - 40, cy - 26, 'end'], [cx + 40, cy + 34, 'start'], [cx - 40, cy + 34, 'end'], [cx, cy - 54, 'middle'], [cx, cy + 62, 'middle']], esc(m.text), 'lab mk', fill(colr), [cx, cy])]);
     });
 
     // ---- pass 2: labels, most important first, now that every line is known ----
@@ -1018,6 +1032,7 @@
 .scene .sx-v.dash{stroke-width:2;stroke-dasharray:5 3.5;stroke-linecap:round}
 .scene .sx-ring{fill:none;stroke-width:1.3}
 .scene .sx-touch{fill:none;stroke-width:1.1}
+.scene .mk-line{fill:none;stroke-width:2;stroke-dasharray:5 4;stroke-linecap:round}
 .scene .dp-ax{stroke-width:2.4;stroke-linecap:round}
 .scene .dp-mu{stroke-width:3.6;stroke-linecap:round}
 .scene .dp-raw{stroke-width:2.4;stroke-dasharray:6 4;opacity:.8;stroke-linecap:round}
