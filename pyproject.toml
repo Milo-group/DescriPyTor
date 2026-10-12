@@ -26,7 +26,7 @@ classifiers = [
 dependencies = [
     "numpy<2",
     "pandas",
-    "pyarrow",
+    "pyarrow<26",                 # 26 needs NumPy 2
     "scipy",
     "scikit-learn",
     "statsmodels",

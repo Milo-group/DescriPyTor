@@ -19,6 +19,8 @@
 
 ### Changed
 
+- `pyarrow<26`: pyarrow 26 needs NumPy 2, and the package needs `numpy<2`; without the pin a fresh install could not
+  read a feather.
 - The Sterimol theta explorer is renamed **feature explorer**: `descripytor feature_explorer`, `/feature_explorer`,
   `M2_data_extractor/feature_explorer/`, [docs/FEATURE_EXPLORER.md](docs/FEATURE_EXPLORER.md), sessions saved as
   `.featurescene.json`. The descriptor θ keeps its name. The old names still work: `descripytor theta`, `/theta`
