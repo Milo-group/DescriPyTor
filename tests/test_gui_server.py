@@ -733,7 +733,8 @@ def test_the_old_explorer_folder_still_imports():
     old = Path(__file__).resolve().parents[1] / "M2_data_extractor" / "theta_explorer"
     code = "import sys; sys.path.insert(0, %r); import data, build; assert data.payload and build.assemble" % str(old)
     assert subprocess.run([sys.executable, "-c", code]).returncode == 0
-    assert (old / "theta_explorer.html").read_bytes() == (old.parent / "feature_explorer" / "feature_explorer.html").read_bytes()
+    same = lambda f: f.read_bytes().replace(bytes([13, 10]), bytes([10]))      # git may check the two copies out with different line ends
+    assert same(old / "theta_explorer.html") == same(old.parent / "feature_explorer" / "feature_explorer.html")
 
 
 def test_visual_extractor_address_is_the_picker():
