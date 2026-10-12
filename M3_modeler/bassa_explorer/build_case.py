@@ -180,7 +180,7 @@ def compute(X, y, iters=20000, case="uploaded", unit="", response="response", ti
     for k in order[:TOP]:
         idx = np.flatnonzero(keys[k]); A = np.c_[np.ones(n), Z[:, idx]]; b = np.linalg.lstsq(A, yv, rcond=None)[0]; r = yv - A @ b
         h = np.einsum("ij,jk,ik->i", A, np.linalg.pinv(A.T @ A), A)                              # leverages: leave-one-out residual = r / (1 - h)
-        out.append(dict(cols=idx.tolist(), share=float(counts[k] / s.shape[1]), r2=float(1 - (r ** 2).sum() / sst), q2=float(1 - ((r / (1 - h)) ** 2).sum() / sst)))
+        out.append(dict(cols=idx.tolist(), share=float(counts[k] / s.shape[1]), r2=float(1 - (r ** 2).sum() / sst), q2=float(1 - ((r / np.clip(1 - h, 1e-6, None)) ** 2).sum() / sst)))   # a compound the model fits exactly (leverage 1) has no leave-one-out residual: the clip keeps Q2 finite and very low
     joint = (s.astype(float) @ s.T.astype(float)) / s.shape[1]; assert np.allclose(np.diag(joint), s.mean(1))
     lig = [str(i) for i in X.index]; draw = [drawing(c) for c in names]
     more = np.array([f["freq"].to_numpy()] + [E.fit(X, y, iters=iters, seed=sd)["freq"].reindex(names).fillna(0.0).to_numpy() for sd in seeds[1:]])

@@ -58,6 +58,7 @@ def table(q):
     if t.index.duplicated().any(): raise ValueError("compound names repeat: " + ", ".join(t.index[t.index.duplicated()][:5]))
     if q["response"] not in t.columns: raise ValueError("no column named " + q["response"])
     y = pd.to_numeric(t[q["response"]], errors="coerce"); rows = y.notna(); X = t.drop(columns=[q["response"]]).apply(pd.to_numeric, errors="coerce").loc[rows]; y = y[rows]
+    if y.std() < 1e-12: raise ValueError("the response has the same value for every compound")
     bad = [c for c in X.columns if X[c].isna().any() or X[c].std() < 1e-9]; X = X.drop(columns=bad)
     if len(y) < 6 or X.shape[1] < 4: raise ValueError("need at least 6 compounds with a response and 4 usable descriptors (the prior expects three in a model); got %d and %d" % (len(y), X.shape[1]))
     return X, y, bad, [str(i) for i in t.index[~rows]]
