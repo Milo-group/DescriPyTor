@@ -23,6 +23,7 @@ Modeled after the R package *MoleculaR* ([docs](https://barkais.github.io/)).
 - [**Extraction protocol** — what to decide and check at each step](docs/EXTRACTION_PROTOCOL.md)
 - [**Cluster pipeline** — SMILES → GOAT / UMA / xTB / ORCA / Gaussian, chained on SGE](docs/PIPELINE.md)
 - [**Feature explorer** (Sterimol, θ, cone angle, %V_bur, dipoles, charges) — a manual with screenshots](docs/FEATURE_EXPLORER.md)
+- [**BASSA model explorer** — the sampler's models beside the molecule](docs/BASSA_EXPLORER.md)
 - [The three ways to use it](#the-three-ways-to-use-it)
 - [Feature extraction](#feature-extraction)
   - [Descriptor families](#descriptor-families)
@@ -523,9 +524,11 @@ __main__.py                     Thin shim: `python __main__.py` → `descripytor
 LICENSE                         MIT
 M1_pre_calculations/            Prepare and submit calculations (SMILES to xyz, .com files)
 M2_data_extractor/              Descriptor extraction; Molecules / Molecule / MetalComplex;
-                                feature_explorer/ (the Sterimol / cone / %Vbur explorer, gated against the Python)
+                                feature_explorer/ (the feature explorer: Sterimol, cone, %Vbur, dipoles, charges; gated
+                                against the Python); atom_picker.html (`descripytor visual_extractor`, drawn with it)
 M3_modeler/                     Regression and classification model search; ridge_search (exhaustive
-                                ridge LOO, nested LOO), validation (selection null, paired sign-flip)
+                                ridge LOO, nested LOO), validation (selection null, paired sign-flip);
+                                bassa_explorer/ (`descripytor bassa_explorer`)
 MolAlign/                       Alignment and atom renumbering
 utils/                          Shared file handling, geometry, visualization
 Getting_started_with_examples/  Notebooks, example data, the 3D picker toolkit, webapp

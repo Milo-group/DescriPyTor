@@ -5,4 +5,5 @@ include Getting_started_with_examples/descriptor_extraction_toolkit/config_examp
 recursive-include M2_data_extractor/feature_explorer *.js *.html *.json *.xyz *.wasm
 prune M2_data_extractor/feature_explorer/goldens
 recursive-include M2_data_extractor/theta_explorer *.js *.html
+recursive-include M3_modeler/bassa_explorer *.html *.js *.csv
 include utils/*.html

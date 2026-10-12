@@ -266,8 +266,9 @@ Check `mol.bonds_df` when a descriptor looks wrong.
 ### 8.3 Command line
 
 ```text
-descripytor visual          [--port N] [--host H] [--no-browser]
-descripytor feature_explorer           [--mol NAME] [--preset NAME] [--port N] [--host H] [--no-browser]
+descripytor visual_extractor [--port N] [--host H] [--no-browser]
+descripytor feature_explorer [--mol NAME] [--preset NAME] [--port N] [--host H] [--no-browser]
+descripytor bassa_explorer   [--cases DIR] [--bassa-python PYTHON] [--port N] [--host H] [--no-browser]
 descripytor extractor       -i input.json -o out_name [-f feather_dir]
 descripytor model           -m {regression,classification} -f features.csv [-t target.csv] [-y output]
                             [--min-features N] [--max-features N] [--top-n N] [--threshold R2]

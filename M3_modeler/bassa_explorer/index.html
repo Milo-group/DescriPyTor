@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BASSA model explorer</title>
+<style>
+  :root { --ink: #18212b; --mute: #667382; --faint: #9aa5b1; --line: #e3e7ec; --bg: #f2f4f7; --card: #fff; --hit: #fff1c9; --hover: #eef4fb; --accent: #1f5fd0;
+          --k1: #2989be; --k2: #dc7829; --k3: #29ae89; --k4: #d48eb5; --k5: #eaae29; --up: #13774c; --down: #c0392b; --w0: 58px; --w1: 190px; }
+  * { box-sizing: border-box; } [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; display: flex; flex-direction: column; }
+  header { padding: 8px 18px; display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; background: var(--card); border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+  h1 { font-size: 16px; margin: 0 4px 0 0; letter-spacing: -.01em; white-space: nowrap; }
+  .sub { color: var(--mute); font-size: 12px; flex: 1; min-width: 200px; }
+  .tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+  input[type=text], input[type=search] { font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; }
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(430px, 36vw); gap: 12px; padding: 0 18px 14px; }
+  @media (min-width: 1051px) { body { overflow: hidden; } }
+  @media (max-width: 1050px) { body { display: block; } main { grid-template-columns: 1fr; } .scroll { max-height: 70vh; } .stages { height: 55vh; } }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; min-height: 0; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(20, 30, 45, .04); }
+  .bar { display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; margin-bottom: 7px; }
+  .bar > .grp { display: flex; gap: 5px; align-items: center; }
+  .lab { color: var(--mute); font-size: 12px; }
+  button, select, .btn { font: inherit; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); cursor: pointer; transition: background .12s, border-color .12s, color .12s; }
+  button:hover, select:hover, .btn:hover { border-color: var(--faint); } button:disabled { opacity: .5; cursor: default; }
+  button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  button.go { background: var(--accent); border-color: var(--accent); color: #fff; } button.round { border-radius: 50%; width: 26px; height: 26px; padding: 0; font-weight: 600; }
+  .seg { display: inline-flex; } .seg button { border-radius: 0; margin-left: -1px; } .seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; } .seg button:last-child { border-radius: 0 6px 6px 0; }
+  details.filt { position: relative; } details.filt summary { list-style: none; cursor: pointer; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; user-select: none; } details.filt summary::-webkit-details-marker { display: none; }
+  details.filt[open] summary { border-color: var(--ink); } details.filt summary b { color: var(--accent); }
+  details.filt .pop { position: absolute; z-index: 6; top: calc(100% + 4px); left: 0; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(20,30,45,.16); padding: 10px 12px; display: grid; gap: 8px; min-width: 300px; }
+  details.filt .pop > div, details.filt .pop > label { display: flex; gap: 8px; align-items: center; white-space: nowrap; }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: -2px -12px 8px; padding: 0 12px; }
+  .tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 5px 12px 7px; color: var(--mute); font-weight: 500; }
+  .tabs button[aria-pressed="true"] { background: none; color: var(--ink); border-bottom-color: var(--ink); } .tabs .lab { margin-left: auto; align-self: center; }
+  button.k[aria-pressed="true"] { color: #fff; border-color: transparent; } button.k { padding: 4px 8px; min-width: 26px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input[type=range] { width: 84px; accent-color: var(--ink); vertical-align: middle; }
+  output { display: inline-block; min-width: 2.2em; font-variant-numeric: tabular-nums; }
+  .chips { display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: center; min-height: 26px; margin-bottom: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 4px 2px 8px; background: var(--hit); border-radius: 12px; font-size: 12px; }
+  .chip button { border: 0; background: none; padding: 0 5px; font-size: 14px; line-height: 1; color: var(--mute); }
+  .chip.pin { background: #e6eefc; cursor: pointer; max-width: 260px; } .chip.pin span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .chip.out { background: #e8ecf1; }
+  .key { display: inline-flex; align-items: center; gap: 5px; color: var(--mute); font-size: 12px; }
+  .scroll { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--line); }
+  table { border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+  th, td { padding: 0; text-align: center; }
+  thead th { position: sticky; top: 0; background: var(--card); z-index: 2; border-bottom: 1px solid var(--line); vertical-align: bottom; font-weight: 400; }
+  td.arcs, th.h0, th.name, th.corner, td.freq, td.num, th.h2, th.h3 { position: sticky; background: var(--card); z-index: 1; }
+  td.arcs, th.h0 { left: 0; width: var(--w0); min-width: var(--w0); vertical-align: top; }
+  th.name, th.corner { left: var(--w0); } td.freq, th.h2 { left: calc(var(--w0) + var(--w1)); } td.num, th.h3 { left: calc(var(--w0) + var(--w1) + 104px); box-shadow: 6px 0 6px -6px rgba(0,0,0,.18); }
+  thead th.h0, thead th.corner, thead th.h2, thead th.h3 { z-index: 3; color: var(--mute); font-size: 11.5px; padding: 0 8px 4px 6px; text-align: left; white-space: nowrap; }
+  th.name { --fam: transparent; text-align: left; font-weight: 400; white-space: nowrap; padding: 2px 10px 2px 8px; cursor: pointer; width: var(--w1); min-width: var(--w1); max-width: var(--w1); overflow: hidden; text-overflow: ellipsis; border-left: 4px solid var(--fam); }
+  td.freq { width: 104px; min-width: 104px; padding: 0 8px 0 0; }
+  td.num { min-width: 128px; text-align: left; padding: 0 10px 0 2px; color: var(--mute); white-space: nowrap; font-size: 11.5px; }
+  .fbar { position: relative; width: 96px; height: 13px; background: #edf0f3; border-radius: 3px; }
+  .fbar i { position: absolute; left: 0; top: 0; bottom: 0; background: #a9b4c0; border-radius: 3px; }
+  .fbar b { position: absolute; top: -2px; bottom: -2px; width: 0; border-left: 1.5px dashed var(--ink); }
+  .fbar span { position: absolute; right: 4px; top: -2px; font-size: 10.5px; }
+  .fbar b.band { border: 0; top: -2px; bottom: -2px; background: rgba(24,33,43,.13); }
+  #allcases table { border-collapse: collapse; width: 100%; font-size: 12.5px; } #allcases th, #allcases td { text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  #allcases th { font-weight: 600; color: var(--mute); font-size: 11.5px; } #allcases tbody tr { cursor: pointer; } #allcases tbody tr:hover { background: var(--hover); } #allcases td.num2 { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pill { display: inline-block; padding: 0 7px; border-radius: 9px; font-size: 11px; color: #fff; }
+  .fbar u { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 2px solid var(--accent); }
+  .infl { margin-top: 6px; } .infl svg { display: block; } .infl text { font-size: 10px; fill: var(--mute); } .infl circle { cursor: pointer; }
+  #net circle { cursor: grab; } a[data-fix] { cursor: pointer; text-decoration: underline; }
+  .fbar em { position: absolute; top: 3px; height: 3px; background: var(--ink); opacity: .75; border-radius: 2px; }
+  .fbar em.fold { top: 8px; height: 3px; background: var(--accent); opacity: .8; }
+  .wb { position: relative; display: inline-block; width: 72px; height: 9px; background: #edf0f3; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+  .wb i { position: absolute; top: 0; bottom: 0; border-radius: 2px; } .wb b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+  th.m { cursor: pointer; width: 20px; min-width: 20px; padding-bottom: 2px; transition: opacity .15s; }
+  .q { position: relative; height: 84px; width: 14px; margin: 0 auto; }
+  .q u { position: absolute; left: 0; right: 0; bottom: 0; background: #e2e6ea; border-radius: 2px 2px 0 0; }
+  .q s { position: absolute; left: 2px; right: 2px; bottom: 0; border-radius: 2px 2px 0 0; }
+  .q em { position: absolute; left: -3px; right: -3px; border-top: 1.5px dashed #c0392b; }
+  .mid { font-size: 9.5px; color: var(--mute); line-height: 1.3; } .mid.x { color: var(--ink); font-weight: 600; }
+  td.c { cursor: pointer; height: 21px; transition: opacity .15s; }
+  td.c i { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #dfe3e8; vertical-align: middle; }
+  td.c.on i { width: 11px; height: 11px; } td.c.alt i { width: 11px; height: 11px; background: #fff !important; border: 2px solid var(--faint); }
+  tbody tr:hover th.name, tbody tr:hover td:not(.arcs) { background-color: var(--hover); }
+  tbody tr.sel th.name { background: var(--hit) !important; font-weight: 600; }
+  tbody tr.fam-start th, tbody tr.fam-start td:not(.arcs) { border-top: 1px solid var(--line); }
+  .dim { opacity: .22; }
+  th.m.sel, td.c.msel { background: var(--hit) !important; }
+  th.m.sel { box-shadow: inset 0 2px 0 var(--ink); }
+  .nb { display: inline-block; margin-left: 5px; padding: 0 5px; border-radius: 8px; background: #64748b; color: #fff; font-size: 10px; font-weight: 700; line-height: 14px; vertical-align: 1px; cursor: help; }
+  .lone { display: inline-block; margin-left: 5px; padding: 0 5px; border-radius: 8px; background: #b45309; color: #fff; font-size: 10px; font-weight: 700; line-height: 14px; vertical-align: 1px; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  td.arcs svg { display: block; overflow: visible; } td.arcs path { fill: none; cursor: pointer; transition: opacity .15s; stroke-linecap: round; }
+  #infl text { font-size: 10.5px; fill: var(--ink); cursor: pointer; } #infl rect { cursor: pointer; } #infl text.sel { font-weight: 700; }
+  #map text { font-size: 10.5px; fill: var(--ink); cursor: pointer; } #map rect { cursor: pointer; } #map text.sel { font-weight: 700; }
+  #net { width: 100%; height: auto; display: block; } #net text { font-size: 11px; fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 3px; cursor: pointer; } #net circle, #net line { cursor: pointer; transition: opacity .15s; }
+  #recipes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; padding: 10px 2px; }
+  .rec { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; } .rec.sel { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  .rec h3 { margin: 0 0 6px; font-size: 14px; display: flex; gap: 6px; align-items: baseline; white-space: nowrap; } .rec h3 span { font-weight: 400; color: var(--mute); font-size: 12px; } .rec h3 button { margin-left: auto; padding: 1px 8px; font-size: 12px; }
+  .slot { border-left: 4px solid var(--fam, #cfd6de); padding: 2px 0 2px 8px; margin-bottom: 6px; } .slot .lab { display: block; font-size: 11px; }
+  .opt { display: grid; grid-template-columns: minmax(0, 1fr) 64px 34px; gap: 6px; align-items: center; cursor: pointer; padding: 1px 2px; border-radius: 3px; } .opt:hover { background: var(--hover); } .opt.sel { background: var(--hit); font-weight: 600; }
+  .opt span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .opt i { height: 7px; background: #a9b4c0; border-radius: 2px; justify-self: start; } .opt b { font-weight: 400; color: var(--mute); font-size: 11.5px; text-align: right; }
+  #mol, #mol2 { max-width: 190px; } #peek { min-height: 18px; margin: -2px 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } #peek b { color: var(--ink); font-weight: 600; }
+  .rec.dim { opacity: .4; }
+  .stages { flex: none; height: clamp(270px, 42vh, 480px); display: flex; gap: 8px; }
+  main > section:last-child { overflow-y: auto; overflow-x: hidden; }                              /* the right-hand panel scrolls when the plot, the table and the threshold box are all open */
+  .stage { position: relative; flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: #fff; overflow: hidden; }
+  .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .stage .tag { position: absolute; left: 8px; top: 6px; background: rgba(255,255,255,.86); border-radius: 5px; padding: 1px 7px; font-size: 12px; pointer-events: none; }
+  .stage .tag b { font-weight: 600; }
+  .stage .none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--mute); padding: 20px; text-align: center; background: #fff; }
+  .under { display: grid; grid-template-columns: 246px minmax(0, 1fr); gap: 12px; margin-top: 8px; align-items: start; }
+  #pstats { font-size: 12px; line-height: 1.5; margin-bottom: 4px; min-height: 18px; } #pstats div { color: var(--mute); white-space: nowrap; }
+  #parity .pt { cursor: pointer; } #parity text { font-size: 10px; fill: var(--mute); pointer-events: none; } .thr svg text, .infl text { pointer-events: none; }
+  #info table { width: 100%; } #info td { text-align: left; padding: 2px 6px 2px 0; vertical-align: middle; } #info td.r { text-align: right; padding: 2px 0 2px 10px; white-space: nowrap; }
+  #info td.n { max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #info tr.head td { color: var(--mute); font-size: 11px; } #info svg circle { cursor: pointer; }
+  .thr { margin-top: 6px; padding: 6px 8px; background: #f6f4ee; border-radius: 6px; } .thr .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; margin-bottom: 4px; }
+  .thr select { max-width: 150px; padding: 2px 6px; } .thr input[type=range] { width: 110px; } .thr svg circle, .thr svg path { cursor: pointer; } .thr svg text { font-size: 10px; fill: var(--mute); }
+  .design { margin-top: 6px; padding: 6px 8px; background: #f4f7fd; border-radius: 6px; } .design label { display: grid; grid-template-columns: 118px 1fr 52px; gap: 6px; align-items: center; font-size: 12px; }
+  .design label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .design input { width: 100%; accent-color: var(--accent); } .design b { color: var(--accent); } .design a { cursor: pointer; text-decoration: underline; }
+  .hint { color: var(--mute); font-size: 12px; margin: 6px 0 0; }
+  a { color: var(--accent); }
+  dialog { border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; max-width: 660px; color: var(--ink); box-shadow: 0 12px 40px rgba(20,30,45,.25); } dialog::backdrop { background: rgba(20,30,45,.35); }
+  dialog h2 { font-size: 16px; margin: 0 0 8px; } dialog li { margin-bottom: 6px; } dialog ul { padding-left: 18px; margin: 0 0 12px; }
+  .form { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 8px 10px; align-items: center; margin-bottom: 12px; } .form input[type=text], .form select { width: 100%; }
+  #tip { position: fixed; z-index: 30; max-width: 340px; background: var(--ink); color: #fff; padding: 7px 10px; border-radius: 7px; font-size: 12px; line-height: 1.4; box-shadow: 0 6px 20px rgba(20,30,45,.3); pointer-events: none; }
+  [data-tip] { cursor: help; } button[data-tip], .seg [data-tip] { cursor: pointer; }
+  #toast { position: fixed; left: 18px; bottom: 16px; background: var(--ink); color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 12.5px; max-width: 60vw; box-shadow: 0 6px 20px rgba(20,30,45,.3); z-index: 20; transition: opacity .2s; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media print { header .tools, .bar, .tabs, .chips, #toast, dialog { display: none !important; } body { background: #fff; display: block; } main { display: block; padding: 0; } section { border: 0; box-shadow: none; break-inside: avoid; } .scroll { overflow: visible; } .stages { height: 420px; } }
+</style>
+<style id="colhov"></style>
+</head>
+<body>
+<header>
+  <h1>BASSA model explorer</h1>
+  <select id="case" aria-label="data set"></select>
+  <span class="sub" id="sub"></span>
+  <div class="tools">
+    <button id="overview" title="every case in one table">All cases</button><button id="new">New case…</button><button id="keep" hidden title="add this case to the menu for next time">Keep this case</button><button id="checks" hidden>Add chance line and nested Q²</button>
+    <button id="onefile" title="this case, the page and the molecule viewer in one HTML file that opens without a server">Save as one file</button>
+    <button id="link" title="copy a link to exactly this view">Copy link</button><button id="scheme" hidden title="the reaction this case is about">Reaction</button><button id="help" class="round" aria-label="how to read this page">?</button>
+  </div>
+</header>
+<main>
+  <section>
+    <div class="tabs" id="view"><button data-v="models">Models</button><button data-v="recipes">Recipes</button><button data-v="network">Network</button><button data-v="map">Map</button><button data-v="influence">Compounds</button><span class="lab" id="count"></span></div>
+    <div class="bar">
+      <div class="grp"><span class="lab">Models by</span><span class="seg" id="msort"><button data-v="share">visits</button><button data-v="q2">Q²</button><button data-v="r2">R²</button></span></div>
+      <details class="filt" id="filt"><summary id="filtsum">Filters</summary><div class="pop">
+        <div><span class="lab" style="width:86px">Descriptors</span><span id="sizes"></span></div>
+        <div><label class="lab" for="minq" style="width:86px">Q² at least</label><input id="minq" type="range" min="0" max="1" step="0.05" value="0"><output id="minqo">0</output></div>
+        <div><label class="lab" for="minr" style="width:86px">R² at least</label><input id="minr" type="range" min="0" max="1" step="0.05" value="0"><output id="minro">0</output></div>
+        <div id="vsgrp"><label class="lab" for="minshare" style="width:86px" title="hide models (or merged groups) visited in less than this share of the run">Visited at least</label><select id="minshare"><option value="0">any</option><option value="0.002">0.2 %</option><option value="0.005">0.5 %</option><option value="0.01">1 %</option><option value="0.02">2 %</option></select></div>
+        <label class="lab" id="onlylab"><input id="only" type="checkbox"> only models that contain the selection</label>
+        <div><button id="nofilt">Reset filters</button></div>
+      </div></details>
+      <button id="keymodels" aria-pressed="false" title="one column per idea: models that differ only within a family are merged, and groups visited in less than 1 % of the run are hidden">Key models</button>
+      <label class="lab" id="mergelab" title="models that differ only by swapping a descriptor for one of its family become one column"><input id="merge" type="checkbox"> merge look-alikes</label>
+    </div>
+    <div class="bar" id="rowbar">
+      <div class="grp"><span class="lab">Rows by</span><span class="seg" id="rsort"><button data-v="freq" data-tip="Most used descriptor first: the share of all visited models that contain it.">frequency</button><button data-v="with" data-tip="Select a descriptor first. The rows are then ordered by how much more often each descriptor appears in models that contain your selection than it does in general: its partners rise to the top.">goes with selection</button><button data-v="fam" data-tip="Descriptors that carry the same information (correlated at 0.7 or more) are put next to each other, with a coloured stripe and a line between groups.">families</button></span>
+        <button id="rowhelp" class="round" aria-label="what the three row orders show">?</button></div>
+      <div class="grp"><span class="lab">Links</span><span class="seg" id="links"><button data-v="top" title="the six strongest of each kind; point at a descriptor to see all of its links">strongest</button><button data-v="all">all</button><button data-v="off">off</button></span>
+        <button id="linkhelp" class="round" aria-label="what the links mean">?</button></div>
+      <input id="find" type="search" placeholder="find a descriptor…" aria-label="find a descriptor" style="width:170px">
+    </div>
+    <div class="chips"><button id="clear" title="clears the selection, the search and the pins">Clear</button><button id="pin" title="keep the model or selection on screen to come back to it">Pin</button><span id="chips" style="display:contents"></span>
+      <span class="key"><svg width="30" height="12"><path d="M2 10 C 10 -2, 20 -2, 28 10" fill="none" stroke="#13774c" stroke-width="2.4"/></svg>appear together</span>
+      <span class="key"><svg width="30" height="12"><path d="M2 10 C 10 -2, 20 -2, 28 10" fill="none" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3"/></svg>replace each other</span>
+      <span class="key" title="on each frequency bar"><svg width="22" height="12"><line x1="1" y1="4" x2="21" y2="4" stroke="#18212b" stroke-width="3"/><line x1="1" y1="9" x2="21" y2="9" stroke="#1f5fd0" stroke-width="3"/></svg>between chains / leaving one compound out</span>
+    </div>
+    <div class="lab" id="peek"></div>
+    <div class="scroll" id="scroll"><table id="grid"></table><div id="recipes" hidden></div><svg id="net" hidden viewBox="0 0 860 560"></svg><svg id="map" hidden></svg><svg id="infl" hidden></svg></div>
+  </section>
+  <section>
+    <div class="bar"><label class="lab" for="mol">Compound</label><select id="mol"></select><label class="lab" for="mol2">compare with</label><select id="mol2"></select>
+      <label class="lab" id="stacklab" data-tip="Draws the compared compounds in one picture, each in its own colour, superposed on the atoms the shown descriptors are read from (or on the common core when fewer than three are in play), with the descriptors drawn on every one of them. Shift-click more points in the plot to add compounds. Off: the first two side by side."><input id="stack" type="checkbox"> stack, aligned</label><span class="lab" id="morelab"></span></div>
+    <div class="bar"><button id="design" aria-pressed="false" data-tip="Design: a slider for each descriptor of the shown model, and the response the model predicts at those values. It warns when a slider leaves the range of the fitted compounds.">Design</button><button id="thr" aria-pressed="false" data-tip="Threshold analysis: one descriptor as a yes/no rule. Choose the response value that counts as a hit; the page finds the cut on the descriptor that separates hits best, ranks all descriptors, and can test the best one against shuffles. The panel opens under the plot.">Threshold analysis</button><button id="savefig" title="the molecule as it is drawn now, as SVG">Save picture</button><button id="copyeq" title="the shown model as an equation with its statistics">Copy model</button><a id="open" target="_blank" rel="noopener">full explorer ↗</a></div>
+    <div class="bar" id="molopts" style="margin-bottom:5px"><label class="lab" data-tip="Untick to see the structures alone, without any descriptor drawn on them. A stack is still superposed on the same atoms."><input id="showd" type="checkbox" checked> descriptors</label>
+      <span class="lab" title="added to every Sterimol axis drawn on the molecule">Sterimol, also show</span>
+      <label class="lab" data-tip="The plane that touches the molecule at its smallest width (B1), and the reference plane through the axis. Off: only the B1 arrow is drawn."><input type="checkbox" data-x="plane"> B1 plane</label><label class="lab"><input type="checkbox" data-x="theta"> angle θ</label><label class="lab" title="L, B1, B5 and loc B5 on every axis"><input type="checkbox" data-x="full"> all widths</label><label class="lab"><input type="checkbox" data-x="inset"> end-on map</label><label class="lab" data-tip="Fades every atom that no drawn Sterimol axis measures, so you see the fragment the widths are taken over. On an axis between two atoms that are not bonded, the fragment can include atoms next to the first one."><input type="checkbox" data-x="frag"> measured atoms</label><button id="resetview" title="turn the molecule back to the view it opened with">Reset view</button>
+      <span class="grp" style="margin-left:auto"><label class="lab" for="names">names</label><select id="names"><option value="worst">worst three</option><option value="all">all</option><option value="ext">external only</option><option value="none">none</option></select></span></div>
+    <div class="stages" id="stages">
+      <div class="stage"><iframe id="f0" name="bassa" title="molecule" src="feature_explorer.html?embed=figure"></iframe><div class="tag" id="t0"></div><div class="none" id="n0" hidden></div></div>
+      <div class="stage" id="s1" hidden><iframe id="f1" name="bassa" title="second molecule" src="feature_explorer.html?embed=figure"></iframe><div class="tag" id="t1"></div><div class="none" id="n1" hidden></div></div>
+    </div>
+    <div class="under"><div><div id="pstats"></div><svg id="parity" width="246" height="246" role="img" aria-label="predicted against measured"></svg></div><div id="info"></div></div>
+  </section>
+</main>
+<div id="toast" hidden role="status"></div><div id="tip" hidden role="tooltip"></div>
+<dialog id="schemedlg" style="max-width:min(960px,94vw);border:1px solid #d5dbe2;border-radius:10px;padding:16px"><div class="lab" id="schemecap" style="margin-bottom:8px"></div><img id="schemeimg" alt="reaction scheme" style="max-width:100%;display:block"><form method="dialog" style="text-align:right;margin-top:10px"><button>Close</button></form></dialog>
+<dialog id="guide">
+  <h2>How to read this page</h2>
+  <ul>
+    <li><b>Models.</b> One column is one model BASSA visited; one row is one descriptor. Grey bar R², coloured bar Q² with those descriptors fixed (colour = number of descriptors), red dashes the nested Q² of the whole procedure. On the frequency bars: black dashes are what chance gives, and the grey band around them is how far that line could move with other shuffles; the thin dark line is the spread between independent chains; the blue line is the range over the reruns that each leave one compound out. Beside the bar: in how many of those reruns the descriptor stays among the top three, and that range in numbers. A wide blue line means the sampler's preference for the descriptor depends on single compounds, which is not the same as its effect depending on them.</li>
+    <li><b>An orange "!"</b> beside a descriptor means one compound sits more than five standard deviations from all the others in that column. Such a column can carry a model on a single compound; check it before trusting the model.</li>
+    <li><b>Which descriptors go together.</b> Green arcs join descriptors that share models more than chance; red dashed arcs join descriptors that stand in for each other. Select a descriptor and every other row is tinted green or red by how it behaves beside it. The stripe at the left marks a family of correlated descriptors.</li>
+    <li><b>Recipes</b> reduce every model to its families: a card is one combination, and inside each slot are the descriptors that fill it, most used first. Descriptors in one slot replace each other.</li>
+    <li><b>Network</b> and <b>Map</b> show the same relations as a picture: nodes or squares, green for together and red for instead.</li>
+    <li><b>Compounds</b> shows, for the ten most used descriptors, how their frequency moves when each compound is left out and the sampler rerun. A red column is a compound the result rests on.</li>
+    <li><b>Key models</b> cuts the table to one column per idea: models that differ only by swapping a descriptor for another of its family are merged, and groups visited in less than 1 % of the run are hidden.</li>
+    <li><b>The plot</b> predicts every compound from a fit that left it out. Click a point to look at the compound; shift-click to compare, and shift-click further points to add more (tick "stack, aligned" to superpose them in one picture, with the descriptors drawn on each); right-click to hold it out, so that the model is fitted without it and predicts it, like a test compound. Diamonds are external compounds, never fitted. Grey ticks are what the class mean alone predicts.</li>
+    <li><b>Under the table of the shown model</b>, one line per descriptor shows where its frequency goes when each compound is left out: a dot far from the tick is a compound that descriptor rests on. After <b>Rerun BASSA without them</b>, blue marks and "was …" show every frequency before.</li>
+    <li><b>Threshold</b> turns one descriptor into a yes/no rule: choose the response value that counts as a hit, and the page finds the single cut on the descriptor that separates hits best. Read the leave-one-out line, where the cut is chosen again without each compound. Below it, every descriptor is ranked as that single rule, and a button tests the best of them against shuffled hits; a second descriptor can be added to see whether two rules together separate what one cannot.</li>
+    <li><b>On the molecule</b>, the checkboxes above the viewer add the B1 plane, the angle θ, the full Sterimol set or the end-on map to every axis drawn. <b>Names in the plot</b> labels all compounds, only the external ones, or none.</li>
+    <li><b>Design</b> gives a slider per descriptor of the shown model. <b>Pin</b> keeps a model. <b>New case…</b> runs BASSA on your own table; <b>Keep this case</b> adds it to the menu.</li>
+  </ul>
+  <p class="hint" style="margin:0 0 12px">A model picked by eye from this page has been selected on these compounds. Quote the nested Q², not the bar.</p>
+  <form method="dialog"><button class="go">Close</button></form>
+</dialog>
+<dialog id="allcases" style="max-width:1100px;width:92vw">
+  <h2>All cases</h2>
+  <div id="allbody" style="max-height:70vh;overflow:auto"></div>
+  <p class="hint" style="margin:8px 0 12px">Leading descriptor: the one in most models, with its share, the range of that share when one compound is left out, and in how many of those reruns it stays among the top three. Against chance: p of that share under shuffled responses. Predicts: the nested Q² of the whole procedure. Click a row to open the case.</p>
+  <form method="dialog"><button class="go">Close</button></form>
+</dialog>
+<dialog id="linksguide">
+  <h2>The links beside the descriptor names</h2>
+  <p style="margin:0 0 8px">Each arc joins two descriptors and says how they behave across all the models BASSA visited.</p>
+  <ul>
+    <li><svg width="34" height="14" style="vertical-align:-2px"><path d="M2 12 C 10 -2, 24 -2, 32 12" fill="none" stroke="#13774c" stroke-width="2.6"/></svg> <b>Green, solid: they appear together.</b> The two are in the same model more often than two unrelated descriptors would be. They carry different information and BASSA wants both.</li>
+    <li><svg width="34" height="14" style="vertical-align:-2px"><path d="M2 12 C 10 -2, 24 -2, 32 12" fill="none" stroke="#c0392b" stroke-width="2.2" stroke-dasharray="4 3"/></svg> <b>Red, dashed: they replace each other.</b> The two columns are strongly correlated and are rarely in the same model. They carry the same information under two names; a model takes one or the other.</li>
+    <li><b>Thicker</b> means a stronger effect. <b>No arc</b> means nothing either way.</li>
+    <li><b>Strongest</b> draws only the six clearest arcs of each kind, so the column stays readable. <b>Point at a descriptor</b>, or select it, and all of its links appear. <b>All</b> draws everything; <b>off</b> hides them.</li>
+    <li>Click an arc to select the two descriptors it joins.</li>
+  </ul>
+  <p class="hint" style="margin:0 0 12px">The same information is in the tint of the rows once a descriptor is selected, and as pictures under Recipes, Network and Map.</p>
+  <form method="dialog"><button class="go">Close</button></form>
+</dialog>
+<dialog id="rowsguide">
+  <h2>Rows by: three ways to order the descriptors</h2>
+  <ul>
+    <li><b>Frequency.</b> The plain ranking. The descriptor BASSA used most is on top; the grey bar is the share of all visited models that contain it. Use it to see what matters at all.</li>
+    <li><b>Goes with selection.</b> Click a descriptor first. The others are then ordered by how they behave <i>beside it</i>: at the top, the descriptors that appear in the same models much more often than usual (its partners, tinted green); at the bottom, the ones that almost never share a model with it (tinted red, usually because they say the same thing). The small bar in the "beside" column runs from the descriptor's usual share (the tick) to its share next to your selection. Use it to answer "what does BASSA combine this with?".</li>
+    <li><b>Families.</b> A family is a group of descriptors whose columns are strongly correlated (0.7 or more with the most used one): different names for nearly the same information. This order puts each family together, marks it with a coloured stripe at the left, and draws a line between families. BASSA usually takes one member of a family per model, so a family is the unit to read, not the single descriptor: three descriptors at 20 % each in one family are one idea at about 60 %. Use it to see how many <i>different</i> ideas the models draw on.</li>
+  </ul>
+  <form method="dialog"><button class="go">Close</button></form>
+</dialog>
+<dialog id="namedlg">
+  <h2>Say what this column measures</h2>
+  <p class="hint" style="margin:0 0 10px" id="namewhat"></p>
+  <div class="form">
+    <label for="namekind">It is</label><select id="namekind"><option value="b1">Sterimol B1 on an axis</option><option value="b5">Sterimol B5 on an axis</option><option value="L">Sterimol L on an axis</option><option value="loc">loc B5 on an axis</option><option value="theta">a Sterimol angle on an axis</option>
+      <option value="nbo">NBO charge on an atom</option><option value="hirshfeld">Hirshfeld charge on an atom</option><option value="cm5">CM5 charge on an atom</option><option value="atoms">a length, angle or dihedral (number the atoms)</option></select>
+    <label for="nameatoms">Atom numbers</label><input id="nameatoms" type="text" placeholder="e.g. 6 4 for the axis 6→4, or 5 for one atom">
+  </div>
+  <p class="lab" id="namemsg" style="min-height:18px"></p>
+  <form method="dialog" style="display:flex;gap:8px"><button id="nameok" class="go" type="button">Draw it</button><button>Cancel</button></form>
+</dialog>
+<dialog id="newcase">
+  <h2>New case from your own table</h2>
+  <div class="form">
+    <label for="file">Table (CSV)</label><input id="file" type="file" accept=".csv">
+    <label for="resp">Response column</label><select id="resp" disabled></select>
+    <label for="iters">Run length</label><select id="iters"><option value="4000">quick look: 4,000 iterations, one chain</option><option value="20000" selected>full run: 20,000 iterations, three chains</option></select>
+    <label for="xyz">Structures folder</label><input id="xyz" type="text" placeholder="optional: a folder of .feather, .log or .xyz files">
+  </div>
+  <p class="hint" style="margin:0 0 12px">First column: the compound name. One file per compound in the folder, named like the compound (L1.feather, or a longer name that contains L1 as a word). Feathers and logs bring charges and the dipole; xyz brings the geometry only.
+    Descriptors are drawn on the molecule when their column names follow the DescriPyTor platform (B1_6-4, loc_B5_6-4, nbo_atom_5, mu_y[C4->N5|C6], 0_angle_[5, 6, 7]); other columns are used everywhere else.</p>
+  <p class="lab" id="newstatus" style="min-height:18px"></p>
+  <form method="dialog" style="display:flex;gap:8px"><button id="run" class="go" type="button" disabled>Run BASSA</button><button>Close</button></form>
+</dialog>
+<dialog id="eq"><h2>The model</h2><textarea id="eqtext" readonly rows="8" style="width:580px;max-width:80vw;font:12px/1.5 Consolas,monospace;border:1px solid var(--line);border-radius:6px;padding:8px"></textarea>
+  <p class="hint" style="margin:6px 0 12px">The clipboard is not available here; copy from the box.</p><form method="dialog"><button class="go">Close</button></form></dialog>
+<script src="manifest.js"></script>
+<script>
+const $ = (id) => document.getElementById(id), MAXCOL = 70, CASES = window.CASES = window.CASES || {}, ALONE = !!window.STANDALONE;
+const PAL = ['#6D28D9', '#0F766E', '#C8501E', '#2563EB', '#B45309', '#BE185D'], KCOL = ['', 'var(--k1)', 'var(--k2)', 'var(--k3)', 'var(--k4)', 'var(--k5)'], FAMCOL = ['#7c3aed', '#0d9488', '#ea580c', '#2563eb', '#be185d', '#65a30d', '#b45309', '#475569'];
+const pct = (v) => (100 * v).toFixed(0) + ' %', kOf = (M) => Math.min(5, M.cols.length), esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const range = (n) => [...Array(n).keys()], num = (v) => String(+(+v).toFixed(2)), GREEN = '#13774c', RED = '#c0392b';
+let C, N, st, Z, Y, MS, PY, FF, LONE, NB, fam, members, famColour, rel, relTop, fits, lastKey = '', restoring = false, dragged = false;
+let toastT; const say = (msg, ms = 4500) => { $('toast').textContent = msg; $('toast').hidden = false; clearTimeout(toastT); if (ms) toastT = setTimeout(() => $('toast').hidden = true, ms); };
+// a compound is one of the fitted ones, or an external one that is only ever predicted
+const everyone = () => C.ext ? [...C.ligands, ...C.ext.names] : C.ligands, yOf = (n) => n in C.y ? C.y[n] : C.ext.y[C.ext.names.indexOf(n)];
+const xOf = (i, n) => { const k = C.ligands.indexOf(n); return k >= 0 ? C.X[C.names[i]][k] : C.ext.X[C.names[i]][C.ext.names.indexOf(n)]; };
+
+// ---------- a case arrives (prepared, kept, or just computed by the server) ----------
+function boot(data, p) {
+  C = data; N = C.names.length; fits = {};
+  st = { rows: [], model: -1, msort: 'share', rsort: 'freq', view: 'models', sizes: new Set([1, 2, 3, 4, 5]), minq: 0, minr: 0, only: false, merge: false, minshare: 0, find: '', links: 'top', mol: C.ligands[0], mol2: '', out: new Set(), pins: [], design: false, dv: {}, stack: false, more: [], showD: true, names: 'worst', extra: { plane: false, theta: false, full: false, inset: false, frag: false }, thr: false, thrI: -1, thrJ: -1, thrY: null, thrD: 'ge' };
+  Y = C.ligands.map((l) => C.y[l]);                                           // rows: selected descriptors, the last is the anchor; out: compounds left out of the fits here; dv: the design sliders
+  MS = C.names.map((c) => { const x = C.X[c], m = x.reduce((a, b) => a + b, 0) / x.length; return [m, Math.sqrt(x.reduce((a, b) => a + (b - m) ** 2, 0) / x.length) || 1]; });
+  Z = C.names.map((c, i) => C.X[c].map((v) => (v - MS[i][0]) / MS[i][1]));
+  // LONE[i]: the compound furthest from the others in descriptor i, when it is more than 5 of their standard deviations from their mean (measured without it, so one point cannot hide itself)
+  // NB[i]: a Sterimol axis whose two atoms are not bonded in the first compound with a structure (covalent radii x 1.15, as the package; a metal within 2.8 A counts as bonded)
+  const COV = { H: .31, B: .84, C: .76, N: .71, O: .66, F: .57, Si: 1.11, P: 1.07, S: 1.05, Cl: 1.02, Br: 1.2, I: 1.39 }, m0 = Object.values(C.mols || {})[0];
+  const at0 = m0 ? m0.xyz.trim().split('\n').slice(2).map((l) => l.trim().split(/\s+/)) : [];
+  NB = C.draw.map((d) => { if (!d || d.kind !== 'sterimol' || !m0) return null; const R = m0.roles, a = d.ra ? R && R[d.ra] && R[d.ra][0] : d.a, b = d.ra ? R && R[d.rb] && R[d.rb][0] : d.b, A = at0[a - 1], B = at0[b - 1]; if (!A || !B) return null;
+    const dist = Math.hypot(A[1] - B[1], A[2] - B[2], A[3] - B[3]), lim = COV[A[0]] && COV[B[0]] ? 1.15 * (COV[A[0]] + COV[B[0]]) : 2.8; return dist > lim ? { a: A[0] + a, b: B[0] + b, dist } : null; });
+  LONE = C.names.map((c) => { const x = C.X[c], n = x.length, sum = x.reduce((a, b) => a + b, 0), sq = x.reduce((a, b) => a + b * b, 0); let top = null;
+    x.forEach((v, r) => { const m = (sum - v) / (n - 1), sd = Math.sqrt(Math.max(0, (sq - v * v) / (n - 1) - m * m)), z = sd > 1e-12 ? Math.abs(v - m) / sd : 0; if (!top || z > top.z) top = { r, z }; });
+    return top && top.z > 5 ? top : null; });
+  if (C.fold_top && !Array.isArray(C.fold_top)) C.fold_top = C.names.map((c) => C.fold_top[c] || 0);
+  // FF[i][r]: the frequency of descriptor i in the rerun that leaves compound r out (prepared cases store it by compound, the checks by column)
+  FF = !C.fold_freq ? null : Array.isArray(C.fold_freq) ? C.names.map((_, i) => C.fold_freq.map((row) => row[i])) : C.names.map((c) => C.fold_freq[c] || null);
+  // families: each descriptor joins the most frequent descriptor it correlates with at |r| >= 0.7 (no chaining through weaker links)
+  fam = Array(N).fill(-1); const leaders = [];
+  for (const i of range(N).sort((a, b) => C.freq[b] - C.freq[a])) { const l = leaders.find((j) => Math.abs(C.corr[i][j]) >= 0.7); if (l === undefined) { leaders.push(i); fam[i] = i; } else fam[i] = l; }
+  members = {}; for (let i = 0; i < N; i++) (members[fam[i]] ||= []).push(i);
+  famColour = {}; Object.values(members).filter((m) => m.length > 1).sort((a, b) => C.freq[b[0]] - C.freq[a[0]]).forEach((m, k) => m.forEach((i) => famColour[i] = FAMCOL[k % FAMCOL.length]));
+  // relations over the whole run: together more than independence gives, or correlated and rarely together
+  rel = []; for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) { if (C.freq[i] < 0.04 || C.freq[j] < 0.04) continue; const joint = C.joint[i][j], exp = C.freq[i] * C.freq[j], r = C.corr[i][j];
+    if (joint > 1.3 * exp && joint - exp >= 0.015) rel.push({ i, j, joint, exp, r, up: true }); else if (Math.abs(r) >= 0.7 && joint < 0.6 * exp) rel.push({ i, j, joint, exp, r, up: false }); }
+  const byStrength = [...rel].sort((a, b) => Math.abs(b.joint - b.exp) - Math.abs(a.joint - a.exp)); relTop = new Set([...byStrength.filter((q) => q.up).slice(0, 6), ...byStrength.filter((q) => !q.up).slice(0, 6)]);
+  if (p && p.get('case') === C.case) {                                        // a shared link: only what still makes sense for this case is taken
+    const ok = (v, list) => list.includes(v), int = (k) => p.get(k) === null || p.get(k) === '' ? NaN : +p.get(k);
+    st.rows = (p.get('rows') || '').split('.').filter(Boolean).map(Number).filter((i) => i >= 0 && i < N);
+    if (int('model') >= 0 && int('model') < C.models.length) st.model = int('model');
+    if (ok(p.get('ms'), ['share', 'q2', 'r2'])) st.msort = p.get('ms'); if (ok(p.get('rs'), ['freq', 'with', 'fam'])) st.rsort = p.get('rs'); if (ok(p.get('view'), ['models', 'recipes', 'network', 'map', 'influence'])) st.view = p.get('view'); if (ok(p.get('links'), ['top', 'all', 'off'])) st.links = p.get('links');
+    if (p.get('sz')) st.sizes = new Set([...p.get('sz')].map(Number).filter((k) => k >= 1 && k <= 5));
+    if (int('q') >= 0 && int('q') <= 1) st.minq = int('q'); if (int('r') >= 0 && int('r') <= 1) st.minr = int('r'); st.only = p.get('only') === '1'; st.merge = p.get('merge') === '1'; if (['0', '0.002', '0.005', '0.01', '0.02'].includes(p.get('vs'))) st.minshare = +p.get('vs');
+    if (ok(p.get('mol'), everyone())) st.mol = p.get('mol'); if (ok(p.get('mol2'), everyone())) st.mol2 = p.get('mol2');
+    st.pins = (p.get('pins') || '').split('_').filter(Boolean).map((t) => t.split('.').map(Number).filter((i) => i >= 0 && i < N)).filter((a) => a.length);
+    st.stack = p.get('stk') === '1'; st.showD = p.get('sd') !== '0'; st.more = (p.get('more') || '').split('.').filter(Boolean).map((v) => everyone()[+v]).filter((n) => n && n !== st.mol && n !== st.mol2 && st.mol2); if (ok(p.get('nm'), ['worst', 'all', 'ext', 'none'])) st.names = p.get('nm'); (p.get('ex') || '').split('.').forEach((k) => { if (k in st.extra) st.extra[k] = true; });
+    const th = (p.get('th') || '').split('~'); if (th.length === 4 && +th[0] >= 0 && +th[0] < N && isFinite(+th[2])) { st.thr = true; st.thrI = +th[0]; st.thrJ = +th[1] >= 0 && +th[1] < N ? +th[1] : -1; st.thrY = +th[2]; st.thrD = th[3] === 'le' ? 'le' : 'ge'; }
+    if (!p.has('model') && !st.rows.length) st.model = columns().cols[0]?.m ?? -1;      // a link that only names the case opens on its most visited model
+  } else st.model = columns().cols[0]?.m ?? -1;
+  for (const id of ['msort', 'rsort', 'view', 'links']) press(id, st[id]);
+  $('minq').value = st.minq; $('minr').value = st.minr; $('minqo').textContent = num(st.minq); $('minro').textContent = num(st.minr); $('only').checked = st.only; $('merge').checked = st.merge; $('find').value = ''; syncKey();
+  $('sizes').querySelectorAll('button').forEach((b) => { const on = st.sizes.has(+b.dataset.k); b.setAttribute('aria-pressed', on); b.style.background = on ? KCOL[+b.dataset.k] : '#fff'; });
+  const opt = (l) => `<option value="${esc(l)}">${esc(l)}   (${yOf(l).toFixed(2)})${C.ligands.includes(l) ? '' : ' · external'}</option>`;
+  $('mol').innerHTML = everyone().map(opt).join(''); $('mol2').innerHTML = '<option value="">nothing</option>' + everyone().map(opt).join(''); $('mol').value = st.mol; $('mol2').value = st.mol2;
+  const order = [...(window.CASE_FILES || []).filter((k) => CASES[k]), ...Object.keys(CASES).filter((k) => !(window.CASE_FILES || []).includes(k))];
+  $('case').innerHTML = order.map((k) => `<option value="${esc(k)}">${esc(CASES[k].title || k)}</option>`).join(''); $('case').value = order.find((k) => CASES[k] === C);
+  $('sub').title = `${C.n_distinct.toLocaleString()} distinct models in ${C.iterations.toLocaleString()} kept iterations; the ${C.models.length} most visited are loaded (${pct(C.shown_share)} of the run). Frequencies and links use the whole run.` + (C.dropped && C.dropped.length ? ` Dropped columns (not numeric, missing or constant): ${C.dropped.join(', ')}.` : '');
+  $('sub').textContent = `${C.n} compounds${C.ext ? ' + ' + C.ext.names.length + ' external' : ''} · ${N} descriptors` + (C.nested_q2 == null ? ' · no chance line or nested Q² yet' : C.p_top != null ? ` · leading descriptor against chance: p = ${C.p_top.toFixed(C.n_shuffles > 100 ? 3 : 2)}${C.p_lo != null ? ` (${C.p_lo.toFixed(3)} to ${C.p_hi.toFixed(3)})` : ''}, ${C.n_shuffles || 100} shuffles` : '') + (C.before ? ' · blue marks: before, with all compounds' : '') + (LONE.some(Boolean) ? ` · ${LONE.filter(Boolean).length} column${LONE.filter(Boolean).length > 1 ? 's' : ''} owned by one compound (!)` : '');
+  document.documentElement.style.setProperty('--w1', Math.max(170, Math.min(260, 56 + 6.6 * Math.max(...C.label.map((l) => l.length)))) + 'px');
+  $('overview').hidden = Object.keys(CASES).length < 2; $('scheme').hidden = !C.scheme; $('checks').hidden = ALONE || !(C.uploaded && C.nested_q2 == null); $('keep').hidden = ALONE || !C.uploaded; $('new').hidden = $('onefile').hidden = ALONE; $('design').setAttribute('aria-pressed', false); $('thr').setAttribute('aria-pressed', st.thr); $('names').value = st.names; $('stack').checked = st.stack; $('showd').checked = st.showD; $('molopts').querySelectorAll('input[data-x]').forEach((c) => c.checked = st.extra[c.dataset.x]);
+  frames.forEach((f) => f.key = f.json = ''); delete C._net; refresh();
+}
+
+// least squares on standardised columns, with the leave-one-out prediction of every compound (closed form, from the leverages)
+function fit(cols) {
+  const key = cols.join(',') + '|' + [...st.out].join(','); if (key in fits) return fits[key];
+  const use = range(Y.length).filter((r) => !st.out.has(r)), n = use.length, p = cols.length + 1; if (p >= n) return (fits[key] = null);     // compounds left out get a plain prediction from the fit to the others
+  const A = Y.map((_, r) => [1, ...cols.map((c) => Z[c][r])]), G = range(p).map((a) => range(p).map((b) => use.reduce((s, r) => s + A[r][a] * A[r][b], 0)));
+  const I = G.map((row, a) => [...row, ...range(p).map((b) => +(a === b))]);                 // Gauss-Jordan on [G | 1]
+  for (let c = 0; c < p; c++) { let piv = c; for (let r = c + 1; r < p; r++) if (Math.abs(I[r][c]) > Math.abs(I[piv][c])) piv = r; [I[c], I[piv]] = [I[piv], I[c]];
+    const d = I[c][c]; if (Math.abs(d) < 1e-9) return (fits[key] = null); for (let k = 0; k < 2 * p; k++) I[c][k] /= d;
+    for (let r = 0; r < p; r++) if (r !== c) { const f = I[r][c]; for (let k = 0; k < 2 * p; k++) I[r][k] -= f * I[c][k]; } }
+  const inv = I.map((row) => row.slice(p)), Aty = range(p).map((a) => use.reduce((s, r) => s + A[r][a] * Y[r], 0)), b = inv.map((row) => row.reduce((s, v, k) => s + v * Aty[k], 0));
+  const pred = A.map((row) => row.reduce((s, v, k) => s + v * b[k], 0)), h = A.map((row) => row.reduce((s, v, a) => s + v * inv[a].reduce((t, w, k) => t + w * row[k], 0), 0));
+  const loo = Y.map((y, r) => st.out.has(r) ? pred[r] : y - (y - pred[r]) / (1 - h[r])), ym = use.reduce((a, r) => a + Y[r], 0) / n, sst = use.reduce((a, r) => a + (Y[r] - ym) ** 2, 0);
+  return (fits[key] = { b, pred, loo, ym, sst, r2: 1 - use.reduce((a, r) => a + (Y[r] - pred[r]) ** 2, 0) / sst, q2: 1 - use.reduce((a, r) => a + (Y[r] - loo[r]) ** 2, 0) / sst });
+}
+const predictAt = (F, cols, val) => F.b[0] + cols.reduce((s, i, j) => s + F.b[j + 1] * (val(i) - MS[i][0]) / MS[i][1], 0);
+
+const active = () => st.model >= 0 ? C.models[st.model].cols : st.rows;      // what the molecule and the plot show
+const colourOf = (i) => { const k = active().indexOf(i); return k < 0 ? null : PAL[k % PAL.length]; };
+const hasSel = (m) => st.rows.every((r) => C.models[m].cols.includes(r));
+const passing = () => range(C.models.length).filter((m) => { const M = C.models[m]; return st.sizes.has(kOf(M)) && M.q2 >= st.minq && M.r2 >= st.minr; });
+const sigOf = (m) => [...new Set(C.models[m].cols.map((i) => fam[i]))].sort((a, b) => a - b).join(',');
+// the columns of the table: one per model, or one per group of models that are the same once every descriptor is replaced by its family
+function columns() {
+  let cols = passing().map((m) => ({ m, members: [m], share: C.models[m].share, q2: C.models[m].q2, r2: C.models[m].r2 }));
+  if (st.merge) { const by = {}; for (const c of cols) (by[sigOf(c.m)] ||= []).push(c.m);
+    cols = Object.values(by).map((ms) => { ms.sort((a, b) => C.models[b].share - C.models[a].share); return { m: ms[0], members: ms, share: ms.reduce((s, m) => s + C.models[m].share, 0), q2: Math.max(...ms.map((m) => C.models[m].q2)), r2: Math.max(...ms.map((m) => C.models[m].r2)) }; }); }
+  cols = cols.filter((c) => c.share >= st.minshare); cols.forEach((c) => c.lit = c.members.some(hasSel)); if (st.only) cols = cols.filter((c) => c.lit);
+  cols.sort((a, b) => b[st.msort] - a[st.msort]); return { cols: cols.slice(0, MAXCOL), total: cols.length };
+}
+function rowOrder() {
+  const anchor = st.rows[st.rows.length - 1], idx = range(N), q = st.find.trim().toLowerCase();
+  if (st.rsort === 'with' && anchor !== undefined) idx.sort((a, b) => (a === anchor ? -1 : b === anchor ? 1 : C.joint[anchor][b] / C.freq[b] - C.joint[anchor][a] / C.freq[a]));
+  else if (st.rsort === 'fam') idx.sort((a, b) => C.freq[fam[b]] - C.freq[fam[a]] || fam[a] - fam[b] || C.freq[b] - C.freq[a]);
+  else idx.sort((a, b) => C.freq[b] - C.freq[a]);
+  return q ? idx.filter((i) => st.rows.includes(i) || C.label[i].toLowerCase().includes(q) || C.names[i].toLowerCase().includes(q)) : idx;
+}
+const relTitle = (i, j) => { const joint = C.joint[i][j], exp = C.freq[i] * C.freq[j]; return `${esc(C.label[i])}  ×  ${esc(C.label[j])}\nin the same model ${pct(joint)} of the time; ${pct(exp)} if they were unrelated. Correlation of the two columns ${C.corr[i][j].toFixed(2)}.`; };
+
+function grid() {
+  const { cols, total } = columns(), anchor = st.rows.length ? st.rows[st.rows.length - 1] : -1, isSel = (c) => c.members.includes(st.model), V = st.view;
+  $('grid').hidden = V !== 'models'; $('recipes').hidden = V !== 'recipes'; $('net').toggleAttribute('hidden', V !== 'network'); $('map').toggleAttribute('hidden', V !== 'map'); $('infl').toggleAttribute('hidden', V !== 'influence');
+  $('rowbar').hidden = $('mergelab').hidden = $('keymodels').hidden = V !== 'models'; $('vsgrp').hidden = $('onlylab').hidden = V === 'recipes';
+  const nf = (st.sizes.size < 5) + (st.minq > 0) + (st.minr > 0) + (st.minshare > 0) + st.only; $('filtsum').innerHTML = nf ? `Filters <b>· ${nf} on</b>` : 'Filters'; $('msort').parentElement.hidden = V !== 'models';
+  $('chips').innerHTML = st.rows.map((i) => `<span class="chip"><span class="sw" style="background:${colourOf(i) || '#9aa5b1'};margin:0"></span>${esc(C.label[i])}<button data-x="${i}" aria-label="remove ${esc(C.label[i])}">×</button></span>`).join('') +
+    [...st.out].map((r) => `<span class="chip out">held out: ${esc(C.ligands[r])}<button data-o="${r}" aria-label="put ${esc(C.ligands[r])} back">×</button></span>`).join('') +
+    (st.out.size && !ALONE ? '<button id="rerun" title="run the sampler again on the remaining compounds; opens as a new case">Rerun BASSA without them</button>' : '') +
+    st.pins.map((cs, k) => `<span class="chip pin" data-p="${k}" title="${esc(cs.map((i) => C.label[i]).join('  +  '))}"><span>pin ${k + 1}: ${esc(cs.map((i) => C.label[i]).join(' + '))}</span><button data-u="${k}" aria-label="unpin">×</button></span>`).join('');
+  if (V === 'recipes') return recipes(); if (V === 'network') return network(); if (V === 'map') return map(); if (V === 'influence') return influence();
+  const rows = rowOrder(), keep = $('scroll').scrollLeft, lit = cols.filter((c) => c.lit).length;
+  $('count').textContent = `${cols.length} of ${total} ${st.merge ? 'groups of ' : ''}models shown` + (st.rows.length && !st.only ? `; ${lit} contain the selection` : '');
+  let h = `<thead><tr><th class="h0">links</th><th class="corner">descriptor</th><th class="h2">% of all models</th><th class="h3">${anchor >= 0 ? 'beside ' + esc(C.label[anchor]) : C.before ? 'before, with all compounds' : C.fold_top ? 'without one compound: top 3 · range' : ''}</th>`;
+  cols.forEach((c, k) => { const M = C.models[c.m];
+    h += `<th class="m${isSel(c) ? ' sel' : ''}${c.lit ? '' : ' dim'}" data-m="${c.m}" tabindex="0" title="${esc(M.cols.map((i) => C.label[i]).join('  +  '))}\nR² ${c.r2.toFixed(2)}   Q² ${c.q2.toFixed(2)}   ${(100 * c.share).toFixed(1)} % of the run${c.members.length > 1 ? `\n${c.members.length} models that differ only within families` : ''}">
+      <div class="mid">${c.q2.toFixed(2).replace('0.', '.')}</div><div class="q"><u style="height:${Math.max(0, c.r2) * 100}%"></u><s style="height:${Math.max(0, c.q2) * 100}%;background:${KCOL[kOf(M)]}"></s>${C.nested_q2 == null ? '' : `<em style="bottom:${Math.max(0, C.nested_q2) * 100}%"></em>`}</div><div class="mid${c.members.length > 1 ? ' x' : ''}">${c.members.length > 1 ? '×' + c.members.length : k + 1}</div></th>`; });
+  h += '</tr></thead><tbody>';
+  rows.forEach((i, n) => {
+    const sel = st.rows.includes(i), col = colourOf(i), famStart = st.rsort === 'fam' && n > 0 && fam[rows[n - 1]] !== fam[i], kf = C.fold_top ? C.fold_top[i] : 0, sp = C.freq_lo && C.chains > 1, fr = FF && FF[i] ? [Math.min(...FF[i]), Math.max(...FF[i])] : null;
+    let lift = anchor < 0 && (kf || (fr && fr[1] >= 0.1)) ? `<span title="in the reruns that each leave one compound out: among the three most sampled descriptors in ${kf} of ${C.n_folds}${fr ? `; in ${pct(fr[0])} to ${pct(fr[1])} of models` : ''}"><span style="${kf === C.n_folds ? 'color:var(--ink);font-weight:600' : ''}">${kf}/${C.n_folds}</span>${fr ? ` · ${(100 * fr[0]).toFixed(0)}–${(100 * fr[1]).toFixed(0)} %` : ''}</span>` : '', tint = '';
+    const was = C.before ? C.before[C.names[i]] : undefined;
+    if (anchor < 0 && was !== undefined) { const d = Math.round(100 * (C.freq[i] - was));                                      // a rerun without some compounds: what each frequency was with all of them
+      lift = `<span title="in ${pct(was)} of the models of the run with all compounds; ${pct(C.freq[i])} now">was ${pct(was)}${Math.abs(d) >= 3 ? ` <b style="color:var(--${d > 0 ? 'up' : 'down'})">${d > 0 ? '▲' : '▼'} ${Math.abs(d)}</b>` : ''}</span>`; }
+    if (anchor >= 0 && i !== anchor) { const cond = C.joint[anchor][i] / C.freq[anchor], f = C.freq[i], up = cond >= f, strong = cond > 1.5 * f || cond < 0.5 * f, a = Math.min(0.3, Math.abs(cond - f) / Math.max(f, 0.05) * 0.22);
+      if (C.freq[i] >= 0.03 && a > 0.04) tint = `background:linear-gradient(rgba(${up ? '19,119,76' : '192,57,43'},${a.toFixed(2)}),rgba(${up ? '19,119,76' : '192,57,43'},${a.toFixed(2)})),var(--card);`;     // the row is tinted by how the descriptor fares beside the selection
+      lift = `<span class="wb" title="in ${pct(cond)} of the models that contain the selected descriptor; in ${pct(f)} of all models; correlation of the two columns ${C.corr[anchor][i].toFixed(2)}"><i style="left:${100 * Math.min(cond, f)}%;width:${100 * Math.abs(cond - f)}%;background:${up ? 'var(--up)' : 'var(--down)'};opacity:${strong ? 1 : .45}"></i><b style="left:${100 * f}%"></b></span>${pct(cond)}`; }
+    h += `<tr class="${sel ? 'sel' : ''}${famStart ? ' fam-start' : ''}" data-row="${i}">${n ? '' : `<td class="arcs" rowspan="${rows.length}"></td>`}<th class="name" data-r="${i}" tabindex="0" data-tip="${esc((C.desc && C.desc[i]) || C.names[i])}" style="${tint}--fam:${famColour[i] || 'transparent'}">${col ? `<span class="sw" style="background:${col}"></span>` : ''}${esc(C.label[i])}${LONE[i] ? `<span class="lone" data-tip="One compound owns this column: ${esc(C.ligands[LONE[i].r])} is ${LONE[i].z.toFixed(0)} standard deviations away from all the other compounds here. A model that uses this descriptor may be resting on that single compound. Click the mark to look at it.">!</span>` : ''}${NB[i] ? `<span class="nb" data-tip="${NB[i].a} and ${NB[i].b} are not bonded (${NB[i].dist.toFixed(2)} Å apart). The widths are taken over everything ${NB[i].b} reaches without passing through ${NB[i].a}, which can include atoms next to ${NB[i].a}. Tick 'measured atoms' above the molecule to see them.">≁</span>` : ''}</th>
+      <td class="freq"><div class="fbar" title="${sp ? `dark line, ${C.chains} independent chains: ${pct(C.freq_lo[i])} to ${pct(C.freq_hi[i])}` : 'one chain: no spread shown'}${fr ? `\nblue line, leaving one compound out: ${pct(fr[0])} to ${pct(fr[1])}` : ''}"><i style="width:${100 * C.freq[i]}%"></i>${sp ? `<em style="left:${100 * C.freq_lo[i]}%;width:${Math.max(1.5, 100 * (C.freq_hi[i] - C.freq_lo[i]))}%"></em>` : ''}${fr ? `<em class="fold" style="left:${100 * fr[0]}%;width:${Math.max(1.5, 100 * (fr[1] - fr[0]))}%"></em>` : ''}${C.chance_lo == null ? '' : `<b class="band" style="left:${100 * C.chance_lo}%;width:${Math.max(1, 100 * (C.chance_hi - C.chance_lo))}%"></b>`}${C.chance == null ? '' : `<b style="left:${100 * C.chance}%"></b>`}${was === undefined ? '' : `<u style="left:${100 * was}%"></u>`}<span>${pct(C.freq[i])}</span></div></td><td class="num">${lift}</td>`;
+    for (const c of cols) { const on = C.models[c.m].cols.includes(i), alt = !on && c.members.some((m) => C.models[m].cols.includes(i));
+      h += `<td class="c${on ? ' on' : alt ? ' alt' : ''}${isSel(c) ? ' msel' : ''}${c.lit ? '' : ' dim'}" data-m="${c.m}"${alt ? ' title="in another model of this group"' : ''}><i style="${on ? 'background:' + KCOL[kOf(C.models[c.m])] : ''}"></i></td>`; }
+    h += '</tr>';
+  });
+  $('grid').innerHTML = h + '</tbody>'; $('scroll').scrollLeft = keep; arcs();
+}
+
+// arcs beside the names join descriptors that share models (green) or stand in for one another (red, dashed)
+function arcs(hover = -1) {
+  const td = $('grid').querySelector('td.arcs'); if (!td || st.view !== 'models') return; const top = td.getBoundingClientRect().top, y = {}, W = td.clientWidth;
+  $('grid').querySelectorAll('tbody tr').forEach((tr) => { const r = tr.querySelector('th.name').getBoundingClientRect(); y[tr.dataset.row] = r.top - top + r.height / 2; });
+  const focus = hover >= 0 ? [hover] : st.rows, mine = (p) => focus.includes(p.i) || focus.includes(p.j);
+  td.innerHTML = `<svg width="${W}" height="${td.clientHeight}">` + rel.filter((p) => p.i in y && p.j in y && (mine(p) || st.links === 'all' || (st.links === 'top' && relTop.has(p)))).map((p) => { const a = y[p.i], b = y[p.j], d = Math.min(W - 6, 12 + 0.3 * Math.abs(a - b)), lit = !focus.length || focus.includes(p.i) || focus.includes(p.j);
+    return `<path d="M${W - 1} ${a} C ${W - 1 - d * 1.33} ${a}, ${W - 1 - d * 1.33} ${b}, ${W - 1} ${b}" data-i="${p.i}" data-j="${p.j}" stroke="${p.up ? GREEN : RED}" stroke-width="${Math.min(5, 1.2 + 22 * Math.abs(p.joint - p.exp)).toFixed(1)}"${p.up ? '' : ' stroke-dasharray="4 3"'} opacity="${lit ? (focus.length ? 0.95 : 0.6) : 0.08}"><title>${relTitle(p.i, p.j)}</title></path>`; }).join('') + '</svg>';
+}
+
+// recipes: every model reduced to the families it draws from; inside a slot, the descriptors that fill it replace each other
+function recipes() {
+  const by = {}; for (const m of passing()) { const g = (by[sigOf(m)] ||= { ms: [], share: 0 }); g.ms.push(m); g.share += C.models[m].share; }
+  const top = Object.values(by).sort((a, b) => b.share - a.share).slice(0, 12), shown = top.reduce((s, g) => s + g.share, 0);
+  $('count').textContent = `${top.length} of ${Object.keys(by).length} recipes, ${pct(shown)} of the run`;
+  $('recipes').innerHTML = top.map((g) => { g.ms.sort((a, b) => C.models[b].share - C.models[a].share); const best = g.ms[0], fams = sigOf(best).split(',').map(Number), q = Math.max(...g.ms.map((m) => C.models[m].q2));
+    return `<div class="rec${g.ms.includes(st.model) ? ' sel' : ''}${g.ms.some(hasSel) ? '' : ' dim'}"><h3>${(100 * g.share).toFixed(1)} % <span>of the run · ${g.ms.length} model${g.ms.length > 1 ? 's' : ''} · best Q² ${q.toFixed(2)}</span><button data-m="${best}">show</button></h3>` +
+      fams.map((f) => { const use = members[f].map((i) => [i, g.ms.reduce((s, m) => s + (C.models[m].cols.includes(i) ? C.models[m].share : 0), 0) / g.share]).filter((u) => u[1] > 0).sort((a, b) => b[1] - a[1]);
+        return `<div class="slot" style="--fam:${famColour[f] || '#cfd6de'}">${use.length > 1 ? '<span class="lab">one of</span>' : ''}` +
+          use.map(([i, w]) => `<div class="opt${st.rows.includes(i) ? ' sel' : ''}" data-r="${i}" title="${esc(C.names[i])}: in ${pct(w)} of the models of this recipe"><span>${esc(C.label[i])}</span><i style="width:${Math.max(3, 64 * Math.min(1, w))}px"></i><b>${pct(w)}</b></div>`).join('') + '</div>'; }).join('') + '</div>'; }).join('') ||
+    '<p class="hint" style="padding:10px">No model passes the filters.</p>';
+}
+
+// network: descriptors as nodes (size = how often used, colour = family), green links for together, red dashed for instead
+function network() {
+  const ids = range(N).filter((i) => C.freq[i] >= 0.06 || rel.some((p) => p.i === i || p.j === i)).sort((a, b) => C.freq[b] - C.freq[a]).slice(0, 34), W = 860, H = 560, E = rel.filter((p) => ids.includes(p.i) && ids.includes(p.j));
+  $('count').textContent = `${ids.length} descriptors, ${E.filter((p) => p.up).length} together, ${E.filter((p) => !p.up).length} instead`;
+  if (!C._net) { const byFam = [...ids].sort((a, b) => fam[a] - fam[b] || C.freq[b] - C.freq[a]), P = {}; byFam.forEach((i, k) => { const t = 2 * Math.PI * k / byFam.length; P[i] = [Math.cos(t) * 200, Math.sin(t) * 200]; });
+    for (let it = 0; it < 320; it++) { const F = {}; ids.forEach((i) => F[i] = [-P[i][0] * 0.03, -P[i][1] * 0.03]);                       // a small, fixed-length spring layout; no randomness, so the picture is the same every time
+      for (const a of ids) for (const b of ids) if (a < b) { const dx = P[a][0] - P[b][0], dy = P[a][1] - P[b][1], d2 = Math.max(60, dx * dx + dy * dy), f = 5200 / d2, d = Math.sqrt(d2); F[a][0] += f * dx / d; F[a][1] += f * dy / d; F[b][0] -= f * dx / d; F[b][1] -= f * dy / d; }
+      for (const p of E) { const dx = P[p.j][0] - P[p.i][0], dy = P[p.j][1] - P[p.i][1], d = Math.hypot(dx, dy) || 1, f = (d - (p.up ? 95 : 55)) * 0.06; F[p.i][0] += f * dx / d; F[p.i][1] += f * dy / d; F[p.j][0] -= f * dx / d; F[p.j][1] -= f * dy / d; }
+      ids.forEach((i) => { P[i][0] += Math.max(-12, Math.min(12, F[i][0])); P[i][1] += Math.max(-12, Math.min(12, F[i][1])); }); }
+    const xs = ids.map((i) => P[i][0]), ys = ids.map((i) => P[i][1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    ids.forEach((i) => P[i] = [70 + (P[i][0] - x0) / (x1 - x0 || 1) * (W - 300), 40 + (P[i][1] - y0) / (y1 - y0 || 1) * (H - 90)]); C._net = P; }
+  const P = C._net, focus = st.rows, near = (i) => !focus.length || focus.includes(i) || E.some((p) => (p.i === i && focus.includes(p.j)) || (p.j === i && focus.includes(p.i)));
+  $('net').innerHTML = E.map((p) => { const lit = !focus.length || focus.includes(p.i) || focus.includes(p.j);
+      return `<line x1="${P[p.i][0].toFixed(1)}" y1="${P[p.i][1].toFixed(1)}" x2="${P[p.j][0].toFixed(1)}" y2="${P[p.j][1].toFixed(1)}" stroke="${p.up ? GREEN : RED}" stroke-width="${Math.min(7, 1.5 + 30 * Math.abs(p.joint - p.exp)).toFixed(1)}"${p.up ? '' : ' stroke-dasharray="6 4"'} stroke-linecap="round" opacity="${lit ? 0.8 : 0.1}" data-i="${p.i}" data-j="${p.j}"><title>${relTitle(p.i, p.j)}</title></line>`; }).join('') +
+    ids.map((i) => { const r = 5 + 17 * Math.sqrt(C.freq[i]), sel = st.rows.includes(i);
+      return `<g opacity="${near(i) ? 1 : 0.25}"><circle cx="${P[i][0].toFixed(1)}" cy="${P[i][1].toFixed(1)}" r="${r.toFixed(1)}" fill="${famColour[i] || '#8a96a3'}" fill-opacity=".85" stroke="${sel ? '#18212b' : '#fff'}" stroke-width="${sel ? 3 : 1.5}" data-r="${i}"><title>${esc(C.label[i])}: in ${pct(C.freq[i])} of all models</title></circle>
+        <text x="${(P[i][0] + (P[i][0] > 600 ? -r - 4 : r + 4)).toFixed(1)}" y="${(P[i][1] + 4).toFixed(1)}"${P[i][0] > 600 ? ' text-anchor="end"' : ''} data-r="${i}" style="${sel ? 'font-weight:700' : ''}">${esc(C.label[i])}</text></g>`; }).join('') +
+    `<text x="14" y="${H - 12}" style="fill:#667382;cursor:default;stroke-width:0">Circle size: how often the descriptor is used. Same colour: one family of correlated descriptors. Click a circle to select it, a link to select the pair.</text>`;
+}
+
+// map: every descriptor against every other, green where they share models more than chance, red where less
+function map() {
+  const ids = range(N).filter((i) => C.freq[i] >= 0.04).sort((a, b) => C.freq[fam[b]] - C.freq[fam[a]] || fam[a] - fam[b] || C.freq[b] - C.freq[a]).slice(0, 30), n = ids.length, s = n <= 14 ? 28 : n <= 22 ? 22 : 19, L = 196, T = 150;
+  const top = Math.max(0.01, ...ids.flatMap((i) => ids.filter((j) => j !== i).map((j) => Math.abs(C.joint[i][j] - C.freq[i] * C.freq[j]))));
+  $('count').textContent = `${n} descriptors in at least 4 % of models`;
+  let h = ''; ids.forEach((i, a) => {
+    h += `<text class="${st.rows.includes(i) ? 'sel' : ''}" x="${L - 8}" y="${T + a * s + s / 2 + 4}" text-anchor="end" data-r="${i}">${esc(C.label[i])}</text><rect x="${L - 5}" y="${T + a * s + 2}" width="3" height="${s - 4}" fill="${famColour[i] || 'none'}"/>
+      <text class="${st.rows.includes(i) ? 'sel' : ''}" transform="translate(${L + a * s + s / 2 + 3} ${T - 8}) rotate(-55)" data-r="${i}">${esc(C.label[i])}</text>`;
+    ids.forEach((j, b) => { const v = C.joint[i][j] - C.freq[i] * C.freq[j], sel = st.rows.includes(i) && st.rows.includes(j);
+      h += i === j ? `<rect x="${L + b * s + 1}" y="${T + a * s + 1}" width="${s - 2}" height="${s - 2}" rx="2" fill="rgba(105,118,132,${(0.15 + 0.85 * C.freq[i]).toFixed(2)})" data-r="${i}"><title>${esc(C.label[i])}: in ${pct(C.freq[i])} of all models</title></rect>`
+        : `<rect x="${L + b * s + 1}" y="${T + a * s + 1}" width="${s - 2}" height="${s - 2}" rx="2" fill="${v >= 0 ? `rgba(19,119,76,${(v / top).toFixed(2)})` : `rgba(192,57,43,${(-v / top).toFixed(2)})`}" stroke="${sel ? '#18212b' : '#eef0f3'}" stroke-width="${sel ? 2 : 1}" data-i="${i}" data-j="${j}"><title>${relTitle(i, j)}</title></rect>`; }); });
+  const m = $('map'); m.setAttribute('width', Math.max(L + n * s + 150, 640)); m.setAttribute('height', T + n * s + 46);
+  m.innerHTML = h + `<text x="12" y="${T + n * s + 20}" style="fill:#667382;cursor:default">Green: the pair shares models more than chance. Red: less than chance. Grey diagonal: how often the descriptor is used.</text><text x="12" y="${T + n * s + 36}" style="fill:#667382;cursor:default">Grouped by family. Click a square to select the pair.</text>`;
+}
+
+// compounds: how far each leading descriptor's frequency moves when one compound is left out and the sampler rerun
+function influence() {
+  const m = $('infl'), ids = FF ? range(N).filter((i) => FF[i]).sort((a, b) => C.freq[b] - C.freq[a]).slice(0, 10) : [];
+  if (!ids.length) { $('count').textContent = ''; m.setAttribute('width', 640); m.setAttribute('height', 60); m.innerHTML = `<text x="12" y="30" style="cursor:default;fill:#667382">This view needs the leave-one-out reruns. ${C.uploaded ? 'Press "Add chance line and nested Q²" to compute them.' : 'This case was built without them.'}</text>`; return; }
+  const D = ids.map((i) => FF[i].map((v) => v - C.freq[i])), total = range(Y.length).map((r) => D.reduce((a, d) => a + Math.abs(d[r]), 0)), order = range(Y.length).sort((a, b) => total[b] - total[a]);
+  const s = Math.max(16, Math.min(30, Math.floor(620 / Y.length))), L = 200, T = 150, top = Math.max(0.02, ...D.flat().map(Math.abs)), tmax = Math.max(...total) || 1;
+  $('count').textContent = `${Y.length} compounds, the ${ids.length} most used descriptors`;
+  let h = order.map((r, b) => `<rect x="${L + b * s + 2}" y="${T - 8 - 46 * total[r] / tmax}" width="${s - 4}" height="${46 * total[r] / tmax}" fill="#8a96a3" data-n="${esc(C.ligands[r])}"><title>${esc(C.ligands[r])}: the ten frequencies move by ${(100 * total[r]).toFixed(0)} points in all when it is left out</title></rect>
+    <text class="${C.ligands[r] === st.mol ? 'sel' : ''}" transform="translate(${L + b * s + s / 2 + 3} ${T - 60}) rotate(-55)" data-n="${esc(C.ligands[r])}">${esc(C.ligands[r])}</text>`).join('');
+  ids.forEach((i, a) => { h += `<text class="${st.rows.includes(i) ? 'sel' : ''}" x="${L - 8}" y="${T + a * s + s / 2 + 4}" text-anchor="end" data-r="${i}">${esc(C.label[i])} · ${pct(C.freq[i])}</text>`;
+    order.forEach((r, b) => { const v = D[a][r]; h += `<rect x="${L + b * s + 1}" y="${T + a * s + 1}" width="${s - 2}" height="${s - 2}" rx="2" fill="${v >= 0 ? `rgba(19,119,76,${(v / top).toFixed(2)})` : `rgba(192,57,43,${(-v / top).toFixed(2)})`}" stroke="#eef0f3" data-n="${esc(C.ligands[r])}"><title>without ${esc(C.ligands[r])}: ${esc(C.label[i])} in ${pct(FF[i][r])} of models (${pct(C.freq[i])} with all compounds)</title></rect>`; }); });
+  const Hh = T + ids.length * s; m.setAttribute('width', Math.max(L + Y.length * s + 30, 660)); m.setAttribute('height', Hh + 50);
+  m.innerHTML = h + `<text x="12" y="${Hh + 20}" style="fill:#667382;cursor:default">Each square: the sampler rerun without that compound. Red: the descriptor is used less than with all compounds. Green: more.</text><text x="12" y="${Hh + 36}" style="fill:#667382;cursor:default">Bars on top: how much the compound moves these descriptors in all; the most influential compounds are on the left. Click a compound to look at it.</text>`;
+}
+
+// ---------- the session the explorer shows: one compound, the active descriptors drawn on it ----------
+// the atoms two compounds are superposed on when nothing drawn gives three: the chelate (metal, donors, stereocentres), or the atoms the most used descriptors name
+function coreAtoms(name) { const R = C.mols[name].roles; if (R && R.M && R.D && R.Cs) return [...new Set([R.M[0], ...R.D, ...R.Cs])]; if (R) return [...new Set(Object.values(R).flat())];
+  const a = new Set(); for (const i of range(N).sort((x, y) => C.freq[y] - C.freq[x]).slice(0, 15)) { const d = C.draw[i]; if (!d || d.ra || d.roles || d.ro) continue; if (d.kind === 'sterimol') a.add(d.a).add(d.b); else if (d.kind === 'charge') a.add(d.i); else if (d.atoms) d.atoms.forEach((v) => a.add(v)); else if (d.kind === 'dipole') { if (+d.origin) a.add(d.origin); a.add(d.y); } }
+  return [...a]; }
+const STACKCOL = ['#1f5fd0', '#b45309', '#0f766e', '#be185d', '#6D28D9', '#65a30d'];
+// what the active descriptors draw on one compound: Sterimol axes, charge sites, a dipole frame, and the atoms to number.
+// `on` names a stacked compound: its axes are then measured on it by the explorer, in the frame it was superposed into.
+const XYZ = {}, xyzOf = (n) => XYZ[C.case + '|' + n] || (XYZ[C.case + '|' + n] = C.mols[n].xyz.trim().split('\n').slice(2).map((l) => l.trim().split(/\s+/)));
+const angleOf = (n, [a, b, c]) => { const X = xyzOf(n).map((r) => r.slice(1, 4).map(Number)), u = X[a - 1].map((v, k) => v - X[b - 1][k]), w = X[c - 1].map((v, k) => v - X[b - 1][k]); return Math.acos(u.reduce((s, v, k) => s + v * w[k], 0) / Math.hypot(...u) / Math.hypot(...w)) * 180 / Math.PI; };
+function layersOf(name, on) {
+  const mol = C.mols[name], flags = ['axis', 'L', 'b1', 'plane', 'loc', 'b5', 'theta', 'drop', 'inset', 'profile'], axes = [], sites = [], label = new Set(), skipped = [], marks = [];
+  let total = false, dip = { on: false, origin: '', y: '', plane: '', show: { frame: true, mu: true, u: true, v: false, w: false } };
+  const axis = (a, b, flag, col) => { let ax = axes.find((x) => x.a === a && x.b === b); if (!ax) { ax = Object.assign({ a, b, color: col, tag: '', show: Object.fromEntries(flags.map((f) => [f, f === 'axis' || f === 'drop'])) }, on ? { on } : {}); axes.push(ax); }
+    ax.show[flag] = true; if (flag === 'theta') ax.show.b1 = true; const E = st.extra;
+    if (E.plane) ax.show.b1 = ax.show.plane = true; if (E.theta) ax.show.b1 = ax.show.theta = true; if (E.full) ax.show.L = ax.show.b1 = ax.show.b5 = ax.show.loc = true; if (E.inset && !on) ax.show.inset = true; label.add(a).add(b); };
+  for (const i of active()) { const d = C.draw[i], col = colourOf(i), R = mol.roles;
+    if (!d || ((d.ra || d.roles || d.ro) && !R)) { skipped.push(C.label[i]); continue; }
+    if (d.kind === 'sterimol' && d.ra) { if (!R[d.ra] || !R[d.rb] || !R[d.ra].some((a, k) => a && R[d.rb][k])) { skipped.push(C.label[i] + ' (this structure has no such atoms)'); continue; }
+      R[d.ra].forEach((_, k) => { if (R[d.ra][k] && R[d.rb][k]) axis(R[d.ra][k], R[d.rb][k], d.flag, col); }); }   // a metal complex: the same axis on every arm that has it
+    else if (d.kind === 'sterimol') axis(d.a, d.b, d.flag, col);
+    else if (d.kind === 'atoms') { d.roles.forEach((r) => (R[r] || []).forEach((a) => a && label.add(a)));
+      if (d.angle) R.R.forEach((_, k) => { const t = d.roles.map((r) => R[r][k]); if (t.every(Boolean)) marks.push({ atoms: t, color: col, on, text: '∠ ' + angleOf(name, t).toFixed(1) + '°' }); }); }
+    else if (d.kind === 'charge_diff') [d.i, d.j].forEach((a) => { if (mol.charges && mol.charges[d.type]) sites.push({ i: a, type: d.type, color: col }); label.add(a); });
+    else if (d.kind === 'charge') { if (mol.charges && mol.charges[d.type]) sites.push({ i: d.i, type: d.type, color: col }); else skipped.push(C.label[i] + ' (no charges with this structure; the atom is numbered)'); label.add(d.i); }
+    else if (d.kind === 'dipole' || d.kind === 'dipole_total') {
+      if (!mol.dipole) { skipped.push(C.label[i] + ' (no dipole with this structure)'); continue; }
+      const o = String(d.ro ? R[d.ro][0] : d.origin ?? 1), fy = String(d.ro ? R[d.ry][0] : d.y ?? 2), pl = String(d.ro ? R[d.rp][0] : d.plane ?? 6);
+      if (dip.on && d.kind === 'dipole' && dip.framed && (dip.origin !== o || dip.y !== fy)) { skipped.push(C.label[i] + ' (a second dipole frame)'); continue; }
+      if (d.kind === 'dipole') { dip = { on: true, framed: true, origin: o, y: fy, plane: pl, show: Object.assign({ frame: false, mu: true, u: false, v: false, w: false }, dip.framed ? dip.show : {}), colors: dip.colors || {} };
+        dip.show[d.comp] = true; dip.colors[d.comp] = col; if (+o) label.add(+o); label.add(+fy); }
+      else { total = true; if (!dip.on) dip = { on: true, origin: o, y: fy, plane: pl, show: { frame: false, mu: true, u: false, v: false, w: false }, colors: {} }; } }
+    else { d.atoms.forEach((a) => label.add(a));                     // lengths, angles, dihedrals: the table's value, written along the atoms it is measured on 
+      marks.push({ atoms: d.atoms, color: col, on, text: d.kind === 'mark' ? d.prefix + xOf(i, name).toFixed(d.dec) + d.unit : (d.kind === 'bond_length' ? 'd ' : d.kind === 'angle' ? '∠ ' : 'τ ') + xOf(i, name).toFixed(d.kind === 'bond_length' ? 3 : 1) + (d.kind === 'bond_length' ? ' Å' : '°') }); }
+  }
+  return { axes, sites, dip, label: [...label], skipped, marks, total };
+}
+function session(name, also = []) {
+  const mol = C.mols[name], P = layersOf(name, ''), others = also.filter((n) => n && n !== name && C.mols[n]), skipped = P.skipped.slice(), axes = P.axes.slice(), sites = P.sites.slice(), dips = []; let align = { mode: 'none', atoms: '', spread: 0 };
+  const structs = [{ name, key: name, xyz: mol.xyz, color: '#1F2937', on: true, own: '', dipole: mol.dipole, charges: mol.charges }];
+  if (others.length) { const lay = others.map((n) => layersOf(n, n)); let ref = P.label, lists = lay.map((l) => l.label);          // the same descriptors name the matching atoms on each compound, in the same order
+    if (ref.length < 3 || lists.some((l) => l.length !== ref.length)) { ref = coreAtoms(name); lists = others.map(coreAtoms); }
+    others.forEach((n, k) => { if (ref.length < 3 || lists[k].length !== ref.length) return skipped.push(n + ' (no three atoms in common to superpose on)');
+      structs.push({ name: n, key: n, xyz: C.mols[n].xyz, color: STACKCOL[k % STACKCOL.length], on: true, own: lists[k].join(', '), dipole: C.mols[n].dipole, charges: C.mols[n].charges });
+      // charge sites and the dipole arrow of a stacked compound take its colour: they sit on the same superposed atoms as the others'
+      const sc = STACKCOL[k % STACKCOL.length]; P.marks.push(...lay[k].marks.map((m) => ({ ...m, color: sc, k: structs.length - 1 }))); axes.push(...lay[k].axes); sites.push(...lay[k].sites.map((q) => ({ ...q, color: sc, on: n })));
+      if (lay[k].dip.on) dips.push({ ...lay[k].dip, colors: { ...lay[k].dip.colors, mu: sc }, onStruct: n }); });
+    if (structs.length > 1) align = { mode: 'atoms', atoms: ref.join(', '), spread: 0 }; }
+  const limits = [];
+  if (!st.showD) { const off = { on: false, origin: '', y: '', plane: '', show: { frame: true, mu: true, u: true, v: false, w: false } };          // structures alone; the superposition above already used the descriptors' atoms
+    return { s: { v: 1, active: 0, align, sm: { q: '', any: true, all: true }, L: { axes: [], active: -1, dip: off, sites: [], map: '', fade: '', fadeOff: false, fadeHide: false, legend: false, labShift: {} },
+      style: { ...C.style, labelAtoms: [], atomLabels: 'off' }, view: { R: mol.view || undefined, zoom: 1, perA: 30 }, structs }, skipped: [], limits: [] }; }
+  const L = Object.assign({ axes, active: P.axes.length ? 0 : -1, dip: P.dip, sites, dips, marks: P.marks, map: '', fade: '', fadeOff: !!(st.extra.frag && axes.length), fadeHide: false, legend: false, labShift: {} });
+  return { limits, s: { v: 1, active: 0, align, sm: { q: '', any: true, all: true }, L, style: { ...C.style, touch: true, labelAtoms: P.label, dropLabels: ['[uvw]&#770;'].concat(P.total ? [] : ['&#956; -?[0-9.]+ D']) },
+    view: { R: mol.view || undefined, zoom: 1, perA: 30 }, structs }, skipped };   // without a stored view the explorer turns the molecule onto its principal axes
+}
+// the explorer lives in two frames that stay loaded; a new session is posted to them, and the rotation is kept while the compound is the same
+const frames = [{ el: $('f0'), ready: false, key: '', json: '' }, { el: $('f1'), ready: false, key: '', json: '' }];
+window.addEventListener('message', (e) => { const f = frames.find((x) => x.el.contentWindow === e.source); if (f && e.data && e.data.type === 'bassa:ready') { f.ready = true; f.json = ''; if (C) draw(); } });
+frames.forEach((f) => { try { f.el.contentWindow.postMessage({ type: 'bassa:hello' }, '*'); } catch (e) {} });   // a frame that finished loading before this script ran has already said ready to nobody
+function show(k, name, also) {
+  const f = frames[k], has = !!(name && C.mols[name]); $('n' + k).hidden = has && f.ready; $('t' + k).hidden = !has; if (has && !f.ready) $('n' + k).textContent = 'Loading the molecule viewer…';
+  if (!has) { $('n' + k).textContent = name ? `No structure for ${name}. Give a structures folder when running a table to see the descriptors on the molecule.` : ''; return []; }
+  const { s, skipped, limits } = session(name, also || []), json = JSON.stringify(s), key = C.case + '|' + name + '|' + (also || []).join('|'), kl = C.mols[name].klass;
+  $('t' + k).innerHTML = `<b>${esc(name)}</b>${kl ? ' · ' + esc(kl) : ''}${C.ligands.includes(name) ? '' : ' · external'} · ${yOf(name).toFixed(2)}` + s.structs.slice(1).map((t) => ` &nbsp;+&nbsp; <b style="color:${t.color}">${esc(t.name)}</b> · ${yOf(t.name).toFixed(2)}`).join('') +
+    (s.L.axes.some((a) => !a.on) ? `<br><span class="lab">Sterimol axis, start → end: ${s.L.axes.filter((a) => !a.on).map((a) => `<b style="color:${a.color}">${xyzOf(name)[a.a - 1][0]}${a.a} → ${xyzOf(name)[a.b - 1][0]}${a.b}</b>`).join(' · ')}. Lengths and loc B5 are counted from the start atom.</span>` : '') +
+    (limits && limits.length ? `<br><span class="lab">Sterimol on every compound; ${limits.join('; ')}. Click another compound in the plot to make it the first.</span>` : '');
+  if (f.ready && json !== f.json) { f.el.contentWindow.postMessage({ type: 'bassa:session', s, keepView: f.key === key }, '*'); f.key = key; f.json = json; }
+  if (k === 0) $('open').href = 'feature_explorer.html#s=' + btoa(unescape(encodeURIComponent(json)));
+  return skipped;
+}
+const shade = (t) => `rgb(${Math.round(207 - 196 * t)},${Math.round(225 - 146 * t)},${Math.round(242 - 104 * t)})`;      // one hue, light to dark, for the response
+function draw() {
+  const bare_ = !Object.keys(C.mols).length; $('stages').hidden = $('savefig').hidden = bare_; $('resetview').hidden = bare_; $('molopts').querySelectorAll('label').forEach((l) => l.hidden = bare_); $('molopts').firstElementChild.hidden = bare_;                              // no structure at all: the plot takes the room of the viewer
+  const stacked = st.stack && st.mol2 && C.mols[st.mol] && C.mols[st.mol2]; $('stacklab').hidden = bare_ || !st.mol2; $('morelab').textContent = st.more.length ? `+ ${st.more.join(', ')}` : '';
+  $('s1').hidden = !st.mol2 || stacked; const skipped = bare_ ? [] : show(0, st.mol, stacked ? [st.mol2, ...st.more] : []); if (st.mol2 && !bare_ && !stacked) show(1, st.mol2);
+  if (!stacked && st.more.length) skipped.push(st.more.join(', ') + ' (more than two compounds are only shown stacked)'); $('open').hidden = ALONE || !C.mols[st.mol];
+  const cmp = new Set(st.more), k = C.ligands.indexOf(st.mol), k2 = C.ligands.indexOf(st.mol2), M = st.model >= 0 ? C.models[st.model] : null, cols = active(), F = cols.length ? fit(cols) : null, lo = Math.min(...Y), hi = Math.max(...Y), t = (v) => Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1)));
+  const classes = [...new Set(C.ligands.map((l) => C.mols[l] && C.mols[l].klass).filter(Boolean))], sq = (i) => classes.length > 1 && C.mols[C.ligands[i]].klass === classes[1];
+  const ring = (on, on2) => on ? ['#18212b', 2] : on2 ? ['#1f5fd0', 2.4] : ['#fff', 1], inc = range(Y.length).filter((r) => !st.out.has(r));
+  // what the class of a compound alone predicts for it: the mean of the other compounds of its class
+  const cl = classes.length > 1 ? Y.map((_, i) => { const same = inc.filter((j) => j !== i && C.mols[C.ligands[j]].klass === C.mols[C.ligands[i]].klass); return same.reduce((a, j) => a + Y[j], 0) / (same.length || 1); }) : null;
+  const ymI = inc.reduce((a, r) => a + Y[r], 0) / inc.length, sstI = inc.reduce((a, r) => a + (Y[r] - ymI) ** 2, 0), q2c = cl ? 1 - inc.reduce((a, r) => a + (Y[r] - cl[r]) ** 2, 0) / sstI : null;
+  // external compounds: predicted by the fit, never part of it
+  const X = C.ext, pe = X && F ? X.names.map((n) => predictAt(F, cols, (i) => xOf(i, n))) : null;
+  const extStat = pe ? { r2: 1 - X.y.reduce((a, y, j) => a + (y - pe[j]) ** 2, 0) / X.y.reduce((a, y) => a + (y - ymI) ** 2, 0), mae: X.y.reduce((a, y, j) => a + Math.abs(y - pe[j]), 0) / X.y.length } : null;
+  const S = bare_ ? 420 : 246, pad = 40; let p = '', ps = ''; $('parity').setAttribute('width', S); $('parity').setAttribute('height', S); $('parity').closest('.under').style.gridTemplateColumns = bare_ ? '1fr' : '';
+  if (F) { const all = [...Y, ...F.loo, ...(cl || []), ...(pe ? [...X.y, ...pe] : [])], meas = [...Y, ...(pe ? X.y : [])], span = Math.max(...meas) - Math.min(...meas) || 1;
+    const a = Math.max(Math.min(...all), Math.min(...meas) - span / 2), b = Math.min(Math.max(...all), Math.max(...meas) + span / 2), m = (b - a) * 0.06 || 1, x = (v) => pad + (v - a + m) / (b - a + 2 * m) * (S - pad - 8);
+    const off = (v) => v < a - m ? '▼' : v > b + m ? '▲' : '', yy = (v) => S - pad - (Math.min(b + m, Math.max(a - m, v)) - a + m) / (b - a + 2 * m) * (S - pad - 8);      // a prediction beyond half the measured range again is drawn on the frame
+    PY = yy; const dp = st.design ? designPred(F, cols) : null, worst = inc.slice().sort((i, j) => Math.abs(Y[j] - F.loo[j]) - Math.abs(Y[i] - F.loo[i])).slice(0, 3); let ty = 21;
+    const ticks = (() => { const raw = (b - a + 2 * m) / 4, mag = 10 ** Math.floor(Math.log10(raw)), step = [1, 2, 2.5, 5, 10].map((q) => q * mag).find((q) => q >= raw), out = []; for (let v = Math.ceil((a - m) / step) * step; v <= b + m + 1e-9; v += step) out.push(+v.toFixed(10)); return out; })();
+    const maeL = inc.reduce((acc, r) => acc + Math.abs(Y[r] - F.loo[r]), 0) / inc.length, x0 = pad, x1 = S - 8, y0 = 8, y1 = S - pad;      // leave-one-out error of the compounds in the fit
+    p = `<defs><clipPath id="pclip"><rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="4"/></clipPath></defs><rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="#fff" stroke="#d5dbe2" rx="4"/>` +
+      ticks.map((v) => `<line x1="${x(v).toFixed(1)}" x2="${x(v).toFixed(1)}" y1="${y0}" y2="${y1}" stroke="#eef1f4"/><line x1="${x0}" x2="${x1}" y1="${yy(v).toFixed(1)}" y2="${yy(v).toFixed(1)}" stroke="#eef1f4"/><text x="${x(v).toFixed(1)}" y="${y1 + 12}" text-anchor="middle">${num(v)}</text><text x="${x0 - 4}" y="${(yy(v) + 3).toFixed(1)}" text-anchor="end">${num(v)}</text>`).join('') +
+      `<g clip-path="url(#pclip)"><polygon points="${x(a - m)},${yy(a - m + maeL)} ${x(b + m)},${yy(b + m + maeL)} ${x(b + m)},${yy(b + m - maeL)} ${x(a - m)},${yy(a - m - maeL)}" fill="rgba(31,95,208,.08)"/><line x1="${x(a - m)}" y1="${yy(a - m)}" x2="${x(b + m)}" y2="${yy(b + m)}" stroke="#8793a1" stroke-width="1" stroke-dasharray="5 4"/></g>` +
+      (cl ? Y.map((v, i) => `<line x1="${(x(v) - 4).toFixed(1)}" x2="${(x(v) + 4).toFixed(1)}" y1="${yy(cl[i]).toFixed(1)}" y2="${yy(cl[i]).toFixed(1)}" stroke="#9aa5b1" stroke-width="1.5"/>`).join('') : '') +
+      (dp == null ? '' : `<line id="dline" x1="${pad}" x2="${S - 8}" y1="${yy(dp).toFixed(1)}" y2="${yy(dp).toFixed(1)}" stroke="#1f5fd0" stroke-width="1.5" stroke-dasharray="5 3"/>`) +
+      Y.map((v, i) => { const [sc, sw] = ring(i === k, i === k2 || cmp.has(C.ligands[i])), r = i === k || i === k2 || cmp.has(C.ligands[i]) ? 6 : 4.5, cx = x(v), cy = yy(F.loo[i]), gone = st.out.has(i), name = C.ligands[i];
+        const at = `class="pt" fill="${gone ? '#fff' : shade(t(v))}" stroke="${gone && sw === 1 ? '#8793a1' : sc}" stroke-width="${gone && sw === 1 ? 1.5 : sw}"${gone ? ' stroke-dasharray="2 2"' : ''} data-n="${esc(name)}"`, tip = `<title>${esc(name)}${classes.length ? ' (' + esc(C.mols[name].klass) + ')' : ''}: measured ${v.toFixed(2)}, predicted ${gone ? 'by the fit without it' : 'when left out'} ${F.loo[i].toFixed(2)}</title>`;
+        if (gone) return `<path class="pt" d="M${cx.toFixed(1)} ${(cy - 6.5).toFixed(1)} L${(cx + 6.5).toFixed(1)} ${cy.toFixed(1)} L${cx.toFixed(1)} ${(cy + 6.5).toFixed(1)} L${(cx - 6.5).toFixed(1)} ${cy.toFixed(1)} Z" fill="#fff" stroke="${sw > 1 ? sc : '#6D28D9'}" stroke-width="2.2" data-n="${esc(name)}"><title>${esc(name)}, held out by you: measured ${v.toFixed(2)}, predicted by the model fitted without it ${F.loo[i].toFixed(2)}</title></path><text x="${(cx + 9).toFixed(1)}" y="${(cy + 3).toFixed(1)}" style="fill:#6D28D9">${esc(name)}${off(F.loo[i]) ? ' ' + off(F.loo[i]) + ' ' + F.loo[i].toFixed(1) : ''}</text>`;
+        return sq(i) ? `<rect x="${(cx - r * .88).toFixed(1)}" y="${(cy - r * .88).toFixed(1)}" width="${(r * 1.76).toFixed(1)}" height="${(r * 1.76).toFixed(1)}" ${at}>${tip}</rect>` : `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" ${at}>${tip}</circle>`; }).join('') +
+      (pe ? X.names.map((n, j) => { const cx = x(X.y[j]), cy = yy(pe[j]), [sc, sw] = ring(n === st.mol, n === st.mol2 || cmp.has(n)), r = sw > 1 ? 7 : 5.5;
+        return `<path class="pt" d="M${cx.toFixed(1)} ${(cy - r).toFixed(1)} L${(cx + r).toFixed(1)} ${cy.toFixed(1)} L${cx.toFixed(1)} ${(cy + r).toFixed(1)} L${(cx - r).toFixed(1)} ${cy.toFixed(1)} Z" fill="#fff" stroke="${sw > 1 ? sc : '#b45309'}" stroke-width="${sw > 1 ? sw : 2}" data-n="${esc(n)}"><title>${esc(n)} (external, never fitted): measured ${X.y[j].toFixed(2)}, predicted ${pe[j].toFixed(2)}</title></path>` + (off(pe[j]) ? `<text x="${(cx + 8).toFixed(1)}" y="${(cy + (pe[j] > b ? 12 : -5)).toFixed(1)}" style="fill:#b45309">${off(pe[j])} ${pe[j].toFixed(1)}</text>` : ''); }).join('') : '') +
+      (st.names === 'all' ? range(Y.length) : st.names === 'worst' ? worst : []).map((i) => `<text x="${(x(Y[i]) + 7).toFixed(1)}" y="${(yy(F.loo[i]) + 3).toFixed(1)}">${esc(C.ligands[i])}</text>`).join('') +
+      (pe && (st.names === 'all' || st.names === 'ext') ? X.names.map((n, j) => `<text x="${(x(X.y[j]) + 9).toFixed(1)}" y="${(yy(pe[j]) + 3).toFixed(1)}" style="fill:#b45309">${esc(n)}</text>`).join('') : '') +
+      `<text x="${(x0 + x1) / 2}" y="${S - 5}" text-anchor="middle">measured</text><text transform="translate(9 ${(y0 + y1) / 2}) rotate(-90)" text-anchor="middle">predicted when left out</text>`;
+    const dia = (c) => `<span style="color:${c}">◆</span>`;
+    ps = `<b>R² ${F.r2.toFixed(2)} · Q² ${F.q2.toFixed(2)} · MAE ${maeL.toFixed(2)}</b> <span class="lab">${esc(C.unit)}${st.out.size ? ` · without ${st.out.size}` : ''}</span>` +
+      (extStat ? `<div>${dia('#b45309')} external (${X.names.length}): R² ${extStat.r2.toFixed(2)} · MAE ${extStat.mae.toFixed(2)}</div>` : '') +
+      (st.out.size ? `<div>${dia('#6D28D9')} held out by you (${st.out.size}): MAE ${([...st.out].reduce((acc, r) => acc + Math.abs(Y[r] - F.loo[r]), 0) / st.out.size).toFixed(2)}</div>` : '') +
+      (cl ? `<div><span style="color:#9aa5b1">▬</span> class mean alone: Q² ${q2c.toFixed(2)}${classes.length > 1 ? ` &nbsp; ● ${esc(classes[0])} ■ ${esc(classes[1])}` : ''}</div>` : ''); }
+  else p = `<text x="${S / 2}" y="${S / 2}" text-anchor="middle">${cols.length ? 'too many or collinear columns to fit' : 'select a model or descriptors'}</text>`;
+  $('parity').innerHTML = p; $('pstats').innerHTML = ps; $('pstats').title = 'R²: fit. Q² and MAE: every compound predicted from a fit that left it out. The shaded band is one MAE either side of the diagonal.';
+  let h = M ? `<div class="lab" style="margin-bottom:3px">Model visited in ${(100 * M.share).toFixed(1)} % of the run${C.nested_q2 == null ? '' : `. Whole procedure, descriptors chosen again every fold: Q² ${C.nested_q2.toFixed(2)}`}.</div>` : cols.length ? '<div class="lab" style="margin-bottom:3px">Your selection, fitted here by least squares.</div>' : '';
+  if (cols.length) { h += `<table><tr class="head"><td></td><td>across the set</td><td class="r">coef.</td><td class="r">${esc(st.mol)}</td>${st.mol2 ? `<td class="r" style="color:#1f5fd0">${esc(st.mol2)}</td>` : ''}</tr>`;
+    cols.forEach((i, j) => { const x = C.X[C.names[i]], a = Math.min(...x), b = Math.max(...x), W = st.mol2 ? 96 : 118, px = (v) => 6 + (v - a) / (b - a || 1) * (W - 12);     // a strip of the compounds along the descriptor: two clumps mean a switch, not a scale
+      h += `<tr><td class="n" title="${esc(C.label[i])}"><span class="sw" style="background:${colourOf(i)}"></span>${esc(C.label[i])}</td><td><svg width="${W}" height="18"><line x1="6" y1="9" x2="${W - 6}" y2="9" stroke="#e3e7ec"/>` +
+        x.map((v, r) => { const [sc, sw] = ring(r === k, r === k2 || cmp.has(C.ligands[r])); return `<circle cx="${px(v).toFixed(1)}" cy="9" r="${r === k || r === k2 || cmp.has(C.ligands[r]) ? 5.5 : 4}" fill="${shade(t(Y[r]))}" fill-opacity=".9" stroke="${sc}" stroke-width="${sw === 1 ? .8 : sw}" data-n="${esc(C.ligands[r])}"><title>${esc(C.ligands[r])}: ${v}, response ${Y[r].toFixed(2)}</title></circle>`; }).join('') +
+        `</svg></td><td class="r">${F ? (F.b[j + 1] > 0 ? '+' : '') + F.b[j + 1].toFixed(2) : ''}</td><td class="r">${num(xOf(i, st.mol))}</td>${st.mol2 ? `<td class="r">${num(xOf(i, st.mol2))}</td>` : ''}</tr>`; });
+    h += '</table>'; }
+  if (st.design && F) { const f2 = (v) => +(+v).toPrecision(4);
+    h += '<div class="design">' + cols.map((i) => { const x = C.X[C.names[i]], a = Math.min(...x), b = Math.max(...x), m = (b - a) * 0.15 || 1; if (st.dv[i] === undefined) st.dv[i] = xOf(i, st.mol);
+      return `<label><span title="${esc(C.label[i])}">${esc(C.label[i])}</span><input type="range" data-d="${i}" min="${f2(a - m)}" max="${f2(b + m)}" step="${f2((b - a + 2 * m) / 200)}" value="${st.dv[i]}"><output id="dv${i}">${f2(st.dv[i])}</output></label>`; }).join('') +
+      `<div id="dpred" style="margin-top:4px"></div></div>`; }
+  if (FF && cols.some((i) => FF[i])) { const W = 240;                                                                          // where each frequency goes when one compound is left out: a dot far from the tick is a compound the descriptor rests on
+    h += '<div class="infl"><div class="lab">In the reruns that leave one compound out, the share of models with each descriptor:</div>' + cols.filter((i) => FF[i]).map((i) => { const f = FF[i], px = (v) => 8 + v * (W - 16), far = range(f.length).sort((a, b) => Math.abs(f[b] - C.freq[i]) - Math.abs(f[a] - C.freq[i]))[0], shift = f[far] - C.freq[i];
+      return `<div style="margin-top:3px"><span class="sw" style="background:${colourOf(i)}"></span>${esc(C.label[i])} <span class="lab">· ${Math.abs(shift) >= 0.05 ? `without <a data-n="${esc(C.ligands[far])}" style="cursor:pointer;text-decoration:underline">${esc(C.ligands[far])}</a>: ${pct(f[far])}` : 'steady, ' + pct(Math.min(...f)) + ' to ' + pct(Math.max(...f))}</span></div><svg width="${W}" height="26"><line x1="8" y1="14" x2="${W - 8}" y2="14" stroke="#e3e7ec"/><line x1="${px(C.freq[i])}" x2="${px(C.freq[i])}" y1="5" y2="23" stroke="${colourOf(i)}" stroke-width="2"/>` +
+        f.map((v, r) => `<circle cx="${px(v).toFixed(1)}" cy="14" r="${r === far ? 5 : 3.5}" fill="${shade(t(Y[r]))}" stroke="${r === far ? '#18212b' : '#fff'}" stroke-width="${r === far ? 1.6 : .7}" data-n="${esc(C.ligands[r])}"><title>without ${esc(C.ligands[r])}: ${pct(v)} (with all compounds ${pct(C.freq[i])})</title></circle>`).join('') +
+        `<text x="8" y="26" style="font-size:9px">0</text><text x="${W - 8}" y="26" text-anchor="end" style="font-size:9px">100 %</text></svg>`; }).join('') + '</div>'; }
+  const unknown = cols.filter((i) => !C.draw[i]);
+  if (st.thr) { if (st.thrI < 0 || st.thrI >= N) st.thrI = cols.length ? cols[0] : range(N).sort((a, b) => C.freq[b] - C.freq[a])[0]; if (st.thrY == null) st.thrY = [...Y].sort((a, b) => a - b)[Math.floor(Y.length / 2)];
+    h += `<div class="thr"><div class="row"><b>Threshold</b><select id="thrI" aria-label="descriptor">${range(N).sort((a, b) => C.freq[b] - C.freq[a]).map((i) => `<option value="${i}"${i === st.thrI ? ' selected' : ''}>${esc(C.label[i])}</option>`).join('')}</select></div>
+      <div class="row"><span class="lab">a compound counts as a hit when ${esc(C.response.split(' (')[0])} is</span><select id="thrD"><option value="ge"${st.thrD === 'ge' ? ' selected' : ''}>at least</option><option value="le"${st.thrD === 'le' ? ' selected' : ''}>at most</option></select>
+      <input id="thrY" type="range" min="${lo}" max="${hi}" step="${(hi - lo) / 200 || 1}" value="${st.thrY}"><output id="thrYo">${(+st.thrY).toFixed(2)}</output></div>
+      <div class="row"><span class="lab">second descriptor</span><select id="thrJ"><option value="-1">none</option>${range(N).sort((a, b) => C.freq[b] - C.freq[a]).map((q) => `<option value="${q}"${q === st.thrJ ? ' selected' : ''}>${esc(C.label[q])}</option>`).join('')}</select></div><div id="thrbody"></div>
+      <div class="row" style="margin-top:6px"><button id="thrTest" title="shuffles which compounds are hits 200 times and asks how good the best single descriptor then gets">Test the best descriptor against shuffles</button></div><div id="thrP" class="lab"></div></div>`; }
+  if (bare_) h += '<p class="hint">This case has no structures, so nothing is drawn on a molecule. <code>build_case.py attach &lt;case&gt; &lt;folder&gt;</code> adds them.</p>';
+  h += `<p class="hint">Dots are compounds, darker = higher ${esc(C.response)}. Click to look, shift-click to compare, right-click to hold a compound out: the model is fitted without it and predicts it (violet diamond).` + (skipped.length ? ' Not drawn on the molecule: ' + skipped.map(esc).join(', ') + '.' : '') +
+    (unknown.length ? ' Tell the page what a column measures to draw it: ' + unknown.map((i) => `<a data-fix="${i}">${esc(C.label[i])}</a>`).join(', ') + '.' : '') + '</p>';
+  $('info').innerHTML = h; if (st.design && F) designText(F, cols); if (st.thr) thrDraw(); writeHash();
+}
+// one descriptor as a yes/no rule. The cut is the one that best separates hits from the rest (balanced accuracy); the honest
+// number is the leave-one-out one, where the cut is chosen again without the compound being classified.
+const isHit = (v) => st.thrD === 'ge' ? v >= st.thrY : v <= st.thrY;
+function cutOf(x, hit, rows) { const xs = [...new Set(rows.map((r) => x[r]))].sort((a, b) => a - b); let top = null;
+  for (let k = 0; k + 1 < xs.length; k++) for (const up of [true, false]) { const cut = (xs[k] + xs[k + 1]) / 2; let tp = 0, tn = 0, P = 0, Q = 0;
+    for (const r of rows) { const says = (x[r] >= cut) === up; if (hit[r]) { P++; tp += says; } else { Q++; tn += !says; } }
+    const b = (tp / (P || 1) + tn / (Q || 1)) / 2; if (!top || b > top.b + 1e-12) top = { cut, up, b }; }
+  return top; }
+const score =(pred, hit) => { let tp = 0, fp = 0, fn = 0, tn = 0; pred.forEach((s, r) => { s ? (hit[r] ? tp++ : fp++) : (hit[r] ? fn++ : tn++); }); const prec = tp / (tp + fp), rec = tp / (tp + fn); return { acc: (tp + tn) / pred.length, prec, rec, f1: 2 * tp / (2 * tp + fp + fn) }; };
+const saysHit = (v, c) => (v >= c.cut) === c.up, bacc = (pred, hit) => { let tp = 0, tn = 0, P = 0; pred.forEach((s, r) => { if (hit[r]) { P++; tp += s; } else tn += !s; }); return (tp / (P || 1) + tn / ((hit.length - P) || 1)) / 2; };
+// leave-one-out predictions of a rule built from one or two descriptors: every cut is chosen again without the compound; how = 'one', 'and', 'or'
+function looRule(cols, hit, how) { const n = hit.length; return range(n).map((r) => { const rows = range(n).filter((q) => q !== r), c = cols.map((i) => cutOf(C.X[C.names[i]], hit, rows)); if (c.some((v) => !v)) return false;
+  const v = cols.map((i, k) => saysHit(C.X[C.names[i]][r], c[k])); return how === 'and' ? v.every(Boolean) : how === 'or' ? v.some(Boolean) : v[0]; }); }
+function thrDraw() {
+  const i = st.thrI, j = st.thrJ, x = C.X[C.names[i]], hit = Y.map(isHit), n = Y.length, nh = hit.filter(Boolean).length, body = $('thrbody'), all = range(n);
+  if (!nh || nh === n) return (body.innerHTML = '<p class="hint">Every compound is on the same side of this response value; move the slider.</p>');
+  const ci = cutOf(x, hit, all); if (!ci) return (body.innerHTML = '<p class="hint">This descriptor has one value for every compound.</p>');
+  const E = C.ext, eh = E ? E.y.map(isHit) : [], ex = E ? E.X[C.names[i]] : [], k = C.ligands.indexOf(st.mol), ok = '#13774c', no = '#c0392b', W = 250, H = 190, L = 30, T = 8;
+  const two = j >= 0 && j !== i ? cutOf(C.X[C.names[j]], hit, all) : null, y2 = two ? C.X[C.names[j]] : null, ey2 = two && E ? E.X[C.names[j]] : [];
+  let how = 'one', pred = x.map((v) => saysHit(v, ci)), lines = '';
+  if (two) { const A = x.map((v, r) => saysHit(v, ci) && saysHit(y2[r], two)), O = x.map((v, r) => saysHit(v, ci) || saysHit(y2[r], two)), la = bacc(looRule([i, j], hit, 'and'), hit), lo_ = bacc(looRule([i, j], hit, 'or'), hit), l1 = bacc(looRule([i], hit, 'one'), hit);
+    how = la >= lo_ ? 'and' : 'or'; pred = how === 'and' ? A : O;
+    lines = `With <b>${esc(C.label[j])}</b> ${two.up ? 'at least' : 'below'} ${+two.cut.toPrecision(4)} as a second rule, leave-one-out balanced accuracy: both rules <b>${la.toFixed(2)}</b>, either rule <b>${lo_.toFixed(2)}</b>; the first descriptor alone ${l1.toFixed(2)}. Shown: ${how === 'and' ? 'both' : 'either'}.<br>`; }
+  const right = pred.map((s, r) => s === hit[r]), loo = looRule(two ? [i, j] : [i], hit, how), looRight = loo.filter((s, r) => s === hit[r]).length;
+  const ePred = E ? ex.map((v, q) => how === 'one' ? saysHit(v, ci) : how === 'and' ? saysHit(v, ci) && saysHit(ey2[q], two) : saysHit(v, ci) || saysHit(ey2[q], two)) : [], eok = ePred.filter((s, q) => s === eh[q]).length;
+  const yv = two ? y2 : Y, eyv = two ? ey2 : (E ? E.y : []), xa = Math.min(...x, ...ex), xb = Math.max(...x, ...ex), ya = Math.min(...yv, ...eyv), yb = Math.max(...yv, ...eyv), px = (v) => L + (v - xa) / (xb - xa || 1) * (W - L - 10), py = (v) => H - 24 - (v - ya) / (yb - ya || 1) * (H - 24 - T);
+  const yLine = two ? two.cut : st.thrY, mark = (r) => two ? (hit[r] ? '#18212b' : '#fff') : (right[r] ? ok : no);          // one descriptor: colour = right or wrong. Two: filled = hit, outline = right or wrong
+  body.innerHTML = `<svg width="${W}" height="${H}"><rect x="${L}" y="${T}" width="${W - L - 10}" height="${H - 24 - T}" fill="#fff" stroke="#e3e7ec"/>
+    <line x1="${px(ci.cut)}" x2="${px(ci.cut)}" y1="${T}" y2="${H - 24}" stroke="#18212b" stroke-dasharray="4 3"/><line x1="${L}" x2="${W - 10}" y1="${py(yLine)}" y2="${py(yLine)}" stroke="#18212b" stroke-dasharray="4 3"/>` +
+    x.map((v, r) => `<circle cx="${px(v).toFixed(1)}" cy="${py(yv[r]).toFixed(1)}" r="${r === k ? 5.5 : 4}" fill="${mark(r)}" fill-opacity=".85" stroke="${two ? (right[r] ? ok : no) : r === k ? '#18212b' : '#fff'}" stroke-width="${two ? 2 : r === k ? 2 : .8}" data-n="${esc(C.ligands[r])}"><title>${esc(C.ligands[r])}: response ${Y[r].toFixed(2)} (${hit[r] ? 'a hit' : 'not a hit'}) — ${right[r] ? 'classified correctly' : 'misclassified'}</title></circle>`).join('') +
+    ex.map((v, q) => { const cx = px(v), cy = py(eyv[q]), g = ePred[q] === eh[q]; return `<path d="M${cx} ${cy - 5.5} l5.5 5.5 l-5.5 5.5 l-5.5 -5.5 Z" fill="${two && eh[q] ? '#18212b' : '#fff'}" stroke="${g ? ok : no}" stroke-width="2" data-n="${esc(E.names[q])}"><title>${esc(E.names[q])} (external): response ${E.y[q].toFixed(2)} — ${g ? 'correct' : 'wrong'}</title></path>`; }).join('') +
+    `<text x="${(L + W - 10) / 2}" y="${H - 8}" text-anchor="middle">${esc(C.label[i])}</text><text transform="translate(10 ${(T + H - 24) / 2}) rotate(-90)" text-anchor="middle">${two ? esc(C.label[j]).slice(0, 28) : 'response'}</text><text x="${L}" y="${H - 13}">${num(xa)}</text><text x="${W - 10}" y="${H - 13}" text-anchor="end">${num(xb)}</text></svg>
+    <div style="font-size:12px">Hit when <b>${esc(C.label[i])}</b> is <b>${ci.up ? 'at least' : 'below'} ${+ci.cut.toPrecision(4)}</b>${two ? ` ${how === 'and' ? 'and' : 'or'} <b>${esc(C.label[j])}</b> is ${two.up ? 'at least' : 'below'} ${+two.cut.toPrecision(4)}` : ''}. ${nh} of ${n} are hits.</div>` + (lines ? `<div style="font-size:12px">${lines}</div>` : '') +
+    (() => { const sets = [['all ' + n, score(pred, hit), '#9aa5b1'], ['Leave-one-out', score(loo, hit), '#1f5fd0']].concat(E ? [['external ' + E.names.length, score(ePred, eh), '#b45309']] : []), keys = [['acc', 'accuracy'], ['prec', 'precision'], ['rec', 'recall'], ['f1', 'F1']], bh = 8, rowH = sets.length * (bh + 1) + 9, X0 = 66, BW = 140;
+      return `<svg width="250" height="${keys.length * rowH + 20}" role="img" aria-label="accuracy, precision, recall and F1 of the rule"><title>Accuracy: share classified right. Precision: of those the rule calls hits, the share that are. Recall: of the real hits, the share the rule finds. F1: the two combined. Leave-one-out: the cut is chosen again without each compound, which is then classified.</title>` +
+        `<line x1="${X0}" x2="${X0}" y1="0" y2="${keys.length * rowH - 6}" stroke="#d5dbe2"/><line x1="${X0 + BW}" x2="${X0 + BW}" y1="0" y2="${keys.length * rowH - 6}" stroke="#eef1f4"/>` +
+        keys.map(([k, name], r) => `<text x="${X0 - 6}" y="${r * rowH + rowH / 2}" text-anchor="end" style="font-weight:600">${name}</text>` + sets.map(([, s, c], q) => { const v = s[k], y = r * rowH + q * (bh + 1);
+          return isNaN(v) ? `<text x="${X0 + 4}" y="${y + bh - 1}" style="fill:#8793a1">no hit called</text>` : `<rect x="${X0}" y="${y}" width="${Math.max(1, BW * v).toFixed(1)}" height="${bh}" rx="2" fill="${c}"/><text x="${(X0 + BW * v + 4).toFixed(1)}" y="${y + bh - 1}">${v.toFixed(2)}</text>`; }).join('')).join('') +
+        sets.map(([t, , c], q) => `<rect x="${X0 + q * 84}" y="${keys.length * rowH + 2}" width="9" height="9" rx="2" fill="${c}"/><text x="${X0 + q * 84 + 13}" y="${keys.length * rowH + 10}">${t}</text>`).join('') + '</svg>'; })() +
+    `<div class="lab" style="font-size:11px">${two ? 'Filled = hit; green outline = right, red = wrong.' : 'In the plot: green = classified right, red = wrong.'}</div>` +
+    // every descriptor tried as the single rule at this response value, best first; the best of many is itself a choice
+    `<div class="lab" style="margin-top:6px">Single descriptors that separate best here (leave-one-out balanced accuracy; click one):</div>` +
+    range(N).map((q) => [bacc(looRule([q], hit, 'one'), hit), q]).sort((a, b) => b[0] - a[0]).slice(0, 6).map(([b, q]) => `<div class="opt${q === i ? ' sel' : ''}" data-ti="${q}" style="grid-template-columns:minmax(0,1fr) 64px 34px"><span>${esc(C.label[q])}</span><i style="width:${Math.max(3, 64 * Math.max(0, (b - 0.5) * 2))}px"></i><b>${b.toFixed(2)}</b></div>`).join('') +
+    `<p class="hint" style="margin:4px 0 0">0.50 is a coin; the bar starts there. The first of ${N} is the best of ${N}: it would need its own shuffle test before being quoted.</p>`;
+}
+// the ranking's first place is the best of N descriptors; under shuffled hit labels the best of N is also above a coin, and this says by how much
+async function thrShuffle() {
+  const hit = Y.map(isHit), n = hit.length, B = 200, top = (h) => Math.max(...range(N).map((q) => bacc(looRule([q], h, 'one'), h))), obs = top(hit), tops = []; let seed = 20261010, ge = 0;
+  const rnd = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296, mine = [st.thrY, st.thrD].join();
+  for (let b = 0; b < B; b++) { const h = hit.slice(); for (let k = n - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [h[k], h[j]] = [h[j], h[k]]; }
+    const t = top(h); tops.push(t); ge += t >= obs - 1e-12;
+    if (b % 5 === 4) { if (!$('thrP') || mine !== [st.thrY, st.thrD].join()) return; $('thrP').textContent = `shuffling… ${b + 1} of ${B}`; await new Promise((r) => setTimeout(r, 0)); } }
+  tops.sort((a, b) => a - b); if (!$('thrP')) return;
+  $('thrP').innerHTML = `The best single descriptor reaches <b>${obs.toFixed(2)}</b> leave-one-out. With the hits shuffled among the compounds ${B} times, the best descriptor reaches that in ${ge}: <b>p = ${((1 + ge) / (1 + B)).toFixed(3)}</b>. Half of the shuffles give ${tops[B / 2].toFixed(2)} or more, 5 % give ${tops[Math.floor(B * 0.95)].toFixed(2)} or more.`;
+}
+// design: the shown model evaluated at slider values; said plainly when a slider is outside the compounds it was fitted on
+const designPred = (F, cols) => predictAt(F, cols, (i) => st.dv[i] ?? xOf(i, st.mol));
+function designText(F, cols) {
+  const v = designPred(F, cols), outside = cols.filter((i) => { const x = C.X[C.names[i]]; return st.dv[i] < Math.min(...x) || st.dv[i] > Math.max(...x); });
+  const near = range(Y.length).map((r) => [cols.reduce((s, i) => s + ((st.dv[i] - C.X[C.names[i]][r]) / MS[i][1]) ** 2, 0), r]).sort((a, b) => a[0] - b[0])[0][1];      // the fitted compound closest to the sliders, in these descriptors
+  $('dpred').innerHTML = `Predicted ${esc(C.response)}: <b>${v.toFixed(2)} ${esc(C.unit)}</b> (measured span ${Math.min(...Y).toFixed(2)} to ${Math.max(...Y).toFixed(2)}). Closest compound: <a data-n="${esc(C.ligands[near])}">${esc(C.ligands[near])}</a> (${Y[near].toFixed(2)}).` +
+    (outside.length ? `<br><span style="color:var(--down)">Outside the fitted compounds for ${outside.map((i) => esc(C.label[i])).join(', ')}: an extrapolation.</span>` : '');
+  const l = document.getElementById('dline'); if (l && PY) { l.setAttribute('y1', PY(v)); l.setAttribute('y2', PY(v)); }
+}
+function writeHash() {
+  if (C.uploaded || ALONE) return C.uploaded && history.replaceState(null, '', location.pathname + location.search);
+  const key = [C.case, st.rows.join('.'), st.model, st.view, st.mol, st.mol2].join('|'), step = !restoring && lastKey && key !== lastKey; lastKey = key;        // a new selection, view, compound or case is one step back in the browser
+  (step ? history.pushState : history.replaceState).call(history, null, '', '#' + new URLSearchParams({ case: C.case, rows: st.rows.join('.'), model: st.model, ms: st.msort, rs: st.rsort, view: st.view, links: st.links, sz: [...st.sizes].join(''), q: st.minq, r: st.minr, only: +st.only, merge: +st.merge, vs: st.minshare, mol: st.mol, mol2: st.mol2, pins: st.pins.map((a) => a.join('.')).join('_'), stk: +st.stack, sd: +st.showD, more: st.more.map((n) => everyone().indexOf(n)).join('.'), nm: st.names, ex: Object.keys(st.extra).filter((k) => st.extra[k]).join('.'), th: st.thr ? [st.thrI, st.thrJ, st.thrY, st.thrD].join('~') : '' }));
+}
+const refresh = () => { grid(); draw(); peek(st.model); };
+function press(id, v) { $(id).querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === v)); }
+function toggleRow(i) { const k = st.rows.indexOf(i); k < 0 ? st.rows.push(i) : st.rows.splice(k, 1); st.model = -1; }
+const pickMol = (e) => { const name = e.target.dataset.n; if (name === undefined) return; st.dv = {};
+  if (!e.shiftKey) st.mol = name;
+  else if (name === st.mol) return;
+  else if (name === st.mol2) { st.mol2 = st.more.shift() || ''; }
+  else if (st.more.includes(name)) st.more = st.more.filter((n) => n !== name);
+  else if (!st.mol2) st.mol2 = name; else st.more.push(name);
+  tidyCompare(); draw(); };
+function tidyCompare() { st.more = st.more.filter((n) => n !== st.mol && n !== st.mol2); if (st.mol2 === st.mol) st.mol2 = st.more.shift() || ''; if (!st.mol2) st.more = []; $('mol').value = st.mol; $('mol2').value = st.mol2; }
+const pickRel = (e) => { if (dragged) return (dragged = false);
+  if (e.target.classList && e.target.classList.contains('lone')) { const i = +e.target.closest('[data-r]').dataset.r; st.mol = C.ligands[LONE[i].r]; $('mol').value = st.mol; if (!st.rows.includes(i)) toggleRow(i); return refresh(); } const a = e.target.closest('[data-i]'), r = e.target.closest('[data-r]'), m = e.target.closest('[data-m]');
+  if (a) { st.rows = [+a.dataset.i, +a.dataset.j]; st.model = -1; } else if (r) toggleRow(+r.dataset.r); else if (m) st.model = st.model === +m.dataset.m ? -1 : +m.dataset.m; else return; st.dv = {}; refresh(); };
+
+for (const id of ['grid', 'map', 'net', 'recipes', 'infl']) $(id).addEventListener('click', pickRel);
+$('infl').addEventListener('click', (e) => { if (e.target.dataset.n !== undefined) { pickMol(e); grid(); } });
+$('grid').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.target.click(); } });
+let hov = -1, hovM = ''; $('grid').addEventListener('mouseover', (e) => { const tr = e.target.closest('tr[data-row]'), i = tr && !e.target.closest('td.arcs') ? +tr.dataset.row : -1, c = e.target.closest('[data-m]'), m = c ? c.dataset.m : '';
+  if (i !== hov) { hov = i; arcs(hov); } if (m !== hovM) { hovM = m; $('colhov').textContent = m ? `#grid td[data-m="${m}"]{background-color:var(--hover)}` : ''; peek(m === '' ? st.model : +m); } });     // the column under the pointer is lit from top to bottom
+$('grid').addEventListener('mouseleave', () => { if (hov !== -1) { hov = -1; arcs(); } hovM = ''; $('colhov').textContent = ''; peek(st.model); });
+function peek(m) { const M = C.models[m]; $('peek').innerHTML = M ? `<b>${M.cols.map((i) => esc(C.label[i])).join('  +  ')}</b> · R² ${M.r2.toFixed(2)} · Q² ${M.q2.toFixed(2)} · ${(100 * M.share).toFixed(1)} % of the run` : st.view === 'models' ? 'Point at a model to read it; click to draw it on the molecule.' : ''; }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.querySelector('dialog[open]') && (st.rows.length || st.model >= 0)) { st.rows = []; st.model = -1; return refresh(); }
+  if (st.model < 0 || st.view !== 'models' || !['ArrowLeft', 'ArrowRight'].includes(e.key) || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  const { cols } = columns(), k = cols.findIndex((c) => c.members.includes(st.model)) + (e.key === 'ArrowRight' ? 1 : -1); if (k < 0 || k >= cols.length) return; e.preventDefault(); st.model = cols[k].m; refresh();
+  const th = $('grid').querySelector('th.m.sel'); if (th) th.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
+$('chips').addEventListener('click', (e) => { const d = e.target.dataset, pin = e.target.closest('.pin');
+  if (e.target.id === 'rerun') return rerun();
+  if (d.x) toggleRow(+d.x); else if (d.o) st.out.delete(+d.o); else if (d.u) st.pins.splice(+d.u, 1);
+  else if (pin) { const cs = st.pins[+pin.dataset.p], m = C.models.findIndex((M) => M.cols.length === cs.length && cs.every((i) => M.cols.includes(i))); st.dv = {}; if (m >= 0) st.model = m; else { st.rows = cs.slice(); st.model = -1; } }
+  else return; refresh(); });
+$('pin').onclick = () => { const cs = active().slice(); if (!cs.length) return say('Select a model or descriptors first.'); if (!st.pins.some((a) => a.join() === cs.join())) { st.pins.push(cs); refresh(); } };
+for (const id of ['msort', 'rsort', 'view', 'links']) $(id).addEventListener('click', (e) => { if (e.target.dataset.v) { st[id] = e.target.dataset.v; press(id, st[id]); refresh(); } });
+$('linkhelp').onclick = () => $('linksguide').showModal(); $('rowhelp').onclick = () => $('rowsguide').showModal();
+document.addEventListener('mouseover', (e) => { const t = e.target.closest && e.target.closest('[data-tip]'), tip = $('tip'); if (!t) return (tip.hidden = true);
+  tip.textContent = t.dataset.tip; tip.hidden = false; const r = t.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + 'px'; tip.style.top = (r.bottom + h + 10 > innerHeight ? r.top - h - 6 : r.bottom + 6) + 'px'; });
+$('sizes').innerHTML = [1, 2, 3, 4, 5].map((k) => `<button class="k" data-k="${k}" title="models with ${k}${k === 5 ? ' or more' : ''} descriptor${k > 1 ? 's' : ''}">${k}${k === 5 ? '+' : ''}</button>`).join(' ');
+$('sizes').addEventListener('click', (e) => { const k = +e.target.dataset.k; if (!k) return; st.sizes.has(k) ? st.sizes.delete(k) : st.sizes.add(k);
+  e.target.setAttribute('aria-pressed', st.sizes.has(k)); e.target.style.background = st.sizes.has(k) ? KCOL[k] : '#fff'; refresh(); });
+$('minq').oninput = (e) => { st.minq = +e.target.value; $('minqo').textContent = num(st.minq); refresh(); };
+$('minr').oninput = (e) => { st.minr = +e.target.value; $('minro').textContent = num(st.minr); refresh(); };
+function syncKey() { $('minshare').value = String(st.minshare); $('merge').checked = st.merge; $('keymodels').setAttribute('aria-pressed', st.merge && st.minshare >= 0.01); }
+$('only').onchange = (e) => { st.only = e.target.checked; refresh(); }; $('merge').onchange = (e) => { st.merge = e.target.checked; syncKey(); refresh(); };
+$('minshare').onchange = (e) => { st.minshare = +e.target.value; syncKey(); refresh(); };
+$('keymodels').onclick = () => { const on = !(st.merge && st.minshare >= 0.01); st.merge = on; st.minshare = on ? 0.01 : 0; if (on) { st.msort = 'share'; press('msort', 'share'); } syncKey(); refresh(); };
+$('find').oninput = (e) => { st.find = e.target.value; grid(); };
+$('nofilt').onclick = () => { st.sizes = new Set([1, 2, 3, 4, 5]); st.minq = st.minr = st.minshare = 0; st.only = false; $('minq').value = $('minr').value = 0; $('minqo').textContent = $('minro').textContent = '0'; $('only').checked = false;
+  $('sizes').querySelectorAll('button').forEach((b) => { b.setAttribute('aria-pressed', true); b.style.background = KCOL[+b.dataset.k]; }); syncKey(); refresh(); };
+document.addEventListener('click', (e) => { if ($('filt').open && !e.target.closest('#filt')) $('filt').open = false; });      // a click elsewhere closes the filter box
+$('clear').onclick = () => { st.rows = []; st.model = -1; st.pins = []; st.find = ''; $('find').value = ''; refresh(); };
+$('mol').onchange = (e) => { st.mol = e.target.value; st.dv = {}; tidyCompare(); draw(); }; $('mol2').onchange = (e) => { st.mol2 = e.target.value === st.mol ? '' : e.target.value; tidyCompare(); draw(); };
+$('parity').addEventListener('click', pickMol); $('info').addEventListener('click', pickMol);
+// network: a circle can be pulled to where its label reads; the layout is kept until the case changes
+let drag = null; $('net').addEventListener('pointerdown', (e) => { const c = e.target.closest('circle[data-r]'); if (c) drag = { i: +c.dataset.r, x: e.clientX, y: e.clientY, moved: false }; });
+$('net').addEventListener('pointermove', (e) => { if (!drag || (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4)) return; if (!drag.moved) { drag.moved = true; $('net').setPointerCapture(e.pointerId); }
+  const q = new DOMPoint(e.clientX, e.clientY).matrixTransform($('net').getScreenCTM().inverse()); C._net[drag.i] = [Math.max(10, Math.min(850, q.x)), Math.max(10, Math.min(540, q.y))]; network(); });
+$('net').addEventListener('pointerup', () => { dragged = !!(drag && drag.moved); drag = null; if (dragged) setTimeout(() => dragged = false, 0); });
+// a column the page cannot place: the user says once what it measures, and it is drawn from then on (kept with the case)
+let fixing = -1; $('info').addEventListener('click', (e) => { const i = e.target.dataset.fix; if (i === undefined) return; fixing = +i; $('namewhat').textContent = `Column "${C.names[fixing]}". Atom numbers are those of the structure files, starting at 1.`; $('namemsg').textContent = ''; $('nameatoms').value = ''; $('namedlg').showModal(); });
+$('nameok').onclick = () => { const kind = $('namekind').value, at = ($('nameatoms').value.match(/\d+/g) || []).map(Number), need = ['nbo', 'hirshfeld', 'cm5'].includes(kind) ? 1 : kind === 'atoms' ? 0 : 2;
+  if ((need && at.length !== need) || !at.length || at.some((a) => a < 1)) return ($('namemsg').textContent = need === 2 ? 'Give two atom numbers: the base and the atom the axis points to.' : need === 1 ? 'Give one atom number.' : 'Give at least one atom number.');
+  C.draw[fixing] = need === 1 ? { kind: 'charge', i: at[0], type: kind } : need === 2 ? { kind: 'sterimol', a: at[0], b: at[1], flag: kind } : { kind: 'angle', atoms: at };
+  $('namedlg').close(); draw(); say(C.uploaded ? 'Drawn. Keep this case to keep the rule.' : 'Drawn for this session.'); };
+$('parity').addEventListener('mousedown', (e) => { if (e.shiftKey) e.preventDefault(); });      // a shift-click adds a compound; it must not also select the page's text
+$('parity').addEventListener('contextmenu', (e) => { const r = C.ligands.indexOf(e.target.dataset.n); if (e.target.dataset.n === undefined) return; e.preventDefault(); if (r < 0) return say('An external compound is never in the fit.'); st.out.has(r) ? st.out.delete(r) : st.out.add(r); refresh(); });
+$('info').addEventListener('input', (e) => { const i = e.target.dataset.d; if (i === undefined) return; st.dv[i] = +e.target.value; $('dv' + i).textContent = +(+e.target.value).toPrecision(4); const cols = active(); designText(fit(cols), cols); });
+$('thr').onclick = () => { st.thr = !st.thr; st.thrI = -1; $('thr').setAttribute('aria-pressed', st.thr); draw(); const box = $('info').querySelector('.thr'); if (box) box.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+$('info').addEventListener('input', (e) => { if (e.target.id === 'thrY') { st.thrY = +e.target.value; $('thrYo').textContent = st.thrY.toFixed(2); $('thrP').textContent = ''; thrDraw(); } });
+$('info').addEventListener('change', (e) => { const t = e.target; if (t.id === 'thrI') st.thrI = +t.value; else if (t.id === 'thrD') st.thrD = t.value; else if (t.id === 'thrJ') st.thrJ = +t.value; else return; thrDraw(); writeHash(); });
+$('info').addEventListener('click', (e) => { const o = e.target.closest('[data-ti]'); if (o) { st.thrI = +o.dataset.ti; draw(); } else if (e.target.id === 'thrTest') thrShuffle(); });
+$('names').onchange = (e) => { st.names = e.target.value; draw(); };
+$('stack').onchange = (e) => { st.stack = e.target.checked; draw(); };
+$('showd').onchange = (e) => { st.showD = e.target.checked; draw(); };
+$('resetview').onclick = () => { frames.forEach((f) => f.key = f.json = ''); draw(); };
+$('molopts').addEventListener('change', (e) => { const k = e.target.dataset.x; if (k) { st.extra[k] = e.target.checked; draw(); } });
+$('design').onclick = () => { if (!active().length) return say('Select a model first.'); st.design = !st.design; st.dv = {}; $('design').setAttribute('aria-pressed', st.design); draw(); };
+const download = (text, name, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+$('savefig').onclick = () => { try { download(new XMLSerializer().serializeToString(frames[0].el.contentDocument.querySelector('#fig svg')), `${C.case}_${st.mol}.svg`, 'image/svg+xml'); say('Picture saved.'); }
+  catch (err) { say('Could not save the picture here; use the full explorer link.'); } };
+$('copyeq').onclick = async () => { const cols = active(), F = cols.length ? fit(cols) : null; if (!F) return say('Select a model first.');
+  const X = C.ext, pe = X ? X.names.map((n) => predictAt(F, cols, (i) => xOf(i, n))) : null;
+  const text = `${C.title}\n${C.response} [${C.unit}] = ${F.b[0].toFixed(3)} ` + cols.map((i, j) => `${F.b[j + 1] < 0 ? '-' : '+'} ${Math.abs(F.b[j + 1]).toFixed(3)}·z(${C.label[i]})`).join(' ') +
+    `\nz: standardised over the ${C.n} compounds. Columns: ${cols.map((i) => C.names[i]).join(', ')}\nR² ${F.r2.toFixed(2)}; Q² ${F.q2.toFixed(2)} with these terms fixed (leave-one-out)` + (st.out.size ? `; fitted without ${[...st.out].map((r) => C.ligands[r]).join(', ')}` : '') +
+    (C.nested_q2 == null ? '' : `; nested Q² of the whole procedure ${C.nested_q2.toFixed(2)}`) + (pe ? `; ${X.names.length} external compounds: MAE ${(X.y.reduce((a, y, j) => a + Math.abs(y - pe[j]), 0) / X.y.length).toFixed(2)}` : '') +
+    (st.model >= 0 ? `; visited in ${(100 * C.models[st.model].share).toFixed(1)} % of the BASSA run` : '; a hand-picked selection');
+  try { await navigator.clipboard.writeText(text); say('Model copied.'); } catch (err) { $('eqtext').value = text; $('eq').showModal(); $('eqtext').select(); } };
+$('case').onchange = (e) => boot(CASES[e.target.value]);
+$('scheme').onclick = () => { $('schemeimg').src = C.scheme; $('schemecap').textContent = C.title + ' · response: ' + C.response; $('schemedlg').showModal(); };
+$('schemedlg').onclick = (e) => { if (e.target === $('schemedlg')) $('schemedlg').close(); };
+$('help').onclick = () => $('guide').showModal();
+// one row per case, from what each case already carries; nothing is fitted for this table
+$('overview').onclick = () => { const pill = (ok, yes, no, na) => ok == null ? `<span class="pill" style="background:#9aa5b1">${na}</span>` : `<span class="pill" style="background:${ok ? '#13774c' : '#c0392b'}">${ok ? yes : no}</span>`;
+  $('allbody').innerHTML = '<table><thead><tr><th>case</th><th>compounds</th><th>leading descriptor</th><th>in models</th><th>leaving one out</th><th>against chance</th><th>predicts (nested Q²)</th></tr></thead><tbody>' +
+    Object.entries(CASES).map(([k, d]) => { const i = d.freq.indexOf(Math.max(...d.freq)), ff = !d.fold_freq ? null : Array.isArray(d.fold_freq) ? d.fold_freq.map((r) => r[i]) : d.fold_freq[d.names[i]], ft = !d.fold_top ? null : Array.isArray(d.fold_top) ? d.fold_top[i] : d.fold_top[d.names[i]];
+      return `<tr data-case="${esc(k)}"><td><b>${esc(d.title || k)}</b></td><td class="num2">${d.n}${d.ext ? ' + ' + d.ext.names.length + ' external' : ''}<br><span class="lab">${d.names.length} descriptors</span></td><td>${esc(d.label[i])}</td><td class="num2">${pct(d.freq[i])}${d.chance == null ? '' : `<br><span class="lab">chance line ${pct(d.chance)}</span>`}</td>
+        <td class="num2">${ff ? `${pct(Math.min(...ff))} to ${pct(Math.max(...ff))}<br><span class="lab">top three in ${ft} of ${d.n_folds}</span>` : '<span class="lab">not computed</span>'}</td>
+        <td class="num2">${pill(d.p_top == null ? null : d.p_top <= 0.05, 'above', 'not above', 'not computed')}${d.p_top == null ? '' : `<br><span class="lab">p ${d.p_top.toFixed(d.n_shuffles > 100 ? 3 : 2)}, ${d.n_shuffles || 100} shuffles</span>`}</td>
+        <td class="num2">${pill(d.nested_q2 == null ? null : d.nested_q2 >= 0.5, 'yes', d.nested_q2 > 0 ? 'weakly' : 'no', 'not computed')}${d.nested_q2 == null ? '' : `<br><span class="lab">Q² ${d.nested_q2.toFixed(2)}</span>`}</td></tr>`; }).join('') + '</tbody></table>';
+  $('allcases').showModal(); };
+$('allbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-case]'); if (tr) { $('allcases').close(); boot(CASES[tr.dataset.case]); } });
+$('link').onclick = async () => { if (C.uploaded) return say('Links carry prepared and kept cases. Keep this case first.'); try { await navigator.clipboard.writeText(location.href); say('Link copied.'); } catch (err) { say('Copy the address bar: it always holds this view.'); } };
+window.addEventListener('resize', () => arcs());
+
+// ---------- your own table: the local server runs the sampler ----------
+const post = async (path, body) => { const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), d = await r.json(); if (!r.ok) throw new Error(d.error || r.statusText); return d; };
+const timed = (label, where) => { const t0 = Date.now(), tick = setInterval(() => where(`${label} ${Math.round((Date.now() - t0) / 1000)} s`), 500); return () => { clearInterval(tick); return Math.round((Date.now() - t0) / 1000); }; };
+let csv = '';
+$('new').onclick = () => $('newcase').showModal();
+$('file').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; csv = await f.text();
+  const head = (csv.split(/\r?\n/)[0].match(/("(?:[^"]|"")*"|[^,]*)(?:,|$)/g) || []).map((s) => s.replace(/,$/, '').trim().replace(/^"|"$/g, '').replace(/""/g, '"')).slice(1).filter(Boolean);   // names such as "0_angle_[5, 6, 7]" carry commas inside quotes
+  $('resp').innerHTML = head.map((c) => `<option>${esc(c)}</option>`).join(''); $('resp').value = head[head.length - 1]; $('resp').disabled = $('run').disabled = false;
+  $('newstatus').textContent = `${f.name}: ${head.length} columns, ${csv.trim().split(/\r?\n/).length - 1} rows. Choose the response column.`; };
+$('run').onclick = async () => { const done = timed('Running BASSA…', (m) => $('newstatus').textContent = m); $('run').disabled = true;
+  try { const req = { csv, response: $('resp').value, iters: +$('iters').value, structures: $('xyz').value.trim(), name: $('file').files[0].name.replace(/\.csv$/i, '') }, d = await post('run', req), s = done();
+    d.title = 'Your table: ' + d.case; d._req = req; CASES['your table'] = d; $('newcase').close(); boot(d);
+    say(`Done in ${s} s. ${Object.keys(d.mols).length} of ${d.n} structures found` + (d.no_structure.length ? `; none for ${d.no_structure.slice(0, 4).join(', ')}${d.no_structure.length > 4 ? '…' : ''}` : '') + '.', 9000); }
+  catch (err) { done(); $('newstatus').textContent = location.protocol === 'file:' ? 'Start the explorer with start_explorer.bat to run a table.' : 'Could not run: ' + err.message; }
+  $('run').disabled = false; };
+$('checks').onclick = async () => { const target = C; $('checks').disabled = true;
+  try { const { job, total } = await post('checks', target._req);
+    for (;;) { await new Promise((r) => setTimeout(r, 2000)); const j = await (await fetch('checks?job=' + job)).json(); if (j.error) throw new Error(j.error);
+      say(`Checks: ${j.done} of ${total} runs`, 0); if (j.nested_q2 != null) { Object.assign(target, { p_top: j.p_top, chance_lo: j.chance_lo, chance_hi: j.chance_hi, n_shuffles: j.n_shuffles, chance: j.chance, nested_q2: j.nested_q2, fold_top: j.fold_top, n_folds: j.n_folds, fold_freq: j.fold_freq }); say('Chance line, nested Q² and fold counts added.'); if (C === target) boot(target); break; } } }
+  catch (err) { say('Checks failed: ' + err.message, 9000); }
+  $('checks').disabled = false; };
+// the sampler again, without the compounds left out: the whole table then answers for the smaller set
+async function rerun() {
+  const parent = C, gone = [...st.out].map((r) => C.ligands[r]), q = (v) => '"' + String(v).replace(/"/g, '""') + '"', keepRows = range(Y.length).filter((r) => !st.out.has(r));
+  const text = [['name', ...C.names, 'response'].map(q).join(','), ...keepRows.map((r) => [q(C.ligands[r]), ...C.names.map((c) => C.X[c][r]), Y[r]].join(','))].join('\n'), done = timed('Running BASSA without ' + gone.join(', ') + '…', (m) => say(m, 0));
+  try { const req = { csv: text, response: 'response', iters: 20000, name: parent.case + '_without_' + gone.join('_') }, d = await post('run', req), s = done();
+    Object.assign(d, { title: parent.title + ' · without ' + gone.join(', '), response: parent.response, unit: parent.unit, mols: parent.mols, style: parent.style, ext: parent.ext, _req: req, before: Object.fromEntries(parent.names.map((c, i) => [c, parent.freq[i]])) });
+    CASES[d.case] = d; boot(d); say(`Done in ${s} s. This is a new case; the original is still in the menu.`, 8000); }
+  catch (err) { done(); say('Could not rerun: ' + err.message, 9000); }
+}
+const bare = (d) => Object.fromEntries(Object.entries(d).filter(([k]) => !k.startsWith('_')));
+$('keep').onclick = async () => { const name = prompt('A short name for this case (letters and digits):', C.case); if (!name) return;
+  try { const r = await post('keep', { name, case: bare(C) }); delete CASES[$('case').value]; C.case = r.name; C.uploaded = false; C.title = C.title.replace(/^Your table: /, ''); CASES[r.name] = C; window.CASE_FILES = r.cases; boot(C); say(`Kept as "${r.name}". It will be in the menu next time.`); }
+  catch (err) { say('Could not keep it: ' + err.message, 9000); } };
+$('onefile').onclick = async () => { try { say('Building the file…', 0); const r = await post('export', { cases: { [C.case]: bare(Object.assign({}, C, { uploaded: false })) } }); download(r.html, `${C.case}_explorer.html`, 'text/html'); say('Saved. The file opens on its own, without the server.'); }
+  catch (err) { say('Could not build the file: ' + err.message, 9000); } };
+
+// ---------- start: the cases named in manifest.js are loaded, then the address decides which one opens ----------
+const fromHash = () => { const p = new URLSearchParams(location.hash.slice(1)), d = CASES[p.get('case')] || CASES[(window.CASE_FILES || [])[0]] || Object.values(CASES)[0];
+  if (!d) return ($('sub').textContent = 'No case found. Build one with build_case.bat, or start the server and use New case.'); restoring = true; boot(d, p); restoring = false; };
+function start() { window.addEventListener('hashchange', fromHash); fromHash(); if (new URLSearchParams(location.search).has('selftest')) return selfTest();
+  try { if (!localStorage.getItem('bassa-explorer-seen')) { localStorage.setItem('bassa-explorer-seen', '1'); $('guide').showModal(); } } catch (e) {} }
+const files = ALONE ? [] : (window.CASE_FILES || []); let left = files.length;
+if (!left) start(); else files.forEach((f) => { const s = document.createElement('script'); s.src = f + '.js'; s.onload = s.onerror = () => { if (!--left) start(); }; document.head.appendChild(s); });
+
+// ?selftest clicks through every case and view and writes the outcome in the page title (test_page.py reads it)
+async function selfTest() {
+  const bad = [], need = (ok, what) => { if (!ok) bad.push(C.case + ': ' + what); }, count = (s) => document.querySelectorAll(s).length, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  try { for (let t = 0; t < 40 && !frames[0].ready; t++) await wait(250); need(frames[0].ready, 'the molecule frame never answered');
+    if (Object.keys(CASES).length > 1) { $('overview').click(); need(count('#allbody tbody tr') === Object.keys(CASES).length, 'all cases table'); $('allcases').close(); }
+    for (const k of Object.keys(CASES)) { boot(CASES[k]); need(count('th.m') > 0 && count('tbody tr[data-row]') === N, 'table'); need(count('#parity .pt') === C.ligands.length + (C.ext ? C.ext.names.length : 0), 'plot points');
+      const top = range(N).sort((a, b) => C.freq[b] - C.freq[a])[0]; toggleRow(top); refresh(); need(count('.chip') === 1 && count('#info table svg') === 1, 'selecting a descriptor');
+      for (const v of ['recipes', 'network', 'map', 'influence', 'models']) { st.view = v; refresh(); need(count(v === 'recipes' ? '.rec' : v === 'network' ? '#net circle' : v === 'map' ? '#map rect' : v === 'influence' ? (FF ? '#infl rect' : '#infl text') : 'th.m') > 0, v + ' view'); }
+      st.minq = 0.5; refresh(); need($('filtsum').textContent.includes('1 on'), 'filter count'); $('nofilt').click(); need($('filtsum').textContent === 'Filters' && st.minq === 0, 'reset filters');
+      const all0 = columns().total; $('keymodels').click(); need(st.merge && columns().total > 0 && columns().total <= all0, 'key models'); $('keymodels').click(); need(!st.merge && st.minshare === 0, 'key models off');
+      st.merge = true; refresh(); need(count('th.m') > 0, 'merge'); st.merge = false; st.out.add(0); st.model = columns().cols[0].m; refresh(); need(fit(active()) && count('.chip.out') === 1 && $('pstats').textContent.includes('held out by you (1)') && $('pstats').textContent.includes('MAE'), 'holding a compound out');
+      const f0 = fit(active()), r0 = Y[0] - predictAt(f0, active(), (i) => C.X[C.names[i]][0]); need(Math.abs(f0.loo[0] - (Y[0] - r0)) < 1e-9, 'the held-out compound is predicted by the model fitted without it'); st.out.clear(); refresh();
+      if (C.mols[C.ligands[0]] && C.mols[C.ligands[2]]) { const s3 = session(C.ligands[0], [C.ligands[1], C.ligands[2]]).s, own = s3.L.axes.filter((a) => !a.on).length;
+        st.showD = false; const bare3 = session(C.ligands[0], [C.ligands[1], C.ligands[2]]).s; st.showD = true; need(bare3.structs.length === 3 && !bare3.L.axes.length && !bare3.L.sites.length && !bare3.L.dip.on && bare3.align.mode === s3.align.mode, 'descriptors switched off');
+        const gi = C.draw.findIndex((d) => d && d.atoms && !d.roles); if (gi >= 0) { const keep = [st.rows, st.model]; st.rows = [gi]; st.model = -1; const mk = session(C.ligands[0]).s.L.marks; const mk2 = session(C.ligands[0], [C.ligands[1]]).s.L.marks; [st.rows, st.model] = keep;
+          need(mk.length === 1 && mk[0].text.includes(xOf(gi, C.ligands[0]).toFixed(1)) && mk2.length === 2 && mk2[1].on === C.ligands[1] && mk2[1].text.includes(xOf(gi, C.ligands[1]).toFixed(1)), 'a length or an angle is written on the molecule, and on a stacked one'); }
+        if (C.case === 'cs2') need(NB[C.names.indexOf('B1_6-4')] && !NB[C.names.indexOf('ster_B1[C6->C7]')], 'the axis 6 to 4 is marked as not bonded, 6 to 7 is not');
+        need(s3.structs.length === 3 && s3.L.axes.length === 3 * own && s3.L.axes.filter((a) => a.on === C.ligands[2]).length === own, 'three compounds stacked, the descriptors on each');
+        const q1 = s3.L.sites.filter((q) => !q.on).length; need(s3.L.sites.length === 3 * q1 && s3.L.sites.filter((q) => q.on === C.ligands[2]).length === q1 && s3.L.dips.length === (s3.L.dip.on ? 2 : 0), 'charge sites and dipole on each stacked compound');
+        if (C.case === 'cs1') { const i = C.draw.findIndex((d) => d && d.kind === 'charge'), keep = st.rows.slice(), m0 = st.model; st.model = -1; st.rows = [i]; const sq = session(C.ligands[0], [C.ligands[1], C.ligands[2]]).s; st.rows = keep; st.model = m0;
+          need(i >= 0 && sq.L.sites.length === 3 && new Set(sq.L.sites.map((q) => q.on || '')).size === 3, 'CS1: a charge site on each of three stacked compounds'); } }
+      if (C.mols[C.ligands[0]] && C.mols[C.ligands[1]]) { const sx = session(C.ligands[0], [C.ligands[1]]).s; need(sx.structs.length === 2 && sx.align.mode === 'atoms' && sx.align.atoms.split(',').length >= 3 && sx.structs[1].own.split(',').length === sx.align.atoms.split(',').length, 'stacking two compounds'); }
+      if (C.ext) { document.querySelector('#parity path.pt').dispatchEvent(new MouseEvent('click', { bubbles: true })); need(C.ext.names.includes(st.mol) && $('t0').textContent.includes('external'), 'picking an external compound'); st.mol = C.ligands[0]; }
+      $('pin').click(); need(st.pins.length === 1 && count('.chip.pin') === 1, 'pin'); $('clear').click(); need(!st.pins.length && !st.rows.length && st.model < 0, 'clear'); st.model = columns().cols[0].m; refresh();
+      if (FF) need(count('.infl svg') === active().length && count('.fbar em.fold') === N, 'influence strips and fold ranges'); const n0 = count('td.arcs path'); st.links = 'all'; refresh(); need(count('td.arcs path') >= n0, 'links'); st.links = 'top'; peek(st.model); need($('peek').textContent.includes('R²'), 'the model line');
+      st.names = 'all'; draw(); need(count('#parity text') >= C.ligands.length, 'all names in the plot'); st.names = 'worst';
+      st.thr = true; st.thrI = -1; st.thrY = null; draw(); need($('thrbody').textContent.includes('Leave-one-out') && $('thrbody').textContent.includes('precision') && count('#thrbody svg circle') === C.ligands.length && count('#thrbody [data-ti]') === 6, 'threshold analysis');
+      st.thrJ = range(N).find((q) => q !== st.thrI); thrDraw(); need($('thrbody').textContent.includes('second rule'), 'two-descriptor threshold'); st.thrJ = -1;
+      if (k === Object.keys(CASES)[0]) { await thrShuffle(); need($('thrP').textContent.includes('p ='), 'threshold shuffle test'); } st.thr = false;
+      need(LONE.length === N && count('.lone') === LONE.filter(Boolean).length && count('.lone[data-tip]') === count('.lone'), 'lone-compound marks');
+      const lm = document.querySelector('.lone'); if (lm) { lm.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); need(!$('tip').hidden && $('tip').textContent.includes('owns this column'), 'the explanation under the pointer'); $('tip').hidden = true; }
+      if (C.mols[st.mol] && C.draw.some((d) => d && d.kind === 'sterimol')) { st.extra.theta = true; const sx = session(st.mol).s.L.axes; st.extra.plane = true; const sp = session(st.mol).s.L.axes; need(!sx.length || (sx.every((a) => a.show.theta && a.show.b1 && !a.show.plane) && sp.every((a) => a.show.plane)), 'the angle on the molecule, and the plane only when its box is ticked'); st.extra.theta = st.extra.plane = false; }
+      st.design = true; draw(); need(count('.design input') === active().length && $('dpred').textContent.includes('Predicted'), 'design'); st.design = false;
+      if (frames[0].ready && C.mols[st.mol]) { await wait(300); need(frames[0].el.contentWindow.eval('st.name') === st.mol, 'the molecule shown is not the compound selected'); } }
+  } catch (err) { bad.push('error: ' + err.message); }
+  document.title = bad.length ? 'SELFTEST fail: ' + bad.join(' | ') : 'SELFTEST ok';
+}
+</script>
+</body>
+</html>

@@ -1634,6 +1634,35 @@ def run_visual_app(host=None, port=None, open_browser=True, page="/visual"):
     serve(host=host, port=port, open_browser=open_browser, page=page)
 
 
+def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bassa_python=None):
+    """Start the BASSA model explorer (M3_modeler/bassa_explorer/server.py) and open it.
+
+    The server runs under ``bassa_python`` (or DESCRIPYTOR_BASSA_PYTHON), the Python that has ``bassa_reg``; by default
+    this one. Without ``bassa_reg`` the page opens the example and every kept case, and says that new tables need it.
+    Structures are always read by the Python running this command. Returns the server's exit code.
+    """
+    import subprocess
+    import threading
+    import webbrowser
+    from pathlib import Path
+
+    server = Path(__file__).resolve().parents[1] / "M3_modeler" / "bassa_explorer" / "server.py"
+    env = dict(os.environ)
+    env.setdefault("BASSA_EXPLORER_READER", sys.executable)
+    if cases:
+        env["BASSA_EXPLORER_CASES"] = str(Path(cases).resolve())
+    host, port = host or "127.0.0.1", int(port or 8765)
+    url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '') else host}:{port}/"
+    print(f"\n  BASSA model explorer\n  Open:  {url}\n  Press Ctrl+C to stop\n", flush=True)
+    if open_browser:
+        threading.Timer(1.5, webbrowser.open, [url]).start()
+    python = bassa_python or os.environ.get("DESCRIPYTOR_BASSA_PYTHON") or sys.executable
+    try:
+        return subprocess.call([python, str(server), str(port), host], env=env)
+    except KeyboardInterrupt:
+        return 0
+
+
 def feature_explorer_page(mol=None, preset=None):
     """The explorer's address, with the structure and preset the URL parameters ask for."""
     from urllib.parse import urlencode
@@ -1783,6 +1812,16 @@ def main():
     conver_parser = subparsers.add_parser("logs_to_feather", help="Convert log files to feather files")
     cube_parser = subparsers.add_parser("cube", help="Calculates cube sterimol from cube files")
     sterimol_parser = subparsers.add_parser("sterimol", help="Calculate sterimol values from xyz files")
+    bassa_parser = subparsers.add_parser(
+        "bassa_explorer", aliases=["bassa"],
+        help="Open the BASSA model explorer: the sampler's models beside the molecule"
+    )
+    bassa_parser.add_argument("--cases", default=None, help="Folder where kept cases live (default ./bassa_cases)")
+    bassa_parser.add_argument("--bassa-python", default=None,
+                              help="The Python that has bassa_reg, for running new tables (default: this one, or DESCRIPYTOR_BASSA_PYTHON)")
+    bassa_parser.add_argument("--no-browser", action="store_true", help="Start the server without opening a browser tab")
+    bassa_parser.add_argument("--host", default=None, help="Bind address (default 127.0.0.1)")
+    bassa_parser.add_argument("--port", type=int, default=None, help="Port (default 8765)")
     pipeline_parser = subparsers.add_parser(
         "pipeline", help="SMILES -> structures -> chained cluster stages (GOAT/UMA/xTB/ORCA/Gaussian)")
     pipeline_parser.add_argument("action", choices=["build", "adopt", "submit", "status", "retry", "reset", "watch", "fetch"])
@@ -1818,6 +1857,9 @@ def main():
     feature_extraction.add_argument("-f", "--feather_directory", default=".", help="Directory of feather files set to extract features from.")
 
     args = parser.parse_args()
+    if args.command in ("bassa_explorer", "bassa"):
+        return run_bassa_explorer(cases=args.cases, host=args.host, port=args.port,
+                                  open_browser=not args.no_browser, bassa_python=args.bassa_python)
     if args.command == "pipeline":
         return run_pipeline(args)
     if args.command in ("feature_explorer", "theta"):

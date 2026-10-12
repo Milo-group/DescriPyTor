@@ -2394,7 +2394,7 @@ const EMBED = Q.has('embed') || !!(window.FEATURE_EMBED || window.THETA_EMBED);
 // sessions and is told which atom was clicked. ?bassa is the BASSA explorer's name for the same mode.
 const FIG = Q.get('embed') === 'figure' || !!NAMED.figure || Q.has('bassa') || window.name === 'bassa';
 const API = NAMED.api || (location.protocol.startsWith('http') ? '' : null);   // gui_server.py, for the live check
-const LIVE = API !== null;
+const LIVE = API !== null && !FIG;       // figure mode shows no status line, so it does not ask for the live check
 if (EMBED) { document.documentElement.dataset.theme = Q.get('theme') || NAMED.theme || (FIG ? 'light' : 'dark'); document.body.classList.add('embed'); }
 
 const FLAGS = [['axis', 'axis'], ['L', 'L'], ['b1', 'B<sub>1</sub>'], ['plane', 'plane'], ['loc', 'loc B<sub>5</sub>'], ['b5', 'B<sub>5</sub> + loc'], ['theta', '&theta;'], ['phi', '&phi;'], ['drop', 'drop'], ['inset', 'end-on'], ['profile', 'B<sub>1</sub> scan']];

@@ -93,6 +93,8 @@ exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*", "tests*"
 "M2_data_extractor.feature_explorer" = ["*.js", "*.html", "*.json", "fixtures/*", "rdkit/*"]
 # the folder name before the rename: forwarding modules and a copy of the built page
 "M2_data_extractor.theta_explorer" = ["*.js", "*.html"]
+# the BASSA model explorer, `descripytor bassa_explorer`: its page, the example case and the two example tables
+"M3_modeler.bassa_explorer" = ["*.html", "*.js", "*.csv"]
 # the vibration-mode viewer, served at /modes
 "utils" = ["*.html"]
 # example protocol for the cluster pipeline

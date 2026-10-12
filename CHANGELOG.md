@@ -2,7 +2,26 @@
 
 ## Unreleased
 
+### Added
+
+- `descripytor bassa_explorer` (alias `bassa`): the BASSA model explorer, now in the package
+  (`M3_modeler/bassa_explorer/`, [docs/BASSA_EXPLORER.md](docs/BASSA_EXPLORER.md)). It opens with a bundled example; kept
+  cases go to `--cases DIR` (default `./bassa_cases`); new tables need `bassa_reg` in the Python given by `--bassa-python`.
+  The corrected sampler core (`core_fixed.py`) comes with it.
+- Feature explorer: a figure-only embed mode (`?embed=figure`): the framing page posts sessions and is told which atom
+  was clicked (`feature:atom`). A mark can ring its atoms (`ring`), and `L.arrows` draws arrows between points.
+
 ### Changed
+
+- The Sterimol theta explorer is renamed **feature explorer**: `descripytor feature_explorer`, `/feature_explorer`,
+  `M2_data_extractor/feature_explorer/`, [docs/FEATURE_EXPLORER.md](docs/FEATURE_EXPLORER.md), sessions saved as
+  `.featurescene.json`. The descriptor θ keeps its name. The old names still work: `descripytor theta`, `/theta`
+  (redirects), `.thetascene.json` files, the `theta:` message prefix, and the folder `M2_data_extractor/theta_explorer/`
+  (forwarding `data.py`, `build.py`, `sterimol.js` and a copy of the built page).
+- `descripytor visual_extractor`: the atom picker draws its molecule with the feature explorer instead of 3Dmol. Every
+  selection is drawn by the explorer's own layers, with the values the package computes; the picker's own approximate
+  Sterimol and %V_bur previews are removed (they disagreed with the package). The exported answers are unchanged.
+  Screenshot now saves an SVG. 3Dmol remains only in the conformer viewer. The picker's server address follows `--port`.
 
 - `get_ring_vibrations`: a mode is considered only if at least half of its heavy-atom motion sits on the
   requested ring (`min_ring_share=0.5`; `None` restores the old pick). In a molecule with a second ring

@@ -54,6 +54,13 @@ def test_feature_explorer_is_the_name_and_theta_still_works():
     assert _run("theta", "--help").returncode == 0
 
 
+def test_bassa_explorer_is_a_command():
+    assert "bassa_explorer" in _run("--help").stdout
+    out = _run("bassa_explorer", "--help")
+    assert out.returncode == 0 and "--cases" in out.stdout and "--bassa-python" in out.stdout
+    assert _run("bassa", "--help").returncode == 0
+
+
 def test_visual_extractor_is_the_name_and_gui_is_gone():
     result = _run("--help")
     assert "visual_extractor" in result.stdout
