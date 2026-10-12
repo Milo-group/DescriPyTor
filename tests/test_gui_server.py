@@ -713,7 +713,8 @@ def test_the_old_theta_address_redirects_with_its_query():
     client = _load_app().test_client()
     r = client.get("/theta?mol=FL_lig_13&preset=2")
     assert r.status_code == 302 and r.headers["Location"].endswith("/feature_explorer?mol=FL_lig_13&preset=2")
-    assert client.post("/theta/check", json={}).status_code == client.post("/feature_explorer/check", json={}).status_code
+    old, new = client.post("/theta/check", json={}), client.post("/feature_explorer/check", json={})
+    assert old.status_code == new.status_code != 404 and old.get_json() == new.get_json()
 
 
 def test_feature_explorer_command_builds_the_explorer_address():

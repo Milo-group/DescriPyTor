@@ -276,6 +276,11 @@ def external(case, names):
     return dict(names=ext, X={c: X[c].round(4).tolist() for c in names}, y=y.tolist())
 
 
+def case_file(c):
+    """where a case is read from: the cases folder, else the package (the bundled example)"""
+    return C / f"{c}.js" if (C / f"{c}.js").exists() or not (H / f"{c}.js").exists() else H / f"{c}.js"
+
+
 def manifest(add=None):
     """manifest.js lists the case files the page loads; prepared cases first, then the ones kept from the page"""
     C.mkdir(parents=True, exist_ok=True)
@@ -311,7 +316,8 @@ if __name__ == "__main__":
     sys.path.insert(0, str(BASSA))
     if sys.argv[1] == "relabel":                                                # build_case.py relabel: names, hover notes, drawings, R′ and the reaction scheme again for every kept case, from its column names; no run is repeated
         for case in json.loads((C / "manifest.js").read_text(encoding="utf-8").split("=", 1)[1].rstrip(";\n ")):
-            f = C / f"{case}.js"; t = f.read_text(encoding="utf-8"); d = json.loads(t[t.index("] = ") + 4:-2]); d["draw"] = [drawing(c) for c in d["names"]]
+            f = case_file(case); t = f.read_text(encoding="utf-8")
+            if f.parent != C: continue                                          # the bundled example is not rewritten; d = json.loads(t[t.index("] = ") + 4:-2]); d["draw"] = [drawing(c) for c in d["names"]]
             d["label"] = [label(c, w) for c, w in zip(d["names"], d["draw"])]; d["desc"] = [describe(c, w) for c, w in zip(d["names"], d["draw"])]; sc = scheme(case)
             if sc: d["scheme"] = sc
             for m in (d.get("mols") or {}).values():
@@ -340,6 +346,6 @@ if __name__ == "__main__":
     elif sys.argv[1] == "export":                                                 # build_case.py export cs2 cs3_cp -> explorer_standalone.html
         got = {}
         for c in sys.argv[2:] or manifest():
-            t = (C / f"{c}.js").read_text(encoding="utf-8"); got[c] = json.loads(t[t.index("] = ") + 4:-2])
+            t = case_file(c).read_text(encoding="utf-8"); got[c] = json.loads(t[t.index("] = ") + 4:-2])
         (C / "explorer_standalone.html").write_text(standalone(got), encoding="utf-8"); print("wrote explorer_standalone.html with", list(got))
     else: dict(models=models, page=page)[sys.argv[1]](sys.argv[2] if len(sys.argv) > 2 else "cs2")

@@ -1034,6 +1034,7 @@ function orient() {                         // the theta figure's own view of th
   st.view = { R: SC.axisView(x), zoom: 1, perA: st.view.perA || 0 }; redrawSoon();
 }
 document.addEventListener('keydown', (e) => {
+  if (FIG) { tellHost('key', { key: e.key, ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, shiftKey: e.shiftKey }); return; }   // the framing page owns the shortcuts
   if (e.target.closest && e.target.closest('input, textarea, select')) return;
   if (e.key === 'Escape') { if (st.brush) setBrush(false); else if (st.arm) arm(st.arm); else closePop(); }
   else if (e.key === 's' || e.key === 'S') $('swap').click();
@@ -1399,7 +1400,7 @@ $('load').addEventListener('click', () => { const t = $('paste').value; if (t.tr
 // ---------- inside the GUI: take its molecule and picks, hand the axis back ----------
 // Messages carry the prefix feature: (theta: and bassa: are the older names, still read and still sent).
 //   in:  load {name, xyz, a, b, from, dipole, charges} | hello | session {s, keepView}
-//   out: ready | atom {i} (figure mode, 1-based) | axis {a, b, third, el}
+//   out: ready | atom {i} (figure mode, 1-based) | key {key, ctrlKey, ...} (figure mode) | axis {a, b, third, el}
 function tellHost(what, d = {}) { if (window.parent !== window) ['feature:', 'theta:', 'bassa:'].forEach((p) => window.parent.postMessage(Object.assign({ type: p + what }, d), '*')); }
 if (FIG) {
   const wrap = $('figwrap'), css = document.createElement('style');

@@ -1684,9 +1684,19 @@ def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bass
     env["BASSA_EXPLORER_PORT"] = str(port)                   # so the other pages' links find this server
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '') else host}:{port}/"
     print(f"\n  BASSA model explorer\n  Open:  {url}\n  Press Ctrl+C to stop\n", flush=True)
-    if open_browser:
-        threading.Timer(1.5, webbrowser.open, [url]).start()
     python = bassa_python or os.environ.get("DESCRIPYTOR_BASSA_PYTHON") or sys.executable
+
+    def open_when_up():                                      # the first import of the sampler can take a while
+        import socket
+        import time
+        for _ in range(240):
+            with socket.socket() as s:
+                s.settimeout(0.3)
+                if s.connect_ex(("127.0.0.1", port)) == 0:
+                    return webbrowser.open(url)
+            time.sleep(0.25)
+    if open_browser:
+        threading.Thread(target=open_when_up, daemon=True).start()
     try:
         return subprocess.call([python, str(server), str(port), host], env=env)
     except KeyboardInterrupt:

@@ -68,7 +68,7 @@ def structures(folder, names):
     if not folder: return {}, []
     if not Path(folder).is_dir(): raise ValueError("no such folder: " + folder)
     r = subprocess.run([READER, str(H / "read_structures.py"), folder], input=json.dumps(names), capture_output=True, text=True, encoding="utf-8", timeout=600)
-    if r.returncode: raise ValueError("could not read the structures: " + r.stderr.strip().splitlines()[-1])
+    if r.returncode: raise ValueError("could not read the structures: " + (r.stderr.strip().splitlines() or ["no message"])[-1])
     d = json.loads(r.stdout); return d["found"], d["missing"]
 
 
@@ -119,7 +119,7 @@ class Handler(SimpleHTTPRequestHandler):
     def translate_path(self, path):                                             # three places behind one address: the cases folder, the package's explorer, this folder
         name = urlparse(path).path.lstrip("/")
         if name == "feature_explorer.html": return str(BC.EXPLORER / name)
-        if name.endswith(".js") and "/" not in name and (C / name).exists(): return str(C / name)
+        if re.fullmatch(r"[\w.-]+\.js", name) and (C / name).is_file(): return str(C / name)
         return super().translate_path(path)
 
     def end_headers(self): self.send_header("Cache-Control", "no-store"); super().end_headers()       # the case files change under the same names
@@ -156,7 +156,7 @@ if __name__ == "__main__":
 
     def warm():                                                               # the first chain compiles the sampler (about 40 s); do it before anyone waits for it
         r = np.random.default_rng(0); X = pd.DataFrame(r.normal(size=(10, 6)), columns=list("abcdef"))
-        with LOCK: BC.compute(X, pd.Series(r.normal(size=8)), iters=1000)
+        with LOCK: BC.compute(X, pd.Series(r.normal(size=10)), iters=1000)
     if SAMPLER: threading.Thread(target=warm, daemon=True).start()
     else: print("bassa_reg is not installed in %s: the example and kept cases open; %s" % (sys.executable, NEEDS), flush=True)
     print("cases folder: %s" % C, flush=True)

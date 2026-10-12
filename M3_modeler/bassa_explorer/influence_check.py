@@ -13,8 +13,8 @@ import json, sys
 from pathlib import Path
 import numpy as np, pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent)); from settings import CASES_DIR as H
-case = sys.argv[1]; t = (H / f"{case}.js").read_text(encoding="utf-8"); d = json.loads(t[t.index("] = ") + 4:-2])
+sys.path.insert(0, str(Path(__file__).resolve().parent)); from settings import CASES_DIR as H, HERE
+case = sys.argv[1]; t = (H / f"{case}.js" if (H / f"{case}.js").exists() else HERE / f"{case}.js").read_text(encoding="utf-8"); d = json.loads(t[t.index("] = ") + 4:-2])
 X = pd.DataFrame(d["X"], index=d["ligands"]); y = pd.Series(d["y"])[d["ligands"]]; freq = pd.Series(d["freq"], d["names"]); lab = dict(zip(d["names"], d["label"]))
 if not d.get("fold_freq"): sys.exit(f"{case} has no leave-one-out reruns; run the checks for it first")
 F = pd.DataFrame(d["fold_freq"], index=d["ligands"], columns=d["names"]) if isinstance(d["fold_freq"], list) else pd.DataFrame(d["fold_freq"], index=d["ligands"])
