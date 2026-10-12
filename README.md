@@ -37,17 +37,20 @@ Python 3.10 or 3.11. A conda environment is the easiest way to get RDKit.
 ```bash
 conda create -n descripytor python=3.10 -y
 conda activate descripytor
+pip install descripytor
+descripytor --help
+```
+
+From a clone (to change the code, run the tests, or use the case-study scripts):
+
+```bash
 git clone https://github.com/Milo-group/DescriPyTor.git
 cd DescriPyTor
 pip install -e ".[dev]"
-descripytor --help
-pytest tests -q                    # optional: the test suite
+pytest tests -q
 ```
 
-Or without a clone: `pip install git+https://github.com/Milo-group/DescriPyTor.git`. The release on PyPI
-(`pip install descripytor`) is older than this page and does not have the three pages described below.
-
-Optional extras, added the same way (`pip install -e ".[bassa]"`):
+Optional extras, added the same way (`pip install "descripytor[bassa]"`, or `pip install -e ".[bassa]"` from a clone):
 
 | Extra | Unlocks |
 |---|---|
@@ -152,7 +155,7 @@ computed in the page by a line-for-line port of the Python, checked against it o
 
 Open your own `.xyz`, `.sdf`, `.feather` or Gaussian `.log` with the file button; a feather or log brings the dipole
 and the charges. A session (`.featurescene.json`) or an exported SVG reopens exactly as it was. Manual with every
-control: [docs/FEATURE_EXPLORER.md](docs/FEATURE_EXPLORER.md). Until October 2026 this page was called the Sterimol
+control: [docs/FEATURE_EXPLORER.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/FEATURE_EXPLORER.md). Until October 2026 this page was called the Sterimol
 theta explorer; `descripytor theta` and `/theta` still work.
 
 ### 3. BASSA model explorer
@@ -179,12 +182,12 @@ descriptors, and the feature explorer on the right draws the descriptors of the 
   single HTML that opens without a server.
 - Shift-click compounds in the plot to stack them, each with its own values.
 
-Running a new table needs the sampler: `pip install -e ".[bassa]"`, or point `--bassa-python` (or the
+Running a new table needs the sampler: `pip install "descripytor[bassa]"`, or point `--bassa-python` (or the
 environment variable `DESCRIPYTOR_BASSA_PYTHON`) at a Python that has `bassa-reg`. Without it the page still opens the
 example and every kept case. **The corrected sampler core is the default**: the released `bassa-reg` core is wrong
 when descriptors are correlated, and the package runs its own corrected copy
 (`M3_modeler/bassa_explorer/core_fixed.py`). `BASSA_CORE=package` runs the released one instead.
-Manual: [docs/BASSA_EXPLORER.md](docs/BASSA_EXPLORER.md).
+Manual: [docs/BASSA_EXPLORER.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/BASSA_EXPLORER.md).
 
 ---
 
@@ -216,7 +219,7 @@ Converters (they ask for their inputs)
 | `bassa_explorer` | `--cases DIR`, `--bassa-python PYTHON`, `--port` (8765), `--host`, `--no-browser` |
 | `extractor` | `-i input.json`, `-o output_name`, `-f feather_dir` |
 | `model` | `-m {regression,classification}`, `-f features.csv`, `-t targets.csv`, `-y name`, `-j cores`, `--min-features`, `--max-features`, `--top-n`, `--threshold`, `--leave-out`, `--bool-parallel` |
-| `pipeline` | `{build,adopt,submit,status,retry,reset,watch,fetch} protocol.json` and its flags ([docs/PIPELINE.md](docs/PIPELINE.md)) |
+| `pipeline` | `{build,adopt,submit,status,retry,reset,watch,fetch} protocol.json` and its flags ([docs/PIPELINE.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/PIPELINE.md)) |
 
 Examples:
 
@@ -277,7 +280,7 @@ mol.get_ring_vibrations([23])                    # one ring atom; ortho / meta /
 mols.get_sterimol_dict([[1, 23], [1, 3]])        # the same for every molecule, as one table
 ```
 
-Metal complexes, from a single structure or a conformer ensemble ([docs/METAL_COMPLEX.md](docs/METAL_COMPLEX.md)):
+Metal complexes, from a single structure or a conformer ensemble ([docs/METAL_COMPLEX.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/METAL_COMPLEX.md)):
 
 ```python
 from M2_data_extractor.metal_complex import MetalComplex, MetalComplexEnsemble
@@ -287,7 +290,7 @@ geo = MetalComplex.from_xyz("026_lig_CuCl.xyz").geometric_features()
 ens = MetalComplexEnsemble.from_xyz("081_lig.finalensemble.xyz").geometric_features()   # Boltzmann-averaged
 ```
 
-Exhaustive search with honest validation ([docs/WORKFLOW.md](docs/WORKFLOW.md)):
+Exhaustive search with honest validation ([docs/WORKFLOW.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/WORKFLOW.md)):
 
 ```python
 from M3_modeler.ridge_search import all_combos, loo_predictions, adj_q2, nested_loo
@@ -300,7 +303,7 @@ nested = nested_loo(X, y, combos)                 # re-select inside every leave
 null = selection_null(X, y, combos, lam=0, n_perm=1000)   # the whole search on permuted y: null["p"]
 ```
 
-Class reference: [M2_data_extractor/README.md](M2_data_extractor/README.md) and [M3_modeler/README.md](M3_modeler/README.md).
+Class reference: [M2_data_extractor/README.md](https://github.com/Milo-group/DescriPyTor/blob/main/M2_data_extractor/README.md) and [M3_modeler/README.md](https://github.com/Milo-group/DescriPyTor/blob/main/M3_modeler/README.md).
 
 ---
 
@@ -350,9 +353,9 @@ inside a frequency window is taken. Keep the window tight, or a C–H stretch ca
   <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/animations/vibration.svg" width="760" alt="Animation: each normal mode's displacement is projected onto the bond axis, giving a score per mode; the highest score inside the frequency window is selected.">
 </p>
 
-What to decide and check at each step of an extraction: [docs/EXTRACTION_PROTOCOL.md](docs/EXTRACTION_PROTOCOL.md).
-What changed in the descriptor definitions, and why: [docs/STERIMOL_FIXES.md](docs/STERIMOL_FIXES.md),
-[docs/FEATURE_FIXES.md](docs/FEATURE_FIXES.md).
+What to decide and check at each step of an extraction: [docs/EXTRACTION_PROTOCOL.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/EXTRACTION_PROTOCOL.md).
+What changed in the descriptor definitions, and why: [docs/STERIMOL_FIXES.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/STERIMOL_FIXES.md),
+[docs/FEATURE_FIXES.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/FEATURE_FIXES.md).
 
 ---
 
@@ -410,7 +413,7 @@ descripytor pipeline status protocol.json
 descripytor pipeline fetch  protocol.json
 ```
 
-Protocol format and every flag: [docs/PIPELINE.md](docs/PIPELINE.md).
+Protocol format and every flag: [docs/PIPELINE.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/PIPELINE.md).
 
 ---
 
@@ -419,7 +422,7 @@ Protocol format and every flag: [docs/PIPELINE.md](docs/PIPELINE.md).
 - **Atom renumbering** (`MolAlign/`): matches atom numbering across a series so descriptors line up. Needs `torch`
   (`pip install -e ".[align]"`), then `python MolAlign/renumbering.py --help`.
 - **Other descriptor engines** in one pass (RDKit, Mordred, DeepChem, morfeus, AQME/xTB), merged into one CSV:
-  [descriptor_extraction_toolkit/README.md](Getting_started_with_examples/descriptor_extraction_toolkit/README.md).
+  [descriptor_extraction_toolkit/README.md](https://github.com/Milo-group/DescriPyTor/blob/main/Getting_started_with_examples/descriptor_extraction_toolkit/README.md).
 - **Old definitions on request**: `with descripytor.compat.paper_v3(): ...` computes with the definitions of the
   paper's tag.
 - **Docker** (RDKit, morfeus, AQME, Mordred and xTB preinstalled):
@@ -428,7 +431,7 @@ Protocol format and every flag: [docs/PIPELINE.md](docs/PIPELINE.md).
   docker compose up --build        # pages on http://localhost:7432, files in work/ (mounted at /work)
   ```
 
-  Setup from scratch: [DOCKER_QUICKSTART.md](Getting_started_with_examples/descriptor_extraction_toolkit/webapp/DOCKER_QUICKSTART.md).
+  Setup from scratch: [DOCKER_QUICKSTART.md](https://github.com/Milo-group/DescriPyTor/blob/main/Getting_started_with_examples/descriptor_extraction_toolkit/webapp/DOCKER_QUICKSTART.md).
 
 ---
 
@@ -436,16 +439,16 @@ Protocol format and every flag: [docs/PIPELINE.md](docs/PIPELINE.md).
 
 | | |
 |---|---|
-| [QUICKSTART.md](QUICKSTART.md) | one page: install and first run |
-| [docs/WORKFLOW.md](docs/WORKFLOW.md) | logs → features → model → validation, with every option |
-| [docs/EXTRACTION_PROTOCOL.md](docs/EXTRACTION_PROTOCOL.md) | what to decide and check at each step of an extraction |
-| [docs/FEATURE_EXPLORER.md](docs/FEATURE_EXPLORER.md) | the feature explorer, control by control, with screenshots |
-| [docs/BASSA_EXPLORER.md](docs/BASSA_EXPLORER.md) | the BASSA model explorer: starting it, your own table, reading a case |
-| [docs/METAL_COMPLEX.md](docs/METAL_COMPLEX.md) | descriptors of metal complexes from GOAT / xTB output |
-| [docs/PIPELINE.md](docs/PIPELINE.md) | the cluster pipeline |
-| [docs/visual-guide.md](docs/visual-guide.md) | a visual handout for a first session |
-| [Getting_started_with_examples/](Getting_started_with_examples/README.md) | notebooks for extraction and modeling, example data |
-| [CHANGELOG.md](CHANGELOG.md) | what changed, release by release |
+| [QUICKSTART.md](https://github.com/Milo-group/DescriPyTor/blob/main/QUICKSTART.md) | one page: install and first run |
+| [docs/WORKFLOW.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/WORKFLOW.md) | logs → features → model → validation, with every option |
+| [docs/EXTRACTION_PROTOCOL.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/EXTRACTION_PROTOCOL.md) | what to decide and check at each step of an extraction |
+| [docs/FEATURE_EXPLORER.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/FEATURE_EXPLORER.md) | the feature explorer, control by control, with screenshots |
+| [docs/BASSA_EXPLORER.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/BASSA_EXPLORER.md) | the BASSA model explorer: starting it, your own table, reading a case |
+| [docs/METAL_COMPLEX.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/METAL_COMPLEX.md) | descriptors of metal complexes from GOAT / xTB output |
+| [docs/PIPELINE.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/PIPELINE.md) | the cluster pipeline |
+| [docs/visual-guide.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/visual-guide.md) | a visual handout for a first session |
+| [Getting_started_with_examples/](https://github.com/Milo-group/DescriPyTor/blob/main/Getting_started_with_examples/README.md) | notebooks for extraction and modeling, example data |
+| [CHANGELOG.md](https://github.com/Milo-group/DescriPyTor/blob/main/CHANGELOG.md) | what changed, release by release |
 
 Bundled data: 10 substituted benzenes (`descripytor.examples.feather_example_dir()`), 18 substrates with measured
 outputs (`descripytor.examples.baptiste_example_dir()`), ready-made linear and logistic datasets
@@ -475,4 +478,4 @@ Atom indices are **1-based** everywhere, matching Gaussian. The pictures of this
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/Milo-group/DescriPyTor/blob/main/LICENSE).
