@@ -241,7 +241,7 @@ def status():
     return jsonify({
         "ok": True,
         "version": "1.0",
-        "api": 2,
+        "api": GUI_API,
         "example_feather_dir": example_feather_dir(),
         "example_basic_feather": example_basic_feather(),
         "example_reference_feather": example_reference_feather(),
@@ -2253,7 +2253,10 @@ def _pd_from_numpy(arr, index, columns):
     return pd.DataFrame(arr, index=index, columns=columns)
 
 
-GUI_API = 2
+# Raised whenever the pages need a route an older server does not have. A server still running from before then answers
+# /status with a lower number, and a new start tells the user to stop it instead of reusing it (its pages are read from
+# disk, so they would be new while its routes are old: the links to /feature_explorer and /bassa_explorer gave Not Found).
+GUI_API = 3
 
 
 def _tcp_port_open(port):
@@ -2280,9 +2283,7 @@ def _status_from_running_gui(port):
 def _gui_payload_is_current(payload):
     if not isinstance(payload, dict) or not payload.get("ok"):
         return False
-    if payload.get("api") == GUI_API:
-        return True
-    return "example_presets" in payload and "example_reference_name" in payload
+    return payload.get("api") == GUI_API
 
 
 def _pids_listening_on_port(port):
@@ -2347,7 +2348,7 @@ def _reuse_or_refuse_existing_gui(host, port, open_browser, page="/visual"):
     if payload is not None or _tcp_port_open(port):
         pids = _pids_listening_on_port(port)
         print(f"\n  Port {port} is already in use by an older or different process.")
-        print("  Stop every listener, then run descripytor visual again.")
+        print("  It was started before the package was updated, so it lacks the newer pages. Stop it, then run the command again.")
         if pids:
             print("  PID(s): " + ", ".join(pids))
             if os.name == "nt":

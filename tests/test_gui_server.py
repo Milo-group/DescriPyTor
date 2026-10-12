@@ -40,7 +40,8 @@ def test_status(client):
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["ok"] is True
-    assert payload.get("api") == 2
+    from M2_data_extractor.gui_server import GUI_API
+    assert payload.get("api") == GUI_API
     assert "example_feather_dir" in payload
     assert "example_outcomes" in payload
     assert "example_presets" in payload
@@ -625,15 +626,11 @@ def test_placeholder_path_ignores_double_underscore_in_real_paths():
 
 
 def test_gui_payload_is_current():
-    from M2_data_extractor.gui_server import _gui_payload_is_current
+    from M2_data_extractor.gui_server import GUI_API, _gui_payload_is_current
 
     assert not _gui_payload_is_current({"ok": True, "version": "1.0"})
-    assert _gui_payload_is_current({"ok": True, "api": 2})
-    assert _gui_payload_is_current({
-        "ok": True,
-        "example_presets": {},
-        "example_reference_name": "basic",
-    })
+    assert _gui_payload_is_current({"ok": True, "api": GUI_API})
+    assert not _gui_payload_is_current({"ok": True, "api": GUI_API - 1})      # a server from before the last update
     assert not _gui_payload_is_current(None)
 
 
@@ -760,3 +757,13 @@ def test_the_extraction_engine_is_inside_the_package():
     old = ROOT / "Getting_started_with_examples" / "descriptor_extraction_toolkit"
     code = "import sys; sys.path.insert(0, %r); import descriptor_extractor as d, feature_packages as f; assert d.run_from_config and f" % str(old)
     assert subprocess.run([sys.executable, "-c", code]).returncode == 0      # the toolkit's old import path still works
+
+
+def test_a_server_from_before_the_update_is_not_reused():
+    """Its pages are read from disk (new) while its routes are old: the header links gave Not Found."""
+    _load_app()
+    import M2_data_extractor.gui_server as gs
+    old = {"ok": True, "api": 2, "example_presets": {}, "example_reference_name": "basic"}
+    assert not gs._gui_payload_is_current(old)
+    assert gs._gui_payload_is_current({"ok": True, "api": gs.GUI_API})
+    assert _load_app().test_client().get("/status").get_json()["api"] == gs.GUI_API

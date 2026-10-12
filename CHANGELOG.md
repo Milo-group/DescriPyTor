@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.2 — 2026-10-12
+
+### Fixed
+
+- A visual extractor server left running from before an update was reused by the next `descripytor visual_extractor`
+  or `feature_explorer`. Its pages come from disk and were new, its routes were old, so the links to the feature
+  explorer and the BASSA model explorer gave "Not Found". A new start now recognises the older server and says how
+  to stop it.
+
 ## 0.3.1 — 2026-10-12
 
 ### Changed
