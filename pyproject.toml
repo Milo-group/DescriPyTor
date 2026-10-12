@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "descripytor"
-version = "0.3.0"
+version = "0.3.1"
 description = "Molecular feature extraction, alignment, and modeling tools."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -54,8 +54,6 @@ align = ["torch"]
 webapp = ["streamlit", "umap-learn"]
 # Extra descriptor engines in the extraction toolkit
 engines = ["mordred", "deepchem", "ase"]
-# Tkinter desktop GUI
-gui = ["customtkinter"]
 # The sampler behind `descripytor bassa_explorer` (new tables); the corrected core comes with the package
 bassa = ["bassa-reg>=0.1.16"]
 # Spike-and-slab / Bayesian extras in M3

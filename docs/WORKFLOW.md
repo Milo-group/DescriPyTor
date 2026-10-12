@@ -276,7 +276,6 @@ descripytor model           -m {regression,classification} -f features.csv [-t t
 descripytor logs_to_feather (asks for the log folder)
 descripytor sterimol        (asks for an .xyz folder, atom pairs and radii; writes xyz_sterimol.csv)
 descripytor cube            (asks for a .cube folder and atom pairs; writes cube_sterimol.csv)
-descripytor gui             (the older Tk window)
 ```
 
 `--leave-out` holds the named molecules out of the search entirely, as an external test set.

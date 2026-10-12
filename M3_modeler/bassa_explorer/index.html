@@ -508,7 +508,7 @@ function layersOf(name, on) {
         dip.show[d.comp] = true; dip.colors[d.comp] = col; if (+o) label.add(+o); label.add(+fy); }
       else { total = true; if (!dip.on) dip = { on: true, origin: o, y: fy, plane: pl, show: { frame: false, mu: true, u: false, v: false, w: false }, colors: {} }; } }
     else { d.atoms.forEach((a) => label.add(a));                     // lengths, angles, dihedrals: the table's value, written along the atoms it is measured on 
-      marks.push({ atoms: d.atoms, color: col, on, text: d.kind === 'mark' ? d.prefix + xOf(i, name).toFixed(d.dec) + d.unit : (d.kind === 'bond_length' ? 'd ' : d.kind === 'angle' ? '∠ ' : 'τ ') + xOf(i, name).toFixed(d.kind === 'bond_length' ? 3 : 1) + (d.kind === 'bond_length' ? ' Å' : '°') }); }
+      marks.push({ atoms: d.atoms, color: col, on, ring: d.atoms.length === 1, text: d.kind === 'mark' ? d.prefix + xOf(i, name).toFixed(d.dec) + d.unit : (d.kind === 'bond_length' ? 'd ' : d.kind === 'angle' ? '∠ ' : 'τ ') + xOf(i, name).toFixed(d.kind === 'bond_length' ? 3 : 1) + (d.kind === 'bond_length' ? ' Å' : '°') }); }
   }
   return { axes, sites, dip, label: [...label], skipped, marks, total };
 }

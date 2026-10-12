@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.1 — 2026-10-12
+
+### Changed
+
+- BASSA model explorer: the columns `descripytor extractor` and the visual extractor write are drawn on the molecule:
+  `dipole_x/y/z_<origin>-<y>-<plane>` and `total_dipole_…`, `loc_B1_`, `B1_tangent_atoms_`, `B1_B5_azimuth_`,
+  `B1_B5_acute_`, and the vibration columns (`Frequency_Stretch_a_b`, `Frequency_Bending_a-b`, `cross_`/`para_` and
+  their angles). `iso`, `aniso` and `energy` get readable names; they have no atoms to be drawn on.
+
+### Removed
+
+- The Tk desktop app left in `descripytor/cli.py` after the `gui` command went (about 1,300 lines), the interactive
+  prompts whose command was commented out, and the `gui` extra (`customtkinter`).
+- Nine pictures and one recording under `docs/` that no page referenced.
+
 ## 0.3.0 — 2026-10-12
 
 ### Added

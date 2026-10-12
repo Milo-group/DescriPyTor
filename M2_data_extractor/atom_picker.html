@@ -4062,12 +4062,11 @@ if ($("vizBvRadius")) {
 $("vizDipole").onchange   = () => highlight();
 $("vizDipBasis").onchange = () => highlight();
 $("vizArrows").onchange   = () => { if (!animating) highlight(); };
-$("vizAmp").oninput       = () => {};
 $("vizMode").onchange     = () => { if (animating) { stopAnim(); startAnim(); } };
 $("vizPlay").onclick      = toggleAnim;
 
 /* Feature preview toggles */
-const FEATURE_TOGGLES = ["featCharges","featBonds","featDq","featAngles","featNpa",
+const FEATURE_TOGGLES = ["featCharges","featBonds","featDq","featAngles",
   "featVibr","featRing","featDrop","featSterimol","featDipoleAtoms","featLabels"];
 FEATURE_TOGGLES.forEach(id => { const el = $(id); if (el) el.onchange = () => highlight(); });
 $("featAll").onclick = () => {

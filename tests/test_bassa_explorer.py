@@ -103,3 +103,21 @@ def test_a_table_left_by_another_page_is_taken_once(server):
     with pytest.raises(urllib.error.HTTPError) as e:              # a table a run would refuse is refused at the door
         urllib.request.urlopen(bad, timeout=30)
     assert "at least 6 compounds" in json.loads(e.value.read())["error"]
+
+
+def test_the_extractor_s_own_column_names_are_drawn():
+    """A table straight from `descripytor extractor` / the visual extractor: its dipole, Sterimol and vibration columns map to drawings."""
+    code = (
+        "import build_case as B\n"
+        "want = {'dipole_x_1-2-19': 'dipole', 'total_dipole_1-2-19': 'dipole_total', 'loc_B1_1-4': 'sterimol', 'B1_B5_azimuth_4-1': 'sterimol',\n"
+        "        'B1_B5_acute_1-4': 'sterimol', 'Frequency_Stretch_1_2': 'mark', 'Frequency_Bending_5-6': 'mark', 'Cross_mag_Bending_5-6': 'mark',\n"
+        "        'cross_9_0': 'mark', 'cross_angle_9_0': 'mark', 'para_9_0': 'mark', 'para_angle_9_0': 'mark', 'B1_1-4': 'sterimol',\n"
+        "        '0_bond_length_1-2': 'bond_length', 'nbo_atom_3': 'charge', 'nbo_diff_3-5': 'charge_diff'}\n"
+        "for c, k in want.items():\n"
+        "    w = B.drawing(c); assert w and w['kind'] == k, (c, w)\n"
+        "    assert B.label(c, w) != c and B.describe(c, w)\n"
+        "d = B.drawing('dipole_y_20-19-27'); assert (d['origin'], d['y'], d['plane'], d['comp']) == (20, 19, 27, 'u')\n"
+        "assert B.drawing('cross_9_0')['atoms'] == [9] and B.drawing('aniso') is None and B.label('aniso', None) != 'aniso'\n"
+    )
+    r = subprocess.run([sys.executable, "-c", code], cwd=str(TOOL), capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr[-600:]

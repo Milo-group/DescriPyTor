@@ -25,7 +25,8 @@ WD = V5 / "notes/wu_doyle_cs"; SEEDS = (7, 11, 13)                              
 LABELS = {"B1": "B1 on Ni→P", "B5": "B5 on Ni→P", "L": "L on Ni→P", "loc_B5": "loc B5 on Ni→P", "theta": "θ on Ni→P", "dipole_metal_y": "dipole along Ni→P", "dipole_metal_x": "dipole in-plane ⟂ Ni→P",
           "dipole_metal_z": "dipole out-of-plane ⟂ Ni→P", "dipole_total": "dipole magnitude", "vmin": "Vmin", "vbur_percent": "%Vbur", "cone_angle": "cone angle"}
 LOOKS = {"wu_doyle": dict(hydrogens="none", labelScale=1.2, muPerD=5.0, vdwOpacity=0.08)}
-SHOW = {"B1": "b1", "B5": "b5", "loc_B5": "loc", "theta": "theta", "phi": "theta", "B1_B5_angle": "theta", "L": "L"}
+SHOW = {"B1": "b1", "B5": "b5", "loc_B5": "loc", "theta": "theta", "phi": "theta", "B1_B5_angle": "theta", "L": "L",
+        "loc_B1": "b1", "B1_tangent_atoms": "b1", "B1_B5_azimuth": "theta", "B1_B5_acute": "theta"}          # the last three: columns the extractor writes beside the classic five
 ROLE = {"M": "M", "D": "D", "Cs": "C*", "R": "R", "Rp": "R′"}; PAIRS = {"MCs": "M Cs", "DCs": "D Cs", "CsR": "Cs R", "MD": "M D", "MR": "M R", "DR": "D R", "fromM": "M D", "sub": "Cs R", "RRp": "R Rp"}
 A = r"\w(\d+)"                                                                   # an atom in a column name: element letter and number
 PI_MARKS = [(rf"pi_share\[{A}\|{A}=\w\d+\]", "pi_share", "π on atom ", 1, " %"), (rf"pistar_occ\[{A}={A}\]", "pistar_occ", "π* occ ", 3, " e"),
@@ -46,10 +47,27 @@ PI_SAY = {"pi_share": "The share of the π bonding orbital that sits on atom %d,
           "E2_O": "The NBO second-order energy of donation from the lone pairs of atom %d into the π* of %d=%d.", "alpha": "The polarizability of the molecule along the direction from atom %d to atom %d."}
 
 
+# the vibration columns as the extractor names them (Frequency_Stretch_1_2, Frequency_Bending_5-6, cross_9_0, ...)
+PI_MARKS += [(r"Frequency_Stretch_(\d+)_(\d+)", "x_stretch", "ν ", 0, " cm⁻¹"), (r"[A-Za-z]+_Stretch_(\d+)_(\d+)", "x_stretch_amp", "stretch ", 3, ""),
+             (r"Frequency_Bending_(\d+)-(\d+)", "x_bend", "δ ", 0, " cm⁻¹"), (r"Cross_mag_Bending_(\d+)-(\d+)", "x_bend_mag", "bend ", 3, ""),
+             (r"cross_angle_(\d+)(?:_\d+)?", "x_cross_angle", "cross ∠ ", 1, "°"), (r"para_angle_(\d+)(?:_\d+)?", "x_para_angle", "para ∠ ", 1, "°"),
+             (r"cross_(\d+)(?:_\d+)?", "x_cross", "ring ν cross ", 0, " cm⁻¹"), (r"para_(\d+)(?:_\d+)?", "x_para", "ring ν para ", 0, " cm⁻¹")]
+PI_NAME.update(x_stretch="stretching frequency of the %d–%d bond", x_stretch_amp="stretch of the %d–%d bond, second value", x_bend="bending frequency, atoms %d and %d",
+               x_bend_mag="bending mode of atoms %d and %d, size of the motion", x_cross="ring vibration, cross mode (ring at atom %d)", x_para="ring vibration, para mode (ring at atom %d)",
+               x_cross_angle="ring cross mode, angle to the ring plane (ring at atom %d)", x_para_angle="ring para mode, angle to the ring axis (ring at atom %d)")
+PI_SAY.update(x_stretch="The frequency of the vibration in which atoms %d and %d move against each other along their bond.",
+              x_stretch_amp="The second value the extractor writes for the stretching mode of the %d–%d bond (its intensity or amplitude).",
+              x_bend="The frequency of the bending mode in which atoms %d and %d swing about the centre they share.",
+              x_bend_mag="How large the bending motion of atoms %d and %d is in the mode the extractor chose.",
+              x_cross="The frequency of the ring mode the extractor calls cross, for the ring that contains atom %d.", x_para="The frequency of the ring mode the extractor calls para, for the ring that contains atom %d.",
+              x_cross_angle="The angle the extractor reports for the cross ring mode of the ring that contains atom %d.", x_para_angle="The angle the extractor reports for the para ring mode of the ring that contains atom %d.")
+LABELS.update(iso="isotropic polarizability", aniso="polarizability anisotropy", energy="energy")
+
+
 def drawing(c):
     """what the explorer should draw for a column name; None when the name is not one it can place.
     Platform names carry atom numbers. Metal-complex names carry roles (metal, donor, stereocentre, substituent) that each compound resolves itself."""
-    m = re.fullmatch(r"ster_(\w+)\[C(\d+)->C(\d+)\]", c) or re.fullmatch(r"(B1|B5|L|loc_B5|B1_B5_angle)_(\d+)-(\d+)", c)
+    m = re.fullmatch(r"ster_(\w+)\[C(\d+)->C(\d+)\]", c) or re.fullmatch(r"(B1|B5|L|loc_B5|loc_B1|B1_tangent_atoms|B1_B5_angle|B1_B5_azimuth|B1_B5_acute)_(\d+)-(\d+)", c)
     if m and m.group(1) in SHOW: return dict(kind="sterimol", a=int(m.group(2)), b=int(m.group(3)), flag=SHOW[m.group(1)])
     m = re.fullmatch(r"(%s)_(theta|phi|B1|B5|L|loc_B5)_(sym|asym)" % "|".join(PAIRS), c)
     if m: a, b = PAIRS[m.group(1)].split(); return dict(kind="sterimol", ra=a, rb=b, flag=SHOW[m.group(2)], arms=m.group(3))
@@ -61,6 +79,10 @@ def drawing(c):
     if m: return dict(kind="charge", i=int(m.group(2)), type=m.group(1))
     m = re.fullmatch(r"mu_([xyz])\[\w(\d+)->\w(\d+)\|\w(\d+)\]", c)
     if m: return dict(kind="dipole", comp=dict(y="u", x="v", z="w")[m.group(1)], origin=int(m.group(2)), y=int(m.group(3)), plane=int(m.group(4)))   # y runs origin -> y atom (the explorer's u)
+    m = re.fullmatch(r"dipole_([xyz])_(\d+)-(\d+)-(\d+)", c)                 # the extractor's own names: dipole_x_1-2-19 is origin 1, y-axis atom 2, plane atom 19
+    if m: return dict(kind="dipole", comp=dict(y="u", x="v", z="w")[m.group(1)], origin=int(m.group(2)), y=int(m.group(3)), plane=int(m.group(4)))
+    m = re.fullmatch(r"total_dipole_(\d+)-(\d+)-(\d+)", c)
+    if m: return dict(kind="dipole_total", origin=int(m.group(1)), y=int(m.group(2)), plane=int(m.group(3)))
     m = re.fullmatch(r"\d+_(bond_length|angle|dihedral)_\[?([\d, -]+)\]?", c)
     if m: return dict(kind=m.group(1), atoms=[int(v) for v in re.findall(r"\d+", m.group(2))])
     m = re.fullmatch(r"pi_occ\[\w(\d+)=\w(\d+)\]", c)
@@ -92,7 +114,7 @@ ARMED = {"a_R_Cstereo_N": "angle R–C*–D", "q_donor": "charge on the donor at
 def label(c, w):
     """a readable name for the table; `describe` gives the sentence for the hover note"""
     if c in LABELS: return LABELS[c]
-    q = lambda s: s.replace("loc_B5", "loc B5").replace("B1_B5_angle", "B1–B5 angle").replace("theta", "θ").replace("phi", "φ")
+    q = lambda s: s.replace("loc_B5", "loc B5").replace("loc_B1", "loc B1").replace("B1_tangent_atoms", "atoms touching the B1 plane,").replace("B1_B5_angle", "B1–B5 angle").replace("B1_B5_azimuth", "B1–B5 azimuth").replace("B1_B5_acute", "B1–B5 acute angle").replace("theta", "θ").replace("phi", "φ")
     if c in PLAIN: return PLAIN[c]
     m = re.fullmatch(r"(%s)_(sym|asym)" % "|".join(ARMED), c)
     if m: return ARMED[m.group(1)] + ARMS[m.group(2)]
@@ -115,7 +137,9 @@ def label(c, w):
 QN = dict(cm5="CM5", nbo="NBO", hirshfeld="Hirshfeld")
 WORDS = "M: the metal. D: a donor atom bound to it. C*: the stereocentre next to that donor. R: the first atom of the substituent on C*. R′: the next heavy atom along that substituent. The chelate has two arms; a column is their mean or the difference between them."
 STER = {"B1": "smallest width (Sterimol B1)", "B5": "largest width (Sterimol B5)", "L": "length (Sterimol L)", "loc_B5": "distance along the axis at which the widest point sits (loc B5)", "theta": "angle θ between the B1 direction and the widest point",
-        "phi": "angle φ between the B1 and B5 directions", "B1_B5_angle": "angle between the B1 and B5 directions"}
+        "phi": "angle φ between the B1 and B5 directions", "B1_B5_angle": "angle between the B1 and B5 directions",
+        "loc_B1": "distance along the axis at which the smallest width sits (loc B1)", "B1_tangent_atoms": "number of atoms that touch the B1 plane", "B1_B5_azimuth": "azimuth of the B5 direction, measured round the axis from the B1 direction",
+        "B1_B5_acute": "acute angle between the B1 and B5 directions"}
 
 
 def describe(c, w):
@@ -309,7 +333,8 @@ def page(case):
 
 
 if __name__ == "__main__":
-    for c, w in (("B1_6-4", "sterimol"), ("ster_loc_B5[C6->C7]", "sterimol"), ("q_cm5[C6]", "charge"), ("nbo_atom_15", "charge"), ("mu_y[C4->N5|C6]", "dipole"), ("0_angle_[5, 6, 7]", "angle"), ("pi_occ[C1=C3]", "mark"), ("stretch[C1=C3]", "mark"), ("stretch[C3-O8]", "mark"), ("ring_hi[C12]", "mark"), ("E2_O_to_pistar[O8|C1=C3]", "mark"), ("pi_share[C3|C1=C3]", "mark"), ("polarizability[C1->C3]", "mark"), ("atomic_dipole[C1|C1->C3]", "mark"), ("aniso", None),
+    for c, w in (("dipole_x_1-2-19", "dipole"), ("total_dipole_1-2-19", "dipole_total"), ("loc_B1_1-4", "sterimol"), ("B1_B5_azimuth_1-4", "sterimol"), ("Frequency_Bending_5-6", "mark"), ("Frequency_Stretch_1_2", "mark"), ("cross_9_0", "mark"), ("para_angle_9_0", "mark"), ("aniso", None),
+                 ("B1_6-4", "sterimol"), ("ster_loc_B5[C6->C7]", "sterimol"), ("q_cm5[C6]", "charge"), ("nbo_atom_15", "charge"), ("mu_y[C4->N5|C6]", "dipole"), ("0_angle_[5, 6, 7]", "angle"), ("pi_occ[C1=C3]", "mark"), ("stretch[C1=C3]", "mark"), ("stretch[C3-O8]", "mark"), ("ring_hi[C12]", "mark"), ("E2_O_to_pistar[O8|C1=C3]", "mark"), ("pi_share[C3|C1=C3]", "mark"), ("polarizability[C1->C3]", "mark"), ("atomic_dipole[C1|C1->C3]", "mark"), ("aniso", None),
                  ("CsR_B1_sym", "sterimol"), ("fromM_L_asym", "sterimol"), ("MD_phi_asym", "sterimol"), ("MD_asym", "atoms"), ("q_metal", "atoms"), ("tf_chi1", None), ("L", "sterimol"), ("dipole_metal_y", "dipole"), ("cone_angle", None)):
         assert (drawing(c) or {}).get("kind") == w, c
     assert drawing("CsR_B1_sym")["ra"] == "Cs" and label("sub_theta_asym", drawing("sub_theta_asym")) == "θ on C*→R · difference between the arms" and label("RRp_loc_B5_sym", drawing("RRp_loc_B5_sym")) == "loc B5 on R→R′ · mean of the two arms" and "tf_" not in label("tf_chi3v", None)
