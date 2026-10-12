@@ -179,7 +179,7 @@ def test_visual_serves_atom_picker(client):
     adv = body.find('id="advancedPanel"')
     assert viz != -1 and adv != -1
     assert viz < adv
-    assert "pickerViewer" in body
+    assert "pickerFrame" in body and "feature:session" in body      # the main view is the feature explorer, framed
     assert "recenterViewer" in body
     assert 'id="pickerStage"' in body
     assert 'id="viewer"' not in body
