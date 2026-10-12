@@ -793,14 +793,14 @@ window.addEventListener('resize', () => arcs());
 // ---------- your own table: the local server runs the sampler ----------
 const post = async (path, body) => { const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), d = await r.json(); if (!r.ok) throw new Error(d.error || r.statusText); return d; };
 const timed = (label, where) => { const t0 = Date.now(), tick = setInterval(() => where(`${label} ${Math.round((Date.now() - t0) / 1000)} s`), 500); return () => { clearInterval(tick); return Math.round((Date.now() - t0) / 1000); }; };
-let csv = '';
+let csv = '', csvName = '';
 $('new').onclick = () => $('newcase').showModal();
-$('file').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; csv = await f.text();
+$('file').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; csv = await f.text(); csvName = f.name;
   const head = (csv.split(/\r?\n/)[0].match(/("(?:[^"]|"")*"|[^,]*)(?:,|$)/g) || []).map((s) => s.replace(/,$/, '').trim().replace(/^"|"$/g, '').replace(/""/g, '"')).slice(1).filter(Boolean);   // names such as "0_angle_[5, 6, 7]" carry commas inside quotes
   $('resp').innerHTML = head.map((c) => `<option>${esc(c)}</option>`).join(''); $('resp').value = head[head.length - 1]; $('resp').disabled = $('run').disabled = false;
   $('newstatus').textContent = `${f.name}: ${head.length} columns, ${csv.trim().split(/\r?\n/).length - 1} rows. Choose the response column.`; };
 $('run').onclick = async () => { const done = timed('Running BASSA…', (m) => $('newstatus').textContent = m); $('run').disabled = true;
-  try { const req = { csv, response: $('resp').value, iters: +$('iters').value, structures: $('xyz').value.trim(), name: $('file').files[0].name.replace(/\.csv$/i, '') }, d = await post('run', req), s = done();
+  try { const req = { csv, response: $('resp').value, iters: +$('iters').value, structures: $('xyz').value.trim(), name: csvName.replace(/\.csv$/i, '') || 'table' }, d = await post('run', req), s = done();
     d.title = 'Your table: ' + d.case; d._req = req; CASES['your table'] = d; $('newcase').close(); boot(d);
     say(`Done in ${s} s. ${Object.keys(d.mols).length} of ${d.n} structures found` + (d.no_structure.length ? `; none for ${d.no_structure.slice(0, 4).join(', ')}${d.no_structure.length > 4 ? '…' : ''}` : '') + '.', 9000); }
   catch (err) { done(); $('newstatus').textContent = location.protocol === 'file:' ? 'Start the explorer with start_explorer.bat to run a table.' : 'Could not run: ' + err.message; }
@@ -830,7 +830,14 @@ $('onefile').onclick = async () => { try { say('Building the file…', 0); const
 // ---------- start: the cases named in manifest.js are loaded, then the address decides which one opens ----------
 const fromHash = () => { const p = new URLSearchParams(location.hash.slice(1)), d = CASES[p.get('case')] || CASES[(window.CASE_FILES || [])[0]] || Object.values(CASES)[0];
   if (!d) return ($('sub').textContent = 'No case found. Build one with build_case.bat, or start the server and use New case.'); restoring = true; boot(d, p); restoring = false; };
-function start() { window.addEventListener('hashchange', fromHash); fromHash(); if (new URLSearchParams(location.search).has('selftest')) return selfTest();
+// #handoff=N: a table another page (the atom picker) left with the server; it is taken once and run as New case would
+async function takeHandoff(id) {
+  $('newcase').showModal(); $('newstatus').textContent = 'Taking the table from the visual extractor…';
+  try { const r = await fetch('handoff?id=' + encodeURIComponent(id)), q = await r.json(); if (!r.ok) throw new Error(q.error);
+    csv = q.csv; csvName = q.name || 'extracted'; $('resp').innerHTML = `<option>${esc(q.response)}</option>`; $('resp').value = q.response; $('xyz').value = q.structures || '';
+    $('resp').disabled = $('run').disabled = false; $('run').click(); }
+  catch (err) { $('newstatus').textContent = 'Could not take the table: ' + err.message; } }
+function start() { const hand = new URLSearchParams(location.hash.slice(1)).get('handoff'); window.addEventListener('hashchange', fromHash); fromHash(); if (hand) return takeHandoff(hand); if (new URLSearchParams(location.search).has('selftest')) return selfTest();
   try { if (!localStorage.getItem('bassa-explorer-seen')) { localStorage.setItem('bassa-explorer-seen', '1'); $('guide').showModal(); } } catch (e) {} }
 const files = ALONE ? [] : (window.CASE_FILES || []); let left = files.length;
 if (!left) start(); else files.forEach((f) => { const s = document.createElement('script'); s.src = f + '.js'; s.onload = s.onerror = () => { if (!--left) start(); }; document.head.appendChild(s); });

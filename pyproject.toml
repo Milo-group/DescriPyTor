@@ -56,6 +56,8 @@ webapp = ["streamlit", "umap-learn"]
 engines = ["mordred", "deepchem", "ase"]
 # Tkinter desktop GUI
 gui = ["customtkinter"]
+# The sampler behind `descripytor bassa_explorer` (new tables); the corrected core comes with the package
+bassa = ["bassa-reg>=0.1.16"]
 # Spike-and-slab / Bayesian extras in M3
 bayes = ["pymc", "arviz"]
 # SHAP explanations in model reports

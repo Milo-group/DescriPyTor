@@ -86,3 +86,20 @@ def test_the_three_pages_have_one_address_each(server):
     assert 'href="/feature_explorer"' in picker and 'href="/bassa_explorer"' in picker
     explorer = (ROOT / "M2_data_extractor" / "feature_explorer" / "template.html").read_text(encoding="utf-8")
     assert 'href="/visual_extractor"' in explorer and 'href="/bassa_explorer"' in explorer
+
+
+def test_a_table_left_by_another_page_is_taken_once(server):
+    """The picker's one-click hand-off: POST /handoff leaves a table, the page opened with #handoff=id takes it."""
+    url, _ = server
+    body = dict(csv=(TOOL / "example_small.csv").read_text(), response="ddG", structures="", name="extracted")
+    q = urllib.request.Request(url + "handoff", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+    token = json.loads(urllib.request.urlopen(q, timeout=30).read())["id"]
+    got = json.loads(_get(url + "handoff?id=" + token))
+    assert got["response"] == "ddG" and got["csv"] == body["csv"]
+    with pytest.raises(urllib.error.HTTPError) as e:
+        _get(url + "handoff?id=" + token)
+    assert e.value.code == 404
+    bad = urllib.request.Request(url + "handoff", data=json.dumps(dict(csv="name,a,y\nm1,1,2\n", response="y")).encode(), headers={"Content-Type": "application/json"})
+    with pytest.raises(urllib.error.HTTPError) as e:              # a table a run would refuse is refused at the door
+        urllib.request.urlopen(bad, timeout=30)
+    assert "at least 6 compounds" in json.loads(e.value.read())["error"]

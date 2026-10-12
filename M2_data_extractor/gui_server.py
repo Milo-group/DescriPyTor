@@ -279,9 +279,9 @@ def _listening(port):
         return s.connect_ex(("127.0.0.1", port)) == 0
 
 
-@app.route("/bassa_explorer")
-def bassa_explorer():
-    """The BASSA model explorer has its own server (it may run under another Python): start it if it is not up, then go there."""
+def _bassa_url():
+    """The BASSA model explorer's address. It has its own server (it may run under another Python): started here if it
+    is not up. None when it does not come up."""
     import subprocess
     import time
     port = int(os.environ.get("BASSA_EXPLORER_PORT", "8765"))
@@ -289,13 +289,55 @@ def bassa_explorer():
         root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         env = dict(os.environ, PYTHONPATH=root_dir + os.pathsep + os.environ.get("PYTHONPATH", ""))
         subprocess.Popen([sys.executable, "-m", "descripytor.cli", "bassa_explorer", "--no-browser", "--port", str(port)], env=env)
-        for _ in range(60):
+        for _ in range(120):
             if _listening(port):
                 break
             time.sleep(0.25)
         else:
-            return "The BASSA model explorer did not start; run `descripytor bassa_explorer` to see why.", 503
-    return redirect(f"http://127.0.0.1:{port}/")
+            return None
+    return f"http://127.0.0.1:{port}/"
+
+
+BASSA_DOWN = "The BASSA model explorer did not start; run `descripytor bassa_explorer` to see why."
+
+
+@app.route("/bassa_explorer")
+def bassa_explorer():
+    """Go to the BASSA model explorer, starting its server if needed."""
+    url = _bassa_url()
+    return redirect(url) if url else (BASSA_DOWN, 503)
+
+
+@app.route("/bassa_explorer/handoff", methods=["POST"])
+def bassa_handoff():
+    """One click from the picker: the extracted table with its target, and the folder its structures are in, are left
+    with the BASSA explorer; the answer is the address that opens it and starts the run."""
+    import json
+    import urllib.error
+    import urllib.request
+
+    data = request.json or {}
+    try:
+        df, y_name = _table_with_target(data)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    url = _bassa_url()
+    if not url:
+        return jsonify({"error": BASSA_DOWN}), 503
+    body = dict(csv=df.to_csv(index=False), response=y_name, structures=str(data.get("structures") or "").strip(),
+                name=str(data.get("name") or "extracted"))
+    req = urllib.request.Request(url + "handoff", data=json.dumps(body).encode("utf-8"), headers={"Content-Type": "application/json"})
+    try:
+        token = json.loads(urllib.request.urlopen(req, timeout=30).read())["id"]
+    except urllib.error.HTTPError as exc:                    # its own words: too few compounds, a constant response, ...
+        try:
+            why = json.loads(exc.read())["error"]
+        except Exception:
+            why = str(exc)
+        return jsonify({"error": why}), 400
+    except Exception as exc:
+        return jsonify({"error": f"The BASSA model explorer did not take the table: {exc}"}), 502
+    return jsonify({"url": f"{url}#handoff={token}", "rows": int(df.shape[0]), "columns": int(df.shape[1]) - 2, "response": y_name})
 
 
 @app.route("/forms")
@@ -2104,6 +2146,36 @@ def _model_result_payload(results, y_name, n_rows):
     }
 
 
+def _table_with_target(data):
+    """The picker's extracted CSV with its target column: one already in the table, or pasted values merged in.
+    Returns (table, target name); raises ValueError with the message the page shows."""
+    import io
+
+    import pandas as pd
+
+    csv_text = data.get("csv") or ""
+    if not str(csv_text).strip():
+        raise ValueError("Extract features first (no CSV on the page).")
+    try:
+        df = pd.read_csv(io.StringIO(csv_text))
+    except Exception as exc:
+        raise ValueError(f"Could not parse CSV: {exc}")
+    if df.empty:
+        raise ValueError("CSV is empty.")
+    pasted = data.get("outputs") or data.get("pasted") or ""
+    y_name = (data.get("y_column") or data.get("target") or "").strip()
+    new_col = (data.get("new_column") or "output").strip() or "output"
+    if str(pasted).strip():
+        pairs = _parse_pasted_outputs(pasted)
+        if not pairs:
+            raise ValueError("Could not parse pasted values. Use one number per line or name,value.")
+        y_name = new_col
+        df = _merge_outputs_into_df(df, pairs, y_name)
+    elif not y_name:
+        raise ValueError("Choose a target column from the CSV, or paste output values.")
+    return df, y_name
+
+
 @app.route("/model/run", methods=["POST"])
 def model_run():
     """Fit linear regression on the extracted CSV (chosen or pasted target)."""
@@ -2114,32 +2186,10 @@ def model_run():
     data = request.json or {}
     if data.get("features_csv"):          # the forms GUI sends a path, the 3D picker the CSV text
         return _model_run_files(data)
-    csv_text = data.get("csv") or ""
-    if not str(csv_text).strip():
-        return jsonify({"error": "Extract features first (no CSV on the page)."}), 400
-
     try:
-        df = pd.read_csv(io.StringIO(csv_text))
-    except Exception as exc:
-        return jsonify({"error": f"Could not parse CSV: {exc}"}), 400
-    if df.empty:
-        return jsonify({"error": "CSV is empty."}), 400
-
-    pasted = data.get("outputs") or data.get("pasted") or ""
-    y_name = (data.get("y_column") or data.get("target") or "").strip()
-    new_col = (data.get("new_column") or "output").strip() or "output"
-    if str(pasted).strip():
-        pairs = _parse_pasted_outputs(pasted)
-        if not pairs:
-            return jsonify({
-                "error": "Could not parse pasted values. Use one number per line or name,value.",
-            }), 400
-        y_name = new_col
-        df = _merge_outputs_into_df(df, pairs, y_name)
-    elif not y_name:
-        return jsonify({
-            "error": "Choose a target column from the CSV, or paste output values.",
-        }), 400
+        df, y_name = _table_with_target(data)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     try:
         min_f = int(data.get("min_features", 1) or 1)

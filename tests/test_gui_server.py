@@ -740,3 +740,10 @@ def test_the_old_explorer_folder_still_imports():
 def test_visual_extractor_address_is_the_picker():
     r = _load_app().test_client().get("/visual_extractor")
     assert r.status_code == 302 and r.headers["Location"].endswith("/visual")
+
+
+def test_handoff_needs_a_table_and_a_target():
+    client = _load_app().test_client()
+    assert "Extract features first" in client.post("/bassa_explorer/handoff", json={}).get_json()["error"]
+    r = client.post("/bassa_explorer/handoff", json={"csv": "name,a\nm1,1\nm2,2\n"})
+    assert r.status_code == 400 and "target" in r.get_json()["error"]

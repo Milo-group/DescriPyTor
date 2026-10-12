@@ -8,6 +8,8 @@ the page still opens the example and every kept case.
 
 POST /run     {csv, response, iters, name, structures}  ->  the same data the page reads for a prepared case
 POST /checks  {csv, response}                           ->  {job}; the reference lines and the fold counts are computed in the background
+POST /handoff {csv, response, structures, name}         ->  {id}; another page (the atom picker) leaves a table here
+GET  /handoff?id=N                                      ->  that table, once: the page opened with #handoff=N runs it
 GET  /checks?job=N                                      ->  {done, total, chance, nested_q2, fold_top, n_folds, error}
 POST /keep    {name, case}                              ->  writes <name>.js beside the page and lists it, so the case is there next time
 POST /export  {cases}                                   ->  one HTML file holding the page, the explorer and those cases
@@ -27,7 +29,7 @@ import numpy as np, pandas as pd
 
 import build_case as BC
 
-H = Path(__file__).resolve().parent; C = BC.C; LOCK = threading.Lock(); JOBS = {}; N_PERM, NULL_ITERS = 100, 6000
+H = Path(__file__).resolve().parent; C = BC.C; LOCK = threading.Lock(); JOBS = {}; HANDOFF = {}; N_PERM, NULL_ITERS = 100, 6000
 READER = BC.S["reader_python"]
 try: import bassa_reg; SAMPLER = True
 except ImportError: SAMPLER = False
@@ -135,6 +137,7 @@ class Handler(SimpleHTTPRequestHandler):
         if u.path in ("/visual_extractor", "/feature_explorer", "/bassa_explorer"):      # the three pages link to each other by these names
             to = "/" if u.path == "/bassa_explorer" else gui("/visual" if u.path == "/visual_extractor" else u.path)
             self.send_response(302); self.send_header("Location", to); self.send_header("Content-Length", "0"); return self.end_headers()
+        if u.path == "/handoff": q = HANDOFF.pop(parse_qs(u.query).get("id", [""])[0], None); return self.answer(q or dict(error="this table was already taken, or the server was restarted"), 200 if q else 404)
         if u.path != "/checks": return super().do_GET()
         job = JOBS.get(parse_qs(u.query).get("job", [""])[0]); self.answer(job or dict(error="no such job"), 200 if job else 404)
 
@@ -143,6 +146,7 @@ class Handler(SimpleHTTPRequestHandler):
             q = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             if self.path == "/run": return self.answer(run(q))
             if self.path == "/keep": return self.answer(keep(q))
+            if self.path == "/handoff": table(q); name = str(len(HANDOFF) + int(time.time())); HANDOFF[name] = q; return self.answer(dict(id=name))      # table(): refuse here what a run would refuse
             if self.path == "/export": return self.answer(dict(html=BC.standalone(q["cases"])))
             if self.path == "/checks":
                 if not SAMPLER: raise RuntimeError(NEEDS)

@@ -1087,6 +1087,7 @@ if (typeof $3Dmol === "undefined") {
         </div>
         <div class="model-actions">
           <button class="primary" type="button" id="lrRunBtn">Run linear regression</button>
+          <button type="button" id="bassaBtn" title="Send this table, its target and the feather folder to the BASSA model explorer and run the sampler there (needs bassa_reg)">Model in BASSA explorer &#8599;</button>
         </div>
         <div class="work-progress" id="modelProgress" hidden role="progressbar" aria-label="Model search progress">
           <div class="work-progress-bar" id="modelProgressBar"></div>
@@ -2862,6 +2863,31 @@ function showOutTab(tab) {
   }
 }
 
+/* one click: the extracted table, its target and the feather folder go to the BASSA model explorer, which runs them */
+async function modelInBassa() {
+  if (!lastExtractCsv) { setModelStatus("Extract CSV first.", "bad"); return; }
+  const pasted = ($("lrOutputs") && $("lrOutputs").value.trim()) || "";
+  const yCol = ($("lrTargetCol") && $("lrTargetCol").value) || "";
+  if (!pasted && !yCol) { setModelStatus("Choose a target column, or paste output values.", "bad"); return; }
+  const tab = window.open("", "_blank");       // opened in the click itself, or the browser blocks it after the wait
+  setModelStatus("Starting the BASSA model explorer…", "warn");
+  try {
+    const response = await fetch(`${MODEL_SERVER}/bassa_explorer/handoff`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ csv: lastExtractCsv, y_column: yCol, outputs: pasted,
+        new_column: ($("lrNewCol") && $("lrNewCol").value.trim()) || "output",
+        structures: ($("featherDirInput") && $("featherDirInput").value.trim()) || "", name: "extracted" }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || response.statusText);
+    if (tab) tab.location = data.url; else window.location = data.url;
+    setModelStatus(`Sent ${data.rows} compounds and ${data.columns} descriptors (target ${data.response}) to the BASSA model explorer.`, "ok");
+  } catch (err) {
+    if (tab) tab.close();
+    setModelStatus("Could not hand the table over: " + err.message, "bad");
+  }
+}
+
 async function runLinearRegression() {
   const btn = $("lrRunBtn");
   if (!lastExtractCsv) {
@@ -3882,6 +3908,7 @@ if ($("recenterBtn")) $("recenterBtn").onclick = () => recenterViewer();
 document.querySelectorAll(".tabs button").forEach(b =>
   b.onclick = () => showOutTab(b.dataset.tab));
 if ($("lrRunBtn")) $("lrRunBtn").onclick = runLinearRegression;
+if ($("bassaBtn")) $("bassaBtn").onclick = modelInBassa;
 $("copyBtn").onclick = () => {
   navigator.clipboard.writeText($("outBox").textContent).then(
     () => { $("copyBtn").textContent = "Copied!"; setTimeout(()=>$("copyBtn").textContent="Copy", 1200); });

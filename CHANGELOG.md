@@ -4,6 +4,12 @@
 
 ### Added
 
+- Visual extractor: **Model in BASSA explorer** in the Model tab. One click sends the extracted table, its target
+  and the feather folder to the BASSA model explorer, which starts the run (`/bassa_explorer/handoff`).
+- The three pages link to each other; `/visual_extractor`, `/feature_explorer` and `/bassa_explorer` mean the same
+  page on both servers, and a link starts the other server when it is not running.
+- `pip install "descripytor[bassa]"` installs the sampler (`bassa-reg`). The corrected sampler core is the default.
+- `descripytor --help` describes every command, with examples. README rewritten around the three pages.
 - `descripytor bassa_explorer` (alias `bassa`): the BASSA model explorer, now in the package
   (`M3_modeler/bassa_explorer/`, [docs/BASSA_EXPLORER.md](docs/BASSA_EXPLORER.md)). It opens with a bundled example; kept
   cases go to `--cases DIR` (default `./bassa_cases`); new tables need `bassa_reg` in the Python given by `--bassa-python`.
