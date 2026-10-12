@@ -22,7 +22,7 @@ Modeled after the R package *MoleculaR* ([docs](https://barkais.github.io/)).
 - [**Workflow and every option** — logs → features → model → validation](docs/WORKFLOW.md)
 - [**Extraction protocol** — what to decide and check at each step](docs/EXTRACTION_PROTOCOL.md)
 - [**Cluster pipeline** — SMILES → GOAT / UMA / xTB / ORCA / Gaussian, chained on SGE](docs/PIPELINE.md)
-- [**Sterimol θ explorer** — a manual with screenshots](docs/THETA_EXPLORER.md)
+- [**Feature explorer** (Sterimol, θ, cone angle, %V_bur, dipoles, charges) — a manual with screenshots](docs/FEATURE_EXPLORER.md)
 - [The three ways to use it](#the-three-ways-to-use-it)
 - [Feature extraction](#feature-extraction)
   - [Descriptor families](#descriptor-families)
@@ -523,7 +523,7 @@ __main__.py                     Thin shim: `python __main__.py` → `descripytor
 LICENSE                         MIT
 M1_pre_calculations/            Prepare and submit calculations (SMILES to xyz, .com files)
 M2_data_extractor/              Descriptor extraction; Molecules / Molecule / MetalComplex;
-                                theta_explorer/ (the Sterimol / cone / %Vbur explorer, gated against the Python)
+                                feature_explorer/ (the Sterimol / cone / %Vbur explorer, gated against the Python)
 M3_modeler/                     Regression and classification model search; ridge_search (exhaustive
                                 ridge LOO, nested LOO), validation (selection null, paired sign-flip)
 MolAlign/                       Alignment and atom renumbering

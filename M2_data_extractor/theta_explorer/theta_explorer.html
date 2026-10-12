@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sterimol θ Explorer</title>
+<title>Feature Explorer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&display=swap">
 <style>
@@ -236,7 +236,7 @@ body.embed{padding-inline:12px;padding-block:12px}
 <body>
 <header class="plate">
   <div class="eyebrow">DescriPyTor &middot; Sterimol &middot; dipole &middot; charges &middot; live</div>
-  <h1>Sterimol <i>&theta;</i> explorer</h1>
+  <h1>Feature explorer</h1>
   <p class="lede">Every descriptor construction in the paper, drawn on the molecule itself: &theta; from v and its shadow, B<sub>1</sub>
   and its plane, loc B<sub>5</sub> and B<sub>5</sub>, the dipole frame, charges, and stacks of aligned structures. Drag to turn it;
   click any atom for its options. The numbers come from a line-for-line port of DescriPyTor&rsquo;s Sterimol, identical to the
@@ -2382,14 +2382,18 @@ const st = { structs: [], active: 0, mol: null, xyz: '', key: '', name: '', note
   L: null, LR: null, view: { R: null, zoom: 1, perA: 0 }, style: null, align: { mode: 'heavy', atoms: '', spread: 0 }, pop: null, sid: 0, scan: null,
   sm: { q: '', any: true, all: true, hits: [], k: 0, per: {}, err: '', used: '', busy: false },
   sheet: { panels: [], at: null, cols: 2, letters: 'a', gap: 24, look: false, scale: false, tight: true }, brush: false };
-// Embedded in a GUI either by URL (/theta?embed=1&theme=dark) or, for an srcdoc
-// iframe that has no URL, by window.THETA_EMBED = {theme, api} written into its <head>.
+// Embedded in a GUI either by URL (/feature_explorer?embed=1&theme=dark) or, for an srcdoc
+// iframe that has no URL, by window.FEATURE_EMBED = {theme, api} written into its <head>
+// (THETA_EMBED, the name before the rename, is still read).
 const Q = new URLSearchParams(location.search);
-const NAMED = window.THETA_EMBED || {};
-const EMBED = Q.has('embed') || !!window.THETA_EMBED;
+const NAMED = window.FEATURE_EMBED || window.THETA_EMBED || {};
+const EMBED = Q.has('embed') || !!(window.FEATURE_EMBED || window.THETA_EMBED);
+// figure mode (?embed=figure, or {figure: true}): only the figure, filling the frame; the page that frames it posts
+// sessions and is told which atom was clicked. ?bassa is the BASSA explorer's name for the same mode.
+const FIG = Q.get('embed') === 'figure' || !!NAMED.figure || Q.has('bassa') || window.name === 'bassa';
 const API = NAMED.api || (location.protocol.startsWith('http') ? '' : null);   // gui_server.py, for the live check
 const LIVE = API !== null;
-if (EMBED) { document.documentElement.dataset.theme = Q.get('theme') || NAMED.theme || 'dark'; document.body.classList.add('embed'); }
+if (EMBED) { document.documentElement.dataset.theme = Q.get('theme') || NAMED.theme || (FIG ? 'light' : 'dark'); document.body.classList.add('embed'); }
 
 const FLAGS = [['axis', 'axis'], ['L', 'L'], ['b1', 'B<sub>1</sub>'], ['plane', 'plane'], ['loc', 'loc B<sub>5</sub>'], ['b5', 'B<sub>5</sub> + loc'], ['theta', '&theta;'], ['phi', '&phi;'], ['drop', 'drop'], ['inset', 'end-on'], ['profile', 'B<sub>1</sub> scan']];
 const ALL = Object.fromEntries(FLAGS.map(([k]) => [k, true]));
@@ -2717,7 +2721,7 @@ async function liveCheck(r) {               // the Python on the same coordinate
   span.textContent = 'Checking against the Python…';
   $('status').prepend(span);
   try {
-    const resp = await fetch(API + '/theta/check', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const resp = await fetch(API + '/feature_explorer/check', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ xyz: st.xyz, a: st.a, b: st.b }) });
     const d = await resp.json();
     if (seq !== checkSeq) return;
@@ -2872,6 +2876,7 @@ function turn(yaw, pitch) { st.view.R = matMul(rotAbout('x', pitch), matMul(rotA
     if (was.moved) return;
     const p = hitAt(e.clientX, e.clientY);
     if (p && !p.s && st.arm) { armedPick(p.i + 1); return; }
+    if (FIG) { if (p && !p.s) tellHost('atom', { i: p.i + 1 }); return; }   // the framing page owns the selection
     if (p) openPop(p); else closePop();
   };
   wrap.addEventListener('pointerup', end);
@@ -2946,7 +2951,7 @@ function serialize() {
       energy: x.energy, dipole: x.mol.dipole, charges: x.mol.charges })) };
 }
 function restore(j, quiet = false) {
-  if (!j || !Array.isArray(j.structs) || !j.structs.length) throw new Error('not a theta explorer session');
+  if (!j || !Array.isArray(j.structs) || !j.structs.length) throw new Error('not a feature explorer session');
   st.structs = j.structs.map((x, k) => makeStruct({ key: x.key || 'session:' + x.name, name: x.name, xyz: x.xyz, dipole: x.dipole, charges: x.charges, energy: x.energy, thr: x.thr }, k));
   st.structs.forEach((x, k) => { const o = j.structs[k]; x.color = o.color || x.color; x.on = o.on !== false; x.own = o.own || ''; });
   st.active = Math.min(j.active || 0, st.structs.length - 1);
@@ -3143,7 +3148,7 @@ async function toClipboard(text, btn, ok) {
 }
 $('dlsvg').addEventListener('click', () => save(new Blob([exportSVG()], { type: 'image/svg+xml' }), fileBase() + '.svg'));
 $('dlpng').addEventListener('click', () => rasterize(exportSVG(false), fileBase()));
-$('savesession').addEventListener('click', () => save(new Blob([JSON.stringify(serialize())], { type: 'application/json' }), fileBase() + '.thetascene.json'));
+$('savesession').addEventListener('click', () => save(new Blob([JSON.stringify(serialize())], { type: 'application/json' }), fileBase() + '.featurescene.json'));
 $('copylink').addEventListener('click', (e) => {
   const link = permalink();
   history.replaceState(null, '', '#s=' + link.split('#s=')[1]);     // the address bar carries it too
@@ -3157,7 +3162,7 @@ designSync(); sheetLoad(); sheetSync();
 // the DescriPyTor calls that reproduce exactly what is on screen, with the values as assertions
 function pythonSnippet() {
   const name = st.name.replace(/[^\w.-]+/g, '_'), out = [];
-  out.push(`# ${st.name} — from the Sterimol theta explorer`);
+  out.push(`# ${st.name} — from the feature explorer`);
   out.push('# Sterimol as the platform reads it: CPK radii, 1 deg scan, bonds from extract_connectivity (covalent radii x 1.15).');
   out.push('# (MetalComplex measures its arms in its own frame and scans an 18 deg grid, so its values differ.)');
   out.push('import pandas as pd');
@@ -3278,19 +3283,35 @@ $('file').addEventListener('change', async (e) => {
 $('load').addEventListener('click', () => { const t = $('paste').value; if (t.trim()) addUser('pasted', t); });
 
 // ---------- inside the GUI: take its molecule and picks, hand the axis back ----------
-if (EMBED && window.parent !== window) {
+// Messages carry the prefix feature: (theta: and bassa: are the older names, still read and still sent).
+//   in:  load {name, xyz, a, b, from, dipole, charges} | hello | session {s, keepView}
+//   out: ready | atom {i} (figure mode, 1-based) | axis {a, b, third, el}
+function tellHost(what, d = {}) { if (window.parent !== window) ['feature:', 'theta:', 'bassa:'].forEach((p) => window.parent.postMessage(Object.assign({ type: p + what }, d), '*')); }
+if (FIG) {
+  const wrap = $('figwrap'), css = document.createElement('style');
+  css.textContent = 'html,body{height:100%;margin:0;padding:0;overflow:hidden;background:#fff}body>*:not(#figwrap){display:none!important}#figwrap{position:fixed;inset:0;border-radius:0}#fig,#fig svg{width:100%!important;height:100%!important;max-height:none!important}';
+  document.head.appendChild(css); document.body.appendChild(wrap);
+  const fitSvg = () => { const g = $('fig').firstElementChild; if (g && !g.getAttribute('viewBox')) g.setAttribute('viewBox', '0 0 ' + g.width.baseVal.value + ' ' + g.height.baseVal.value); };
+  new MutationObserver(fitSvg).observe($('fig'), { childList: true }); fitSvg();
+}
+if ((EMBED || FIG) && window.parent !== window) {
   window.addEventListener('message', (e) => {
     if (e.source !== window.parent) return;
-    const d = e.data || {};
-    if (d.type === 'theta:load' && typeof d.xyz === 'string')
+    const d = e.data || {}, m = /^(?:feature|theta|bassa):(.+)$/.exec(d.type || ''), what = m && m[1];
+    if (what === 'load' && typeof d.xyz === 'string')
       addUser(d.name || 'GUI molecule', d.xyz, 'gui', d.a, d.b, d.from, { dipole: d.dipole || null, charges: d.charges || null });
+    else if (what === 'hello') tellHost('ready');       // the host asks again when it started after this frame
+    else if (what === 'session') {
+      const view = st.view;
+      try { restore(d.s, true); if (d.keepView) { st.view = view; draw(); } } catch (err) { console.error(err); }
+    }
   });
-  window.parent.postMessage({ type: 'theta:ready' }, '*');
+  tellHost('ready');
 }
 $('usegui').addEventListener('click', () => {
   if (!st.res || !st.key.startsWith('gui:')) return;
   // the frame's third atom goes back as From-direction, so the GUI's three-atom call reproduces these numbers
-  window.parent.postMessage({ type: 'theta:axis', a: st.a, b: st.b, third: st.res.third, el: st.mol.el }, '*');
+  tellHost('axis', { a: st.a, b: st.b, third: st.res.third, el: st.mol.el });
   $('usegui').textContent = 'Sent ✓';
   setTimeout(() => { $('usegui').innerHTML = 'Use in Sterimol &#8599;'; }, 1500);
 });

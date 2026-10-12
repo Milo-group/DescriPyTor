@@ -48,6 +48,12 @@ def test_help_functions_does_not_import_ipywidgets():
                     raise AssertionError("utils.help_functions must not import ipywidgets at module level")
 
 
+def test_feature_explorer_is_the_name_and_theta_still_works():
+    assert "feature_explorer" in _run("--help").stdout
+    assert _run("feature_explorer", "--help").returncode == 0
+    assert _run("theta", "--help").returncode == 0
+
+
 def test_visual_extractor_is_the_name_and_gui_is_gone():
     result = _run("--help")
     assert "visual_extractor" in result.stdout

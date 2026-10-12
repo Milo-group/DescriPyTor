@@ -700,18 +700,36 @@ def test_numbering_without_reference_uses_folder_basic(client):
     assert body["n_mols"] == 2
 
 
-def test_theta_explorer_is_served_with_its_query():
-    """`descripytor theta` opens /theta; the page, and the live check it calls, are on the same server."""
+def test_feature_explorer_is_served_with_its_query():
+    """`descripytor feature_explorer` opens /feature_explorer; the page, and the live check it calls, are on the same server."""
     app = _load_app()
     client = app.test_client()
-    r = client.get("/theta?mol=FL_lig_13&preset=theta%20construction")
-    assert r.status_code == 200 and b"Sterimol" in r.data and b"explorer" in r.data
+    r = client.get("/feature_explorer?mol=FL_lig_13&preset=theta%20construction")
+    assert r.status_code == 200 and b"Feature explorer" in r.data and b"Sterimol" in r.data
 
 
-def test_theta_command_builds_the_explorer_address():
-    from descripytor.cli import theta_page
+def test_the_old_theta_address_redirects_with_its_query():
+    """/theta was the explorer's address before the rename; bookmarks and scripts keep working."""
+    client = _load_app().test_client()
+    r = client.get("/theta?mol=FL_lig_13&preset=2")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/feature_explorer?mol=FL_lig_13&preset=2")
+    assert client.post("/theta/check", json={}).status_code == client.post("/feature_explorer/check", json={}).status_code
 
-    assert theta_page() == "/theta"
-    assert theta_page("FL_lig_13") == "/theta?mol=FL_lig_13"
-    assert theta_page("FL_lig_13", "theta construction") == "/theta?mol=FL_lig_13&preset=theta+construction"
-    assert theta_page(preset="2") == "/theta?preset=2"
+
+def test_feature_explorer_command_builds_the_explorer_address():
+    from descripytor.cli import feature_explorer_page, theta_page
+
+    assert theta_page is feature_explorer_page
+    assert feature_explorer_page() == "/feature_explorer"
+    assert feature_explorer_page("FL_lig_13") == "/feature_explorer?mol=FL_lig_13"
+    assert feature_explorer_page("FL_lig_13", "theta construction") == "/feature_explorer?mol=FL_lig_13&preset=theta+construction"
+    assert feature_explorer_page(preset="2") == "/feature_explorer?preset=2"
+
+
+def test_the_old_explorer_folder_still_imports():
+    """Scripts outside the package put M2_data_extractor/theta_explorer on sys.path and import data."""
+    import subprocess, sys
+    old = Path(__file__).resolve().parents[1] / "M2_data_extractor" / "theta_explorer"
+    code = "import sys; sys.path.insert(0, %r); import data, build; assert data.payload and build.assemble" % str(old)
+    assert subprocess.run([sys.executable, "-c", code]).returncode == 0
+    assert (old / "theta_explorer.html").read_bytes() == (old.parent / "feature_explorer" / "feature_explorer.html").read_bytes()

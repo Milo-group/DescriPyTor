@@ -1634,12 +1634,15 @@ def run_visual_app(host=None, port=None, open_browser=True, page="/visual"):
     serve(host=host, port=port, open_browser=open_browser, page=page)
 
 
-def theta_page(mol=None, preset=None):
+def feature_explorer_page(mol=None, preset=None):
     """The explorer's address, with the structure and preset the URL parameters ask for."""
     from urllib.parse import urlencode
 
     query = urlencode({k: v for k, v in (("mol", mol), ("preset", preset)) if v})
-    return "/theta" + ("?" + query if query else "")
+    return "/feature_explorer" + ("?" + query if query else "")
+
+
+theta_page = feature_explorer_page          # the name before the explorer was renamed
 
 def run_feature_extraction(input_file, output_file = 'features_set', molecules_dir_name=None):
     _load_runtime_dependencies()
@@ -1765,7 +1768,8 @@ def main():
     visual_parser.add_argument("--host", default=None, help="Bind address (default 127.0.0.1)")
     visual_parser.add_argument("--port", type=int, default=None, help="Port (default 7432)")
     theta_parser = subparsers.add_parser(
-        "theta", help="Open the Sterimol theta explorer in a browser"
+        "feature_explorer", aliases=["theta"],
+        help="Open the feature explorer (Sterimol, cone angle, %%Vbur, dipoles, charges) in a browser"
     )
     theta_parser.add_argument("--mol", default=None, help="Open this built-in structure, e.g. FL_lig_13")
     theta_parser.add_argument("--preset", default=None,
@@ -1816,9 +1820,9 @@ def main():
     args = parser.parse_args()
     if args.command == "pipeline":
         return run_pipeline(args)
-    if args.command == "theta":
+    if args.command in ("feature_explorer", "theta"):
         run_visual_app(host=args.host, port=args.port, open_browser=not args.no_browser,
-                       page=theta_page(args.mol, args.preset))
+                       page=feature_explorer_page(args.mol, args.preset))
     elif args.command in ("visual_extractor", "visual"):
         run_visual_app(
             host=args.host,

@@ -5,7 +5,7 @@ import pandas as pd
 
 from utils.help_functions import extract_connectivity
 
-FIX = Path(__file__).resolve().parents[1] / "M2_data_extractor" / "theta_explorer" / "fixtures"
+FIX = Path(__file__).resolve().parents[1] / "M2_data_extractor" / "feature_explorer" / "fixtures"
 
 
 def _xyz(name):

@@ -11,7 +11,7 @@ from M2_data_extractor import metal_complex as mc
 from utils.help_functions import extract_connectivity
 
 ROOT = Path(__file__).resolve().parents[1]
-FIX = ROOT / "M2_data_extractor" / "theta_explorer" / "fixtures"
+FIX = ROOT / "M2_data_extractor" / "feature_explorer" / "fixtures"
 PAPER = Path(os.environ["DESCRIPYTOR_PAPER"]) if os.environ.get("DESCRIPYTOR_PAPER") else None
 
 

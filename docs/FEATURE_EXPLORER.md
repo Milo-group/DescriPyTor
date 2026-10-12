@@ -1,10 +1,13 @@
-# The Sterimol θ explorer: a manual
+# The feature explorer: a manual
+
+Until October 2026 this tool was called the Sterimol θ explorer (`descripytor theta`, `/theta`,
+`M2_data_extractor/theta_explorer/`). The old command, address and folder still work; the descriptor θ keeps its name.
 
 The explorer draws every Sterimol, dipole, charge, cone-angle and buried-volume construction on the
 molecule itself, so you can see where a number comes from, change the atoms it is read at, and export
 the result as a figure. It is one web page; nothing is uploaded anywhere.
 
-![The explorer, with the numbered parts used in section 2](images/theta_explorer/01_overview.png)
+![The explorer, with the numbered parts used in section 2](images/feature_explorer/01_overview.png)
 
 **What you can do with it**
 
@@ -44,33 +47,33 @@ Atom numbers are **1-based**, as in Gaussian, throughout.
 **From the package (recommended).**
 
 ```bash
-descripytor theta                                     # opens the explorer in your browser
-descripytor theta --mol FL_lig_13 --preset "theta construction"      # straight to a structure and a preset
+descripytor feature_explorer                                     # opens the explorer in your browser
+descripytor feature_explorer --mol FL_lig_13 --preset "theta construction"      # straight to a structure and a preset
 ```
 
-`descripytor theta` starts the same local server as `descripytor visual` (default port 7432, `--port` to
-change it, `--no-browser` to skip opening a tab) and opens `/theta`. If a server is already running on
+`descripytor feature_explorer` starts the same local server as `descripytor visual` (default port 7432, `--port` to
+change it, `--no-browser` to skip opening a tab) and opens `/feature_explorer`. If a server is already running on
 that port, it reuses it and just opens the page. `descripytor visual` still opens the atom picker; the
-explorer is at `/theta` on the same server either way.
+explorer is at `/feature_explorer` on the same server either way.
 
 The page is served from the Flask server, and it then compares its numbers with the
 package's Python on every pick ([section 12](#12-checking-the-numbers)). Inside the atom picker
 (`/visual`) the explorer runs embedded, with a **Use in Sterimol ↗** button that sends the active
 base → axis pair back as a Sterimol selection.
 
-**As a plain page.** `M2_data_extractor/theta_explorer/theta_explorer.html` is a single built file. It
+**As a plain page.** `M2_data_extractor/feature_explorer/feature_explorer.html` is a single built file. It
 needs no server of its own, but serve it rather than double-clicking it: the substructure matcher
 loads RDKit files that browsers restrict on `file://` pages.
 
 ```bash
-python -m http.server 8742 --directory M2_data_extractor/theta_explorer
-# open http://localhost:8742/theta_explorer.html
+python -m http.server 8742 --directory M2_data_extractor/feature_explorer
+# open http://localhost:8742/feature_explorer.html
 ```
 
 Without the Flask server there is no live check against the Python; everything else works.
 
 The page opens on a built-in structure. Add `?mol=<name>` to open another one, for example
-`theta_explorer.html?mol=FL_lig_13`; the full list of parameters is in [section 14](#14-keyboard-mouse-and-url-reference).
+`feature_explorer.html?mol=FL_lig_13`; the full list of parameters is in [section 14](#14-keyboard-mouse-and-url-reference).
 
 ## 2. The screen
 
@@ -94,7 +97,7 @@ The numbers below are the numbers in the picture at the top of this page.
 10. **The export row.** SVG, PNG, a link, a session file and the Python that reproduces the numbers
     ([section 10](#10-making-a-figure)).
 
-![The toolbar in detail](images/theta_explorer/02_toolbar.png)
+![The toolbar in detail](images/feature_explorer/02_toolbar.png)
 
 | # | control | what it does |
 |---|---|---|
@@ -114,7 +117,7 @@ The numbers below are the numbers in the picture at the top of this page.
 Open any molecule and pick the preset **theta construction** in the *Figure* section, or add
 `&preset=theta%20construction` to the URL. It switches on every part of the Sterimol construction.
 
-![Every part of the construction, on the Case Study 2 ligand FL_lig_13, axis C6→C7](images/theta_explorer/03_anatomy.png)
+![Every part of the construction, on the Case Study 2 ligand FL_lig_13, axis C6→C7](images/feature_explorer/03_anatomy.png)
 
 1. **L.** The arrow along the axis: the length of the fragment along it, atom radii included.
 2. **B₁ and its plane.** B₁ is the narrowest width of the fragment, measured perpendicular to the
@@ -168,7 +171,7 @@ The axis runs **from the base atom to the axis atom**.
 
 Click any atom (or tap it) to open its menu.
 
-![The menu that opens on an atom](images/theta_explorer/04_atom_popup.png)
+![The menu that opens on an atom](images/feature_explorer/04_atom_popup.png)
 
 1. **Make it the base** (key **B** while the menu is open).
 2. **Make it the axis** (key **A**).
@@ -186,7 +189,7 @@ Press **Esc**, or click elsewhere, to close the menu.
 
 The five chips choose which family of constructions the picture shows.
 
-![The Show chips: dipole and charges on the Case Study 1 substrate m-CN; cone angle and %V_bur on the Cu-PHOX complex](images/theta_explorer/05_show_chips.png)
+![The Show chips: dipole and charges on the Case Study 1 substrate m-CN; cone angle and %V_bur on the Cu-PHOX complex](images/feature_explorer/05_show_chips.png)
 
 | chip | draws | needs |
 |---|---|---|
@@ -209,7 +212,7 @@ B₁ is a minimum over the directions the plane can take. Sometimes the minimum 
 many directions are almost as narrow, and then the plane (and so θ) is not well defined. Switch on
 **B₁ scan** to see the width at every rotation.
 
-![B₁ over the rotation scan: the width as a function of the plane's rotation, with the flat part marked](images/theta_explorer/06_b1_scan.png)
+![B₁ over the rotation scan: the width as a function of the plane's rotation, with the flat part marked](images/feature_explorer/06_b1_scan.png)
 
 The inset plots B₁ against the rotation of the plane. The shaded band is the part of the rotation
 within a small tolerance of the minimum, and the label gives its extent (here *flat 19° of 90°*). A
@@ -221,7 +224,7 @@ tried and settles on the narrowest.
 
 The side panel collapses into sections. All nine open at once look like this:
 
-![The nine sections of the side panel](images/theta_explorer/07_side_panel.png)
+![The nine sections of the side panel](images/feature_explorer/07_side_panel.png)
 
 | section | what it holds |
 |---|---|
@@ -242,7 +245,7 @@ to match through aromatic and double bonds alike. A match can be sent to **axis 
 **dipole origin**, **charges** or **fade**, which makes the same selection on every molecule in a
 series without typing atom numbers.
 
-![The Substructure section on the Case Study 3 complex 045_lig](images/theta_explorer/13_substructure.png)
+![The Substructure section on the Case Study 3 complex 045_lig](images/feature_explorer/13_substructure.png)
 
 **Figure: fading.** *fade atoms* takes numbers (`1-5, 30`). **Brush** fades atoms as the pointer runs
 over them (hold **Alt** to bring them back), **Clear** brings every atom back, *fade what no axis
@@ -254,7 +257,7 @@ those atoms from the drawing.
 To compare conformers, a series, or a ligand in two complexes, draw several structures on top of one
 another, each aligned to the measured one.
 
-![Two structures superposed: FL_lig_13 (measured, grey) and FL_lig_7 (orange), aligned on atoms 6, 7 and 4](images/theta_explorer/08_stack.png)
+![Two structures superposed: FL_lig_13 (measured, grey) and FL_lig_7 (orange), aligned on atoms 6, 7 and 4](images/feature_explorer/08_stack.png)
 
 1. **Add a structure.** Pick one in the menu and press **+ Add**, or load files with **Add files**
    (a multi-frame xyz becomes one structure per frame).
@@ -299,7 +302,7 @@ drawing panels that must be comparable.
 example *"174 × 147 mm · 4110 × 3468 px at 600 dpi · smallest label 9.4 pt · thinnest line 0.39 pt ✓
 clears the usual minimums"*. If a label or line would print too small at the chosen width, it says so.
 
-![The export row](images/theta_explorer/11_export_row.png)
+![The export row](images/feature_explorer/11_export_row.png)
 
 1. **width.** The printed width: 85 mm (1 column), 174 mm (2 columns, the default), 120 mm, 240 mm (slide).
 2. **dpi.** 300, 600 (default) or 1200, for PNG.
@@ -308,7 +311,7 @@ clears the usual minimums"*. If a label or line would print too small at the cho
 4. **PNG.**
 5. **Copy link.** A link that reopens this exact figure (the session is in the part of the address
    after `#s=`).
-6. **Save session.** The whole session as a file you can reopen or send (`.thetascene.json`).
+6. **Save session.** The whole session as a file you can reopen or send (`.featurescene.json`).
 7. **Copy Python.** The DescriPyTor calls that reproduce the numbers, with assertions
    ([section 12](#12-checking-the-numbers)).
 
@@ -316,7 +319,7 @@ clears the usual minimums"*. If a label or line would print too small at the cho
 this figure**, then change the molecule or the view and add the next. In the panels list, ▲ ▼ reorder
 them, *open* loads one back into the page, and × removes it.
 
-![A sheet built from three presets: Case Study 1, 2 and 3](images/theta_explorer/09_sheet.png)
+![A sheet built from three presets: Case Study 1, 2 and 3](images/feature_explorer/09_sheet.png)
 
 1. **+ Add this figure.** Keeps the whole current figure as a panel (**Update the panel** overwrites the
    panel it came from).
@@ -332,7 +335,7 @@ The page tells you how wide each panel lands, for example *"3 panels in 3 column
 **Scripted exports.** The URL can build a figure with no clicking, which is how the paper's figures are
 made. Adding `&figure=1` strips the page down to the exported figure:
 
-![?mol=m-CN&preset=Case%20Study%201&figure=1](images/theta_explorer/10_figure_mode.png)
+![?mol=m-CN&preset=Case%20Study%201&figure=1](images/feature_explorer/10_figure_mode.png)
 
 Several panels at once: `?sheet=m-CN::Case Study 1;FL_lig_13::Case Study 2&cols=2&figure=1`. A full
 list of parameters is in [section 14](#14-keyboard-mouse-and-url-reference).
@@ -345,7 +348,7 @@ list of parameters is in [section 14](#14-keyboard-mouse-and-url-reference).
 |---|---|
 | `.xyz` (a multi-frame xyz becomes one structure per frame), `.sdf` | the geometry |
 | `.feather` from `descripytor logs_to_feather`, or a Gaussian `.log` | the geometry **plus the dipole and the charges**, read by the package |
-| `.thetascene.json`, or an SVG the explorer exported | the whole session it was saved from |
+| `.featurescene.json`, or an SVG the explorer exported | the whole session it was saved from |
 
 The `.feather` and `.log` routes need the Flask server (`descripytor visual`), because the package
 reads those files.
@@ -353,7 +356,7 @@ reads those files.
 **Paste coordinates** takes an xyz block directly: the atom count, a comment line, then one atom per
 line.
 
-![Pasting an xyz block](images/theta_explorer/12_paste.png)
+![Pasting an xyz block](images/feature_explorer/12_paste.png)
 
 1. Open **Paste coordinates**.
 2. Paste an xyz block (the box shows an example).
@@ -370,7 +373,7 @@ will not align.
 ## 12. Checking the numbers
 
 The explorer's Sterimol is a line-for-line port of the package's, and it is gated against the Python
-(`M2_data_extractor/theta_explorer/gate.js`, `smoke.js` and the scripts described in
+(`M2_data_extractor/feature_explorer/gate.js`, `smoke.js` and the scripts described in
 [WORKFLOW.md §9](WORKFLOW.md#9-running-the-tests)). There are two ways to check a number yourself.
 
 **Live, when served by the package.** With `descripytor visual`, every time you pick an axis the page
@@ -378,7 +381,7 @@ sends the coordinates to the package and compares five values: B₁, B₅, L, lo
 the numbers says *"✓ DescriPyTor's Python gives the same five values (checked live)."*, or names the
 value that differs.
 
-![The live check, on FL_lig_13: the Python agrees](images/theta_explorer/14_live_check.png)
+![The live check, on FL_lig_13: the Python agrees](images/feature_explorer/14_live_check.png)
 
 φ end-on and ρ are not part of this check. The explorer's φ is not numerically the package's
 `B1_B5_azimuth` column (for `FL_lig_13` C6→C7: 179.45° against 179.72°).
@@ -399,7 +402,7 @@ assert [round(float(r[k]), 4) for k in ('B1', 'B5', 'L', 'loc_B5', 'B1_B5_angle'
 
 The first import line is for a source checkout. With the package installed, use
 `from M2_data_extractor import data_extractor as de`. With that import and the fixture
-`M2_data_extractor/theta_explorer/fixtures/FL_lig_13_str_target.xyz`, the assertion holds under
+`M2_data_extractor/feature_explorer/fixtures/FL_lig_13_str_target.xyz`, the assertion holds under
 DescriPyTor 0.2.1.
 
 ## 13. Known differences from the package
@@ -446,7 +449,7 @@ shows when that is the case.
 | arrow keys | turn the molecule in 5° steps (when no box has focus) |
 | **Esc** | close the menu, or leave the brush |
 
-**URL parameters** (for `theta_explorer.html` and `/theta`)
+**URL parameters** (for `feature_explorer.html` and `/feature_explorer`)
 
 | parameter | value | does |
 |---|---|---|
@@ -464,8 +467,8 @@ The pictures in this manual are made by a script, so they can be redone when the
 
 ```bash
 pip install playwright pillow          # Chrome is used from the machine
-python docs/images/theta_explorer/make_images.py            # all of them
-python docs/images/theta_explorer/make_images.py anatomy    # one
+python docs/images/feature_explorer/make_images.py            # all of them
+python docs/images/feature_explorer/make_images.py anatomy    # one
 ```
 
 It serves the explorer on a free port, drives it, adds the numbered callouts at the real element

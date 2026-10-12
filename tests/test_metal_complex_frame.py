@@ -10,7 +10,7 @@ import pytest
 
 from M2_data_extractor.metal_complex import MetalComplex
 
-XYZ = Path(__file__).resolve().parents[1] / "M2_data_extractor" / "theta_explorer" / "fixtures" / "026_box_CuCl.xyz"
+XYZ = Path(__file__).resolve().parents[1] / "M2_data_extractor" / "feature_explorer" / "fixtures" / "026_box_CuCl.xyz"
 
 
 def _rotations(n, seed=7):

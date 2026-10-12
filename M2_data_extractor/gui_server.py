@@ -992,14 +992,22 @@ def parse_modes_api():
 
 
 @app.route("/theta")
-def theta_explorer():
-    """Serve the live Sterimol theta explorer (sources in theta_explorer/)."""
+def theta_redirect():
+    """The explorer's address before it was renamed; the query goes along."""
+    q = request.query_string.decode()
+    return redirect("/feature_explorer" + ("?" + q if q else ""))
+
+
+@app.route("/feature_explorer")
+def feature_explorer():
+    """Serve the live feature explorer (sources in feature_explorer/)."""
     ensure_path("")
-    from theta_explorer.build import assemble
+    from feature_explorer.build import assemble
     return assemble(), 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
 @app.route("/theta/check", methods=["POST"])
+@app.route("/feature_explorer/check", methods=["POST"])
 def theta_check():
     """The Python Sterimol on the explorer's coordinates and axis, so the page
     can confirm its in-browser port against the package on every pick."""
@@ -1030,7 +1038,7 @@ def figure_load():
     import tempfile
     try:
         ensure_path("")
-        from theta_explorer.data import payload
+        from feature_explorer.data import payload
         up = request.files.get("file")
         if up is not None:
             name, ext = os.path.splitext(os.path.basename(up.filename or "upload"))
@@ -2277,9 +2285,9 @@ def _reuse_or_refuse_existing_gui(host, port, open_browser, page="/visual"):
 
 
 def serve(host=None, port=None, open_browser=True, page="/visual"):
-    """Start the Flask GUI. Used by `descripytor visual`, `descripytor theta` and `__main__`.
+    """Start the Flask GUI. Used by `descripytor visual_extractor`, `descripytor feature_explorer` and `__main__`.
 
-    ``page`` is the address the browser opens: "/visual" (the atom picker) or "/theta?mol=..." (the explorer).
+    ``page`` is the address the browser opens: "/visual" (the atom picker) or "/feature_explorer?mol=..." (the explorer).
     """
     import threading
     import time
@@ -2297,7 +2305,7 @@ def serve(host=None, port=None, open_browser=True, page="/visual"):
     print(f"\n  DescriPyTor GUI")
     print(f"  Open:  {url}")
     print(f"  Forms: http://127.0.0.1:{port}/forms")
-    print(f"  Sterimol theta explorer: http://127.0.0.1:{port}/theta")
+    print(f"  Feature explorer: http://127.0.0.1:{port}/feature_explorer")
     print(f"  Press Ctrl+C to stop\n")
     if open_browser:
         def _open():

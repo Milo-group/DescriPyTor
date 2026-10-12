@@ -1,9 +1,9 @@
-"""Regenerate the screenshots of docs/THETA_EXPLORER.md.
+"""Regenerate the screenshots of docs/FEATURE_EXPLORER.md.
 
     pip install playwright pillow      # Chrome is used from the machine (channel="chrome")
-    python docs/images/theta_explorer/make_images.py [name ...]
+    python docs/images/feature_explorer/make_images.py [name ...]
 
-Serves M2_data_extractor/theta_explorer on a free local port, drives the page, adds numbered callouts
+Serves M2_data_extractor/feature_explorer on a free local port, drives the page, adds numbered callouts
 at the real element positions (so a layout change moves them with it) and writes 2x PNGs next to this
 file. With names, only those images are rebuilt. The numbering of the callouts is the numbering of
 the lists in the manual: edit both together.
@@ -19,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFont
 from playwright.sync_api import sync_playwright
 
 HERE = Path(__file__).resolve().parent
-EXPLORER = HERE.parents[2] / "M2_data_extractor" / "theta_explorer"
+EXPLORER = HERE.parents[2] / "M2_data_extractor" / "feature_explorer"
 W, H, DPR = 1480, 1000, 2
 
 
@@ -30,7 +30,7 @@ def _free_port():
 
 
 PORT = _free_port()
-URL = f"http://127.0.0.1:{PORT}/theta_explorer.html"
+URL = f"http://127.0.0.1:{PORT}/feature_explorer.html"
 
 BADGE_JS = """
 (args) => {
@@ -343,7 +343,7 @@ def live_check(s):
             raise RuntimeError("descripytor visual did not start")
         for mol, name in (("FL_lig_13", "14_live_check"), ("p-OTf", "15_live_check_otf")):
             pg = s.b.new_page(viewport={"width": W, "height": H}, device_scale_factor=DPR)
-            pg.goto(f"http://127.0.0.1:{port}/theta?mol={mol}&preset=" + quote("theta construction"), wait_until="domcontentloaded")
+            pg.goto(f"http://127.0.0.1:{port}/feature_explorer?mol={mol}&preset=" + quote("theta construction"), wait_until="domcontentloaded")
             pg.wait_for_selector("#fig circle.hit", state="attached", timeout=20000)
             pg.wait_for_function("/same five values|different/.test(document.querySelector('#status').innerText)", timeout=30000)
             pg.wait_for_timeout(600)

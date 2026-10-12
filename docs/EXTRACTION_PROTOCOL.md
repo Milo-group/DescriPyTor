@@ -218,7 +218,7 @@ Use the `tf_*` columns in model searches. They are the graph indices divided by 
 4. **Outliers.** Standardise each column. For any |z| > 6, open that molecule and look at the
    structure, not just the number.
 5. **Spot-checks.**
-   - Compare three molecules against an independent measurement: the `/theta` explorer, the
+   - Compare three molecules against an independent measurement: the `/feature_explorer` explorer, the
      published values, or a second implementation.
    - Rotate one input structure at random and re-extract. No geometric value may change.
 6. **Column map.** Write down which physical quantity each column is (for example, `iso`/`aniso`

@@ -9,7 +9,7 @@ global.Promol = require('./promol.js');
 const SC = require('./scene.js');
 
 const fx = (f) => path.join(__dirname, 'fixtures', f);
-const MOLS = JSON.parse(fs.readFileSync(path.join(__dirname, 'theta_explorer.html'), 'utf8')
+const MOLS = JSON.parse(fs.readFileSync(path.join(__dirname, 'feature_explorer.html'), 'utf8')
   .split('const MOLS = ')[1].split('const REFS = ')[0].trim().replace(/;$/, ''));
 
 function mol(entry) {

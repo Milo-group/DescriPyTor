@@ -8,7 +8,7 @@ their code:
 |---|---|---|
 | `extractor_utils/sterimol_utils.py` via `data_extractor.get_sterimol_df` | the platform, Case Studies 1 and 2 | three atoms (base, axis, a neighbour) |
 | `metal_complex.sterimol` via `MetalComplex.geometric_features` | Case Study 3 (`fromM_*`, `sub_*`) | see fix 5 |
-| `theta_explorer/sterimol.js` | the explorer and every paper figure | line-for-line port of the platform path |
+| `feature_explorer/sterimol.js` | the explorer and every paper figure | line-for-line port of the platform path |
 
 `sterimol_standalone.py` and `cube_sterimol.py` carry their own copies of the platform scan.
 
@@ -32,7 +32,7 @@ reproduces the paper's deposited tables.
 | 11 | **θ at tied B1 directions.** B1 is often reached along several directions within 0.01 Å of each other (a tBu has three), and θ was read at whichever one the scan hit first: 4.7, 38.8 or 45.5° for chemically identical tBu arms; 23 of 60 cp arms had ties whose θ differed by > 5° | `metal_complex.sterimol` | θ was set by scan order, not by the molecule | 0.2.1: `STERIMOL_THETA_RULE = "soft"`, θ averaged over every in-plane direction with weights exp(−(width − B1)/0.02 Å) on a 0.05° grid. B1, B5 and L are unchanged. `"scan"` restores the old value | `tests/test_arm_fixes.py`; defaults reproduce the paper's corrected `cp_fix_soft.csv` (16 columns, ≤ 5e-7) |
 | 12 | **The arm's (C\*, R) pair followed the atom order.** Among equally sized substituents `stereocentre` kept the first one it met, and it looked at every carbon of the donor ring. An unsubstituted oxazoline arm got its H on the carbon next to N in three cyclopropanation ligands and on the next carbon in two (R–C\*–N 109° against 125° for the same CH₂); a 4,5-diphenyl arm was right only because of how the file was numbered. On a P-aryl donor the pair was ipso → ortho, a bond inside the ring | `metal_complex.stereocentre` | `a_R_Cstereo_N` on 9 of 60 cp arms, and the whole C\*→R block on P arms, were set by the numbering | Unreleased: `STEREOCENTRE_RULE = "alpha"`: largest substituent; among equals the one on the carbon bonded to the donor, then the one nearest the metal. A donor outside any ring whose only candidates are ring bonds has no C\*→R block. φ (`angle`) now follows `STERIMOL_THETA_RULE` like θ. `"first"` restores the old pick | `tests/test_arm_fixes.py` (values unchanged after shuffling the atoms; P-aryl arm skipped); 314 CS3 structures shuffled with identical output |
 
-### Explorer port (`theta_explorer/sterimol.js`)
+### Explorer port (`feature_explorer/sterimol.js`)
 
 | bug | fix | gate |
 |---|---|---|

@@ -1,6 +1,6 @@
 // Every paper preset of the built page, rendered to SVG with the page's own code.
 //   python build.py && node render_presets.js <out_dir>     (then PNGs via headless Chrome)
-// The molecules and presets are read out of theta_explorer.html itself, so the files
+// The molecules and presets are read out of feature_explorer.html itself, so the files
 // are exactly what the page shows when a preset is applied (in the default look).
 const fs = require('fs');
 const path = require('path');
@@ -9,7 +9,7 @@ const SC = require('./scene.js');
 
 const out = process.argv[2] || path.join(__dirname, '_presets');
 fs.mkdirSync(out, { recursive: true });
-const html = fs.readFileSync(path.join(__dirname, 'theta_explorer.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, 'feature_explorer.html'), 'utf8');
 const i0 = html.indexOf('const MOLS = ') + 'const MOLS = '.length;
 const MOLS = JSON.parse(html.slice(i0, html.indexOf('const REFS = ', i0)).trim().replace(/;$/, ''));
 
