@@ -24,7 +24,7 @@ pip install -e .
 descripytor visual_extractor
 ```
 
-Then open **http://localhost:7432** (the 3D picker). The form-only GUI is http://localhost:7432/forms.
+Then open **http://localhost:7432** (the 3D picker).
 
 If RDKit fails: `conda install -c conda-forge rdkit`
 
@@ -37,7 +37,6 @@ If RDKit fails: `conda install -c conda-forge rdkit`
 | Visual extractor: the 3D atom picker (start here) | http://localhost:7432 |
 | Feature explorer: any descriptor drawn on the molecule | http://localhost:7432/feature_explorer |
 | BASSA model explorer (`descripytor bassa_explorer`) | http://localhost:8765 |
-| Feature extraction GUI (forms) | http://localhost:7432/forms |
 
 The first three link to each other in their headers.
 
@@ -52,10 +51,6 @@ The first three link to each other in their headers.
 **BASSA model explorer** — the models a Bayesian search visited, beside the molecule. Manual: [BASSA_EXPLORER.md](BASSA_EXPLORER.md).
 
 ![The BASSA model explorer](images/readme/bassa_explorer.png)
-
-**Feature GUI** — same engine, form-based, if you already know the atom indices.
-
-![Feature extraction GUI](images/gui-features.png)
 
 ---
 
@@ -97,7 +92,6 @@ First build takes several minutes. Leave that terminal open.
 | What | Open |
 |---|---|
 | 3D atom picker | http://localhost:7432 |
-| Feature extraction GUI | http://localhost:7432/forms |
 | Streamlit extraction app | http://localhost:8503 |
 
 Drop `.feather`, `.xyz`, or CSV into `work/` on your computer. In the GUI, type `/work/yourfile.feather`. Results written to `/work` show up in that same folder.

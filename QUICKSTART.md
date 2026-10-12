@@ -19,7 +19,7 @@ pip install -e .
 descripytor visual_extractor
 ```
 
-Then open **http://127.0.0.1:7432** (the 3D picker). The form-only GUI is http://127.0.0.1:7432/forms.
+Then open **http://127.0.0.1:7432** (the 3D picker).
 
 In the picker: **Use example set** → **Apply example picks** → **Extract CSV**. If port 7432 is already in use, stop the old GUI (the command prints a PID) and retry, then hard-refresh (Ctrl+F5).
 
@@ -85,7 +85,6 @@ First build takes several minutes. Leave that terminal open.
 | What | Open |
 |---|---|
 | 3D atom picker | http://localhost:7432 |
-| Feature extraction GUI | http://localhost:7432/forms |
 | Streamlit extraction app | http://localhost:8503 |
 
 4. Drop files into `work/` on your computer. In the GUI use `/work/yourfile.feather`.

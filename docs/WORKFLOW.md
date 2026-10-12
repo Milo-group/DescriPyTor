@@ -143,9 +143,8 @@ descripytor visual            # --port 7432 (default), --host 127.0.0.1, --no-br
 ```
 
 This opens the 3D atom picker at `http://127.0.0.1:7432/visual`. Load a folder, click atoms to
-build the selections, extract, and run the model search, all on one page. The forms-based
-page is at `/forms`, the Sterimol / θ / cone-angle / %V_bur explorer at `/feature_explorer`, and the
-vibration-mode viewer at `/modes`. A walkthrough with screenshots is in
+build the selections, extract, and run the model search, all on one page. The feature explorer is at `/feature_explorer` and the
+BASSA model explorer one click away in the header. A walkthrough with screenshots is in
 [visual-guide.md](visual-guide.md); the explorer opens directly with `descripytor feature_explorer` and has its own manual with
 screenshots, [FEATURE_EXPLORER.md](FEATURE_EXPLORER.md).
 

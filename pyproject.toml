@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "descripytor"
-version = "0.3.2"
+version = "0.3.3"
 description = "Molecular feature extraction, alignment, and modeling tools."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -95,7 +95,7 @@ exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*", "tests*"
 "M2_data_extractor.theta_explorer" = ["*.js", "*.html"]
 # the BASSA model explorer, `descripytor bassa_explorer`: its page, the example case and the two example tables
 "M3_modeler.bassa_explorer" = ["*.html", "*.js", "*.csv"]
-# the vibration-mode viewer, served at /modes
+# the standalone vibration-mode viewer (python utils/mode_viewer.py --serve)
 "utils" = ["*.html"]
 # example protocol for the cluster pipeline
 "M1_pre_calculations.pipeline" = ["examples/*.json", "examples/*.csv"]

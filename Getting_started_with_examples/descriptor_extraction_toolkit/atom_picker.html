@@ -4038,8 +4038,7 @@ $("screenshotBtn").onclick = () => {
   const hasImage = srcAttr.indexOf("__GRAPH2D_IMG__") === -1 && srcAttr.length > "data:image/png;base64,".length;
   card.style.display = "none";
   if (!hasImage) {
-    btn.disabled = true;
-    btn.title = "No 2D graph available for this molecule.";
+    btn.hidden = true;                     // only a picker built with a 2D graph (make_picker.py, the web app) has one to show
   } else {
     btn.onclick = () => {
       const showing = card.style.display !== "none";

@@ -159,7 +159,7 @@ From the repository root:
 docker compose up --build
 ```
 
-Open the picker at `http://localhost:7432` (forms: `/forms`). Streamlit is at
+Open the picker at `http://localhost:7432`. Streamlit is at
 `http://localhost:8503`. Put files in `work/`; use `/work/yourfile.feather` in the GUI.
 
 ## Notes

@@ -84,7 +84,6 @@ def write_terminal_clip(path: Path) -> None:
         "",
         "  DescriPyTor GUI",
         "  Open:  http://127.0.0.1:7432/visual",
-        "  Forms: http://127.0.0.1:7432/forms",
         "  Press Ctrl+C to stop",
         "",
         " * Serving Flask app 'M2_data_extractor.gui_server'",

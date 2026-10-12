@@ -1,4 +1,4 @@
-"""Flask GUI routes used by docker-compose (`/status`, `/visual`, `/forms`)."""
+"""Flask GUI routes (`/status`, `/visual`, the explorers)."""
 from __future__ import annotations
 
 import importlib.util
@@ -228,11 +228,14 @@ def test_root_redirects_to_visual(client):
     assert "/visual" in (response.headers.get("Location") or "")
 
 
-def test_forms_serves_feature_gui(client):
-    response = client.get("/forms")
-    assert response.status_code == 200
-    body = response.get_data(as_text=True)
-    assert "html" in body.lower()
+def test_the_removed_pages_are_gone(client):
+    """The form-based page and the mode viewer's route went in 0.3.3; nothing in the package serves or links to them."""
+    for path in ("/forms", "/modes"):
+        assert client.get(path).status_code == 404
+    for path in ("/sterimol", "/charges", "/dipole", "/vibrations", "/molecule_info", "/steriplot", "/batch_sterimol", "/features_set", "/api/parse-modes"):
+        assert client.post(path, json={}).status_code == 404
+    picker = (ROOT / "M2_data_extractor" / "atom_picker.html").read_text(encoding="utf-8")
+    assert '"/forms"' not in picker and "/modes" not in picker.split("FEATURE-EXPLORER:END")[-1]
 
 
 def test_xyz_from_feather_needs_input(client):

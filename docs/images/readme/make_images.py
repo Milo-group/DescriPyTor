@@ -1,5 +1,5 @@
 """The pictures of the README (the three pages and the hand-off between them), and the picker pictures of
-docs/visual-guide.md and the toolkit tutorial (docs/images/atom-picker.png, gui-picker.png, gui-features.png,
+docs/visual-guide.md and the toolkit tutorial (docs/images/atom-picker.png, gui-picker.png,
 sterimol-3d-view.png).
 
 Start the pages first, then run this with a Python that has playwright:
@@ -70,9 +70,6 @@ with sync_playwright() as p:
     bp.wait_for_function("typeof C !== 'undefined' && C && C.uploaded || /Could not/.test(document.getElementById('newstatus').textContent)", timeout=900000)
     print("picker says:", pg.evaluate("document.getElementById('lrStatus').textContent"))
     print("BASSA page:", bp.evaluate("C && C.uploaded ? C.title + ' | ' + C.n + ' compounds, ' + C.names.length + ' descriptors, ' + Object.keys(C.mols).length + ' structures' : document.getElementById('newstatus').textContent"))
-
-    # the form-based page of the visual guide
-    fp = ctx.new_page(); fp.goto(GUI + "/forms", wait_until="networkidle"); fp.wait_for_timeout(800); fp.screenshot(path=str(DOCS / "gui-features.png")); fp.close()
 
     # 4. the BASSA model explorer on that run
     bp.evaluate("() => { try { document.getElementById('guide').close(); } catch (e) {} }")

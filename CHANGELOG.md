@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.3 — 2026-10-12
+
+### Removed
+
+- The form-based page at `/forms` (`feature_extraction_gui.html`) and the eight server routes only it used (`/sterimol`,
+  `/charges`, `/dipole`, `/vibrations`, `/molecule_info`, `/steriplot`, `/batch_sterimol`, `/features_set`). The visual
+  extractor and the feature explorer do what it did.
+- The `/modes` route of the visual extractor's server. The vibration-mode viewer itself stays as the standalone tool
+  `python utils/mode_viewer.py --serve`.
+- The visual extractor no longer shows a disabled "Show 2D graph" button; the button appears only in a picker that was
+  built with a 2D graph.
+
 ## 0.3.2 — 2026-10-12
 
 ### Fixed

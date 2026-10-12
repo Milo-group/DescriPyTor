@@ -74,7 +74,7 @@ def get_local_setup_version():
         from descripytor import __version__ as version
         return version
     except Exception:
-        return "0.3.2"
+        return "0.3.3"
 
 __version__ = get_local_setup_version()
 

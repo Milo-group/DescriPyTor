@@ -5,7 +5,6 @@ Reuse:
   parse_hess          utils/orca_compare/.../vibration_tokenizer.py
   animation frames    utils/orca_compare/.../vibration_py3dmol.py
   Gallarati windows   ts_generator/parse_orca_imag.py
-  GUI 3Dmol styling   M2_data_extractor/feature_extraction_gui.html
 
 Usage:
   python utils/mode_viewer.py path/to/TSRE_R.hess --open
