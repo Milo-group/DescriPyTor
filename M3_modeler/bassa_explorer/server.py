@@ -59,10 +59,12 @@ def gui(page):
 
 
 def table(q):
-    t = pd.read_csv(io.StringIO(q["csv"])); t = t.set_index(t.columns[0]); t.index = t.index.astype(str)
+    t = pd.read_csv(io.StringIO(q["csv"])); t.columns = [str(c).strip() for c in t.columns]      # "name, a, y": the page trims the names it offers
+    t = t.set_index(t.columns[0]); t.index = t.index.astype(str).str.strip()
     if t.index.duplicated().any(): raise ValueError("compound names repeat: " + ", ".join(t.index[t.index.duplicated()][:5]))
     if q["response"] not in t.columns: raise ValueError("no column named " + q["response"])
-    y = pd.to_numeric(t[q["response"]], errors="coerce"); rows = y.notna(); X = t.drop(columns=[q["response"]]).apply(pd.to_numeric, errors="coerce").loc[rows]; y = y[rows]
+    y = pd.to_numeric(t[q["response"]], errors="coerce").replace([np.inf, -np.inf], np.nan); rows = y.notna()
+    X = t.drop(columns=[q["response"]]).apply(pd.to_numeric, errors="coerce").replace([np.inf, -np.inf], np.nan).loc[rows]; y = y[rows]      # inf is a missing value too
     if y.std() < 1e-12: raise ValueError("the response has the same value for every compound")
     bad = [c for c in X.columns if X[c].isna().any() or X[c].std() < 1e-9]; X = X.drop(columns=bad)
     if len(y) < 6 or X.shape[1] < 4: raise ValueError("need at least 6 compounds with a response and 4 usable descriptors (the prior expects three in a model); got %d and %d" % (len(y), X.shape[1]))

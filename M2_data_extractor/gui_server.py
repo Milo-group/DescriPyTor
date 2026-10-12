@@ -161,25 +161,15 @@ def _read_outcomes_csv(path):
 
 
 def example_outcomes_payload():
-    """Experimental y-values: folder outcomes.csv, else bundled Baptiste outcomes."""
+    """Measured outputs of the example set the page starts on: the outcomes.csv in that folder, if it has one.
+    Never another set's: the Baptiste outcomes used to be offered for the benzene set, and joined onto any table
+    whose compound names happened to match (p-Cl, p-NO2, ...)."""
     empty = {"rows": [], "y_column": "output", "name_column": "name"}
-    candidates = []
     example_dir = example_feather_dir()
-    if example_dir:
-        candidates.append(os.path.join(example_dir, "outcomes.csv"))
-    baptiste_dir = baptiste_example_dir()
-    if baptiste_dir:
-        candidates.append(os.path.join(baptiste_dir, "outcomes.csv"))
-    seen = set()
-    for path in candidates:
-        key = os.path.normcase(os.path.abspath(path))
-        if key in seen:
-            continue
-        seen.add(key)
-        payload = _read_outcomes_csv(path)
-        if payload.get("rows"):
-            return payload
-    return empty
+    if not example_dir:
+        return empty
+    payload = _read_outcomes_csv(os.path.join(example_dir, "outcomes.csv"))
+    return payload if payload.get("rows") else empty
 
 
 def _join_outcomes_into_df(df, rows, y_column="output"):
@@ -194,19 +184,21 @@ def _join_outcomes_into_df(df, rows, y_column="output"):
                 "name", "names", "molecule", "molecule_name", "mol", "compound",
             )
         ),
-        df.columns[0],
+        None,
     )
     by_norm = {}
     for row in rows:
         key = _norm_mol_name(row.get("name"))
         if key:
             by_norm[key] = row.get("output")
-    mapped = df[name_col].map(lambda value: by_norm.get(_norm_mol_name(value)))
+    # the extractor's table carries the compound names as its index, not as a column
+    names = df[name_col] if name_col is not None else df.index.to_series()
+    mapped = names.map(lambda value: by_norm.get(_norm_mol_name(value)))
     n_matched = int(mapped.notna().sum())
     if n_matched <= 0:
         return df, 0
     out = df.copy()
-    out[y_column] = mapped
+    out[y_column] = mapped.to_numpy()
     return out, n_matched
 
 
@@ -1395,17 +1387,16 @@ def _extract_empty_message(log_text):
 def _extract_success_payload(df, cfg, log_text):
     feather_dir = (cfg or {}).get("feather_dir") or ""
     local_outcomes = os.path.join(feather_dir, "outcomes.csv") if feather_dir else ""
-    if local_outcomes and os.path.isfile(local_outcomes):
-        rows = _read_outcomes_csv(local_outcomes).get("rows") or []
-    else:
-        rows = example_outcomes_payload().get("rows") or []
-    df, n_outcomes = _join_outcomes_into_df(df, rows)
+    rows = _read_outcomes_csv(local_outcomes).get("rows") or [] if local_outcomes and os.path.isfile(local_outcomes) else []
+    df, n_outcomes = _join_outcomes_into_df(df, rows)      # only this folder's own outcomes.csv
+    engine_errors = [ln.strip() for ln in str(log_text or "").splitlines() if ln.strip().startswith("[error]")]
     return {
         "n_mols": int(df.shape[0]),
         "n_features": int(df.shape[1]),
         "n_files": len(_list_feather_files(cfg["feather_dir"])),
         "n_outcomes": int(n_outcomes),
         "y_column": "output" if n_outcomes else "",
+        "engine_errors": engine_errors,       # an engine that failed gave no columns: the page says so beside the count
         "columns": [str(c) for c in df.columns],
         "index": [str(i) for i in df.index],
         "csv": df.to_csv(),
@@ -1535,42 +1526,53 @@ def extract():
 
 
 def _parse_pasted_outputs(text):
-    """Parse pasted targets: one number per line, comma-separated numbers, or name,value."""
-    text = (text or "").strip()
-    if not text:
+    """Pasted targets as [(name or None, value)]: one number per line (or one line of numbers), or name and value
+    per line separated by a comma, semicolon, tab or spaces. Raises ValueError naming the line it cannot read:
+    a skipped line used to move every later value up a row."""
+    import re
+
+    lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+    if not lines:
         return []
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    pairs = []
-    if len(lines) == 1 and "," in lines[0]:
-        parts = [p.strip() for p in lines[0].split(",") if p.strip()]
+
+    def number(token):
         try:
-            return [(None, float(p)) for p in parts]
-        except ValueError:
-            pass
-    for line in lines:
-        if "," in line:
-            name, _, rest = line.partition(",")
-            try:
-                pairs.append((name.strip(), float(rest.strip())))
-            except ValueError:
-                continue
-        else:
-            try:
-                pairs.append((None, float(line)))
-            except ValueError:
-                continue
+            return float(token)
+        except (TypeError, ValueError):
+            return None
+
+    if len(lines) == 1:
+        tokens = [t for t in re.split(r"[\s,;]+", lines[0]) if t]
+        if len(tokens) > 1 and all(number(t) is not None for t in tokens):
+            return [(None, float(t)) for t in tokens]
+    pairs = []
+    for k, line in enumerate(lines, 1):
+        value = number(line)
+        if value is not None:
+            pairs.append((None, value))
+            continue
+        m = re.match(r"^(.*?)\s*[\t,;]\s*(\S+)$", line) or re.match(r"^(.*\S)\s+(\S+)$", line)
+        value = number(m.group(2)) if m else None
+        if value is None or not m.group(1).strip():
+            raise ValueError(f"Line {k} of the pasted values is neither a number nor name,value: {line!r}")
+        pairs.append((m.group(1).strip(), value))
+    named = [p for p in pairs if p[0] is not None]
+    if named and len(named) != len(pairs):
+        raise ValueError("Pasted values mix lines with a name and lines without: give every line a name, or none.")
+    if named and all(number(n) is not None for n, _ in named):
+        raise ValueError("Every pasted name is a number (1,5 was read as name 1, value 5). Use a decimal point, "
+                         "one value per line.")
     return pairs
 
 
 def _merge_outputs_into_df(df, pairs, new_col_name):
-    """Add or overwrite new_col_name from (name, value) or (None, value) pairs."""
-    import pandas as pd
-
+    """Add or overwrite new_col_name from (name, value) or (None, value) pairs.
+    Unnamed values must be one per row. Named values are matched as outcomes.csv is (case, .feather, - and _ ignored);
+    a pasted name that matches no row is an error, a row without a value is left empty."""
     out = df.copy()
     if not pairs:
         return out
-    by_name = all(p[0] is not None for p in pairs)
-    if by_name:
+    if all(p[0] is not None for p in pairs):
         name_col = next(
             (
                 c
@@ -1581,12 +1583,19 @@ def _merge_outputs_into_df(df, pairs, new_col_name):
             ),
             out.columns[0],
         )
-        value_map = {str(n): v for n, v in pairs}
-        out[new_col_name] = out[name_col].astype(str).map(value_map)
+        value_map = {_norm_mol_name(n): v for n, v in pairs}
+        keys = out[name_col].map(_norm_mol_name)
+        unknown = [n for n, _ in pairs if _norm_mol_name(n) not in set(keys)]
+        if unknown:
+            raise ValueError("No row is named " + ", ".join(map(str, unknown[:8])) + ("..." if len(unknown) > 8 else "")
+                             + f" ({len(unknown)} of {len(pairs)} pasted names). Names are matched to the first column.")
+        out[new_col_name] = keys.map(value_map).to_numpy()
     else:
         values = [v for _, v in pairs]
-        series = pd.Series(values[: len(out)], index=out.index[: len(values)])
-        out[new_col_name] = series.reindex(out.index).values
+        if len(values) != len(out):
+            raise ValueError(f"{len(values)} values pasted for {len(out)} rows: give one per row, in the table's order, "
+                             "or name,value lines.")
+        out[new_col_name] = values
     return out
 
 
@@ -1750,6 +1759,9 @@ def _table_with_target(data):
             raise ValueError("Could not parse pasted values. Use one number per line or name,value.")
         y_name = new_col
         df = _merge_outputs_into_df(df, pairs, y_name)
+        for c in list(df.columns):            # an older output column with another name would otherwise be searched as a descriptor
+            if c != y_name and str(c).strip().lower() == "output":
+                df = df.drop(columns=[c])
     elif not y_name:
         raise ValueError("Choose a target column from the CSV, or paste output values.")
     return df, y_name

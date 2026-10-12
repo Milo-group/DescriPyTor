@@ -685,13 +685,17 @@ function layerInputs() {                    // the gated computations, done once
   L.axes.forEach((ax, j) => {
     if (ax.off) return;
     try {
-      const own = ax.on ? st.structs.find((s) => s.id === ax.on || s.name === ax.on) : null;   // a session names it
+      const named = ax.on ? st.structs.find((s) => s.id === ax.on || s.name === ax.on) : null;   // a session names it
+      if (ax.on && !named) throw new Error(`the structure ${ax.on} it was set on is not loaded`);   // never fall back onto another molecule
+      const own = named === st.structs[st.active] ? null : named;
       // Sterimol is invariant to rigid motion, so measuring the aligned coordinates puts the
       // whole construction in the reference structure's frame with no extra transform
       const on = own ? { el: own.mol.el, X: own.Xd, bonds: own.mol.bonds, types: own.mol.types } : mol;
       // block: atoms the fragment walk may not pass, as the package's block= does. A chelate
       // needs it, or the walk rounds the backbone and swallows the rest of the complex.
       const res = S.sterimol(on, ax.a, ax.b, { block: ax.block, drop: ax.dropAtoms });
+      // a linear molecule in a symmetric orientation has no third atom off the axis: the widths are not defined
+      if (![res.B1, res.B5, res.L].every(Number.isFinite)) throw new Error('Sterimol is not defined on this axis (every other atom lies on it)');
       const preview = st.scan && j === st.L.active ? (res.profile || []).find((p) => p.deg === st.scan.deg) || null : null;
       axes.push({ res, color: ax.color, show: ax.show, tag: ax.tag || '', j, preview, ink: ax.ink || null,
         label: `${st.structs.length > 1 ? (own || st.structs[st.active]).name + ' ' : ''}${lbl(ax.a, on.el)}→${lbl(ax.b, on.el)}`,
@@ -702,7 +706,9 @@ function layerInputs() {                    // the gated computations, done once
   let dipole = null, dipole2 = null;
   const dipOn = (spec, where) => {           // the frame on one structure; on a stacked one, in its aligned frame
     const o = selArg(spec.origin), y = selArg(spec.y), p = selArg(spec.plane);
-    const own = where ? st.structs.find((s) => s.id === where || s.name === where) : null;
+    const named = where ? st.structs.find((s) => s.id === where || s.name === where) : null;
+    if (where && !named) { errs.push(`Dipole frame: the structure ${esc(String(where))} is not loaded.`); return null; }
+    const own = named === st.structs[st.active] ? null : named;
     const M = own ? own.mol : mol, X = own ? own.Xd : mol.X;
     if (!M.dipole) { errs.push('The dipole frame needs the calculation: open the .feather or .log.'); return null; }
     if (o == null || y == null || p == null) { errs.push('Dipole frame: give an origin, an axis atom and a plane atom.'); return null; }
@@ -710,9 +716,10 @@ function layerInputs() {                    // the gated computations, done once
     if (bad.length) { errs.push(`Dipole frame: no atom ${bad.join(', ')}.`); return null; }
     // the vector was written in the file's own axes, so aligning the structure has to turn it too
     const R = own && own.Rm, mu = R ? R.map((r) => r[0] * M.dipole[0] + r[1] * M.dipole[1] + r[2] * M.dipole[2]) : M.dipole.slice(0, 3);
-    return { res: S.dipoleFrame(X, mu.concat(M.dipole[3]), o, y, p), originSet: Array.isArray(o) ? o : [],
-      show: spec.show, colors: spec.colors || null, atOrigin: !!spec.atOrigin, rawAxes: !!spec.rawAxes,
-      spokes: Array.isArray(o) ? o.map((a) => X[a - 1]) : [], keep: own ? [] : [].concat(o, y, p), onStruct: own ? own.id : '' };
+    const total = Number.isFinite(M.dipole[3]) ? M.dipole[3] : Math.hypot(mu[0], mu[1], mu[2]);
+    return { res: S.dipoleFrame(X, mu.concat(total), o, y, p), originSet: Array.isArray(o) ? o : [],
+      show: spec.show || {}, colors: spec.colors || null, atOrigin: !!spec.atOrigin, rawAxes: !!spec.rawAxes,
+      spokes: spec.spokes === false ? false : Array.isArray(o) ? o.map((a) => X[a - 1]) : [], keep: own ? [] : [].concat(o, y, p), onStruct: own ? own.id : '' };
   };
   if (L.dip.on) dipole = dipOn(L.dip, L.dip.onStruct || '');
   if (L.dip2 && L.dip2.on) dipole2 = dipOn(L.dip2, L.dip2.onStruct || '');
@@ -720,8 +727,8 @@ function layerInputs() {                    // the gated computations, done once
   const dipoles = (L.dips || []).filter((d) => d && d.on).map((d) => dipOn(d, d.onStruct || '')).filter(Boolean);
   // a site may name a stacked structure (on), as an axis does; one that names a structure not loaded is dropped, not moved
   const sites = L.sites.map((q) => {
-    const own = q.on ? st.structs.find((s) => s.id === q.on || s.name === q.on) : null;
-    if ((q.on && !own) || q.i < 1 || q.i > (own ? own.mol : mol).el.length) return null;
+    const named = q.on ? st.structs.find((s) => s.id === q.on || s.name === q.on) : null, own = named === st.structs[st.active] ? null : named;
+    if ((q.on && !named) || q.i < 1 || q.i > (own ? own.mol : mol).el.length) return null;
     return Object.assign({ i: q.i - 1, type: q.type, color: q.color }, own ? { onStruct: own.id, q: (own.mol.charges || {})[q.type], name: own.name } : {});
   }).filter(Boolean);
   const fade = new Set(selList(L.fade).map((k) => k - 1));
@@ -732,8 +739,8 @@ function layerInputs() {                    // the gated computations, done once
     mol.el.forEach((_, i) => { if (!keep.has(i)) fade.add(i); });
   }
   // L.marks: {atoms (1-based), text, color, on}: a value written along its atoms; one that names a structure not loaded is dropped
-  const marks = (L.marks || []).map((m) => { const own = m.on ? st.structs.find((s) => s.id === m.on || s.name === m.on) : null, n = (own ? own.mol : mol).el.length;
-    return (m.on && !own) || !(m.atoms || []).length || m.atoms.some((a) => !(a >= 1 && a <= n)) ? null : { atoms: m.atoms.map((a) => a - 1), text: String(m.text || ''), color: m.color || '#1F2937', ring: !!m.ring, onStruct: own ? own.id : '' }; }).filter(Boolean);
+  const marks = (L.marks || []).map((m) => { const named = m.on ? st.structs.find((s) => s.id === m.on || s.name === m.on) : null, own = named === st.structs[st.active] ? null : named, n = (own ? own.mol : mol).el.length;
+    return (m.on && !named) || !(m.atoms || []).length || m.atoms.some((a) => !(a >= 1 && a <= n)) ? null : { atoms: m.atoms.map((a) => a - 1), text: String(m.text || ''), color: m.color || '#1F2937', ring: !!m.ring, onStruct: own ? own.id : '' }; }).filter(Boolean);
   // L.arrows: {from, to, color}: arrows between points given in the active structure's coordinates (a vibration's displacements)
   return { axes, dipole, dipole2, dipoles, sites, marks, arrows: L.arrows || [], map: L.map && mol.charges && mol.charges[L.map] ? { type: L.map } : null, fade, legend: L.legend, fadeHide: L.fadeHide,
     labShift: L.labShift || {}, cones: L.cones || [], vburs: L.vburs || [], errs };
@@ -776,7 +783,7 @@ function writeVals() {
     const d = R.dipole.res, mu = SC.INKS[st.style.ink].mu;
     cells.push(cell('μ<sub>u</sub> D', d.dipole_y.toFixed(4), mu), cell('μ<sub>v</sub> D', d.dipole_x.toFixed(4)), cell('μ<sub>w</sub> D', d.dipole_z.toFixed(4)), cell('|μ| D', d.total.toFixed(4)));
   }
-  R.sites.forEach((q) => { const v = (q.onStruct ? q.q || [] : st.mol.charges[q.type])[q.i]; if (v == null) return; cells.push(cell(`q<sub>${QN[q.type] || q.type}</sub> ${q.onStruct ? q.name + ' ' + (q.i + 1) : lbl(q.i + 1)}`, (v >= 0 ? '+' : '') + v.toFixed(5), q.color)); });
+  R.sites.forEach((q) => { const v = (q.onStruct ? q.q || [] : (st.mol.charges || {})[q.type] || [])[q.i]; if (v == null) return; cells.push(cell(`q<sub>${QN[q.type] || q.type}</sub> ${q.onStruct ? q.name + ' ' + (q.i + 1) : lbl(q.i + 1)}`, (v >= 0 ? '+' : '') + v.toFixed(5), q.color)); });
   $('vals').innerHTML = cells.join('');
   $('vals').hidden = !cells.length;
   const dp = st.L.dip, nm = (t) => selList(t).map((k) => lbl(k)).join(', ') || '—';
@@ -810,7 +817,8 @@ function writeStatus() {
     lines.push('The dipole frame and charges need this structure&rsquo;s .feather or Gaussian .log.');
   lines.push('Drag to turn &middot; scroll to zoom &middot; click an atom for its options &middot; O orients to the active axis &middot; double-click empty space to reset.');
   setStatus(lines);
-  if (r) liveCheck(r);
+  const ax0 = activeAxis();                    // an axis on a stacked structure, or with block / drop, is not what the check computes
+  if (r && !(ax0 && (ax0.on || (ax0.block || []).length || (ax0.dropAtoms || []).length))) liveCheck(r);
 }
 function alignNote() {
   const others = st.structs.filter((_, k) => k !== st.active), ok = others.filter((s) => s.rmsd != null), bad = others.filter((s) => s.alignErr);
@@ -1061,18 +1069,27 @@ window.addEventListener('resize', () => { if (st.pop) placePop(st.pop); });
 
 // ---------- the session: one serializer behind the permalink, the session file and the exported SVG ----------
 function serialize() {
-  return { v: 1, active: st.active, align: st.align, sm: { q: st.sm.q, any: st.sm.any, all: st.sm.all }, L: st.L, view: { R: st.view.R, zoom: st.view.zoom, perA: st.view.perA }, style: st.style,
+  // A copy: panels of a sheet used to share st.L and st.style with the page and so with each other.
+  // `on` leaves as the structure's name: its id is minted again on every restore, and an axis whose id was not found
+  // was measured on the active structure with the other one's atom numbers.
+  const L = clone(st.L), nameOf = (w) => { const x = st.structs.find((q) => q.id === w); return x ? x.name : w; };
+  (L.axes || []).concat(L.sites || [], L.marks || []).forEach((x) => { if (x.on) x.on = nameOf(x.on); });
+  [L.dip, L.dip2].concat(L.dips || []).forEach((d) => { if (d && d.onStruct) d.onStruct = nameOf(d.onStruct); });
+  return { v: 1, active: st.active, align: clone(st.align), sm: { q: st.sm.q, any: st.sm.any, all: st.sm.all }, L, view: { R: st.view.R, zoom: st.view.zoom, perA: st.view.perA }, style: clone(st.style),
     structs: st.structs.map((x) => ({ name: x.name, key: x.key, xyz: x.entry.xyz, thr: x.entry.thr, color: x.color, on: x.on, own: x.own,
       energy: x.energy, dipole: x.mol.dipole, charges: x.mol.charges })) };
 }
 function restore(j, quiet = false) {
   if (!j || !Array.isArray(j.structs) || !j.structs.length) throw new Error('not a feature explorer session');
+  const L0 = Object.assign(emptyLayers(), j.L || {});      // a session written by hand may leave layers out
+  if (!Array.isArray(L0.axes) || !Array.isArray(L0.sites) || !L0.dip || typeof L0.dip !== 'object') throw new Error('this session has no usable layers');
+  L0.dip = Object.assign(emptyLayers().dip, L0.dip); L0.dip.show = L0.dip.show || {};
   st.structs = j.structs.map((x, k) => makeStruct({ key: x.key || 'session:' + x.name, name: x.name, xyz: x.xyz, dipole: x.dipole, charges: x.charges, energy: x.energy, thr: x.thr }, k));
   st.structs.forEach((x, k) => { const o = j.structs[k]; x.color = o.color || x.color; x.on = o.on !== false; x.own = o.own || ''; });
   st.active = Math.min(j.active || 0, st.structs.length - 1);
   Object.assign(st.align, j.align || {});
   useActive();
-  st.L = j.L; normLayers();
+  st.L = L0; normLayers();
   if (j.style) Object.assign(st.style, j.style);
   st.view = { R: (j.view && j.view.R) || principalAxes(st.mol.X), zoom: (j.view && j.view.zoom) || 1, perA: (j.view && j.view.perA) || 0 };
   Object.assign(st.sm, { q: '', hits: [], per: {}, k: 0 }, j.sm || {});
@@ -1304,7 +1321,7 @@ function pythonSnippet() {
   }
   (st.LR.sites || []).forEach((q) => {
     if (q.onStruct) return;                  // the script reproduces the active structure
-    const v = st.mol.charges[q.type][q.i];
+    const v = ((st.mol.charges || {})[q.type] || [])[q.i]; if (v == null) return;
     out.push(`assert round(float(m.charge_dict['${q.type}'].iloc[${q.i}, 0]), 5) == ${+v.toFixed(5)}   # q_${q.type} on ${lbl(q.i + 1)}`);
   });
   out.push('');
@@ -1836,7 +1853,7 @@ $('stFiles').addEventListener('change', async (e) => { const files = [...e.targe
 
 // ---------- the look (CYLview-style options, and the theta figure's own) ----------
 const STYLE_KEY = 'theta-explorer-style';
-st.style = (() => { try { return Object.assign({}, SC.STYLE, JSON.parse(localStorage.getItem(STYLE_KEY) || '{}')); } catch (e) { return Object.assign({}, SC.STYLE); } })();
+st.style = (() => { try { return Object.assign({}, SC.STYLE, FIG ? {} : JSON.parse(localStorage.getItem(STYLE_KEY) || '{}')); } catch (e) { return Object.assign({}, SC.STYLE); } })();   // a framed figure takes its look from the session it is sent
 const opts = (o) => Object.entries(o).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
 $('sLook').innerHTML = opts(SC.LOOKS) + '<option value="custom">Custom</option>';
 $('sPreset').innerHTML = opts(SC.PRESETS); $('sPalette').innerHTML = opts(SC.PALETTES); $('sInk').innerHTML = opts(SC.INKS);
@@ -1855,7 +1872,8 @@ function syncStyleUI() {
   $('ovCol').value = y.overlay; $('ovOp').value = y.overlayOpacity; $('ovOpV').textContent = (+y.overlayOpacity).toFixed(2);
 }
 function styleChanged(persist = true) {          // a preset's look belongs to that figure, not to the next one
-  if (persist) { try { localStorage.setItem(STYLE_KEY, JSON.stringify(st.style)); } catch (e) { /* storage may be off */ } }
+  if (persist && !FIG) { try { const keep = Object.assign({}, st.style); ['labelAtoms', 'dropLabels', 'touch'].forEach((k) => delete keep[k]);   // set by sessions, with no control to clear them
+    localStorage.setItem(STYLE_KEY, JSON.stringify(keep)); } catch (e) { /* storage may be off */ } }
   syncStyleUI(); writeVals(); redrawSoon();
 }
 $('styleCol').addEventListener('input', (e) => {

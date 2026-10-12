@@ -349,7 +349,7 @@ const predictAt = (F, cols, val) => F.b[0] + cols.reduce((s, i, j) => s + F.b[j 
 const active = () => st.model >= 0 ? C.models[st.model].cols : st.rows;      // what the molecule and the plot show
 const colourOf = (i) => { const k = active().indexOf(i); return k < 0 ? null : PAL[k % PAL.length]; };
 const hasSel = (m) => st.rows.every((r) => C.models[m].cols.includes(r));
-const passing = () => range(C.models.length).filter((m) => { const M = C.models[m]; return st.sizes.has(kOf(M)) && M.q2 >= st.minq && M.r2 >= st.minr; });
+const passing = () => range(C.models.length).filter((m) => { const M = C.models[m]; return st.sizes.has(kOf(M)) && (st.minq <= 0 || M.q2 >= st.minq) && (st.minr <= 0 || M.r2 >= st.minr); });
 const sigOf = (m) => [...new Set(C.models[m].cols.map((i) => fam[i]))].sort((a, b) => a - b).join(',');
 // the columns of the table: one per model, or one per group of models that are the same once every descriptor is replaced by its family
 function columns() {
@@ -540,7 +540,7 @@ function show(k, name, also) {
   if (!has) { $('n' + k).textContent = name ? `No structure for ${name}. Give a structures folder when running a table to see the descriptors on the molecule.` : ''; return []; }
   const { s, skipped, limits } = session(name, also || []), json = JSON.stringify(s), key = C.case + '|' + name + '|' + (also || []).join('|'), kl = C.mols[name].klass;
   $('t' + k).innerHTML = `<b>${esc(name)}</b>${kl ? ' · ' + esc(kl) : ''}${C.ligands.includes(name) ? '' : ' · external'} · ${yOf(name).toFixed(2)}` + s.structs.slice(1).map((t) => ` &nbsp;+&nbsp; <b style="color:${t.color}">${esc(t.name)}</b> · ${yOf(t.name).toFixed(2)}`).join('') +
-    (s.L.axes.some((a) => !a.on) ? `<br><span class="lab">Sterimol axis, start → end: ${s.L.axes.filter((a) => !a.on).map((a) => `<b style="color:${a.color}">${xyzOf(name)[a.a - 1][0]}${a.a} → ${xyzOf(name)[a.b - 1][0]}${a.b}</b>`).join(' · ')}. Lengths and loc B5 are counted from the start atom.</span>` : '') +
+    (s.L.axes.some((a) => !a.on) ? `<br><span class="lab">Sterimol axis, start → end: ${s.L.axes.filter((a) => !a.on).map((a) => `<b style="color:${a.color}">${(xyzOf(name)[a.a - 1] || [''])[0]}${a.a} → ${(xyzOf(name)[a.b - 1] || [''])[0]}${a.b}</b>`).join(' · ')}. Lengths and loc B5 are counted from the start atom.</span>` : '') +
     (limits && limits.length ? `<br><span class="lab">Sterimol on every compound; ${limits.join('; ')}. Click another compound in the plot to make it the first.</span>` : '');
   if (f.ready && json !== f.json) { f.el.contentWindow.postMessage({ type: 'bassa:session', s, keepView: f.key === key }, '*'); f.key = key; f.json = json; }
   if (k === 0) $('open').href = 'feature_explorer.html#s=' + btoa(unescape(encodeURIComponent(json)));

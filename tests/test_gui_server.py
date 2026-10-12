@@ -757,3 +757,37 @@ def test_a_server_from_before_the_update_is_not_reused():
     assert not gs._gui_payload_is_current(old)
     assert gs._gui_payload_is_current({"ok": True, "api": gs.GUI_API})
     assert _load_app().test_client().get("/status").get_json()["api"] == gs.GUI_API
+
+
+def test_pasted_outputs_are_read_strictly():
+    """A line that cannot be read stops the paste; it used to be skipped, moving every later value up a row."""
+    from M2_data_extractor.gui_server import _merge_outputs_into_df, _parse_pasted_outputs as parse
+    import pandas as pd
+    import pytest
+
+    assert parse("1.5\n2\n3") == [(None, 1.5), (None, 2.0), (None, 3.0)]
+    assert parse("a,1.5\nb\t2\nc 3") == [("a", 1.5), ("b", 2.0), ("c", 3.0)]
+    for bad in ("1.5\nn.d.\n3", "a,1\n2", "1,5\n2,5"):
+        with pytest.raises(ValueError):
+            parse(bad)
+    df = pd.DataFrame({"name": ["MOL_0", "mol-1", "x.feather"], "f": [1, 2, 3]})
+    assert _merge_outputs_into_df(df, parse("mol-0,1\nMOL_1,2\nX,3"), "y")["y"].tolist() == [1.0, 2.0, 3.0]
+    with pytest.raises(ValueError, match="No row is named"):
+        _merge_outputs_into_df(df, parse("zz,1"), "y")
+    with pytest.raises(ValueError, match="2 values pasted for 3 rows"):
+        _merge_outputs_into_df(df, parse("1\n2"), "y")
+
+
+def test_outcomes_come_only_from_the_folder_they_sit_in():
+    """Another set's measured outputs were offered for the example and joined onto any table with matching names."""
+    import M2_data_extractor.gui_server as gs
+    import pandas as pd
+
+    assert gs.example_outcomes_payload()["rows"] == []            # the benzene example has no outcomes.csv
+    assert _load_app().test_client().get("/status").get_json()["example_outcomes"] == []
+    table = pd.DataFrame({"f": [1.0, 2.0]}, index=["p-Cl", "m_Br"])    # the extractor's table: names are the index
+    out, n = gs._join_outcomes_into_df(table, [{"name": "P_cl", "output": 0.3}])
+    assert n == 1 and out.loc["p-Cl", "output"] == 0.3
+    payload = gs._extract_success_payload(table, {"feather_dir": str(ROOT / "descripytor" / "examples" / "feather_example")}, "[error] engine 'x' failed: boom")
+    assert payload["n_outcomes"] == 0 and "output" not in payload["columns"]
+    assert payload["engine_errors"] == ["[error] engine 'x' failed: boom"]

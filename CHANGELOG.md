@@ -4,6 +4,30 @@
 
 ### Fixed
 
+- **Measured outputs from another data set are never used.** The bundled Baptiste outcomes were pasted into the Model
+  tab for the benzene example, and joined onto any extracted table whose compound names matched theirs (p-Cl, p-NO2,
+  ...). After an extraction without outcomes the page also filled invented values. Now only an `outcomes.csv` in the
+  extracted folder is joined, as the column `output`, and the paste box holds only what you paste.
+- Pasted outputs are read strictly: a line that cannot be read stops the paste (it was skipped, moving every later value
+  up a row); the count must match the rows; a pasted name that matches no row is an error; names are matched ignoring
+  case, `.feather`, and `-` against `_`; tab, semicolon and space separators work. A target column chosen together with
+  pasted values is refused instead of quietly preferring the paste.
+- An engine that failed during extraction is named beside the result; the status used to stay green.
+- Every picked Dipole frame is exported; with two picked, only one left the page.
+- Buried volume: the atom and the radius that are drawn are the ones exported.
+- Loading a molecule with fewer atoms than an existing Dipole pick no longer breaks the page; a vibration that was
+  playing stops; an unfinished group does not carry over. Picks are restored with their molecule after a reload.
+- The "labels" box of the feature preview works; the numbering check includes Dipole atoms given as groups.
+- Feature explorer: a saved session or permalink kept an axis on its stacked structure by an id that changes on reload,
+  so it was re-measured on the active structure with the other one's atom numbers. Sessions now name the structure.
+  A layer naming a structure that is not loaded is reported, not moved onto another molecule. Sheet panels no longer
+  share their layers and look. A dipole given as three components, a linear molecule, a charge site on a structure
+  without charges and a session without layers no longer stop the page. The Python check is not run for axes it does
+  not compute (stacked, blocked). A framed figure neither reads nor stores a look in the browser.
+- BASSA model explorer: a column named `B1`, `L`, ... was labelled as the Wu–Doyle ligand's ("on Ni→P") in every table;
+  atom names with two-letter elements (`q_cm5[Cl12]`) are read; a column whose whole spread is below 1e-4 was sent to
+  the page as zeros; the Q² and R² sliders at zero hid models with negative values; header names with spaces and
+  cells holding `inf` are handled; an atom number beyond a compound's atoms no longer stops the page.
 - Visual extractor: the dipole arrow was switched on whenever the loaded file carried a dipole, and its origin jumped to
   whatever atom was clicked last, in any field. It is now off until you tick **Dipole** or pick a Dipole frame, and it
   starts at the Dipole pick's origin, or at the centre of the molecule when there is none.

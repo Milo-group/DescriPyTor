@@ -58,9 +58,9 @@ with sync_playwright() as p:
     # 3. extract, give the outputs, hand over
     pg.evaluate("extractFeatures()")
     pg.wait_for_function("lastExtractCsv.length > 0", timeout=300000)
-    pg.evaluate("(t) => { showOutTab('model'); document.getElementById('lrOutputs').value = t; }", OUTCOMES)
+    pg.evaluate("showOutTab('model')")          # the folder's outcomes.csv was joined by the server as the column 'output'
     pg.wait_for_timeout(500)
-    print("outputs given:", len(pg.evaluate("document.getElementById('lrOutputs').value").splitlines()), "lines")
+    print("target column:", pg.evaluate("document.getElementById('lrTargetCol').value"), "| paste box empty:", pg.evaluate("document.getElementById('lrOutputs').value") == "")
     pg.locator("#bassaBtn").scroll_into_view_if_needed()
     pg.screenshot(path=str(HERE / "handoff.png"))
     with ctx.expect_page() as new:

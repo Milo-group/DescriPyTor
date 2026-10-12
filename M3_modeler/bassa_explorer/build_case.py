@@ -22,14 +22,14 @@ CASES = {"cs2": dict(title="Cobalt C–H annulation · Ackermann (Dana et al. 20
          "cs3_cp": dict(title="Copper cyclopropanation · Corminboeuf and Waser (Schoepfer et al. 2024)", unit="kcal/mol", response="ΔΔG‡ (higher = more selective)"),
          "wu_doyle": dict(title="Nickel Suzuki coupling of acetals · Wu and Doyle (2017)", unit="%", response="yield")}
 WD = V5 / "notes/wu_doyle_cs"; SEEDS = (7, 11, 13)                              # the first seed is the run that is shown; the others only give the spread of the frequencies
-LABELS = {"B1": "B1 on Ni→P", "B5": "B5 on Ni→P", "L": "L on Ni→P", "loc_B5": "loc B5 on Ni→P", "theta": "θ on Ni→P", "dipole_metal_y": "dipole along Ni→P", "dipole_metal_x": "dipole in-plane ⟂ Ni→P",
-          "dipole_metal_z": "dipole out-of-plane ⟂ Ni→P", "dipole_total": "dipole magnitude", "vmin": "Vmin", "vbur_percent": "%Vbur", "cone_angle": "cone angle"}
+LABELS = {"dipole_metal_y": "dipole along metal→donor", "dipole_metal_x": "dipole in-plane ⟂ metal→donor",
+          "dipole_metal_z": "dipole out-of-plane ⟂ metal→donor", "dipole_total": "dipole magnitude", "vmin": "Vmin", "vbur_percent": "%Vbur", "cone_angle": "cone angle"}
 LOOKS = {"wu_doyle": dict(hydrogens="none", labelScale=1.2, muPerD=5.0, vdwOpacity=0.08)}
 SHOW = {"B1": "b1", "B5": "b5", "loc_B5": "loc", "theta": "theta", "phi": "theta", "B1_B5_angle": "theta", "L": "L",
         "loc_B1": "b1", "B1_tangent_atoms": "b1", "B1_B5_azimuth": "theta", "B1_B5_acute": "theta"}          # the last three: columns the extractor writes beside the classic five
 ROLE = {"M": "M", "D": "D", "Cs": "C*", "R": "R", "Rp": "R′"}; PAIRS = {"MCs": "M Cs", "DCs": "D Cs", "CsR": "Cs R", "MD": "M D", "MR": "M R", "DR": "D R", "fromM": "M D", "sub": "Cs R", "RRp": "R Rp"}
-A = r"\w(\d+)"                                                                   # an atom in a column name: element letter and number
-PI_MARKS = [(rf"pi_share\[{A}\|{A}=\w\d+\]", "pi_share", "π on atom ", 1, " %"), (rf"pistar_occ\[{A}={A}\]", "pistar_occ", "π* occ ", 3, " e"),
+A = r"[A-Za-z]*(\d+)"                                                                   # an atom in a column name: element letter and number
+PI_MARKS = [(rf"pi_share\[{A}\|{A}=[A-Za-z]*\d+\]", "pi_share", "π on atom ", 1, " %"), (rf"pistar_occ\[{A}={A}\]", "pistar_occ", "π* occ ", 3, " e"),
             (rf"E2_pi_to_aryl\[{A}={A}\|{A}\]", "E2_out", "E2 π→aryl ", 1, " kcal/mol"), (rf"E2_aryl_to_pistar\[{A}={A}\|{A}\]", "E2_in", "E2 aryl→π* ", 1, " kcal/mol"),
             (rf"stretch\[{A}[=-]{A}\]", "stretch", "ν ", 0, " cm⁻¹"), (rf"ring_hi\[{A}\]", "ring_hi", "ring ν ", 0, " cm⁻¹"), (rf"ring_lo\[{A}\]", "ring_lo", "ring ν′ ", 0, " cm⁻¹"),
             (rf"E2_conjugation\[{A}-{A}\]", "E2_conj", "E2 conj. ", 1, " kcal/mol"), (rf"E2_O_to_pistar\[{A}\|{A}={A}\]", "E2_O", "E2 O→π* ", 1, " kcal/mol"), (rf"polarizability\[{A}->{A}\]", "alpha", "α∥ ", 0, " bohr³")]
@@ -67,7 +67,7 @@ LABELS.update(iso="isotropic polarizability", aniso="polarizability anisotropy",
 def drawing(c):
     """what the explorer should draw for a column name; None when the name is not one it can place.
     Platform names carry atom numbers. Metal-complex names carry roles (metal, donor, stereocentre, substituent) that each compound resolves itself."""
-    m = re.fullmatch(r"ster_(\w+)\[C(\d+)->C(\d+)\]", c) or re.fullmatch(r"(B1|B5|L|loc_B5|loc_B1|B1_tangent_atoms|B1_B5_angle|B1_B5_azimuth|B1_B5_acute)_(\d+)-(\d+)", c)
+    m = re.fullmatch(r"ster_(\w+)\[[A-Za-z]*(\d+)->[A-Za-z]*(\d+)\]", c) or re.fullmatch(r"(B1|B5|L|loc_B5|loc_B1|B1_tangent_atoms|B1_B5_angle|B1_B5_azimuth|B1_B5_acute)_(\d+)-(\d+)", c)
     if m and m.group(1) in SHOW: return dict(kind="sterimol", a=int(m.group(2)), b=int(m.group(3)), flag=SHOW[m.group(1)])
     m = re.fullmatch(r"(%s)_(theta|phi|B1|B5|L|loc_B5)_(sym|asym)" % "|".join(PAIRS), c)
     if m: a, b = PAIRS[m.group(1)].split(); return dict(kind="sterimol", ra=a, rb=b, flag=SHOW[m.group(2)], arms=m.group(3))
@@ -75,9 +75,9 @@ def drawing(c):
     m = re.fullmatch(r"dipole_metal_([xyz])", c)
     if m: return dict(kind="dipole", comp=dict(y="u", x="v", z="w")[m.group(1)], ro="M", ry="D", rp="Pl")
     if c == "dipole_total": return dict(kind="dipole_total", ro="M", ry="D", rp="Pl")
-    m = re.fullmatch(r"q_(cm5|nbo|hirshfeld)\[\w(\d+)\]", c) or re.fullmatch(r"(cm5|nbo|hirshfeld)_atom_(\d+)", c)
-    if m: return dict(kind="charge", i=int(m.group(2)), type=m.group(1))
-    m = re.fullmatch(r"mu_([xyz])\[\w(\d+)->\w(\d+)\|\w(\d+)\]", c)
+    m = re.fullmatch(r"q_(cm5|nbo|hirshfeld)\[[A-Za-z]*(\d+)\]", c) or re.fullmatch(r"(cm5|nbo|hirshfeld)_atom_(\d+)", c)
+    if m and int(m.group(2)) >= 1: return dict(kind="charge", i=int(m.group(2)), type=m.group(1))      # atoms are numbered from 1
+    m = re.fullmatch(r"mu_([xyz])\[[A-Za-z]*(\d+)->[A-Za-z]*(\d+)\|[A-Za-z]*(\d+)\]", c)
     if m: return dict(kind="dipole", comp=dict(y="u", x="v", z="w")[m.group(1)], origin=int(m.group(2)), y=int(m.group(3)), plane=int(m.group(4)))   # y runs origin -> y atom (the explorer's u)
     m = re.fullmatch(r"dipole_([xyz])_(\d+)-(\d+)-(\d+)", c)                 # the extractor's own names: dipole_x_1-2-19 is origin 1, y-axis atom 2, plane atom 19
     if m: return dict(kind="dipole", comp=dict(y="u", x="v", z="w")[m.group(1)], origin=int(m.group(2)), y=int(m.group(3)), plane=int(m.group(4)))
@@ -88,18 +88,18 @@ def drawing(c):
         if g.group(1) == "total_dipole": return dict(kind="dipole_total", origin=o, y=int(g.group(3)), plane=int(g.group(4)))
         return dict(kind="dipole", comp=dict(y="u", x="v", z="w")[g.group(1)[-1]], origin=o, y=int(g.group(3)), plane=int(g.group(4)))
     if m: return dict(kind="dipole_total", origin=int(m.group(1)), y=int(m.group(2)), plane=int(m.group(3)))
-    m = re.fullmatch(r"\d+_(bond_length|angle|dihedral)_\[?([\d, -]+)\]?", c)
+    m = re.fullmatch(r"(?:\d+_)?(bond_length|angle|dihedral)_\[?([\d, -]+)\]?", c)
     if m: return dict(kind=m.group(1), atoms=[int(v) for v in re.findall(r"\d+", m.group(2))])
-    m = re.fullmatch(r"pi_occ\[\w(\d+)=\w(\d+)\]", c)
+    m = re.fullmatch(r"pi_occ\[[A-Za-z]*(\d+)=[A-Za-z]*(\d+)\]", c)
     if m: return dict(kind="mark", what="pi_occ", atoms=[int(m.group(1)), int(m.group(2))], prefix="π occ ", dec=3, unit=" e")
     for pat, what, prefix, dec, unit in PI_MARKS:
         m = re.fullmatch(pat, c)
         if m: return dict(kind="mark", what=what, atoms=[int(v) for v in m.groups()], prefix=prefix, dec=dec, unit=unit)
-    m = re.fullmatch(r"atomic_dipole\[\w(\d+)\|\w(\d+)->\w(\d+)\]", c)
+    m = re.fullmatch(r"atomic_dipole\[[A-Za-z]*(\d+)\|[A-Za-z]*(\d+)->[A-Za-z]*(\d+)\]", c)
     if m: return dict(kind="mark", what="atomic_dipole", at=int(m.group(1)), atoms=[int(m.group(2)), int(m.group(3))], prefix="μ(%s) " % m.group(1), dec=3, unit=" a.u.")
     m = re.fullmatch(r"(cm5|nbo|hirshfeld)_diff_(\d+)-(\d+)", c)
     if m: return dict(kind="charge_diff", type=m.group(1), i=int(m.group(2)), j=int(m.group(3)))
-    m = re.fullmatch(r"mu_([xyz])\[ring->\w(\d+)\]", c)          # shortcut: the ring is taken as the six atoms numbered from the named one (true for CS1's aryl ring, 23 to 28); a table numbered otherwise needs the ring's atoms in the name
+    m = re.fullmatch(r"mu_([xyz])\[ring->[A-Za-z]*(\d+)\]", c)          # shortcut: the ring is taken as the six atoms numbered from the named one (true for CS1's aryl ring, 23 to 28); a table numbered otherwise needs the ring's atoms in the name
     if m: n = int(m.group(2)); return dict(kind="dipole", comp=dict(y="u", x="v", z="w")[m.group(1)], origin="%d-%d" % (n, n + 5), y=n, plane=1)
     return {"mu_total": dict(kind="dipole_total"), "q_metal": dict(kind="atoms", roles=["M"]), "bite": dict(kind="atoms", roles=["D", "M"]), "MD_mean": dict(kind="atoms", roles=["M", "D"]), "MD_asym": dict(kind="atoms", roles=["M", "D"]),
             "a_R_Cstereo_N_sym": dict(kind="atoms", roles=["R", "Cs", "D"], angle=True), "a_R_Cstereo_N_asym": dict(kind="atoms", roles=["R", "Cs", "D"], angle=True),
@@ -215,7 +215,7 @@ def compute(X, y, iters=20000, case="uploaded", unit="", response="response", ti
     more = np.array([f["freq"].to_numpy()] + [E.fit(X, y, iters=iters, seed=sd)["freq"].reindex(names).fillna(0.0).to_numpy() for sd in seeds[1:]])
     extra = dict(freq_lo=more.min(0).tolist(), freq_hi=more.max(0).tolist(), chains=len(seeds)); extra.update(folds(X, y, E, iters) if with_folds else {})
     return dict(**extra, case=case, title=title or case, n=n, names=names, freq=s.mean(1).tolist(), joint=np.round(joint, 4).tolist(), corr=np.round(np.nan_to_num(np.corrcoef(Z.T)), 3).tolist(), models=out, n_distinct=int(len(counts)),
-                iterations=int(s.shape[1]), shown_share=float(counts[order[:TOP]].sum() / s.shape[1]), y=dict(zip(lig, yv.tolist())), X={c: X[c].round(4).tolist() for c in names}, ligands=lig, unit=unit, response=response,
+                iterations=int(s.shape[1]), shown_share=float(counts[order[:TOP]].sum() / s.shape[1]), y=dict(zip(lig, yv.tolist())), X={c: [float("%.6g" % v) for v in X[c]] for c in names}, ligands=lig, unit=unit, response=response,
                 draw=draw, label=[label(c, w) for c, w in zip(names, draw)], desc=[describe(c, w) for c, w in zip(names, draw)])
 
 
@@ -302,7 +302,7 @@ def external(case, names):
         a = pd.read_csv(WD / "tables/wu_doyle_sterimol_dipole.csv").set_index("ligand"); b = pd.read_csv(WD / "tables/wu_doyle_table2.csv").set_index("ligand"); ext = list(a.index[b.loc[a.index, "role"] == "heldout"])
         X = pd.concat([a, b.loc[a.index, ["vmin", "vbur_percent", "cone_angle"]]], axis=1).loc[ext, names]; y = b.loc[ext, "yield_percent"].astype(float)
     else: return None
-    return dict(names=ext, X={c: X[c].round(4).tolist() for c in names}, y=y.tolist())
+    return dict(names=ext, X={c: [float("%.6g" % v) for v in X[c]] for c in names}, y=y.tolist())
 
 
 def case_file(c):

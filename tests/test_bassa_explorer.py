@@ -175,3 +175,18 @@ def test_an_older_server_on_the_port_is_not_reused(other_server):
             "r = c.post('/bassa_explorer/handoff', json={'csv': csv, 'y_column': 'y'}); assert r.status_code == 503 and 'older' in r.get_json()['error'], r.data\n") % str(ROOT)
     r = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, r.stderr[-800:]
+
+
+def test_names_and_tables_from_the_review():
+    code = (
+        "import io, numpy as np, pandas as pd, build_case as B, server as S\n"
+        "assert B.drawing('q_cm5[Cl12]')['i'] == 12 and B.drawing('q_cm5[12]')['i'] == 12 and B.drawing('nbo_atom_0') is None\n"
+        "assert B.drawing('ster_B1[N5->C6]')['a'] == 5 and B.drawing('bond_length_1-2')['atoms'] == [1, 2]\n"
+        "assert 'Ni' not in B.label('B1', B.drawing('B1'))\n"
+        "t = pd.DataFrame({'name': ['m%d' % i for i in range(8)], ' a': range(8), 'b ': [i * i % 7 for i in range(8)], 'c': [i * 3 % 5 for i in range(8)],\n"
+        "                  'd': [i * 5 % 11 for i in range(8)], 'e': [1.0, 2, 3, np.inf, 5, 6, 7, 8], ' y ': [i % 4 + 0.5 * i for i in range(8)]})\n"
+        "X, y, bad, skipped = S.table(dict(csv=t.to_csv(index=False), response='y'))\n"
+        "assert list(X.columns) == ['a', 'b', 'c', 'd'] and bad == ['e'] and np.isfinite(X.to_numpy()).all()\n"
+    )
+    r = subprocess.run([sys.executable, "-c", code], cwd=str(TOOL), capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr[-800:]

@@ -681,7 +681,7 @@
           ln(g.base, g.S, 'sx-shadow', ink.theta));
         if (full) over.push(ln(g.S, g.v, 'sx-perp', ink.theta), path(g.right, 'sx-right', ` stroke="${ink.right}"`, false));
         over.push(...marked(g.base, g.v, ink.draft ? 'sx-v' : 'sx-v dash', ink.b5, { w: 2.8 }),
-          `<circle class="sx-ring" cx="${f1(pv[0])}" cy="${f1(pv[1])}" r="${f1(rb(r.b5) + 3)}" stroke="${ink.b5}"/>`,
+          `<circle class="sx-ring" cx="${f1(pv[0])}" cy="${f1(pv[1])}" r="${f1(rbOf((ax.onStruct && structs.find((q) => q.id === ax.onStruct)) || structs[0], r.b5) + 3)}" stroke="${ink.b5}"/>`,
           `<circle cx="${f1(pb[0])}" cy="${f1(pb[1])}" r="2.4" fill="${ink.theta}"/>`);
         lab.along(pb, pS); lab.along(pS, pv); lab.along(pb, pv); lab.circles.push([pS[0], pS[1], 9]);
         jobs.push([0, () => {                // theta gets the best spot: across the shadow from v, by the arc
@@ -834,7 +834,7 @@
       const ink = DL.colors ? Object.assign({}, ink0, DL.colors) : ink0;
       const sh = DL.show || {}, O = dpx.origin, po = pr(O);
       const axs = [['v', dpx.basis[0], dpx.dipole_x], ['u', dpx.basis[1], dpx.dipole_y], ['w', dpx.basis[2], dpx.dipole_z]];
-      if ((DL.originSet || []).length > 1) (DL.spokes || DL.originSet.map((a) => X[a - 1])).forEach((p) => over.push(ln(O, p, 'dp-spoke', ink.origin)));
+      if ((DL.originSet || []).length > 1 && DL.spokes !== false) (DL.spokes || DL.originSet.map((a) => X[a - 1])).forEach((p) => over.push(ln(O, p, 'dp-spoke', ink.origin)));
       if (sh.frame !== false) axs.forEach(([k, b]) => {
         const tip = add(O, scl(b, 1.7)), p = pr(add(O, scl(b, 1.95)));
         over.push(ln(O, tip, 'dp-ax', ink[k], ` marker-end="${mk(ink[k])}"`),
