@@ -1,4 +1,6 @@
-"""The four pictures of the README: the three pages and the hand-off between them.
+"""The pictures of the README (the three pages and the hand-off between them), and the picker pictures of
+docs/visual-guide.md and the toolkit tutorial (docs/images/atom-picker.png, gui-picker.png, gui-features.png,
+sterimol-3d-view.png).
 
 Start the pages first, then run this with a Python that has playwright:
 
@@ -10,12 +12,14 @@ It goes through the bundled set that has measured outputs (descripytor/examples/
 Extract CSV, its outcomes, Model in BASSA explorer.
 """
 import json
+import shutil
 import sys
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
 HERE = Path(__file__).resolve().parent
+DOCS = HERE.parent                                   # docs/images: pictures the other manuals use
 EX = HERE.parents[2] / "descripytor" / "examples" / "baptiste_products"
 PRESETS = json.loads((EX / "presets.json").read_text(encoding="utf-8"))
 OUTCOMES = chr(10).join((EX / "outcomes.csv").read_text(encoding="utf-8").strip().splitlines()[1:])      # name,value lines
@@ -31,6 +35,7 @@ with sync_playwright() as p:
     pg.wait_for_selector("#fig svg .hit")
     pg.wait_for_timeout(800)
     pg.screenshot(path=str(HERE / "feature_explorer.png"))
+    pg.locator("#figwrap").screenshot(path=str(DOCS / "sterimol-3d-view.png"))        # the tutorial's Sterimol picture: the figure alone
 
     # 2. the visual extractor with the example picks drawn
     pg.goto(GUI + "/visual", wait_until="networkidle")
@@ -47,6 +52,8 @@ with sync_playwright() as p:
         buildSterPairOptions(); highlight(); }""", [str(EX).replace(chr(92), "/"), PRESETS["atoms"]])
     pg.wait_for_timeout(1500)
     pg.screenshot(path=str(HERE / "visual_extractor.png"))
+    for name in ("atom-picker.png", "gui-picker.png"):                                 # the same view, under the names the tutorials use
+        shutil.copyfile(HERE / "visual_extractor.png", DOCS / name)
 
     # 3. extract, give the outputs, hand over
     pg.evaluate("extractFeatures()")
@@ -63,6 +70,9 @@ with sync_playwright() as p:
     bp.wait_for_function("typeof C !== 'undefined' && C && C.uploaded || /Could not/.test(document.getElementById('newstatus').textContent)", timeout=900000)
     print("picker says:", pg.evaluate("document.getElementById('lrStatus').textContent"))
     print("BASSA page:", bp.evaluate("C && C.uploaded ? C.title + ' | ' + C.n + ' compounds, ' + C.names.length + ' descriptors, ' + Object.keys(C.mols).length + ' structures' : document.getElementById('newstatus').textContent"))
+
+    # the form-based page of the visual guide
+    fp = ctx.new_page(); fp.goto(GUI + "/forms", wait_until="networkidle"); fp.wait_for_timeout(800); fp.screenshot(path=str(DOCS / "gui-features.png")); fp.close()
 
     # 4. the BASSA model explorer on that run
     bp.evaluate("() => { try { document.getElementById('guide').close(); } catch (e) {} }")

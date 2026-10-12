@@ -16,7 +16,7 @@ cd DescriPyTor
 conda create -n descripytor python=3.10
 conda activate descripytor
 pip install -e .
-descripytor visual
+descripytor visual_extractor
 ```
 
 Then open **http://127.0.0.1:7432** (the 3D picker). The form-only GUI is http://127.0.0.1:7432/forms.
@@ -31,7 +31,7 @@ conda install -c conda-forge rdkit
 
 Then run the GUI server again.
 
-**Optional desktop window** (older Tk app): `pip install -e ".[gui]"` then `descripytor gui`.
+**The other two pages**: `descripytor feature_explorer` draws any descriptor on a molecule; `descripytor bassa_explorer` shows a Bayesian model search beside the molecule (new tables need `pip install -e ".[bassa]"`). All three link to each other, and `descripytor --help` lists every command.
 
 ---
 
@@ -39,7 +39,7 @@ Then run the GUI server again.
 
 Example molecules ship with the package (10 substituted benzenes, including `basic.feather`). A second set of 18 Baptiste products is also bundled.
 
-**In the picker:** set the feather folder (or **Use example set**), click atoms, then **Extract CSV**. The **Model** tab adds an output column (choose one or paste values) and runs linear regression. Atom numbers are **1-based** (Gaussian style). The viewer loads `basic.feather` from the example set.
+**In the picker:** set the feather folder (or **Use example set**), click atoms, then **Extract CSV**. The **Model** tab adds an output column (choose one or paste values) and runs linear regression, or **Model in BASSA explorer** sends the table on in one click. Atom numbers are **1-based** (Gaussian style). The viewer loads `basic.feather` from the example set.
 
 **Python**
 

@@ -4,6 +4,8 @@ A page that puts BASSA's output beside the molecule. Columns are the models the 
 the feature explorer on the right draws the selected descriptors on a compound of the set. It is a way of looking at a run,
 not an analysis: nothing here changes a reported number.
 
+![The BASSA model explorer: descriptors against the models the sampler visited, and the shown model drawn on a compound](images/readme/bassa_explorer.png)
+
 ## Start
 
     descripytor bassa_explorer
@@ -31,6 +33,14 @@ the cases folder:
     python M3_modeler/bassa_explorer/build_case.py attach <case> <folder> ["title"] ["response"] ["unit"]
     python M3_modeler/bassa_explorer/build_case.py export [cases]      writes explorer_standalone.html in the cases folder
     python M3_modeler/bassa_explorer/test_page.py                      the page's click-through test, in headless Chrome
+
+## From the visual extractor, in one click
+
+In `descripytor visual_extractor`, after **Extract CSV**, open the **Model** tab, choose the target column or paste the
+measured values, and press **Model in BASSA explorer**. The table, the target and the feather folder are handed over,
+this page opens in a new tab and the run starts.
+
+![The visual extractor's Model tab with the button Model in BASSA explorer](images/readme/handoff.png)
 
 ## Your own table
 
