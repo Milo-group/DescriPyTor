@@ -747,3 +747,16 @@ def test_handoff_needs_a_table_and_a_target():
     assert "Extract features first" in client.post("/bassa_explorer/handoff", json={}).get_json()["error"]
     r = client.post("/bassa_explorer/handoff", json={"csv": "name,a\nm1,1\nm2,2\n"})
     assert r.status_code == 400 and "target" in r.get_json()["error"]
+
+
+def test_the_extraction_engine_is_inside_the_package():
+    """Extract CSV runs descriptor_extractor; an installed package has no examples folder, so it must sit in M2_data_extractor."""
+    app = _load_app()
+    import M2_data_extractor.gui_server as gs
+    dx = gs._load_descriptor_extractor()
+    assert Path(dx.__file__).resolve().parent == ROOT / "M2_data_extractor"
+    assert (ROOT / "M2_data_extractor" / "feature_packages.py").is_file()
+    import subprocess, sys
+    old = ROOT / "Getting_started_with_examples" / "descriptor_extraction_toolkit"
+    code = "import sys; sys.path.insert(0, %r); import descriptor_extractor as d, feature_packages as f; assert d.run_from_config and f" % str(old)
+    assert subprocess.run([sys.executable, "-c", code]).returncode == 0      # the toolkit's old import path still works

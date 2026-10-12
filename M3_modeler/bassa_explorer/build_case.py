@@ -82,6 +82,11 @@ def drawing(c):
     m = re.fullmatch(r"dipole_([xyz])_(\d+)-(\d+)-(\d+)", c)                 # the extractor's own names: dipole_x_1-2-19 is origin 1, y-axis atom 2, plane atom 19
     if m: return dict(kind="dipole", comp=dict(y="u", x="v", z="w")[m.group(1)], origin=int(m.group(2)), y=int(m.group(3)), plane=int(m.group(4)))
     m = re.fullmatch(r"total_dipole_(\d+)-(\d+)-(\d+)", c)
+    g = re.fullmatch(r"(dipole_[xyz]|total_dipole)_\{([\d,]+)\}-(\d+)-(\d+)", c)        # the origin as the centroid of several atoms: dipole_x_{23,24,25,26,27,28}-23-1
+    if g:
+        o = ", ".join(g.group(2).split(","))
+        if g.group(1) == "total_dipole": return dict(kind="dipole_total", origin=o, y=int(g.group(3)), plane=int(g.group(4)))
+        return dict(kind="dipole", comp=dict(y="u", x="v", z="w")[g.group(1)[-1]], origin=o, y=int(g.group(3)), plane=int(g.group(4)))
     if m: return dict(kind="dipole_total", origin=int(m.group(1)), y=int(m.group(2)), plane=int(m.group(3)))
     m = re.fullmatch(r"\d+_(bond_length|angle|dihedral)_\[?([\d, -]+)\]?", c)
     if m: return dict(kind=m.group(1), atoms=[int(v) for v in re.findall(r"\d+", m.group(2))])
@@ -129,7 +134,7 @@ def label(c, w):
     if w["kind"] == "mark" and w["what"] in PI_NAME: return PI_NAME[w["what"]] % tuple(w["atoms"])
     if w["kind"] == "mark": return "π-bond occupancy, %d=%d (NBO)" % tuple(w["atoms"]) if w["what"] == "pi_occ" else "atomic dipole of atom %d, along %d→%d (Hirshfeld)" % (w["at"], *w["atoms"])
     if w["kind"] == "charge_diff": return "%s charge, atom %d minus atom %d" % (QN[w["type"]], w["i"], w["j"])
-    if w["kind"] == "dipole": return "dipole %s %s→%d" % (dict(u="along", v="in-plane ⟂", w="out-of-plane ⟂")[w["comp"]], "ring %s centre" % w["origin"].replace("-", "–") if isinstance(w["origin"], str) else w["origin"], w["y"])
+    if w["kind"] == "dipole": return "dipole %s %s→%d" % (dict(u="along", v="in-plane ⟂", w="out-of-plane ⟂")[w["comp"]], ("ring %s centre" % w["origin"].replace("-", "–") if "," not in w["origin"] else "centre of atoms %s" % w["origin"]) if isinstance(w["origin"], str) else w["origin"], w["y"])
     if w["kind"] == "dipole_total": return "dipole magnitude"
     return w["kind"].replace("_", " ") + " " + "–".join(map(str, w["atoms"]))
 
@@ -152,7 +157,7 @@ def describe(c, w):
     if w and w["kind"] == "dipole":
         how = dict(u="along", v="perpendicular to, in the plane of,", w="perpendicular to, out of the plane of,")[w["comp"]]
         if "ro" in w: return "The component of the molecular dipole %s the metal to donor axis. %s%s" % (how, WORDS, col)
-        start = "the centre of ring %s" % w["origin"] if isinstance(w["origin"], str) else "atom %d" % w["origin"]
+        start = ("the centre of ring %s" if "," not in w["origin"] else "the centre of atoms %s") % w["origin"] if isinstance(w["origin"], str) else "atom %d" % w["origin"]
         return "The component of the molecular dipole %s the axis from %s to atom %d; atom %d fixes the plane.%s" % (how, start, w["y"], w["plane"], col)
     if w and w["kind"] == "mark" and w["what"] in PI_SAY: return PI_SAY[w["what"]] % tuple(w["atoms"]) + col
     if w and w["kind"] == "mark" and w["what"] == "pi_occ": return "The number of electrons in the π bonding orbital between atoms %d and %d (the NBO labelled BD(2)). A full, localized π bond holds 2; a lower value means more of it has leaked into the neighbouring π system, so a more conjugated double bond.%s" % (*w["atoms"], col)
@@ -342,7 +347,8 @@ if __name__ == "__main__":
     if sys.argv[1] == "relabel":                                                # build_case.py relabel: names, hover notes, drawings, R′ and the reaction scheme again for every kept case, from its column names; no run is repeated
         for case in json.loads((C / "manifest.js").read_text(encoding="utf-8").split("=", 1)[1].rstrip(";\n ")):
             f = case_file(case); t = f.read_text(encoding="utf-8")
-            if f.parent != C: continue                                          # the bundled example is not rewritten; d = json.loads(t[t.index("] = ") + 4:-2]); d["draw"] = [drawing(c) for c in d["names"]]
+            if f.parent != C: continue                                          # the bundled example is not rewritten
+            d = json.loads(t[t.index("] = ") + 4:-2]); d["draw"] = [drawing(c) for c in d["names"]]
             d["label"] = [label(c, w) for c, w in zip(d["names"], d["draw"])]; d["desc"] = [describe(c, w) for c, w in zip(d["names"], d["draw"])]; sc = scheme(case)
             if sc: d["scheme"] = sc
             for m in (d.get("mols") or {}).values():

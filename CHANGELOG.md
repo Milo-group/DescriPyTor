@@ -4,6 +4,9 @@
 
 ### Changed
 
+- The extraction engine behind **Extract CSV** (`descriptor_extractor.py`, `feature_packages.py`) moved from the examples
+  folder into `M2_data_extractor/`: an installed package did not have it, so Extract CSV failed outside a clone.
+  The old files forward to the new ones.
 - BASSA model explorer: the columns `descripytor extractor` and the visual extractor write are drawn on the molecule:
   `dipole_x/y/z_<origin>-<y>-<plane>` and `total_dipole_…`, `loc_B1_`, `B1_tangent_atoms_`, `B1_B5_azimuth_`,
   `B1_B5_acute_`, and the vibration columns (`Frequency_Stretch_a_b`, `Frequency_Bending_a-b`, `cross_`/`para_` and

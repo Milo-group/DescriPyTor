@@ -227,13 +227,9 @@ def _is_placeholder_path(path):
 
 
 def _load_descriptor_extractor():
-    here = os.path.dirname(os.path.abspath(__file__))
-    root = os.path.dirname(here)
-    toolkit = os.path.join(
-        root, "Getting_started_with_examples", "descriptor_extraction_toolkit"
-    )
-    if os.path.isdir(toolkit) and toolkit not in sys.path:
-        sys.path.insert(0, toolkit)
+    here = os.path.dirname(os.path.abspath(__file__))       # the engine is in this folder, so an installed package has it
+    if here not in sys.path:
+        sys.path.insert(0, here)
     import descriptor_extractor as dx  # noqa: WPS433
 
     return dx

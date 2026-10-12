@@ -32,7 +32,7 @@ Modeled after the R package *MoleculaR* ([docs](https://barkais.github.io/)).
 
 ## Install
 
-Python 3.10 or 3.11. A conda environment is the easiest way to get RDKit.
+Python 3.9 to 3.11 (3.10 is what we test most). A conda environment is the easiest way to get RDKit.
 
 ```bash
 conda create -n descripytor python=3.10 -y
@@ -264,7 +264,7 @@ model = LinearRegressionModel(
      "target_csv_filepath": str(folder / "outcomes.csv")},
     process_method="two csvs", y_value="output",
     min_features_num=2, max_features_num=2)
-top = model.search_models(top_n=5, threshold=0.5)
+top = model.search_models(top_n=5, threshold=0.5)   # prints the ranked models, then asks which one to plot
 ```
 
 One molecule, one descriptor at a time:
