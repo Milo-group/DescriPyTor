@@ -1754,12 +1754,8 @@ def main():
     parser = argparse.ArgumentParser(prog="descripytor", description="DescriPyTor")
     subparsers = parser.add_subparsers(dest="command")
 
-    # Subcommand for running the GUI app
-    gui_parser = subparsers.add_parser(
-        "gui", help="Legacy desktop window (Tk). Prefer 'visual'."
-    )
     visual_parser = subparsers.add_parser(
-        "visual", help="Open the 3D atom picker in a browser"
+        "visual_extractor", aliases=["visual"], help="Open the 3D atom picker in a browser"
     )
     visual_parser.add_argument(
         "--no-browser",
@@ -1823,15 +1819,12 @@ def main():
     if args.command == "theta":
         run_visual_app(host=args.host, port=args.port, open_browser=not args.no_browser,
                        page=theta_page(args.mol, args.preset))
-    elif args.command == "visual":
+    elif args.command in ("visual_extractor", "visual"):
         run_visual_app(
             host=args.host,
             port=args.port,
             open_browser=not args.no_browser,
         )
-    elif args.command == "gui":
-        run_gui_app()
-        
     elif args.command == "logs_to_feather":
         _load_runtime_dependencies()
         log_dir = input("Enter the path to the log files directory: ")

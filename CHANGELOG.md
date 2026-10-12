@@ -4,6 +4,16 @@
 
 ### Changed
 
+- `get_ring_vibrations`: a mode is considered only if at least half of its heavy-atom motion sits on the
+  requested ring (`min_ring_share=0.5`; `None` restores the old pick). In a molecule with a second ring
+  the old pick could be that ring's mode: on the 33 Lucas ligands 19 pyridine-ring picks change, on the
+  CS1 aryl ring 2 of 17. Rings that are the only ring of their kind are unaffected.
+- `get_ring_vibrations` accepts a five-membered ring: `cross` and `para` are then the higher and lower of
+  its two ring C-C stretching modes (new `ring_stretch_pair`), with NaN angles.
+- `get_bend_vibration`: a mode is considered only if at least 30% of its motion sits on the two end atoms
+  and their shared centre (`min_share=0.3`; `None` restores the old pick), and the row is NaN when none
+  qualifies. The old pick could jump between unrelated modes across a set of molecules.
+
 - `MetalComplex`: the arm's (C\*, R) pair no longer depends on the atom order of the file
   (`STEREOCENTRE_RULE = "alpha"`, [docs/STERIMOL_FIXES.md](docs/STERIMOL_FIXES.md) #12). Values change for
   arms with several equally sized substituents (`a_R_Cstereo_N` on unsubstituted arms) and for P-aryl

@@ -634,6 +634,77 @@ def reindex_and_preserve(df, new_index_order):
         return pd.concat([reindexed_part, non_reindexed_part])
 
 
+def mode_share(vibration_dict, atoms, symbols=None):
+    """Share of every mode's motion that sits on ``atoms`` (1-based).
+
+    With ``symbols`` only heavy atoms are counted, so hydrogens riding on a ring do not dilute a
+    ring mode. Returns an array over the modes. A picker that looks only at the requested atoms
+    cannot tell a ring mode from a mode of another ring that barely moves them; this can.
+    """
+    keys = sorted(vibration_dict, key=lambda k: int(str(k).rsplit("_", 1)[1]))
+    numbers = [int(str(k).rsplit("_", 1)[1]) for k in keys]
+    weight = np.stack([(np.asarray(vibration_dict[k], float) ** 2).sum(1) for k in keys], axis=1)
+    if symbols is not None:
+        keep = np.array([symbols[n - 1] != "H" for n in numbers])
+    else:
+        keep = np.ones(len(numbers), bool)
+    wanted = set(int(a) for a in atoms)
+    on = np.array([n in wanted for n in numbers])
+    total = weight[:, keep].sum(1)
+    return np.divide(weight[:, keep & on].sum(1), total, out=np.zeros_like(total), where=total > 0)
+
+
+def rings_through(bonds_df, start, size):
+    """Every ring of ``size`` atoms through ``start`` (1-based), each in ring order from ``start``."""
+    G = nx.Graph()
+    for _, row in bonds_df.iterrows():
+        G.add_edge(int(row.iloc[0]), int(row.iloc[1]))
+    start = int(start)
+    if start not in G:
+        return []
+    found = {}
+
+    def walk(path):
+        if len(path) == size:
+            if start in G[path[-1]]:
+                found.setdefault(frozenset(path), path)
+            return
+        for nb in sorted(G[path[-1]]):
+            if nb not in path:
+                walk(path + [nb])
+
+    walk([start])
+    return sorted(found.values(), key=sorted)
+
+
+def ring_stretch_pair(info_df, coordinates_array, vibration_dict, bonds_df, symbols, ring,
+                      window=(1400.0, 1750.0), min_share=0.6, min_character=0.15):
+    """The two highest ring C-C stretching modes of ``ring`` (1-based atoms), for any ring size.
+
+    A mode qualifies when it sits on the ring (heavy-atom share above ``min_share``) and stretches
+    the ring's C-C bonds (summed squared bond stretch above ``min_character``). For benzene this
+    is the pair near 1650 cm-1; for thiophene, the out-of-phase and in-phase C=C stretches.
+    Returns ``(high, low, share_high, share_low)`` or ``None`` when fewer than two modes qualify.
+    """
+    freq = np.asarray(info_df["Frequency"], float)
+    share = mode_share(vibration_dict, ring, symbols)
+    coords = np.asarray(coordinates_array, float)
+    members = set(int(a) for a in ring)
+    bonds = {tuple(sorted((int(r.iloc[0]), int(r.iloc[1])))) for _, r in bonds_df.iterrows()}
+    bonds = [(a, b) for a, b in bonds if a in members and b in members and symbols[a - 1] == "C" and symbols[b - 1] == "C"]
+    character = np.zeros(len(freq))
+    for a, b in bonds:
+        unit = coords[b - 1] - coords[a - 1]
+        unit = unit / np.linalg.norm(unit)
+        rel = np.asarray(vibration_dict[f"vibration_atom_{b}"], float) - np.asarray(vibration_dict[f"vibration_atom_{a}"], float)
+        character += (rel @ unit) ** 2
+    ok = np.where((freq >= window[0]) & (freq <= window[1]) & (share > min_share) & (character > min_character))[0]
+    if len(ok) < 2:
+        return None
+    hi, lo = sorted(ok[np.argsort(-freq[ok])[:2]], key=lambda k: -freq[k])
+    return float(freq[hi]), float(freq[lo]), float(share[hi]), float(share[lo])
+
+
 def six_rings_through(G, start):
     """Every six-membered ring through ``start``, each as its atoms in ring order from ``start``."""
     found = {}

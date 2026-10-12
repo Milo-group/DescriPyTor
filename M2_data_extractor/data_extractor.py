@@ -1272,6 +1272,7 @@ class Molecule:
         inten_max = None,
         return_nan_on_empty: bool = True,   # if True -> return a NaN row when filters empty
         verbose: bool = True,
+        min_ring_share: Optional[float] = 0.5,
         **filter_kwargs,                    # still passed to get_filtered_ring_df
     ) -> pd.DataFrame:
         """
@@ -1283,6 +1284,15 @@ class Molecule:
 
         freq_min/freq_max : float or None
             Optional min/max threshold for vibrational frequency (cm^-1).
+
+        min_ring_share : float or None
+            A mode is considered only if at least this share of its heavy-atom motion sits on
+            the requested ring. Without it, a molecule with a second ring can return that other
+            ring's mode. ``None`` restores the behaviour before October 2026.
+
+        A five-membered ring has no para position; for one, ``cross`` is the higher and
+        ``para`` the lower of its two ring C-C stretching modes (``ring_stretch_pair``), and
+        both angles are NaN.
 
         inten_min/inten_max : float or None
             Optional min/max threshold for vibrational intensity (a.u. or km/mol).
@@ -1339,6 +1349,18 @@ class Molecule:
 
         def _process_one(atom_set):
             # Resolve benzene partner indices
+            symbols = list(self.xyz_df["atom"])
+            if get_benzene_ring_indices(self.bonds_df, atom_set) is None:
+                five = rings_through(self.bonds_df, atom_set[0], 5)
+                if len(atom_set) > 1:
+                    five = [r for r in five if int(atom_set[1]) in r]
+                if five:
+                    pair = ring_stretch_pair(self.info_df, self.coordinates_array, self.vibration_dict,
+                                             self.bonds_df, symbols, five[0])
+                    if pair is None:
+                        return _nan_row(atom_set) if return_nan_on_empty else None
+                    return pd.DataFrame([[pair[0], np.nan, pair[1], np.nan]],
+                                        columns=["cross", "cross_angle", "para", "para_angle"])
             try:
                 z, x, c, v, b, n = get_benzene_ring_indices(self.bonds_df, atom_set)
                 ring_atom_indices_group = [[z, x], [c, v], [b, n]]
@@ -1361,6 +1383,12 @@ class Molecule:
                 if verbose:
                     print(f"[ERROR] get_filtered_ring_df failed for {atom_set}: {e}")
                 return None
+
+            # keep only modes that live on this ring
+            if min_ring_share is not None and filtered_df is not None and not filtered_df.empty:
+                share = mode_share(self.vibration_dict, [z, x, c, v, b, n], symbols)
+                on_ring = share[filtered_df["index"].astype(int).to_numpy()] >= float(min_ring_share)
+                filtered_df = filtered_df[on_ring].reset_index(drop=True)
 
             # NEW: apply min/max thresholds (freq/intensity)
             filtered_df = _apply_thresholds(filtered_df)
@@ -1438,7 +1466,15 @@ class Molecule:
     #         max_frequency_vibration = max_frequency_vibration.rename(index={index_max: f'Bending_{atom_pair[0]}-{atom_pair[1]}'})
     #         return max_frequency_vibration
 
-    def get_bend_vibration_single(self, atom_pair: List[int], threshold: Optional[float] = None) -> pd.DataFrame:
+    def get_bend_vibration_single(self, atom_pair: List[int], threshold: Optional[float] = None,
+                                  min_share: Optional[float] = 0.3) -> pd.DataFrame:
+        """The bending mode of the two end atoms about their shared centre.
+
+        ``min_share``: a mode is considered only if at least this share of its motion sits on the
+        two ends and their common neighbours; otherwise the largest cross product can belong to
+        an unrelated mode. ``None`` restores the behaviour before October 2026. When no mode
+        qualifies the row is NaN.
+        """
         threshold = BEND_MIN_FREQUENCY if threshold is None else threshold
         atom_pair = [int(a) for a in atom_pair]
         if len(atom_pair) == 3:          # an angle a-b-c (the forms GUI picks triplets): bend its two ends
@@ -1468,6 +1504,16 @@ class Molecule:
 
         extended_df['Cross_mag'] = cross_mag_list
         extended_df.reset_index(drop=True, inplace=True)
+
+        if min_share is not None:
+            centres = set(adjacency_dict.get(atom_pair[0], [])) & set(adjacency_dict.get(atom_pair[1], []))
+            share = mode_share(self.vibration_dict, list(atom_pair) + [int(c) for c in centres])
+            freqs = np.asarray(self.info_df['Frequency'], float)
+            mode = [int(np.argmin(np.abs(freqs - f))) for f in extended_df['Frequency'].astype(float)]
+            extended_df = extended_df[share[mode] >= float(min_share)].reset_index(drop=True)
+            if extended_df.empty:
+                return pd.DataFrame([[np.nan, np.nan]], columns=['Frequency', 'Cross_mag'],
+                                    index=[f'Bending_{atom_pair[0]}-{atom_pair[1]}'])
 
         index_max = extended_df['Cross_mag'].idxmax()
 

@@ -46,3 +46,10 @@ def test_help_functions_does_not_import_ipywidgets():
             for alias in node.names:
                 if alias.name.split(".", 1)[0] == "ipywidgets":
                     raise AssertionError("utils.help_functions must not import ipywidgets at module level")
+
+
+def test_visual_extractor_is_the_name_and_gui_is_gone():
+    result = _run("--help")
+    assert "visual_extractor" in result.stdout
+    assert _run("visual_extractor", "--help").returncode == 0
+    assert _run("gui").returncode != 0

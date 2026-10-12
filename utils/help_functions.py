@@ -156,7 +156,11 @@ class GeneralConstants(Enum):
     
     ATOMIC_NUMBERS ={
     '1':'H', '5':'B', '6':'C', '7':'N', '8':'O', '9':'F', '14':'Si',
-             '15':'P', '16':'S', '17':'Cl', '35':'Br', '53':'I', '27':'Co', '28':'Ni'}
+             '15':'P', '16':'S', '17':'Cl', '35':'Br', '53':'I', '27':'Co', '28':'Ni',
+              # metals and other elements that used to come out as NaN (a Pd complex lost its metal)
+              '3':'Li', '11':'Na', '12':'Mg', '13':'Al', '19':'K', '20':'Ca', '22':'Ti', '23':'V', '24':'Cr', '25':'Mn', '26':'Fe',
+              '29':'Cu', '30':'Zn', '33':'As', '34':'Se', '40':'Zr', '42':'Mo', '44':'Ru', '45':'Rh', '46':'Pd', '47':'Ag',
+              '50':'Sn', '74':'W', '77':'Ir', '78':'Pt', '79':'Au'}
         
 
     ATOMIC_WEIGHTS = {

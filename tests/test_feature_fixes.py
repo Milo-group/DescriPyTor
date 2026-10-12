@@ -80,3 +80,38 @@ def test_a_bend_triplet_means_its_two_ends(mol):
     by_pair = _quiet(mol.get_bend_vibration_single, [a, c])
     by_triplet = _quiet(mol.get_bend_vibration_single, [a, centre, c])
     assert np.allclose(by_pair.to_numpy(float), by_triplet.to_numpy(float))
+
+
+def test_ring_modes_sit_on_the_ring(mol):
+    """A ring pick must be a mode of that ring (fix of 2026-10-08), with or without a second ring."""
+    from M2_data_extractor.extractor_utils.vibrations_utils import mode_share
+
+    ring = [c for c in nx.cycle_basis(_graph(mol)) if len(c) == 6][0]
+    out = _quiet(mol.get_ring_vibrations, [ring[0]], verbose=False)
+    share = mode_share(mol.vibration_dict, ring, list(mol.xyz_df.atom))
+    freq = mol.info_df["Frequency"].to_numpy(float)
+    for value in out.iloc[0][["cross", "para"]]:
+        assert share[int(np.argmin(np.abs(freq - float(value))))] >= 0.5
+
+
+def test_mode_share_is_a_fraction(mol):
+    from M2_data_extractor.extractor_utils.vibrations_utils import mode_share
+
+    everything = list(range(1, len(mol.xyz_df) + 1))
+    assert np.allclose(mode_share(mol.vibration_dict, everything), 1.0)
+    part = mode_share(mol.vibration_dict, everything[:3])
+    assert (part >= 0).all() and (part <= 1).all()
+
+
+def test_five_membered_ring_returns_its_stretch_pair():
+    """The CS1 thiophene substrate: needs the paper archive, skipped without it."""
+    import os
+
+    archive = os.environ.get("DESCRIPYTOR_ARCHIVE")
+    path = Path(archive) / "raw" / "case_study_1_mazet" / "thiophene.feather" if archive else None
+    if path is None or not path.is_file():
+        pytest.skip("set DESCRIPYTOR_ARCHIVE")
+    m = _quiet(Molecule, str(path))
+    out = _quiet(m.get_ring_vibrations, [23], verbose=False)
+    assert out.iloc[0]["cross"] == pytest.approx(1626.55, abs=0.05)
+    assert out.iloc[0]["para"] == pytest.approx(1537.20, abs=0.05)

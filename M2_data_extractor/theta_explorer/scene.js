@@ -429,7 +429,7 @@
     const P0 = (p) => { const d = dif(p, c); return [dot(Rv[0], d), dot(Rv[1], d), dot(Rv[2], d)]; };
     const zr = Math.max(1, ...allX.map((p) => Math.abs(P0(p)[2])));
     const proj = (p) => { const q = P0(p), f = 1 / (1 - kp * Math.max(-1.5, Math.min(0.9, q[2] / zr))); return [q[0] * f, q[1] * f, q[2], f]; };
-    const insets = axes.filter((ax) => on(ax, 'inset') || on(ax, 'phi')), profiles = axes.filter((ax) => on(ax, 'profile'));
+    const insets = axes.filter((ax) => on(ax, 'inset') || (on(ax, 'phi') && sty.phiInset !== false)), profiles = axes.filter((ax) => on(ax, 'profile'));   // phiInset false: the main view is already end-on
     const IS = 132, PW = 168, PH = 88, insW = insets.length || profiles.length ? IS - 50 : 0;   // they sit in the right margin, partly
     const fit = allX.concat(ends).map(proj), xs = fit.map((q) => q[0]), ys = fit.map((q) => q[1]);
     const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
