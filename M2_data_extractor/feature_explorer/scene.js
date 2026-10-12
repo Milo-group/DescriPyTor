@@ -913,12 +913,14 @@
       `q<tspan dy="2.6" font-size="0.72em">${QNAME[q0.type] || q0.type}</tspan>${V ? `<tspan dy="-2.6"> ${q >= 0 ? '+' : '&#8722;'}${Math.abs(q).toFixed(3)}</tspan>` : ''}`, 'lab q', fill(colr), [x, y])]);
     });
 
+    (L.arrows || []).forEach((w) => over.push(ln(w.from, w.to, 'dp-ax', w.color || ink0.text, ` marker-end="${mk(w.color || ink0.text)}"`)));
     (L.marks || []).forEach((m) => {
       const t = m.onStruct ? structs.find((s) => s.id === m.onStruct) : structs[0];
       if (!t || !t.P || m.atoms.some((i) => !t.P[i] || t.hidden.has(i))) return;
       const pts = m.atoms.map((i) => t.P[i]), colr = ink0.mono ? ink0.text : m.color, cx = pts.reduce((s, p) => s + p[0], 0) / pts.length, cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
       over.push(`<polyline class="mk-line" points="${pts.map((p) => f1(p[0]) + ',' + f1(p[1])).join(' ')}" stroke="${colr}"/>`);
-      jobs.push([12, () => lab.put([[cx, cy - 12, 'middle'], [cx, cy + 20, 'middle'], [cx + 14, cy + 4, 'start'], [cx - 14, cy + 4, 'end'], [cx, cy - 26, 'middle'], [cx, cy + 34, 'middle'],
+      if (m.ring) m.atoms.forEach((i) => over.push(`<circle class="q-ring" cx="${f1(t.P[i][0])}" cy="${f1(t.P[i][1])}" r="${f1(rbOf(t, i) + 4)}" stroke="${colr}"/>`));
+      if (m.text) jobs.push([12, () => lab.put([[cx, cy - 12, 'middle'], [cx, cy + 20, 'middle'], [cx + 14, cy + 4, 'start'], [cx - 14, cy + 4, 'end'], [cx, cy - 26, 'middle'], [cx, cy + 34, 'middle'],
         [cx + 26, cy - 12, 'start'], [cx - 26, cy - 12, 'end'], [cx + 26, cy + 20, 'start'], [cx - 26, cy + 20, 'end'], [cx, cy - 40, 'middle'], [cx, cy + 48, 'middle'],
         [cx + 40, cy - 26, 'start'], [cx - 40, cy - 26, 'end'], [cx + 40, cy + 34, 'start'], [cx - 40, cy + 34, 'end'], [cx, cy - 54, 'middle'], [cx, cy + 62, 'middle']], esc(m.text), 'lab mk', fill(colr), [cx, cy])]);
     });

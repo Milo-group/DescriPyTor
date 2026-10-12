@@ -731,8 +731,9 @@ function layerInputs() {                    // the gated computations, done once
   }
   // L.marks: {atoms (1-based), text, color, on}: a value written along its atoms; one that names a structure not loaded is dropped
   const marks = (L.marks || []).map((m) => { const own = m.on ? st.structs.find((s) => s.id === m.on || s.name === m.on) : null, n = (own ? own.mol : mol).el.length;
-    return (m.on && !own) || !(m.atoms || []).length || m.atoms.some((a) => !(a >= 1 && a <= n)) ? null : { atoms: m.atoms.map((a) => a - 1), text: String(m.text || ''), color: m.color || '#1F2937', onStruct: own ? own.id : '' }; }).filter(Boolean);
-  return { axes, dipole, dipole2, dipoles, sites, marks, map: L.map && mol.charges && mol.charges[L.map] ? { type: L.map } : null, fade, legend: L.legend, fadeHide: L.fadeHide,
+    return (m.on && !own) || !(m.atoms || []).length || m.atoms.some((a) => !(a >= 1 && a <= n)) ? null : { atoms: m.atoms.map((a) => a - 1), text: String(m.text || ''), color: m.color || '#1F2937', ring: !!m.ring, onStruct: own ? own.id : '' }; }).filter(Boolean);
+  // L.arrows: {from, to, color}: arrows between points given in the active structure's coordinates (a vibration's displacements)
+  return { axes, dipole, dipole2, dipoles, sites, marks, arrows: L.arrows || [], map: L.map && mol.charges && mol.charges[L.map] ? { type: L.map } : null, fade, legend: L.legend, fadeHide: L.fadeHide,
     labShift: L.labShift || {}, cones: L.cones || [], vburs: L.vburs || [], errs };
 }
 
