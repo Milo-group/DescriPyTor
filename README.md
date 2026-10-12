@@ -37,20 +37,17 @@ Python 3.10 or 3.11. A conda environment is the easiest way to get RDKit.
 ```bash
 conda create -n descripytor python=3.10 -y
 conda activate descripytor
-pip install descripytor            # or, from a clone:  pip install -e ".[dev]"
-descripytor --help
-```
-
-From a clone (to change the code, run the tests, or use the case-study scripts):
-
-```bash
 git clone https://github.com/Milo-group/DescriPyTor.git
 cd DescriPyTor
 pip install -e ".[dev]"
-pytest tests -q
+descripytor --help
+pytest tests -q                    # optional: the test suite
 ```
 
-Optional extras, added the same way (`pip install "descripytor[bassa]"`, or `pip install -e ".[bassa]"` from a clone):
+Or without a clone: `pip install git+https://github.com/Milo-group/DescriPyTor.git`. The release on PyPI
+(`pip install descripytor`) is older than this page and does not have the three pages described below.
+
+Optional extras, added the same way (`pip install -e ".[bassa]"`):
 
 | Extra | Unlocks |
 |---|---|
@@ -182,7 +179,7 @@ descriptors, and the feature explorer on the right draws the descriptors of the 
   single HTML that opens without a server.
 - Shift-click compounds in the plot to stack them, each with its own values.
 
-Running a new table needs the sampler: `pip install "descripytor[bassa]"`, or point `--bassa-python` (or the
+Running a new table needs the sampler: `pip install -e ".[bassa]"`, or point `--bassa-python` (or the
 environment variable `DESCRIPYTOR_BASSA_PYTHON`) at a Python that has `bassa-reg`. Without it the page still opens the
 example and every kept case. **The corrected sampler core is the default**: the released `bassa-reg` core is wrong
 when descriptors are correlated, and the package runs its own corrected copy
