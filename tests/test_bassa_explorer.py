@@ -121,3 +121,57 @@ def test_the_extractor_s_own_column_names_are_drawn():
     )
     r = subprocess.run([sys.executable, "-c", code], cwd=str(TOOL), capture_output=True, text=True)
     assert r.returncode == 0, r.stderr[-600:]
+
+
+@pytest.fixture()
+def other_server():
+    """Something else on a port: no /status of ours, as a BASSA explorer from before the check, or any other program."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]
+    p = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        for _ in range(60):
+            try: urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=2); break
+            except Exception: time.sleep(0.25)
+        yield port
+    finally:
+        p.kill()
+
+
+def _running():
+    sys.path.insert(0, str(ROOT))
+    from M3_modeler.bassa_explorer import running
+    return running
+
+
+def test_a_running_server_says_which_version_it_is(server):
+    url, _ = server
+    running = _running()
+    st = json.loads(_get(url + "status"))
+    assert st["app"] == "bassa_explorer" and st["api"] == running.API
+    port = int(url.rsplit(":", 1)[1].strip("/"))
+    assert running.state(port) == "current"
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0)); free = s.getsockname()[1]
+    assert running.state(free) is None
+
+
+def test_an_older_server_on_the_port_is_not_reused(other_server):
+    """A server left from before an update would serve the new page on old routes; every way in refuses it and says how to stop it."""
+    running = _running()
+    assert running.state(other_server) == "old"
+    assert str(other_server) in running.stop_hint(other_server, "the BASSA model explorer")
+    # the command
+    r = subprocess.run([sys.executable, "-m", "descripytor.cli", "bassa_explorer", "--no-browser", "--port", str(other_server)],
+                       cwd=str(ROOT), capture_output=True, text=True, timeout=120)
+    assert r.returncode == 1 and "older or different process" in r.stdout
+    # the visual extractor's link and its one-click hand-off
+    env = dict(os.environ, BASSA_EXPLORER_PORT=str(other_server))
+    code = ("import sys; sys.path.insert(0, %r)\n"
+            "import M2_data_extractor.gui_server as gs\n"
+            "c = gs.app.test_client()\n"
+            "r = c.get('/bassa_explorer'); assert r.status_code == 503 and b'older or different process' in r.data, r.data\n"
+            "csv = 'name,a,b,c,d,y' + chr(10) + chr(10).join('m%%d,%%d,%%d,%%d,%%d,%%d' %% (i, i, i * i %% 7, i * 3 %% 5, i * 5 %% 11, i %% 4) for i in range(8))\n"
+            "r = c.post('/bassa_explorer/handoff', json={'csv': csv, 'y_column': 'y'}); assert r.status_code == 503 and 'older' in r.get_json()['error'], r.data\n") % str(ROOT)
+    r = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stderr[-800:]

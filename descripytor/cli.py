@@ -342,6 +342,17 @@ def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bass
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '') else host}:{port}/"
     print(f"\n  BASSA model explorer\n  Open:  {url}\n  Press Ctrl+C to stop\n", flush=True)
     python = bassa_python or os.environ.get("DESCRIPYTOR_BASSA_PYTHON") or sys.executable
+    _ensure_project_on_path()
+    from M3_modeler.bassa_explorer import running
+    already = running.state(port)
+    if already == "current":                                 # this version's server is up: use it
+        print("  It is already running; this process will not start a second server." + chr(10), flush=True)
+        if open_browser:
+            webbrowser.open(url)
+        return 0
+    if already == "old":                                     # a server from before an update would give a new page on old routes
+        print("  " + running.stop_hint(port, "the BASSA model explorer") + chr(10), flush=True)
+        return 1
 
     def open_when_up():                                      # the first import of the sampler can take a while
         import socket
@@ -628,6 +639,6 @@ def main():
         parser.print_help()
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())     # as the installed command does: a refused start exits with 1
 
 

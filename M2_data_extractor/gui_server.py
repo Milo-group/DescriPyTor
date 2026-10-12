@@ -275,12 +275,25 @@ def _listening(port):
         return s.connect_ex(("127.0.0.1", port)) == 0
 
 
+def _bassa_running():
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if root_dir not in sys.path:
+        sys.path.insert(0, root_dir)
+    from M3_modeler.bassa_explorer import running
+    return running
+
+
 def _bassa_url():
     """The BASSA model explorer's address. It has its own server (it may run under another Python): started here if it
-    is not up. None when it does not come up."""
+    is not up. None when it does not come up, or when the port is held by a server from before an update."""
     import subprocess
     import time
+    global BASSA_DOWN
     port = int(os.environ.get("BASSA_EXPLORER_PORT", "8765"))
+    BASSA_DOWN = BASSA_NOT_STARTED
+    if _bassa_running().state(port) == "old":
+        BASSA_DOWN = _bassa_running().stop_hint(port, "the BASSA model explorer")
+        return None
     if not _listening(port):
         root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         env = dict(os.environ, PYTHONPATH=root_dir + os.pathsep + os.environ.get("PYTHONPATH", ""))
@@ -294,7 +307,8 @@ def _bassa_url():
     return f"http://127.0.0.1:{port}/"
 
 
-BASSA_DOWN = "The BASSA model explorer did not start; run `descripytor bassa_explorer` to see why."
+BASSA_NOT_STARTED = "The BASSA model explorer did not start; run `descripytor bassa_explorer` to see why."
+BASSA_DOWN = BASSA_NOT_STARTED            # what the last failed _bassa_url() has to say
 
 
 @app.route("/bassa_explorer")

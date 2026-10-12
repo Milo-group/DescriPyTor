@@ -8,6 +8,10 @@
   or `feature_explorer`. Its pages come from disk and were new, its routes were old, so the links to the feature
   explorer and the BASSA model explorer gave "Not Found". A new start now recognises the older server and says how
   to stop it.
+- The same for the BASSA model explorer: its server answers `/status` with its version, and the `bassa_explorer` command,
+  the visual extractor's link and the one-click hand-off refuse a server on its port that is older or is something else,
+  and say how to stop it. A second `descripytor bassa_explorer` on a current server opens it instead of failing.
+  From the BASSA page, the links to the other two pages refuse an older visual extractor server in the same way.
 
 ## 0.3.1 — 2026-10-12
 

@@ -10,6 +10,7 @@ POST /run     {csv, response, iters, name, structures}  ->  the same data the pa
 POST /checks  {csv, response}                           ->  {job}; the reference lines and the fold counts are computed in the background
 POST /handoff {csv, response, structures, name}         ->  {id}; another page (the atom picker) leaves a table here
 GET  /handoff?id=N                                      ->  that table, once: the page opened with #handoff=N runs it
+GET  /status                                             ->  {ok, app, api, sampler, cases}: lets a new start tell this server from an older one
 GET  /checks?job=N                                      ->  {done, total, chance, nested_q2, fold_top, n_folds, error}
 POST /keep    {name, case}                              ->  writes <name>.js beside the page and lists it, so the case is there next time
 POST /export  {cases}                                   ->  one HTML file holding the page, the explorer and those cases
@@ -28,6 +29,7 @@ from urllib.parse import parse_qs, urlparse
 import numpy as np, pandas as pd
 
 import build_case as BC
+import running as RUN
 
 H = Path(__file__).resolve().parent; C = BC.C; LOCK = threading.Lock(); JOBS = {}; HANDOFF = {}; N_PERM, NULL_ITERS = 100, 6000
 READER = BC.S["reader_python"]
@@ -39,13 +41,14 @@ STYLE = dict(look="descriptors", preset="glossy", palette="cylview", ink="colour
 NEEDS = "new tables need the sampler: pip install bassa-reg into this Python, or start with --bassa-python <a Python that has it>"                                                  # the environment with pyarrow and the DescriPyTor readers
 
 
-def listening(port):
-    with socket.socket() as s: s.settimeout(0.3); return s.connect_ex(("127.0.0.1", port)) == 0
+listening = RUN.listening
 
 
 def gui(page):
-    """the address of a page of the package's other server (the atom picker, the full feature explorer); that server is started if it is not up"""
+    """the address of a page of the package's other server (the atom picker, the full feature explorer); that server is
+    started if it is not up. None when the port is held by a server from before an update: its routes would be old."""
     port = int(os.environ.get("GUI_PORT", "7432"))
+    if RUN.gui_state(port) == "old": return None
     if not listening(port):
         env = dict(os.environ, PYTHONPATH=BC.S["descripytor"] + os.pathsep + os.environ.get("PYTHONPATH", ""))
         subprocess.Popen([READER, "-m", "descripytor.cli", "visual_extractor", "--no-browser", "--port", str(port)], env=env)
@@ -136,7 +139,11 @@ class Handler(SimpleHTTPRequestHandler):
             body = b'window.CASE_FILES = ["example"];\n'; self.send_response(200); self.send_header("Content-Type", "text/javascript"); self.send_header("Content-Length", str(len(body))); self.end_headers(); return self.wfile.write(body)
         if u.path in ("/visual_extractor", "/feature_explorer", "/bassa_explorer"):      # the three pages link to each other by these names
             to = "/" if u.path == "/bassa_explorer" else gui("/visual" if u.path == "/visual_extractor" else u.path)
+            if to is None:
+                body = RUN.stop_hint(int(os.environ.get("GUI_PORT", "7432")), "the visual extractor").encode("utf-8")
+                self.send_response(503); self.send_header("Content-Type", "text/plain; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.end_headers(); return self.wfile.write(body)
             self.send_response(302); self.send_header("Location", to); self.send_header("Content-Length", "0"); return self.end_headers()
+        if u.path == "/status": return self.answer(dict(ok=True, app="bassa_explorer", api=RUN.API, sampler=SAMPLER, cases=str(C)))      # who is on this port, and which version
         if u.path == "/handoff": q = HANDOFF.pop(parse_qs(u.query).get("id", [""])[0], None); return self.answer(q or dict(error="this table was already taken, or the server was restarted"), 200 if q else 404)
         if u.path != "/checks": return super().do_GET()
         job = JOBS.get(parse_qs(u.query).get("job", [""])[0]); self.answer(job or dict(error="no such job"), 200 if job else 404)
