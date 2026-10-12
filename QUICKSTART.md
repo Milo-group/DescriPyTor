@@ -1,6 +1,6 @@
 # DescriPyTor — install and GUI (one page)
 
-Start with **conda + pip**. Use Docker only if that fails, or you need xTB / extra engines.
+Install with **conda + pip**.
 
 **Visual version** (diagrams on GitHub, or open in a browser and print to PDF): [docs/visual-guide.md](docs/visual-guide.md) · [docs/visual-guide.html](docs/visual-guide.html)
 
@@ -65,41 +65,11 @@ descripytor logs_to_feather
 
 ---
 
-## B. Docker (if conda fails, or you need the full toolkit)
-
-Chemistry software is already in the image (RDKit, Morfeus, xTB, Streamlit).
-
-1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and wait until the engine is idle.
-2. From the clone:
-
-```bash
-cd DescriPyTor
-mkdir work
-docker compose up --build
-```
-
-First build takes several minutes. Leave that terminal open.
-
-3. In a browser:
-
-| What | Open |
-|---|---|
-| 3D atom picker | http://localhost:7432 |
-| Streamlit extraction app | http://localhost:8503 |
-
-4. Drop files into `work/` on your computer. In the GUI use `/work/yourfile.feather`.
-
-Stop: `Ctrl+C` in the terminal, or `docker compose down`.
-
----
-
 ## If something fails
 
 | Symptom | Fix |
 |---|---|
-| RDKit / Morfeus import errors | `conda install -c conda-forge rdkit`, then Docker if that still fails |
+| RDKit / Morfeus import errors | `conda install -c conda-forge rdkit` |
 | Port 7432 already in use | Close the other app, or set `GUI_PORT` |
-| `docker compose` cannot connect | Start Docker Desktop and wait until it is idle |
-| Port 8503 already in use | Close the other app, or set `DESCRIPYTOR_HOST_PORT` |
 
 Longer docs: [README.md](README.md).

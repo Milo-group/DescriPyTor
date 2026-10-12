@@ -59,10 +59,9 @@ Optional extras, added the same way (`pip install "descripytor[bassa]"`, or `pip
 | `engines` | mordred, deepchem, ase: extra descriptor engines |
 | `explain` | SHAP model reports |
 | `bayes` | pymc / arviz |
-| `webapp` | the Streamlit extraction app |
 
 If RDKit fails on pip: `conda install -c conda-forge rdkit`. `numpy<2` is required. Gaussian, ORCA, xTB and Open Babel
-are external programs and are not installed by pip. A Docker image with everything is described under [More tools](#more-tools).
+are external programs and are not installed by pip.
 
 ---
 
@@ -425,13 +424,6 @@ Protocol format and every flag: [docs/PIPELINE.md](https://github.com/Milo-group
   [descriptor_extraction_toolkit/README.md](https://github.com/Milo-group/DescriPyTor/blob/main/Getting_started_with_examples/descriptor_extraction_toolkit/README.md).
 - **Old definitions on request**: `with descripytor.compat.paper_v3(): ...` computes with the definitions of the
   paper's tag.
-- **Docker** (RDKit, morfeus, AQME, Mordred and xTB preinstalled):
-
-  ```bash
-  docker compose up --build        # pages on http://localhost:7432, files in work/ (mounted at /work)
-  ```
-
-  Setup from scratch: [DOCKER_QUICKSTART.md](https://github.com/Milo-group/DescriPyTor/blob/main/Getting_started_with_examples/descriptor_extraction_toolkit/webapp/DOCKER_QUICKSTART.md).
 
 ---
 

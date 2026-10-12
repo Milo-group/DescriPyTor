@@ -209,19 +209,6 @@ def test_packaged_picker_is_preferred():
     assert Path(path).is_file()
 
 
-def test_atom_picker_html_copies_match():
-    m2 = ROOT / "M2_data_extractor" / "atom_picker.html"
-    toolkit = (
-        ROOT
-        / "Getting_started_with_examples"
-        / "descriptor_extraction_toolkit"
-        / "atom_picker.html"
-    )
-    assert m2.is_file()
-    assert toolkit.is_file()
-    assert m2.read_bytes() == toolkit.read_bytes()
-
-
 def test_root_redirects_to_visual(client):
     response = client.get("/", follow_redirects=False)
     assert response.status_code in (301, 302)

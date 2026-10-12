@@ -50,8 +50,6 @@ dependencies = [
 dev = ["build>=1.2", "pytest>=7", "ruff>=0.5", "twine>=5"]
 # MolAlign atom renumbering
 align = ["torch"]
-# Streamlit extraction web app
-webapp = ["streamlit", "umap-learn"]
 # Extra descriptor engines in the extraction toolkit
 engines = ["mordred", "deepchem", "ase"]
 # The sampler behind `descripytor bassa_explorer` (new tables); the corrected core comes with the package

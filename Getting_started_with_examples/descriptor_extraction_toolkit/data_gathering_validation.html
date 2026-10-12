@@ -174,7 +174,7 @@ function commands() {
   if ($("logsToFeathers").checked) {
     lines.push(`python -c "import sys; sys.path += [r'${root}', r'${root}\\M2_data_extractor']; from feather_extractor import logs_to_feather; logs_to_feather(r'${logDir}', r'${featherDir}')"`);
   }
-  if ($("runPicker").checked) lines.push(`python make_picker.py --feather-dir ${q(featherDir)} --index 0`);
+  if ($("runPicker").checked) lines.push(`descripytor visual_extractor`);
   if ($("validate").checked) {
     lines.push(`python _dx_check.py --config run_config.json`);
     lines.push(`python _dx_check.py --config run_config.json --install-report`);

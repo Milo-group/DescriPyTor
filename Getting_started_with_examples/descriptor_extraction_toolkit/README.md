@@ -10,22 +10,11 @@ Uses the same `Molecules` / `Molecules_xyz` API as `Practical_Notebook_Features.
 |------|---------|
 | `descriptor_extractor.py` | Main runner. Loads a set, runs the enabled engines, merges everything into one CSV. CLI + importable. |
 | `feature_packages.py` | The external descriptor packages ported from `feature_extraction_and_regression.ipynb` (rdkit, mordred, deepchem, rafbl/moltop, qm, aqme_qdescp, morfeus suite). |
-| `atom_picker.html` | 3D picks, visualizations, Extract CSV, optional `run_config.json` |
-| `make_picker.py` | Embeds a *real* molecule (from a feather set or `.xyz`) into the picker and opens it. |
 | `config_example.json` | A starter run config with every engine block. |
 
 ## 1. Pick atoms visually
 
-Start the picker from the repo root with `descripytor visual`, or embed one molecule:
-
-```bash
-# load one molecule of a feather set into the picker
-python make_picker.py --feather-dir ..\..\descripytor\examples\feather_example --index 0
-
-# or a single xyz / a folder of xyz
-python make_picker.py --xyz mol.xyz
-python make_picker.py --xyz-dir path\to\xyz --name conf_2
-```
+Start the picker with `descripytor visual_extractor`; **Load file…** opens a `.xyz` or `.feather`.
 
 In the picker: choose a **field**, **click atoms** (1-based, Gaussian style). Pairs and
 triplets auto-commit; variable fields use **Commit group**. **Visualizations** (Sterimol,
@@ -42,8 +31,7 @@ Next to the 3D view:
 - **Vibration** — play a normal mode; amplitude slider and optional arrows.
 - **Feature preview** — overlay the atoms you have already picked.
 
-`make_picker.py --feather-dir … --index N` embeds dipole and modes. A `.xyz` still gets
-geometry-only Sterimol.
+A `.feather` brings the dipole and the vibration modes; a `.xyz` gives geometry only.
 
 Or export:
 
@@ -91,7 +79,7 @@ pip install autoqchem      # qm engine (Gaussian logs)
 pip install aqme           # aqme_qdescp engine (also needs a working xTB)
 ```
 
-`rafbl` needs `moltop`. Skip it if you have no wheel; the Docker image omits it.
+`rafbl` needs `moltop`. Skip it if you have no wheel.
 
 ### AQME: end-to-end SMILES → descriptors
 
@@ -145,25 +133,13 @@ The 3D picker **Model** tab adds an output column (choose one from the CSV or pa
 descripytor model -m regression -f merged_features.csv -y output --min-features 1 --max-features 3
 ```
 
-Or Streamlit tab **5 · Modeling** (`pip install -e ".[webapp]"`, then the webapp / Docker at
-http://localhost:8503). Add a numeric target column (usually `output`) if the CSV is
-descriptors only.
+Or send the table to the BASSA model explorer with **Model in BASSA explorer** in the same tab. Add a numeric target
+column (usually `output`) if the CSV is descriptors only.
 
 Picking and overlays run in the browser. Extraction and modeling run in Python (CPU).
 
-### Docker
-
-From the repository root:
-
-```powershell
-docker compose up --build
-```
-
-Open the picker at `http://localhost:7432`. Streamlit is at
-`http://localhost:8503`. Put files in `work/`; use `/work/yourfile.feather` in the GUI.
-
 ## Notes
 
-- Set `root_dir` or `DESCRIPYTOR_ROOT` to the clone (Docker: `/workspace/descripytor`).
+- Set `root_dir` or `DESCRIPYTOR_ROOT` to the clone.
 - Engines fail independently; the rest still run.
 - Rows are natural-sorted (`conf_2` before `conf_10`).

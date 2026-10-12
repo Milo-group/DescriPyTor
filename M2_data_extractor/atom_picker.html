@@ -208,7 +208,7 @@ if (typeof $3Dmol === "undefined") {
     100% { transform:translateX(320%); }
   }
   /* Narrower minmax floors than before so the 3D view and the selection panel
-     stay side by side at the widths a Streamlit-embedded iframe actually gets
+     stay side by side in a narrow window
      (previously required ~820px combined before wrapping to one column). */
   .wrap {
     display:grid;
@@ -221,12 +221,6 @@ if (typeof $3Dmol === "undefined") {
   .wrap.layout-stack       { grid-template-columns:1fr; }
   .wrap.layout-stack #rightCol { max-height:none; overflow-y:visible; padding-right:0; }
   #leftCol  { display:flex; flex-direction:column; gap:10px; }
-  #graph2dCard {
-    background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
-    box-shadow:var(--shadow-xs); padding:10px 12px;
-  }
-  .graph2d-head { font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
-  #graph2dImg { display:block; width:100%; max-height:320px; object-fit:contain; }
   #rightCol { display:flex; flex-direction:column; gap:14px; max-height:calc(100vh - 74px); overflow-y:auto; padding-right:4px; }
   #rightCol::-webkit-scrollbar { width:4px; }
   #rightCol::-webkit-scrollbar-track { background:transparent; }
@@ -874,16 +868,11 @@ if (typeof $3Dmol === "undefined") {
         <button class="micro-btn" type="button" id="measureBtn" aria-label="Measure distances and angles" title="Measurement mode (M) — click 2 atoms for distance, 3 for angle">Measure</button>
         <button class="micro-btn" type="button" id="recenterBtn" aria-label="Recenter view" title="Recenter view (R)">Recenter</button>
         <button class="micro-btn" type="button" id="screenshotBtn" aria-label="Download the picture (SVG)" title="Download the picture (SVG)">Screenshot</button>
-        <button class="micro-btn" type="button" id="graph2dToggleBtn" title="Show/hide a 2D atom-numbered bond graph next to the 3D view">Show 2D graph</button>
       </div>
       <div id="measureReadout">
         <span id="msrText"></span>
         <button class="msr-clear" onclick="clearMeasure()">✕ Clear</button>
       </div>
-    </div>
-    <div id="graph2dCard" style="display:__GRAPH2D_DISPLAY__">
-      <div class="graph2d-head">2D bond graph — atom numbers for reference</div>
-      <img id="graph2dImg" src="data:image/png;base64,__GRAPH2D_IMG__" alt="2D atom-numbered bond graph" />
     </div>
   </div>
 
@@ -1160,12 +1149,6 @@ if (typeof $3Dmol === "undefined") {
 
   </div><!-- /#rightCol -->
 </div><!-- /.wrap -->
-
-<!-- The old in-picker Modeling panel (M3/BASSA controls posted to a /model/*
-     backend that gui_server.py never implemented) has been removed entirely.
-     Real, working M3 + BASSA modeling (feature-combination search, full
-     reports, BASSA plots) lives in the Streamlit web app's own
-     "5 · Modeling" tab, right after Results. -->
 
 <!-- ── Conformer Search (advanced) ─────────────────────────────────── -->
 <details class="advanced-box" style="margin:12px 18px 18px" id="cviewDetails">
@@ -1727,6 +1710,10 @@ function undoLastPick() {
   if (currentGroup.length > 0) {
     currentGroup.pop();
     if (typeof refresh === 'function') refresh();
+  } else if ((state[activeField] || []).length) {      // nothing half-built: take back the last committed group of this field
+    state[activeField].pop();                            // (pairs and triplets commit by themselves, so this is the usual case)
+    if (typeof refresh === 'function') refresh();
+    if (typeof saveSession === "function") saveSession();
   }
 }
 
@@ -1810,7 +1797,7 @@ H  2.3760   1.5090   0.8910`;
 
 /* ------------------------------------------------------------------ *
  * Molecule data (dipole + vibrations). Live GUI fills this from /example_xyz
- * and /xyz_from_feather; make_picker.py can still embed it in a standalone HTML.
+ * and /xyz_from_feather.
  * Geometry is parsed from the xyz; elements[] + baseCoords[] drive     *
  * the overlays and the vibration animation.                            *
  * ------------------------------------------------------------------ */
@@ -1932,6 +1919,7 @@ function initViewer(xyz, filename, opts) {
   buildSterPairOptions();
   buildBvOptions();
   buildModeOptions();
+  syncDipoleBox();
   buildScene(baseCoords, true);
   if (typeof updateMolInfoBadge === 'function') updateMolInfoBadge(molName, nAtoms);
   const silent = !!(opts && opts.silent);
@@ -1961,9 +1949,10 @@ function buildScene(coords, doZoom, mode) {
     cones: [], vburs: [], map: "", fade: "", fadeOff: false, fadeHide: false, legend: false, labShift: {} };
   if (mode) drawModeArrows(coords, mode, 0.55);
   else {
-    // selection highlight: the active field's picks and the last-clicked atom
+    // selection highlight: the active field's committed picks (blue) and the group being built (orange).
+    // Every atom of the unfinished group is ringed, not only the last one clicked, and nothing stays orange after a commit.
     [...new Set((state[activeField] || []).flat(Infinity))].forEach(a => figMark([a], "#3b9dff"));
-    if (lastClicked) figMark([lastClicked], "#ff9f0a");
+    [...new Set(currentGroup)].forEach(a => figMark([a], "#ff9f0a"));
     drawOverlays(coords);
     drawMeasureOverlay(coords);
   }
@@ -1995,39 +1984,6 @@ function activeSterPair() {
   const v = $("vizSterPair").value;
   if (!v) return null;
   return v.split("-").map(Number);
-}
-
-/* origin for the dipole arrow = the atoms you picked */
-function dipoleOrigin(coords) {
-  if (!coords || !coords.length) return null;
-  const at = (idx) => {
-    const p = coords[idx - 1];
-    return (p && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2])) ? p : null;
-  };
-  const dg = (state["dipole"] || []).find(g => g.length);   // dipole field: [origin, ...]
-  if (dg) {
-    const p = at(dg[0]);
-    if (p) return p;
-  }
-  const picks = (state[activeField] || []).flat();          // else: active field's atoms
-  const pts = picks.map(a => at(a)).filter(Boolean);
-  if (pts.length) {
-    const c = [0,0,0];
-    pts.forEach(p => { c[0]+=p[0]; c[1]+=p[1]; c[2]+=p[2]; });
-    return c.map(x => x / pts.length);
-  }
-  if (lastClicked) {
-    const p = at(lastClicked);
-    if (p) return p;
-  }
-  const c = [0,0,0];
-  let n = 0;
-  coords.forEach(p => {
-    if (p && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2])) {
-      c[0]+=p[0]; c[1]+=p[1]; c[2]+=p[2]; n++;
-    }
-  });
-  return n ? c.map(x => x / n) : null;                      // else: molecular centroid
 }
 
 function parseAtomGroupText(s) {
@@ -2120,16 +2076,32 @@ function basisPreviewObject() {
   };
 }
 
-/* the atoms the dipole arrow starts from (their centroid), as dipoleOrigin() chooses the point */
+/* the atoms the dipole arrow starts from (their centroid): the origin of the Dipole field once it has one, else the
+   whole molecule. It does not follow the atom last clicked or the picks of another field. */
 function dipoleOriginAtoms() {
   const ok = a => Number.isInteger(a) && a >= 1 && a <= nAtoms;
   const dg = (state["dipole"] || []).find(g => g.length);
   if (dg && ok([].concat(dg[0])[0])) return [].concat(dg[0]).filter(ok);
-  const picks = [...new Set((state[activeField] || []).flat(Infinity))].filter(ok);
-  if (picks.length) return picks;
-  if (ok(lastClicked)) return [lastClicked];
   return baseCoords.map((_, i) => i + 1);
 }
+
+/* the dipole is switched on by the first Dipole pick, not merely because the file carries one */
+let hadDipolePick = false;
+function syncDipoleBox() {
+  const box = $("vizDipole");
+  const has = (state["dipole"] || []).some(g => g.length);
+  if (box && !box.disabled && has && !hadDipolePick) box.checked = true;
+  hadDipolePick = has;
+  // the basis boxes a Dipole pick filled are emptied (or moved to the next pick) when that pick is removed;
+  // left alone, the frame stayed drawn and stayed in the exported config after the pick was gone
+  const ids = ["basisOrigin", "basisY", "basisPlane"];
+  if (basisAuto && ids.map(id => $(id).value.trim()).join(",") === basisAuto && !(state["dipole"] || []).some(g => g.join(",") === basisAuto)) {
+    const next = (state["dipole"] || []).find(g => g.length === 3);
+    ids.forEach((id, k) => { $(id).value = next ? next[k] : ""; });
+    basisAuto = next ? next.join(",") : "";
+  }
+}
+let basisAuto = "";          // the Dipole pick the basis boxes were last filled from
 
 function drawOverlays(coords) {
   const pair = $("vizSterimol") && $("vizSterimol").checked ? activeSterPair() : null;
@@ -2164,6 +2136,8 @@ function drawOverlays(coords) {
         : "local axes need 3 atoms — pick origin, y-axis, plane in the Dipole field (or fill the Basis atoms boxes)";
       $("vizDipReadout").textContent = `total=${total.toFixed(3)}  raw=(${d.map(x => x.toFixed(2)).join(", ")}) — ${why}`;
     }
+  } else if (d && $("vizDipReadout")) {
+    $("vizDipReadout").textContent = `dipole loaded — total ${(dipoleTotal() ?? V.norm(d)).toFixed(3)}; tick Dipole to draw it`;
   }
   drawFeaturePreview(coords);
 }
@@ -2432,8 +2406,7 @@ function buildModeOptions() {
   const hasDip = !!dipoleVector();
   if (dipBox) {
     dipBox.disabled = !hasDip;
-    if (hasDip) dipBox.checked = true;
-    else dipBox.checked = false;
+    if (!hasDip) dipBox.checked = false;       // a file with a dipole does not switch the arrow on: the user does, or a Dipole pick
   }
   const readout = $("vizDipReadout");
   if (!readout) return;
@@ -2457,6 +2430,11 @@ function fieldOf(key) { return allFields().find(x => x.key === key); }
 function onAtomClick(idx) {
   if (measureMode) { onMeasurePick(idx); return; }
   lastClicked = idx;
+  if (currentGroup.includes(idx)) {            // a second click on an atom of the unfinished group takes it out again;
+    currentGroup = currentGroup.filter(a => a !== idx);   // the same atom twice in a group ([4, 4, 6]) is never what was meant
+    refresh();
+    return;
+  }
   currentGroup.push(idx);
   const f = fieldOf(activeField);
   const touring = typeof tourIsOpen === "function" && tourIsOpen();
@@ -2561,6 +2539,7 @@ function commitGroup() {
     $("basisOrigin").value = committed[0];
     $("basisY").value = committed[1];
     $("basisPlane").value = committed[2];
+    basisAuto = committed.join(",");
   }
   currentGroup = [];
   refresh();
@@ -2636,7 +2615,7 @@ function pythonAnswersDict() {
   lines.push("}");
   return lines.join("\n");
 }
-/* Dataset paths - replaced by make_picker.py when it embeds a real set.
+/* Dataset paths - placeholders the server may fill.
    If a placeholder is left untouched, the default is used.               */
 const RUN_PATHS = {
   root_dir:    `__ROOT_DIR__`,
@@ -3776,6 +3755,7 @@ function refresh() {
   renderEngineGuide();
   buildSterPairOptions();
   buildBvOptions();
+  syncDipoleBox();
 
   // export box
   if (outTab !== "model") {
@@ -4026,27 +4006,6 @@ $("screenshotBtn").onclick = () => {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
-
-/* 2D bond-graph toggle - hidden by default so the 3D view + controls
-   stay the primary side-by-side layout; click to bring it up alongside them. */
-(function () {
-  const card = $("graph2dCard");
-  const btn = $("graph2dToggleBtn");
-  const img = $("graph2dImg");
-  if (!card || !btn) return;
-  const srcAttr = (img && img.getAttribute("src")) || "";
-  const hasImage = srcAttr.indexOf("__GRAPH2D_IMG__") === -1 && srcAttr.length > "data:image/png;base64,".length;
-  card.style.display = "none";
-  if (!hasImage) {
-    btn.hidden = true;                     // only a picker built with a 2D graph (make_picker.py, the web app) has one to show
-  } else {
-    btn.onclick = () => {
-      const showing = card.style.display !== "none";
-      card.style.display = showing ? "none" : "block";
-      btn.textContent = showing ? "Show 2D graph" : "Hide 2D graph";
-    };
-  }
-})();
 
 /* Visualize controls */
 $("vizSterimol").onchange = () => highlight();

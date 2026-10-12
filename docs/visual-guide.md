@@ -1,6 +1,6 @@
 # DescriPyTor — visual start
 
-Start with **conda + pip**. Open http://localhost:7432. Use Docker only if that fails, or you need xTB / extra engines.
+Install with **conda + pip**, then open http://localhost:7432.
 
 A printable page lives next to this file: [visual-guide.html](visual-guide.html) (open in a browser → Ctrl+P → Save as PDF).
 
@@ -73,29 +73,9 @@ Example molecules (10 substituted benzenes) ship with the package. Gaussian `.lo
 
 | What you see | What to do |
 |---|---|
-| RDKit / Morfeus import errors | `conda install -c conda-forge rdkit`, then Docker below |
+| RDKit / Morfeus import errors | `conda install -c conda-forge rdkit` |
 | Port 7432 already in use | Close the other app using that port |
 
 ---
-
-## Docker (last resort / full toolkit)
-
-Use this if conda still fails, or you need Streamlit, xTB, and the extra engines. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), wait until the engine is running, then from the clone:
-
-```bash
-mkdir work
-docker compose up --build
-```
-
-First build takes several minutes. Leave that terminal open.
-
-| What | Open |
-|---|---|
-| 3D atom picker | http://localhost:7432 |
-| Streamlit extraction app | http://localhost:8503 |
-
-Drop `.feather`, `.xyz`, or CSV into `work/` on your computer. In the GUI, type `/work/yourfile.feather`. Results written to `/work` show up in that same folder.
-
-Stop: `Ctrl+C`, or `docker compose down`.
 
 Longer notes: [QUICKSTART.md](../QUICKSTART.md) · [README.md](../README.md)

@@ -186,7 +186,7 @@
       <div class="tag">Install + GUI · one page</div>
     </header>
 
-    <p class="lead">Start with conda and pip. Open one local URL. Use Docker only if that fails, or you need xTB and extra engines.</p>
+    <p class="lead">Install with conda and pip, then open one local URL.</p>
 
     <h2>Install</h2>
     <div class="steps">
@@ -260,27 +260,10 @@ descripytor visual_extractor</div>
         <tr><th>What you see</th><th>What to do</th></tr>
       </thead>
       <tbody>
-        <tr><td>RDKit / Morfeus import errors</td><td><code>conda install -c conda-forge rdkit</code>, then Docker below</td></tr>
+        <tr><td>RDKit / Morfeus import errors</td><td><code>conda install -c conda-forge rdkit</code></td></tr>
         <tr><td>Port 7432 already in use</td><td>Close the other app using that port</td></tr>
       </tbody>
     </table>
-
-    <h2>Docker (last resort / full toolkit)</h2>
-    <p class="tag">Use this if conda still fails, or you need Streamlit, xTB, and extra engines. Install Docker Desktop, wait until the engine is running, then from the clone:</p>
-    <div class="term">mkdir work
-docker compose up --build</div>
-    <p class="tag" style="margin-top:8px">First build takes several minutes. Then Streamlit is at <b>http://localhost:8503</b>. Drop files in <b>work/</b>; in the GUI type <b>/work/yourfile.feather</b>. Stop with Ctrl+C, or <b>docker compose down</b>.</p>
-    <div class="map">
-      <div class="box">
-        <b>On your computer</b>
-        DescriPyTor\work\molecule.feather
-      </div>
-      <div class="arrow">→</div>
-      <div class="box">
-        <b>In the Docker GUI, type</b>
-        /work/molecule.feather
-      </div>
-    </div>
 
     <footer>
       Longer notes: QUICKSTART.md and README.md in the repo.

@@ -345,17 +345,11 @@ def bassa_handoff():
 
 
 def atom_picker_html():
-    """Picker page: packaged copy first, then the clone path used by make_picker."""
+    """The picker page, from this folder."""
     here = os.path.dirname(os.path.abspath(__file__))
     root = os.path.dirname(here)
     candidates = (
         os.path.join(here, "atom_picker.html"),
-        os.path.join(
-            root,
-            "Getting_started_with_examples",
-            "descriptor_extraction_toolkit",
-            "atom_picker.html",
-        ),
     )
     for path in candidates:
         if os.path.isfile(path):

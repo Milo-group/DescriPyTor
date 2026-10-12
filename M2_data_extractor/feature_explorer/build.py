@@ -7,9 +7,8 @@ this file writes a standalone feature_explorer.html next to it
 (and the same page as ../theta_explorer/theta_explorer.html, the name older scripts open).
 
     node gate.js && python build.py
-    python build.py --inject ..\..\Getting_started_with_examples\descriptor_extraction_toolkit\atom_picker.html ..\atom_picker.html
+    python build.py --inject ..\atom_picker.html
 
-Inject into both copies of the picker: tests/test_gui_server.py requires them to be identical.
 """
 import json
 import os

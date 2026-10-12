@@ -90,11 +90,10 @@ Writes `runs/` (SQLite, figures, PDF with SHAP and sanity checks). For classific
 ### 3. Pick atoms in 3D
 
 ```bash
-cd Getting_started_with_examples/descriptor_extraction_toolkit
-python make_picker.py --feather-dir ../../descripytor/examples/feather_example --index 0
+descripytor visual_extractor
 ```
 
-Opens the picker on a molecule from the set. Click atoms, then **Extract CSV**. See
+Opens the picker on an example molecule; **Use example set** points it at the bundled feathers. Click atoms, then **Extract CSV**. See
 [descriptor_extraction_toolkit/README.md](descriptor_extraction_toolkit/README.md).
 
 ---

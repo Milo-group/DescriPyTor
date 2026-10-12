@@ -2,15 +2,30 @@
 
 ## 0.3.3 — 2026-10-12
 
+### Fixed
+
+- Visual extractor: the dipole arrow was switched on whenever the loaded file carried a dipole, and its origin jumped to
+  whatever atom was clicked last, in any field. It is now off until you tick **Dipole** or pick a Dipole frame, and it
+  starts at the Dipole pick's origin, or at the centre of the molecule when there is none.
+- Removing a Dipole pick (or **Clear picks**) left its three atoms in the basis boxes, so the frame stayed drawn and
+  stayed in the exported configuration. The boxes now follow the picks.
+- Every atom of a group that is still being built is ringed, not only the last one clicked, and nothing stays ringed
+  after the group is committed.
+- Clicking an atom that is already in the unfinished group takes it out again; the same atom could be picked twice
+  into one group.
+- Ctrl+Z with no unfinished group takes back the last committed group of the active field. Pairs and triplets commit by
+  themselves, so before this it did nothing after a wrong pick.
+
 ### Removed
 
+- The Streamlit web app, the Docker files (`docker-compose*.yml`, the image's `Dockerfile`), `make_picker.py`, the second
+  copy of `atom_picker.html` in the examples folder, the `webapp` extra and the empty `work/` folder. The "Show 2D graph"
+  button went with them: only a page built by `make_picker.py` ever had a graph to show.
 - The form-based page at `/forms` (`feature_extraction_gui.html`) and the eight server routes only it used (`/sterimol`,
   `/charges`, `/dipole`, `/vibrations`, `/molecule_info`, `/steriplot`, `/batch_sterimol`, `/features_set`). The visual
   extractor and the feature explorer do what it did.
 - The `/modes` route of the visual extractor's server. The vibration-mode viewer itself stays as the standalone tool
   `python utils/mode_viewer.py --serve`.
-- The visual extractor no longer shows a disabled "Show 2D graph" button; the button appears only in a picker that was
-  built with a 2D graph.
 
 ## 0.3.2 — 2026-10-12
 
