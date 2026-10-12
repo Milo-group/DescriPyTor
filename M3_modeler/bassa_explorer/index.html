@@ -130,10 +130,12 @@
 <style id="colhov"></style>
 </head>
 <body>
+<style>.apps a{font-size:12px;margin-left:10px;color:inherit;opacity:.75;text-decoration:underline}.apps a:hover{opacity:1}</style>
 <header>
   <h1>BASSA model explorer</h1>
   <select id="case" aria-label="data set"></select>
   <span class="sub" id="sub"></span>
+  <span class="apps" id="apps"><a href="/visual_extractor" title="pick atoms and extract descriptors">Visual extractor</a><a href="/feature_explorer" title="draw any descriptor on a molecule">Feature explorer</a></span><script>if (!location.protocol.startsWith('http')) document.getElementById('apps').hidden = true;</script>
   <div class="tools">
     <button id="overview" title="every case in one table">All cases</button><button id="new">New case…</button><button id="keep" hidden title="add this case to the menu for next time">Keep this case</button><button id="checks" hidden>Add chance line and nested Q²</button>
     <button id="onefile" title="this case, the page and the molecule viewer in one HTML file that opens without a server">Save as one file</button>

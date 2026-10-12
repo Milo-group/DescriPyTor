@@ -1634,6 +1634,35 @@ def run_visual_app(host=None, port=None, open_browser=True, page="/visual"):
     serve(host=host, port=port, open_browser=open_browser, page=page)
 
 
+CLI_HELP = """DescriPyTor: molecular descriptors from quantum-chemistry output, and the models built on them.
+
+Pages (each opens in the browser; the three link to each other):
+  visual_extractor   pick atoms on a molecule, extract descriptors for a folder of structures, fit a model
+  feature_explorer   draw any descriptor on the molecule: Sterimol, cone angle, %Vbur, dipole, charges, lengths, angles
+  bassa_explorer     the models a BASSA run visited, beside the molecule
+
+Batch commands:
+  extractor          descriptors for a folder of .feather files, from an input file of atom choices
+  model              search regression or classification models over a feature table
+  pipeline           SMILES -> structures -> chained cluster stages (GOAT / UMA / xTB / ORCA / Gaussian)
+
+Converters (they ask for their inputs):
+  logs_to_feather    Gaussian .log files -> .feather
+  sterimol           Sterimol from .xyz files
+  cube               Sterimol from Gaussian cube files"""
+CLI_EPILOG = """examples:
+  descripytor visual_extractor
+  descripytor feature_explorer --mol FL_lig_13 --preset "theta construction"
+  descripytor bassa_explorer --cases my_cases --bassa-python C:/envs/bassa/python.exe
+  descripytor extractor -i input.json -o features -f feathers/
+  descripytor model -m regression -f features.csv -t targets.csv --min-features 2 --max-features 3
+  descripytor pipeline status protocol.json
+
+`descripytor <command> --help` lists the options of one command. Older names still work:
+visual = visual_extractor, theta = feature_explorer, bassa = bassa_explorer.
+Manuals: docs/WORKFLOW.md, docs/FEATURE_EXPLORER.md, docs/BASSA_EXPLORER.md, docs/PIPELINE.md."""
+
+
 def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bassa_python=None):
     """Start the BASSA model explorer (M3_modeler/bassa_explorer/server.py) and open it.
 
@@ -1651,7 +1680,8 @@ def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bass
     env.setdefault("BASSA_EXPLORER_READER", sys.executable)
     if cases:
         env["BASSA_EXPLORER_CASES"] = str(Path(cases).resolve())
-    host, port = host or "127.0.0.1", int(port or 8765)
+    host, port = host or "127.0.0.1", int(port or os.environ.get("BASSA_EXPLORER_PORT", 8765))
+    env["BASSA_EXPLORER_PORT"] = str(port)                   # so the other pages' links find this server
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '') else host}:{port}/"
     print(f"\n  BASSA model explorer\n  Open:  {url}\n  Press Ctrl+C to stop\n", flush=True)
     if open_browser:
@@ -1783,11 +1813,15 @@ def main():
     # character a report may contain; replace those instead of stopping the run.
     from utils.console import make_console_safe
     make_console_safe()
-    parser = argparse.ArgumentParser(prog="descripytor", description="DescriPyTor")
-    subparsers = parser.add_subparsers(dest="command")
+    raw = argparse.RawDescriptionHelpFormatter
+    parser = argparse.ArgumentParser(prog="descripytor", formatter_class=raw, description=CLI_HELP, epilog=CLI_EPILOG)
+    subparsers = parser.add_subparsers(dest="command", metavar="<command>", title="commands")
 
     visual_parser = subparsers.add_parser(
-        "visual_extractor", aliases=["visual"], help="Open the 3D atom picker in a browser"
+        "visual_extractor", aliases=["visual"], help="Open the 3D atom picker in a browser", formatter_class=raw,
+        description="The atom picker: load a .xyz or .feather, click the atoms each descriptor is read at (the molecule is drawn by\n"
+                    "the feature explorer), extract the feature table for a folder of feathers, and fit a model.\n"
+                    "Starts a local server and opens http://127.0.0.1:7432/visual. Ctrl+C stops it.",
     )
     visual_parser.add_argument(
         "--no-browser",
@@ -1798,7 +1832,10 @@ def main():
     visual_parser.add_argument("--port", type=int, default=None, help="Port (default 7432)")
     theta_parser = subparsers.add_parser(
         "feature_explorer", aliases=["theta"],
-        help="Open the feature explorer (Sterimol, cone angle, %%Vbur, dipoles, charges) in a browser"
+        help="Open the feature explorer (Sterimol, cone angle, %%Vbur, dipoles, charges) in a browser", formatter_class=raw,
+        description="The feature explorer (until October 2026: the Sterimol theta explorer). Draws B1, B5, L, loc B5, theta, the cone\n"
+                    "angle, %Vbur, dipole frames, charges, lengths and angles on the molecule, stacks aligned structures, and exports\n"
+                    "figures. Same server as visual_extractor, at /feature_explorer. Manual: docs/FEATURE_EXPLORER.md.",
     )
     theta_parser.add_argument("--mol", default=None, help="Open this built-in structure, e.g. FL_lig_13")
     theta_parser.add_argument("--preset", default=None,
@@ -1807,23 +1844,41 @@ def main():
     theta_parser.add_argument("--host", default=None, help="Bind address (default 127.0.0.1)")
     theta_parser.add_argument("--port", type=int, default=None, help="Port (default 7432)")
     # interactive_parser = subparsers.add_parser("interactive", help="Start interactive CLI for cmd line operations")
-    model_parser = subparsers.add_parser("model", help="Run regression or classification")
-    feature_extraction = subparsers.add_parser("extractor", help="Run feature extraction - complete set - from input file")
-    conver_parser = subparsers.add_parser("logs_to_feather", help="Convert log files to feather files")
-    cube_parser = subparsers.add_parser("cube", help="Calculates cube sterimol from cube files")
-    sterimol_parser = subparsers.add_parser("sterimol", help="Calculate sterimol values from xyz files")
+    model_parser = subparsers.add_parser("model", help="Run regression or classification",
+        description="Search linear (regression) or logistic (classification) models over every combination of min..max features of a\n"
+                    "feature table, keep the best, and write the report. Example:\n"
+                    "  descripytor model -m regression -f features.csv -t targets.csv --min-features 2 --max-features 3", formatter_class=raw)
+    feature_extraction = subparsers.add_parser("extractor", help="Run feature extraction - complete set - from input file",
+        description="Extract every descriptor named in an input file (the atom choices; visual_extractor writes one) for all the\n"
+                    ".feather files of a folder. Example:\n  descripytor extractor -i input.json -o features -f feathers/", formatter_class=raw)
+    conver_parser = subparsers.add_parser("logs_to_feather", help="Convert log files to feather files",
+        description="Convert a folder of Gaussian .log files to .feather files. Takes no options: it asks for the folder.")
+    cube_parser = subparsers.add_parser("cube", help="Calculates cube sterimol from cube files",
+        description="Sterimol from Gaussian cube files, written to cube_sterimol.csv. Takes no options: it asks for the folder and the atoms.")
+    sterimol_parser = subparsers.add_parser("sterimol", help="Calculate sterimol values from xyz files",
+        description="Sterimol for a folder of .xyz files. Takes no options: it asks for the folder, the atoms and the radii.")
     bassa_parser = subparsers.add_parser(
         "bassa_explorer", aliases=["bassa"],
-        help="Open the BASSA model explorer: the sampler's models beside the molecule"
+        help="Open the BASSA model explorer: the sampler's models beside the molecule", formatter_class=raw,
+        description="The BASSA model explorer: columns are the models the spike-and-slab sampler visited, rows are descriptors, and the\n"
+                    "feature explorer draws the selected descriptors on a compound. Opens http://127.0.0.1:8765/ with a bundled example.\n"
+                    "Running a new table needs bassa_reg (pip install bassa-reg) in the Python given by --bassa-python.\n"
+                    "Manual: docs/BASSA_EXPLORER.md.",
     )
     bassa_parser.add_argument("--cases", default=None, help="Folder where kept cases live (default ./bassa_cases)")
     bassa_parser.add_argument("--bassa-python", default=None,
                               help="The Python that has bassa_reg, for running new tables (default: this one, or DESCRIPYTOR_BASSA_PYTHON)")
     bassa_parser.add_argument("--no-browser", action="store_true", help="Start the server without opening a browser tab")
     bassa_parser.add_argument("--host", default=None, help="Bind address (default 127.0.0.1)")
-    bassa_parser.add_argument("--port", type=int, default=None, help="Port (default 8765)")
+    bassa_parser.add_argument("--port", type=int, default=None, help="Port (default 8765, or BASSA_EXPLORER_PORT)")
     pipeline_parser = subparsers.add_parser(
-        "pipeline", help="SMILES -> structures -> chained cluster stages (GOAT/UMA/xTB/ORCA/Gaussian)")
+        "pipeline", help="SMILES -> structures -> chained cluster stages (GOAT/UMA/xTB/ORCA/Gaussian)", formatter_class=raw,
+        description="Run a protocol on the cluster, one action at a time:\n"
+                    "  build    SMILES -> numbered xyz          submit   send the stages to the queue\n"
+                    "  status   what is running, done, failed   watch    status every --interval seconds\n"
+                    "  retry    resubmit failures               reset    forget a run\n"
+                    "  fetch    bring the outputs back          adopt    take over calculations that already exist\n"
+                    "Manual: docs/PIPELINE.md.")
     pipeline_parser.add_argument("action", choices=["build", "adopt", "submit", "status", "retry", "reset", "watch", "fetch"])
     pipeline_parser.add_argument("protocol", help="Protocol JSON (see docs/PIPELINE.md)")
     pipeline_parser.add_argument("--dry-run", action="store_true", help="submit/retry: show what would be sent, send nothing")

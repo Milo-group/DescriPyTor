@@ -266,6 +266,38 @@ def root():
     return redirect("/visual")
 
 
+@app.route("/visual_extractor")
+def visual_extractor():
+    """The picker under its command's name: the three pages link to each other by /visual_extractor, /feature_explorer, /bassa_explorer."""
+    return redirect("/visual")
+
+
+def _listening(port):
+    import socket
+    with socket.socket() as s:
+        s.settimeout(0.3)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+@app.route("/bassa_explorer")
+def bassa_explorer():
+    """The BASSA model explorer has its own server (it may run under another Python): start it if it is not up, then go there."""
+    import subprocess
+    import time
+    port = int(os.environ.get("BASSA_EXPLORER_PORT", "8765"))
+    if not _listening(port):
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        env = dict(os.environ, PYTHONPATH=root_dir + os.pathsep + os.environ.get("PYTHONPATH", ""))
+        subprocess.Popen([sys.executable, "-m", "descripytor.cli", "bassa_explorer", "--no-browser", "--port", str(port)], env=env)
+        for _ in range(60):
+            if _listening(port):
+                break
+            time.sleep(0.25)
+        else:
+            return "The BASSA model explorer did not start; run `descripytor bassa_explorer` to see why.", 503
+    return redirect(f"http://127.0.0.1:{port}/")
+
+
 @app.route("/forms")
 def gui():
     """Form-based feature GUI (same engine, no 3D picker)."""
@@ -2296,6 +2328,7 @@ def serve(host=None, port=None, open_browser=True, page="/visual"):
 
     host = host or os.environ.get("GUI_HOST", "127.0.0.1")
     port = int(port or os.environ.get("GUI_PORT", str(PORT)))
+    os.environ["GUI_PORT"] = str(port)                        # a BASSA explorer started from a page links back to this port
     existing = _reuse_or_refuse_existing_gui(host, port, open_browser, page)
     if existing is True:
         return

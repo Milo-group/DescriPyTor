@@ -235,7 +235,8 @@ body.embed{padding-inline:12px;padding-block:12px}
 </head>
 <body>
 <header class="plate">
-  <div class="eyebrow">DescriPyTor &middot; Sterimol &middot; dipole &middot; charges &middot; live</div>
+  <div class="eyebrow">DescriPyTor &middot; Sterimol &middot; dipole &middot; charges &middot; live
+    <span id="apps"> &middot; <a href="/visual_extractor" title="pick atoms and extract descriptors">Visual extractor</a> &middot; <a href="/bassa_explorer" title="the models a BASSA run visited, beside the molecule">BASSA explorer</a></span></div>
   <h1>Feature explorer</h1>
   <p class="lede">Every descriptor construction in the paper, drawn on the molecule itself: &theta; from v and its shadow, B<sub>1</sub>
   and its plane, loc B<sub>5</sub> and B<sub>5</sub>, the dipole frame, charges, and stacks of aligned structures. Drag to turn it;
@@ -2395,6 +2396,7 @@ const EMBED = Q.has('embed') || !!(window.FEATURE_EMBED || window.THETA_EMBED);
 const FIG = Q.get('embed') === 'figure' || !!NAMED.figure || Q.has('bassa') || window.name === 'bassa';
 const API = NAMED.api || (location.protocol.startsWith('http') ? '' : null);   // gui_server.py, for the live check
 const LIVE = API !== null && !FIG;       // figure mode shows no status line, so it does not ask for the live check
+$('apps').hidden = !location.protocol.startsWith('http');   // the other two pages are on a server
 if (EMBED) { document.documentElement.dataset.theme = Q.get('theme') || NAMED.theme || (FIG ? 'light' : 'dark'); document.body.classList.add('embed'); }
 
 const FLAGS = [['axis', 'axis'], ['L', 'L'], ['b1', 'B<sub>1</sub>'], ['plane', 'plane'], ['loc', 'loc B<sub>5</sub>'], ['b5', 'B<sub>5</sub> + loc'], ['theta', '&theta;'], ['phi', '&phi;'], ['drop', 'drop'], ['inset', 'end-on'], ['profile', 'B<sub>1</sub> scan']];

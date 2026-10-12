@@ -69,3 +69,20 @@ def test_a_new_table_says_what_it_needs_without_the_sampler(server):
     with pytest.raises(urllib.error.HTTPError) as e:
         urllib.request.urlopen(q, timeout=30)
     assert "bassa-reg" in json.loads(e.value.read())["error"]
+
+
+def test_the_three_pages_have_one_address_each(server):
+    """/visual_extractor, /feature_explorer and /bassa_explorer mean the same page on both servers."""
+    url, _ = server
+
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k): return None
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.build_opener(NoRedirect).open(url + "bassa_explorer", timeout=10)
+    assert e.value.code == 302 and e.value.headers["Location"] == "/"
+    page = _get(url)
+    assert 'href="/visual_extractor"' in page and 'href="/feature_explorer"' in page
+    picker = (ROOT / "M2_data_extractor" / "atom_picker.html").read_text(encoding="utf-8")
+    assert 'href="/feature_explorer"' in picker and 'href="/bassa_explorer"' in picker
+    explorer = (ROOT / "M2_data_extractor" / "feature_explorer" / "template.html").read_text(encoding="utf-8")
+    assert 'href="/visual_extractor"' in explorer and 'href="/bassa_explorer"' in explorer

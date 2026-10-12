@@ -19,7 +19,7 @@ The checks are the ones of bayes_checks.py: the chance line is the 95th percenti
 of the highest inclusion frequency (chains of 6,000); the nested Q2 reruns the sampler without each compound in turn.
 Listens on this computer only.
 """
-import io, json, re, subprocess, sys, threading
+import io, json, os, re, socket, subprocess, sys, threading, time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -35,6 +35,22 @@ except ImportError: SAMPLER = False
 STYLE = dict(look="descriptors", preset="glossy", palette="cylview", ink="colour", bondColor="split", hydrogens="all", atomLabels="all", values=True, featureLabels=True, leaders=False, outline=1.15,
              atomScale=0.62, bondScale=0.6, hiddenLines=True, shadow=False, fog=0.18, perspective=0, labelScale=1.9, locMark="tick", planeNote=False, bg="white", vdw="back", surfKind="cpk", vdwOpacity=0.16)
 NEEDS = "new tables need the sampler: pip install bassa-reg into this Python, or start with --bassa-python <a Python that has it>"                                                  # the environment with pyarrow and the DescriPyTor readers
+
+
+def listening(port):
+    with socket.socket() as s: s.settimeout(0.3); return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def gui(page):
+    """the address of a page of the package's other server (the atom picker, the full feature explorer); that server is started if it is not up"""
+    port = int(os.environ.get("GUI_PORT", "7432"))
+    if not listening(port):
+        env = dict(os.environ, PYTHONPATH=BC.S["descripytor"] + os.pathsep + os.environ.get("PYTHONPATH", ""))
+        subprocess.Popen([READER, "-m", "descripytor.cli", "visual_extractor", "--no-browser", "--port", str(port)], env=env)
+        for _ in range(120):
+            if listening(port): break
+            time.sleep(0.25)
+    return "http://127.0.0.1:%d%s" % (port, page)
 
 
 def table(q):
@@ -115,6 +131,9 @@ class Handler(SimpleHTTPRequestHandler):
         u = urlparse(self.path)
         if u.path == "/manifest.js" and not (C / "manifest.js").exists():       # nothing kept yet: the example that comes with the package
             body = b'window.CASE_FILES = ["example"];\n'; self.send_response(200); self.send_header("Content-Type", "text/javascript"); self.send_header("Content-Length", str(len(body))); self.end_headers(); return self.wfile.write(body)
+        if u.path in ("/visual_extractor", "/feature_explorer", "/bassa_explorer"):      # the three pages link to each other by these names
+            to = "/" if u.path == "/bassa_explorer" else gui("/visual" if u.path == "/visual_extractor" else u.path)
+            self.send_response(302); self.send_header("Location", to); self.send_header("Content-Length", "0"); return self.end_headers()
         if u.path != "/checks": return super().do_GET()
         job = JOBS.get(parse_qs(u.query).get("job", [""])[0]); self.answer(job or dict(error="no such job"), 200 if job else 404)
 

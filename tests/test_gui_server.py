@@ -733,3 +733,8 @@ def test_the_old_explorer_folder_still_imports():
     code = "import sys; sys.path.insert(0, %r); import data, build; assert data.payload and build.assemble" % str(old)
     assert subprocess.run([sys.executable, "-c", code]).returncode == 0
     assert (old / "theta_explorer.html").read_bytes() == (old.parent / "feature_explorer" / "feature_explorer.html").read_bytes()
+
+
+def test_visual_extractor_address_is_the_picker():
+    r = _load_app().test_client().get("/visual_extractor")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/visual")
