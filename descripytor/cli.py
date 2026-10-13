@@ -410,7 +410,9 @@ def run_pipeline(args):
             raise SystemExit("adopt needs --sources")
         print(_json.dumps(pl.adopt(p, args.stage, pl.read_sources(args.sources)), indent=2))
     elif args.action == "submit":
-        only = args.only.split(",") if args.only else None
+        only = [i for i in args.only.split(",") if i.strip()] if args.only is not None else None
+        if only == []:      # an empty list from a shell variable used to mean "every molecule"
+            raise SystemExit("--only was given but names no molecule; leave it out to submit all")
         if args.only_adopted:
             f = p.workdir / "adopted.txt"
             only = f.read_text(encoding="utf-8").split() if f.exists() else []

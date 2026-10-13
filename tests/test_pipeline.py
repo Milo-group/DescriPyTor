@@ -374,3 +374,18 @@ def test_structure_check_flags_an_agostic_hydrogen(tmp_path):
     ag = X.copy(); ag[h] = X[0] + (X[h] - X[0]) / np.linalg.norm(X[h] - X[0]) * 1.85   # a C-H pointing at Ni
     out = _run_check(tmp_path, p, "m001", sym, ag)
     assert any(l.startswith(f"WARN metal contact H{h + 1}") and "agostic" in l for l in out), out
+
+
+def test_submit_with_an_empty_only_list_is_refused(tmp_path):
+    # `--only "$IDS"` with an empty shell variable used to submit every molecule
+    import types
+
+    from descripytor import cli
+
+    p = _protocol(tmp_path, ["PMe3,CP(C)C", "PPh3,P(c1ccccc1)(c1ccccc1)c1ccccc1"])
+    pl.build_all(p)
+    args = types.SimpleNamespace(protocol=str(p.path), action="submit", only="", only_adopted=False, dry_run=True, force=False, from_stage=1)
+    with pytest.raises(SystemExit, match="names no molecule"):
+        cli.run_pipeline(args)
+    args.only = None
+    cli.run_pipeline(args)                      # no --only at all still plans everything

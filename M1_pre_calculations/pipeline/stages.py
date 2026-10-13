@@ -257,7 +257,9 @@ print("converged" if converged else "NOT converged", f, flush=True)
 '''
 
 GAUSSIAN_BODY = r"""export g16root=@@G16ROOT@@ GAUSS_SCRDIR="$W"
+set +u                                  # g16.profile reads variables that may be unset (PERLLIB); under set -u the job dies with its marker left at "running"
 source "$g16root/g16/bsd/g16.profile"
+set -u
 {
   printf '%%nprocshared=%s\n%%mem=%sGB\n%%chk=%s.chk\n' @@CORES@@ @@MEM@@ "$NAME"
   cat <<'ROUTE'

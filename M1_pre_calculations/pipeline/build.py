@@ -76,13 +76,17 @@ def _embed(smiles: str, n_conf: int, seed: int, pair=None, pair_range=(2.5, 3.0)
     mol = Chem.AddHs(mol)
     params = AllChem.ETKDGv3()
     params.randomSeed = seed
+    pair_held = bool(pair)
     if pair:
         from rdkit import DistanceGeometry
         from rdkit.Chem import rdDistGeom
         i, j = sorted(pair)
         bm = rdDistGeom.GetMoleculeBoundsMatrix(mol)
         bm[i][j], bm[j][i] = pair_range[1], pair_range[0]          # upper triangle = max, lower = min
-        DistanceGeometry.DoTriangleSmoothing(bm)
+        if not DistanceGeometry.DoTriangleSmoothing(bm):
+            # a rigid ligand (fused biimidazoline) fixes the donor distance outside this range: embed it as it is,
+            # and let the bite-angle test decide. Another donor pair must not win just because it is flexible.
+            bm = rdDistGeom.GetMoleculeBoundsMatrix(mol); DistanceGeometry.DoTriangleSmoothing(bm); pair_held = False
         params.SetBoundsMat(bm)
         params.useExpTorsionAnglePrefs = False     # the torsion library holds bipyridine anti over the bound
     cids = list(AllChem.EmbedMultipleConfs(mol, n_conf, params))
@@ -93,9 +97,9 @@ def _embed(smiles: str, n_conf: int, seed: int, pair=None, pair_range=(2.5, 3.0)
     energy = {}
     for cid in cids:
         ff = AllChem.MMFFGetMoleculeForceField(mol, props, confId=cid) if mmff else AllChem.UFFGetMoleculeForceField(mol, confId=cid)
-        if pair and mmff:
+        if pair_held and mmff:
             ff.MMFFAddDistanceConstraint(pair[0], pair[1], False, pair_range[0], pair_range[1] - 0.1, 100.0)
-        elif pair:
+        elif pair_held:
             ff.UFFAddDistanceConstraint(pair[0], pair[1], False, pair_range[0], pair_range[1] - 0.1, 100.0)
         ff.Minimize(maxIts=2000)
         energy[cid] = ff.CalcEnergy()
@@ -297,7 +301,11 @@ def _build_chelate(smiles, b, n_conf, seed):
         raise BuildError("no bidentate donor pair found")
     tried = []
     for i, j in pairs:
-        mol, confs = _embed(smiles, n_conf, seed, pair=(i, j))
+        try:
+            mol, confs = _embed(smiles, n_conf, seed, pair=(i, j))
+        except BuildError as exc:                 # this pair cannot chelate: try the next candidate
+            tried.append(f"{i + 1}-{j + 1}: {exc}")
+            continue
         sym = [a.GetSymbol() for a in mol.GetAtoms()]
         n = len(sym)
         key = {}

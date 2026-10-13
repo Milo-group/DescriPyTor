@@ -39,13 +39,13 @@ class Remote:
     def __init__(self, host: str, key: str, timeout: int = 180):
         self.host, self.key, self.timeout = host, os.path.expanduser(key), timeout
 
-    def _ssh(self, command: str) -> str:
+    def _ssh(self, command: str, timeout: int | None = None) -> str:
         cmd = ["ssh", "-n", "-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=30", "-o", "IdentitiesOnly=yes",
                "-i", self.key, self.host, command]
-        r = subprocess.run(cmd, capture_output=True, timeout=self.timeout)
+        r = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout)
         return (r.stdout or b"").decode("utf-8", "replace")
 
-    def run(self, script: str, tries: int = 3) -> str:
+    def run(self, script: str, tries: int = 3, timeout: int | None = None) -> str:
         """Run a bash script remotely; returns its stdout. Retries when the reply comes back empty
         or cut short (the end marker is missing). Scripts must be safe to run twice."""
         payload = base64.b64encode(f"echo {BEGIN}\n{script}\necho {END}\n".encode()).decode()
@@ -53,7 +53,7 @@ class Remote:
             raise ClusterError("remote script too long for the tcsh login shell; upload it as a file instead")
         last = ""
         for _ in range(tries):
-            last = self._ssh(f"echo {payload} | base64 -d | bash")
+            last = self._ssh(f"echo {payload} | base64 -d | bash", timeout)
             if BEGIN in last and END in last:
                 return last.split(BEGIN, 1)[1].rsplit(END, 1)[0].strip("\n")
             time.sleep(2)
@@ -125,7 +125,10 @@ def _run_chain(r: Remote, p: Protocol, plan: str, plan_name: str) -> dict:
     """Upload a plan and submit it. Returns {task: {stage: job id}}. Raises on any qsub failure,
     reporting what was submitted, and never resubmits blindly."""
     _put_file(r, p.remote_root, plan_name, plan)
-    out = r.run(f"bash {p.remote_root}/submit_chain.sh {p.remote_root}/{plan_name}", tries=1)
+    # one qsub takes about 2 s on hpcgate, so the reply time grows with the plan: with the default timeout a plan of
+    # more than about 30 three-stage molecules was cut off part-way, its job ids lost with the reply
+    n_qsub = sum(len(line.split()) - 1 for line in plan.splitlines())
+    out = r.run(f"bash {p.remote_root}/submit_chain.sh {p.remote_root}/{plan_name}", tries=1, timeout=max(r.timeout, 60 + 10 * n_qsub))
     jobs, failed = {}, []
     for line in out.splitlines():
         f = line.split()
