@@ -60,13 +60,16 @@ to the menu.
 ## Reading a case
 
 A case opens on the plain page: the views **Models** and **Recipes**, one column per combination of families, the
-rows grouped by family, and only models of up to one descriptor per five compounds (rounded up). The **advanced** box
+rows grouped by family, and only models of up to one descriptor per five compounds (rounded down); **Filters** changes the sizes and sets a least Q² or R². The **advanced** box
 adds the rest (listed at the end of this section). A link made before the plain page existed opens in advanced.
 
-- **The table**: a column is a model, a row a descriptor. Over each bar: R² in grey, the 5-fold Q² in blue. Click a
+- **The table**: a column is a model, a row a descriptor. Over each bar: its 5-fold Q² (the grey bar behind is R²). Click a
   column to draw its model; the arrow keys move along. **A column is** switches between a combination of families
   (models that differ only inside a family counted together, combinations under 1 % of sampled models left out) and a
-  single model. A family counts as often as a model draws on it.
+  single model. A family counts as often as a model draws on it. Columns stand strongest first: by the 5-fold Q² of
+  the column's most visited model, ties by visits; the number under a column is its rank. **?** in the header opens
+  with **How this case is split**: which models are shown, the order, how the folds are dealt, and every family with
+  the reason each member is in it.
 - **Families**: descriptors that stand in for one another. A descriptor joins the most used descriptor for which its
   column is correlated at 0.7 or more, or at 0.5 or more when the sampler clearly takes one or the other; it never joins
   one the sampler uses it together with more than chance. The sampler's evidence is the 2x2 table of the two
@@ -78,17 +81,21 @@ adds the rest (listed at the end of this section). A link made before the plain 
 - **Dots**: one per descriptor of the model. A hollow dot is used by another model of the same column; click it to swap
   it in. A folded family carries its dot on the heading. Lettered squares under a column name its ideas; a line joins
   its dots.
-- **The mark under a column** (✓, ! or ‼): how many checks flag the model. Counted: R² more than 0.15 above the
+- **The mark under a column** (! or ‼, none when nothing is flagged): how many checks flag the model. Counted: R² more than 0.15 above the
   leave-one-out Q²; a leave-one-out Q² within 0.05 when every descriptor is cut to high or low at its
   median (a switch, not a scale); the leading descriptor among the three most used in fewer than 80 % of the
   leave-one-out reruns. Shown and not counted: the ends of the range predicted from the rest, compounds beyond two
   standard deviations, and the leading descriptor against the chance line (the same for every model of a case, and
   said once as a pill beside the case name). The thresholds are choices, not calibrated.
-- **The numbers above the plot**: for the model in hand, kept fixed, R², the 5-fold and 3-fold Q² and the MAE (compounds
+- **The numbers above the plot**: for the model in hand, kept fixed, R², the 5-fold Q² and the MAE (compounds
   sorted by the response and dealt in turn into the folds, one deal). Under it, **BASSA's averaged model** with the
-  sampler rerun in every fold, which is the number to quote. These come from the case file (`cv`, written by
+  sampler rerun in every fold, which is the number to quote. A case run through `ensemble_protocol.py` shows the mean
+  and range of the 5-fold Q² over its deals, the MAE, the leave-one-out Q², the share of held-out values inside the
+  90 % interval and the compound furthest off, and the averaged model's plot carries each compound's interval; a case
+  with one deal says "one deal each". These come from the case file (`cv`, written by
   `ensemble_cv.py` or `ensemble_protocol.py` in the cases folder); a case without them shows the leave-one-out value.
-- **The equation**: the model in the descriptors' own units, under its table. "Weight" is per standard deviation.
+- **The equation**: the model on normalized descriptors, z(x) = (x − mean) / standard deviation, so the coefficients
+  compare with one another; the same model in the descriptors' own units is folded underneath.
 - **Averaged model**: the average over every sampled model, in the plot and as its five largest weights (`ens` in the
   case file). **Compare models** keeps one model as hollow marks beside a second. **Design**: a slider per descriptor
   (not on the averaged model). **Export**: the picture as SVG, or the model as text.
