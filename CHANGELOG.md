@@ -20,6 +20,9 @@
 - **First visit and keyboard.** Three steps above the table instead of a dialog; Enter and space work on recipes;
   explanations appear on keyboard focus; the family colours carry white letters at 4.9 to 1 or better.
 - A family now counts as often as a model draws on it: one and two descriptors of the same family are two columns.
+- **Less on the page.** A case opens with every family folded, one row per idea. The table's head is shorter with the
+  key in its corner, the toolbar is one row, and the rerun column, the partner badges, the leave-one-out strips and the
+  full list of checks wait behind advanced or a click.
 
 ## 0.3.3 — 2026-10-12
 
