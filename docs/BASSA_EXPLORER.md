@@ -59,43 +59,60 @@ to the menu.
 
 ## Reading a case
 
-A case opens on the plain page: two views, **Models** and **Recipes**, with **Key models** on, the rows grouped by family,
-and only models of up to one descriptor per five compounds (rounded up). The **advanced** box beside the views adds
-Network, Map and Compounds, the filters (the size limit among them), the other row orders, the links, pins, threshold
-analysis and the extra Sterimol drawings. Switching it off puts those settings back to their defaults. A link made
-before the plain page existed opens in advanced, as it looked then.
+A case opens on the plain page: the views **Models** and **Recipes**, one column per combination of families, the
+rows grouped by family, and only models of up to one descriptor per five compounds (rounded up). The **advanced** box
+adds the rest (listed at the end of this section). A link made before the plain page existed opens in advanced.
 
-- **Models**: the table. **Key models** merges models that differ only within a family of correlated descriptors and
-  hides groups visited in less than 1 % of the run; "visited ≥" and the size, Q² and R² filters do the rest.
-  A family counts as often as a model draws on it: one charge and two charges of the same family are two columns.
-  Do not rank by Q²: that brings up large models the sampler hardly visited.
-- **Families in the table**: a shaded heading per family gives the share of models that use at least one of its
-  descriptors (a floor when the family has more than two), with the bar cut where it passes from one descriptor to the
-  next; the rows under it show the split. Click a heading to fold it, **Fold families** for one row per family.
-  A hollow dot is a descriptor that another model of the same column uses; click it to draw that model.
-- **Ideas**: every family, and every descriptor on its own, is one idea with a letter and a colour (A is the most used).
-  A family is one coloured block with its four most used descriptors (each in at least 1 % of the run, plus those of
-  the model drawn); **more** under it opens the rest, and a dot on that line means the column draws on one of them.
-  Under each column the lettered squares name the ideas the model combines and a line joins its dots. **with** beside
-  an idea names the ideas it most often shares a model with (counted over the loaded models). Pointing at an idea
-  fades the columns that do not draw on it. "show all" lists every descriptor.
-- **Recipes**: every model reduced to its families; inside a slot, the descriptors that fill it replace each other.
-  Click a descriptor to draw the model of that card that contains it; the arrows step through the card's models.
-- **dipole arrow ×** (shown when the model has a dipole term) makes the arrows longer or shorter; the values stay.
-- **Network**, **Map**: which descriptors share models (green) or stand in for each other (red). Network circles can be dragged.
-- **Compounds**: for the ten most used descriptors, how the frequency moves when each compound is left out.
-  A frequency that moves is the sampler changing its choice among near-equivalent models; check the coefficient before
-  reading it as "the effect rests on that compound" (`../bassa/cs2_l1_check.py` is the worked example).
-- `influence_check.py <case>` prints, for the leading descriptor, the compound that moves its frequency most and whether
-  its coefficient and the model move with it.
-- Right-click a point in the plot to leave a compound out of the fit shown; **Rerun BASSA without them** runs the sampler
-  again and shows every frequency before and after.
-- **The plot**: above it, R², Q² and MAE of the shown model (Q² and MAE from fits that leave each compound out), then the
-  external compounds and the ones you held out. The shaded band is one MAE either side of the diagonal.
-  **Threshold analysis** asks how well one descriptor splits the compounds at a response value you set.
+- **The table**: a column is a model, a row a descriptor. Over each bar: R² in grey, the 5-fold Q² in blue. Click a
+  column to draw its model; the arrow keys move along. **A column is** switches between a combination of families
+  (models that differ only inside a family counted together, combinations under 1 % of sampled models left out) and a
+  single model. A family counts as often as a model draws on it.
+- **Families**: descriptors that stand in for one another. A descriptor joins the most used descriptor for which its
+  column is correlated at 0.7 or more, or at 0.5 or more when the sampler clearly takes one or the other; it never joins
+  one the sampler uses it together with more than chance. The sampler's evidence is the 2x2 table of the two
+  descriptors over the kept steps (log odds ratio, a tenth of the steps counted as independent, judged against the
+  unrelated pairs of the same run). The "?" at the end of a row gives the reason with its numbers.
+- **Ideas**: every family, and every descriptor on its own, has a letter and a colour (A is the most used). A family is
+  a coloured block named after the descriptor the model in hand takes from it. It opens when that model uses it, shows
+  its four most used descriptors, and keeps the rest behind **more**. **Fold families** leaves one row per idea.
+- **Dots**: one per descriptor of the model. A hollow dot is used by another model of the same column; click it to swap
+  it in. A folded family carries its dot on the heading. Lettered squares under a column name its ideas; a line joins
+  its dots.
+- **The mark under a column** (✓, ! or ‼): how many checks flag the model. Counted: R² more than 0.15 above the
+  leave-one-out Q²; a leave-one-out Q² within 0.05 when every descriptor is cut to high or low at its
+  median (a switch, not a scale); the leading descriptor among the three most used in fewer than 80 % of the
+  leave-one-out reruns. Shown and not counted: the ends of the range predicted from the rest, compounds beyond two
+  standard deviations, and the leading descriptor against the chance line (the same for every model of a case, and
+  said once as a pill beside the case name). The thresholds are choices, not calibrated.
+- **The numbers above the plot**: for the model in hand, kept fixed, R², the 5-fold and 3-fold Q² and the MAE (compounds
+  sorted by the response and dealt in turn into the folds, one deal). Under it, **BASSA's averaged model** with the
+  sampler rerun in every fold, which is the number to quote. These come from the case file (`cv`, written by
+  `ensemble_cv.py` or `ensemble_protocol.py` in the cases folder); a case without them shows the leave-one-out value.
+- **The equation**: the model in the descriptors' own units, under its table. "Weight" is per standard deviation.
+- **Averaged model**: the average over every sampled model, in the plot and as its five largest weights (`ens` in the
+  case file). **Compare models** keeps one model as hollow marks beside a second. **Design**: a slider per descriptor
+  (not on the averaged model). **Export**: the picture as SVG, or the model as text.
+- **Recipes**: every model reduced to its families; click a descriptor to draw the model of that card that contains it,
+  the arrows step through the card's models, and "together" is the card's models averaged by visits.
 - **On the molecule**: Sterimol axes, charges and dipole components of the shown model, each with its value. A length, an
-  angle or a dihedral is a dashed line through its atoms with the table's value (d, ∠, τ). A dipole feature shows its own
-  arrow and label only. Untick **descriptors** to see the structures alone.
+  angle or a dihedral is a dashed line through its atoms with the table's value (d, ∠, τ). **dipole arrow ×** and
+  **Sterimol drawing** appear when the model has such a term. Untick **descriptors** to see the structures alone.
+- **Header**: **All cases**, **More** (new case, keep this case, add the chance line and leave-one-out reruns, save as
+  one file, copy link), **Reaction**, and **?**.
+
+What **advanced** adds:
+
+- **Network**, **Map**: which descriptors share models (green) or stand in for each other (red). **Compounds**: for the
+  ten most used descriptors, how the frequency moves when each compound is left out. A frequency that moves is the
+  sampler changing its choice among near-equivalent models; check the coefficient before reading it as "the effect
+  rests on that compound". `influence_check.py <case>` prints this for the leading descriptor.
+- Sorting the models by visits, Q² or R², and the filters (these use the leave-one-out Q², not the 5-fold one over the
+  bars). Do not rank by Q²: that brings up large models the sampler hardly visited.
+- Rows by frequency or by what goes with a selection; the links as arcs; pins; the count of merged models.
+- Beside each descriptor, the leave-one-out reruns (top three, range); in family headings, the partner ideas and
+  **on molecule**, which draws a family's descriptors together.
+- Under the plot: where each descriptor's share goes without single compounds; **Threshold analysis**; point names.
+- Right-click a point to leave a compound out of the fit shown; **Rerun BASSA without them** runs the sampler again.
 - **Compare**: shift-click compounds in the plot to stack them, superposed on the atoms the descriptors name; every
   compound carries its own values in its own colour.
 - A column the page cannot place on the molecule: click its name under the plot and say what it measures.
