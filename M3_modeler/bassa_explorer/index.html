@@ -38,12 +38,12 @@
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   input[type=range] { width: 84px; accent-color: var(--ink); vertical-align: middle; }
   output { display: inline-block; min-width: 2.2em; font-variant-numeric: tabular-nums; }
-  .chips { display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: center; min-height: 26px; margin-bottom: 6px; }
+  .chips { display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; } body:not(.adv) #rowbar { display: none !important; }
   .chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 4px 2px 8px; background: var(--hit); border-radius: 12px; font-size: 12px; }
   .chip button { border: 0; background: none; padding: 0 5px; font-size: 14px; line-height: 1; color: var(--mute); }
   .chip.pin { background: #e6eefc; cursor: pointer; max-width: 260px; } .chip.pin span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .chip.out { background: #e8ecf1; }
   .key { display: inline-flex; align-items: center; gap: 5px; color: var(--mute); font-size: 12px; }
-  .scroll { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--line); }
+  .scroll { flex: 1; min-height: 280px; overflow: auto; border-top: 1px solid var(--line); } main > section:first-child { overflow-y: auto; }      /* on a low window the table keeps its room and the panel scrolls */
   table { border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
   th, td { padding: 0; text-align: center; }
   thead th { position: sticky; top: 0; background: var(--card); z-index: 2; border-bottom: 1px solid var(--line); vertical-align: bottom; font-weight: 400; }
@@ -69,9 +69,9 @@
   .fbar em.fold { top: 8px; height: 3px; background: var(--accent); opacity: .8; }
   .wb { position: relative; display: inline-block; width: 72px; height: 9px; background: #edf0f3; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
   .wb i { position: absolute; top: 0; bottom: 0; border-radius: 2px; } .wb b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
-  th.m { cursor: pointer; width: 24px; min-width: 24px; padding-bottom: 2px; transition: opacity .15s; }
-  .q { position: relative; height: 84px; width: 16px; margin: 0 auto; }
-  .q u { position: absolute; left: 0; right: 0; bottom: 0; background: #e2e6ea; border-radius: 2px 2px 0 0; }
+  th.m { cursor: pointer; width: 30px; min-width: 30px; padding-bottom: 2px; transition: opacity .15s; }
+  .q { position: relative; height: 44px; width: 18px; margin: 0 auto; }
+  .q u { position: absolute; left: 0; right: 0; bottom: 0; background: #e3e9f1; border-radius: 2px 2px 0 0; }
   .q s { position: absolute; left: 2px; right: 2px; bottom: 0; border-radius: 2px 2px 0 0; }
   .q em { position: absolute; left: -3px; right: -3px; border-top: 1.5px dashed #c0392b; }
   .mid { font-size: 9.5px; color: var(--mute); line-height: 1.3; } .mid.x { color: var(--ink); font-weight: 600; }
@@ -100,7 +100,7 @@
   /* an idea: a family of look-alike descriptors, or a descriptor on its own. Its letter and colour are the same wherever it shows */
   .idb { display: inline-block; min-width: 16px; height: 16px; line-height: 16px; padding: 0 3px; border-radius: 4px; color: #fff; font-size: 10.5px; font-weight: 700; text-align: center; margin-right: 6px; vertical-align: 1px; }
   .idb.s { min-width: 13px; height: 13px; line-height: 13px; font-size: 9px; padding: 0 2px; margin: 0 1px; vertical-align: 0; } .with { white-space: nowrap; }
-  .ids { display: flex; flex-direction: column; align-items: center; gap: 1px; padding-top: 2px; } .ids b { width: 14px; height: 14px; line-height: 14px; border-radius: 3px; color: #fff; font-size: 9.5px; font-weight: 700; }
+  .ids { display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: 1px; width: 28px; margin: 0 auto; padding-top: 2px; } .ids b { width: 13px; height: 13px; line-height: 13px; border-radius: 3px; color: #fff; font-size: 9px; font-weight: 700; }
   /* a family is one block: a rail and a wash of its colour, a stronger heading, round ends, and air before the next */
   tr.fm th.name, tr.fm td.freq, tr.fm td.num { background-color: var(--tint, var(--card)); } tr.fh.fm th.name, tr.fh.fm td.freq, tr.fh.fm td.num { background-color: color-mix(in srgb, var(--fam) 17%, #fff); }
   tr.fm th.name { border-left-width: 5px; } tr.b0 th.name { border-top-left-radius: 9px; } tr.b1 th.name { border-bottom-left-radius: 9px; } tr.b0 td.num { border-top-right-radius: 9px; } tr.b1 td.num { border-bottom-right-radius: 9px; }
@@ -112,7 +112,10 @@
   .ck { width: 14px; height: 14px; line-height: 14px; border-radius: 50%; margin: 2px auto 0; color: #fff; font-size: 10px; font-weight: 700; } .ck.ok { background: #13774c; } .ck.warn { background: #b45309; } .ck.bad { background: #c0392b; }
   .cks { margin-top: 8px; font-size: 12px; } .cks div { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 5px; margin-top: 3px; } .cks .ck { margin: 1px 0 0; } .cks .ck.na { background: #9aa5b1; } .cks a { cursor: pointer; text-decoration: underline; }
   .eye { margin-left: 6px; padding: 0 4px; border-radius: 8px; font-size: 11px; color: var(--mute); border: 1px solid transparent; } .eye:hover { border-color: var(--faint); } .eye.on { background: var(--ink); color: #fff; }
-  #famkey i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #64748b; margin-left: 9px; } #famkey i.h { background: #fff; border: 2px solid #9aa5b1; } #famkey i.l { width: 2px; height: 13px; border-radius: 0; background: #b3bcc7; }
+  thead th.cnr { left: 0; z-index: 3; text-align: left; vertical-align: bottom; padding: 0; color: var(--mute); font-size: 11.5px; box-shadow: 6px 0 6px -6px rgba(0,0,0,.18); }
+  .cnrlab { display: flex; white-space: nowrap; padding-bottom: 4px; } .cnrlab span { box-sizing: border-box; padding-left: 6px; }
+  #famkey { display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: center; padding: 2px 8px 8px 6px; max-width: calc(var(--w0) + var(--w1) + 232px); white-space: normal; } #famkey > span { white-space: nowrap; } #famkey .ck { display: inline-block; margin: 0 2px 0 0; text-align: center; vertical-align: -2px; }
+  #famkey i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #64748b; margin-right: 5px; vertical-align: -1px; } #famkey i.h { background: #fff; border: 2px solid #9aa5b1; } #famkey i.l { width: 2px; height: 13px; border-radius: 0; background: #b3bcc7; }
   .opt { display: grid; grid-template-columns: minmax(0, 1fr) 64px 34px; gap: 6px; align-items: center; cursor: pointer; padding: 1px 2px; border-radius: 3px; } .opt:hover { background: var(--hover); } .opt.sel { background: var(--hit); font-weight: 600; }
   .opt span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .opt i { height: 7px; background: #a9b4c0; border-radius: 2px; justify-self: start; } .opt b { font-weight: 400; color: var(--mute); font-size: 11.5px; text-align: right; }
   #mol, #mol2 { max-width: 190px; } #peek { min-height: 18px; margin: -2px 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } #peek b { color: var(--ink); font-weight: 600; }
@@ -189,6 +192,8 @@
       </div></details>
       <button id="keymodels" aria-pressed="false" data-tip="On: one column per combination of families. Models that differ only by swapping a descriptor for another of its family are one column, and combinations visited in less than 1 % of the run are hidden. Off: one column per model.">Key models</button>
       <button id="foldall" data-tip="Fold every family to one row (one row per idea), or unfold them again to see how each family's share is split among its descriptors. A single family folds when you click its heading.">Fold families</button>
+      <input id="find" type="search" placeholder="find a descriptor…" aria-label="find a descriptor" style="width:170px">
+      <button id="clear" title="clears the selection, the search and the pins">Clear</button>
       <label class="lab advonly" id="mergelab" title="models that differ only by swapping a descriptor for one of its family become one column"><input id="merge" type="checkbox"> merge look-alikes</label>
     </div>
     <div class="bar" id="rowbar">
@@ -196,10 +201,8 @@
         <button id="rowhelp" class="round" aria-label="what the three row orders show">?</button></div>
       <div class="grp advonly"><span class="lab">Links</span><span class="seg" id="links"><button data-v="top" title="the six strongest of each kind; point at a descriptor to see all of its links">strongest</button><button data-v="all">all</button><button data-v="off">off</button></span>
         <button id="linkhelp" class="round" aria-label="what the links mean">?</button></div>
-      <input id="find" type="search" placeholder="find a descriptor…" aria-label="find a descriptor" style="width:170px">
     </div>
-    <div class="chips"><button id="clear" title="clears the selection, the search and the pins">Clear</button><button id="pin" class="advonly" title="keep the model or selection on screen to come back to it">Pin</button><span id="chips" style="display:contents"></span>
-      <span class="key" id="famkey" hidden><span class="idb s" style="background:#64748b">A</span>an idea: a family of look-alike descriptors, or one on its own<i></i>in the model drawn<i class="h"></i>swaps in<i class="l"></i>used together<span class="ck ok" style="display:inline-block;margin:0 0 0 9px;text-align:center">✓</span><span class="ck warn" style="display:inline-block;margin:0;text-align:center">!</span>checks on the model</span>
+    <div class="chips"><button id="pin" class="advonly" title="keep the model or selection on screen to come back to it">Pin</button><span id="chips" style="display:contents"></span>
       <span class="key advonly"><svg width="30" height="12"><path d="M2 10 C 10 -2, 20 -2, 28 10" fill="none" stroke="#13774c" stroke-width="2.4"/></svg>appear together</span>
       <span class="key advonly"><svg width="30" height="12"><path d="M2 10 C 10 -2, 20 -2, 28 10" fill="none" stroke="#c0392b" stroke-width="2" stroke-dasharray="4 3"/></svg>replace each other</span>
       <span class="key advonly" title="on each frequency bar"><svg width="22" height="12"><line x1="1" y1="4" x2="21" y2="4" stroke="#18212b" stroke-width="3"/><line x1="1" y1="9" x2="21" y2="9" stroke="#1f5fd0" stroke-width="3"/></svg>between chains / leaving one compound out</span>
@@ -457,7 +460,7 @@ function grid() {
   $('grid').hidden = V !== 'models'; $('recipes').hidden = V !== 'recipes'; $('net').toggleAttribute('hidden', V !== 'network'); $('map').toggleAttribute('hidden', V !== 'map'); $('infl').toggleAttribute('hidden', V !== 'influence');
   $('rowbar').hidden = $('mergelab').hidden = $('keymodels').hidden = V !== 'models'; $('vsgrp').hidden = $('onlylab').hidden = V === 'recipes';
   const byFam = st.rsort === 'fam', big = Object.keys(members).filter((f) => members[f].length > 1); $('foldall').hidden = V !== 'models' || !byFam || !big.length; $('foldall').textContent = big.length && big.every((f) => st.shut.has(+f)) ? 'Unfold families' : 'Fold families';
-  document.documentElement.style.setProperty('--w0', st.links === 'off' ? '0px' : '58px'); $('famkey').hidden = V !== 'models' || !byFam; hovF = -1; $('famhov').textContent = '';      // a fade left by the pointer would name columns that are about to change
+  document.documentElement.style.setProperty('--w0', st.links === 'off' ? '0px' : '58px'); hovF = -1; $('famhov').textContent = '';      // a fade left by the pointer would name columns that are about to change
   const nf = !sizesDefault() + (st.minq > 0) + (st.minr > 0) + (st.minshare !== (st.merge ? 0.01 : 0)) + st.only; $('filtsum').innerHTML = nf ? `Filters <b>· ${nf} on</b>` : 'Filters'; $('msort').parentElement.hidden = V !== 'models';
   $('chips').innerHTML = st.rows.map((i) => `<span class="chip"><span class="sw" style="background:${colourOf(i) || '#9aa5b1'};margin:0"></span>${esc(C.label[i])}<button data-x="${i}" aria-label="remove ${esc(C.label[i])}">×</button></span>`).join('') +
     (st.famView >= 0 ? `<span class="chip">${idb(st.famView, true)} family on the molecule: ${esc(famShown().map((i) => C.label[i]).join(', ') || 'none of it can be drawn')}<button data-fv="1" aria-label="back to the model">×</button></span>` : '') +
@@ -474,13 +477,14 @@ function grid() {
       const take = drawn.has(i) || st.open.has(f) || (left[f] > 0 && (C.freq[i] >= 0.01 || !got[f]) && left[f]-- > 0); if (take) got[f] = 1; else (more[f] ||= []).push(i); return take; }); }
   $('count').innerHTML = `${cols.length}${total > cols.length ? ' of ' + total : ''} ${st.merge ? 'combinations of families' : 'models'}` + (sizesDefault() && sizeCap() < 5 ? `, up to ${sizeCap()} descriptors` : '') + (st.rows.length && !st.only ? `; ${lit} contain the selection` : '') +
     (st.find.trim() ? '' : st.allrows ? ` · <button id="allrows" class="linkb">only the descriptors in these models</button>` : rows.length < allN ? ` · ${rows.length} of ${allN} descriptors, <button id="allrows" class="linkb">show all</button>` : '');
-  let h = `<thead><tr><th class="h0"${st.links === 'off' ? ' style="padding:0"' : ''}>${st.links === 'off' ? '' : 'links'}</th><th class="corner">descriptor</th><th class="h2">% of all models</th><th class="h3">${anchor >= 0 ? 'beside ' + esc(C.label[anchor]) : C.before ? 'before, with all compounds' : C.fold_top ? 'without one compound: top 3 · range' : ''}</th>`;
+  // the head: one cell over the four fixed columns, with the key to the marks in the room the bars leave free and the column titles at its foot
+  let h = `<thead><tr><th class="cnr" colspan="4">${byFam ? `<div id="famkey"><span><span class="idb s" style="background:#64748b">A</span> an idea: a family of look-alike descriptors, or one on its own</span><span><i></i>in the model drawn</span><span><i class="h"></i>swaps in</span><span><i class="l"></i>used together</span><span><span class="ck ok">✓</span><span class="ck warn">!</span> checks on the model</span></div>` : ''}<div class="cnrlab"><span style="width:calc(var(--w0) + var(--w1))">${st.links === 'off' ? '' : 'links · '}descriptor</span><span style="width:104px">% of all models</span><span>${anchor >= 0 ? 'beside ' + esc(C.label[anchor]) : C.before ? 'before, with all compounds' : C.fold_top ? 'without one compound: top 3 · range' : ''}</span></div></th>`;
   const tall = Math.max(1, ...cols.map((c) => C.models[shownOf(c)].cols.length));
   cols.forEach((c, k) => { const sm = shownOf(c), M = C.models[sm], q2 = isSel(c) ? M.q2 : c.q2, r2 = isSel(c) ? M.r2 : c.r2;       // a selected column shows the numbers of the model drawn, the others the best of their group
     h += `<th class="m${isSel(c) ? ' sel' : ''}${c.lit ? '' : ' dim'}" data-m="${sm}" tabindex="0" title="${esc(M.cols.map((i) => C.label[i]).join('  +  '))}\nR² ${M.r2.toFixed(2)}   Q² ${M.q2.toFixed(2)}   ${(100 * M.share).toFixed(1)} % of the run${c.members.length > 1 ? `\none of ${c.members.length} models that differ only within families: together ${(100 * c.share).toFixed(1)} % of the run, best Q² ${c.q2.toFixed(2)}. Hollow dots are the descriptors of the others; click one to switch to that model.` : ''}">
-      <div class="mid">${q2.toFixed(2).replace('0.', '.')}</div><div class="q"><u style="height:${Math.max(0, r2) * 100}%"></u><s style="height:${Math.max(0, q2) * 100}%;background:${byFam ? (isSel(c) ? '#2b3440' : '#66717f') : KCOL[kOf(M)]}"></s>${C.nested_q2 == null ? '' : `<em style="bottom:${Math.max(0, C.nested_q2) * 100}%"></em>`}</div>` +
+      <div class="mid">${q2.toFixed(2).replace('0.', '.')}</div><div class="q"><u style="height:${Math.max(0, r2) * 100}%"></u><s style="height:${Math.max(0, q2) * 100}%;background:${byFam ? (isSel(c) ? 'var(--accent)' : '#8fb0e6') : KCOL[kOf(M)]}"></s>${C.nested_q2 == null ? '' : `<em style="bottom:${Math.max(0, C.nested_q2) * 100}%"></em>`}</div>` +
       // by family, the ideas a column combines stand under its bar as lettered squares: what goes together, read across the head of the table
-      (byFam ? `<div class="ids" style="height:${tall * 15 + 2}px">${M.cols.map((i) => fam[i]).sort((a, b) => ideaRank[a] - ideaRank[b]).map((f) => `<b style="background:${ideaCol[f]}">${ideaTag[f]}</b>`).join('')}</div>` : '') +
+      (byFam ? `<div class="ids" style="height:${Math.ceil(tall / 2) * 14 + 2}px">${M.cols.map((i) => fam[i]).sort((a, b) => ideaRank[a] - ideaRank[b]).map((f) => `<b style="background:${ideaCol[f]}">${ideaTag[f]}</b>`).join('')}</div>` : '') +
       `<div class="mid${c.members.length > 1 ? ' x' : ''}">${c.members.length > 1 ? '×' + c.members.length : k + 1}</div>${(() => { const K = checksOf(sm); return K ? `<div class="ck ${K.grade}" title="${esc(K.flags ? K.out.filter((o) => o.bad).map((o) => o.t + ': ' + o.say).join('\n') : 'no check raises a flag on this model')}">${K.flags ? (K.flags > 1 ? '‼' : '!') : '✓'}</div>` : ''; })()}</th>`; });
   h += '</tr></thead><tbody>';
   // the plan of the body: by family, a heading per family of several, its rows, a "more" line, and a gap between ideas; otherwise one row per descriptor
@@ -1023,7 +1027,7 @@ async function selfTest() {
       // the look of the families: a letter per idea under each column, the dots of a column joined, at most FAMCAP descriptors of a family unless a column draws more
       const shownCols = columns().cols, drawnNow = new Set(C.models[st.model].cols), perFam = {}; document.querySelectorAll('tbody tr[data-row]').forEach((tr) => { const f = fam[+tr.dataset.row]; perFam[f] = (perFam[f] || 0) + 1; });
       need(count('th.m .ids b') === shownCols.reduce((s, c) => s + C.models[shownOf(c)].cols.length, 0) && count('td.c.v0') === count('td.c.v1') && count('td.c.v0') === shownCols.filter((c) => C.models[shownOf(c)].cols.length > 1 || members[fam[C.models[shownOf(c)].cols[0]]].length > 1).length, 'a letter per idea under each column, and the dots of a column joined');
-      need(Object.entries(perFam).every(([f, k]) => k <= Math.max(FAMCAP, members[f].filter((j) => drawnNow.has(j)).length)) && count('tr.gap') === Object.keys(perFam).length - 1 && !$('famkey').hidden, 'at most four descriptors of a family, and a gap between ideas');
+      need(Object.entries(perFam).every(([f, k]) => k <= Math.max(FAMCAP, members[f].filter((j) => drawnNow.has(j)).length)) && count('tr.gap') === Object.keys(perFam).length - 1 && !!$('famkey'), 'at most four descriptors of a family, and a gap between ideas');
       const mo = document.querySelector('th[data-more]'); if (mo) { const f = +mo.dataset.more, n0 = count('tbody tr[data-row]'); mo.click(); need(st.open.has(f) && count('tbody tr[data-row]') > n0, 'the rest of a family behind "more"'); document.querySelector(`th[data-more="${f}"]`).click(); need(!st.open.size && count('tbody tr[data-row]') === n0, 'and back'); }
       const K0 = checksOf(st.model); need(K0 && K0.out.length >= 4 && count('th.m .ck') === count('th.m') && count('#info .cks > div') === K0.out.length && fit(C.models[st.model].cols) === fits[C.models[st.model].cols.join(',') + '|'], 'a mark under every column and the checks spelled out');
       const two = columns().cols; if (two.length > 1) { $('cmp').click(); const first = st.cmp.join(); st.model = shownOf(two[1]); refresh(); need(first === C.models[shownOf(two[0])].cols.join() && count('#parity circle[r="3"]') === Y.length && $('pstats').textContent.includes('kept for comparison'), 'two models compared in the plot'); $('cmp').click(); need(!st.cmp && !count('#parity circle[r="3"]'), 'comparison off'); st.model = shownOf(two[0]); refresh(); }
