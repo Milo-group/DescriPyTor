@@ -87,15 +87,15 @@ adds the rest (listed at the end of this section). A link made before the plain 
   leave-one-out reruns. Shown and not counted: the ends of the range predicted from the rest, compounds beyond two
   standard deviations, and the leading descriptor against the chance line (the same for every model of a case, and
   said once as a pill beside the case name). The thresholds are choices, not calibrated.
-- **The numbers above the plot**: for the model in hand, kept fixed, R², the 5-fold Q² and the MAE (compounds
-  sorted by the response and dealt in turn into the folds, one deal). Under it, **BASSA's averaged model** with the
-  sampler rerun in every fold, which is the number to quote. A case run through `ensemble_protocol.py` shows the mean
-  and range of the 5-fold Q² over its deals, the MAE, the leave-one-out Q², the share of held-out values inside the
-  90 % interval and the compound furthest off, and the averaged model's plot carries each compound's interval; a case
-  with one deal says "one deal each". These come from the case file (`cv`, written by
-  `ensemble_cv.py` or `ensemble_protocol.py` in the cases folder); a case without them shows the leave-one-out value.
-- **The equation**: the model on normalized descriptors, z(x) = (x − mean) / standard deviation, so the coefficients
-  compare with one another; the same model in the descriptors' own units is folded underneath.
+- **The tiles above the plot**: the model in hand, kept fixed (5-fold Q², with R² as the grey part of the line);
+  **BASSA's averaged model**, sampler rerun in every fold, which is the number to quote (each dot is one deal of the
+  folds; a case with one deal says so); the typical miss (MAE against the range of the response); and, for a case run
+  through `ensemble_protocol.py`, the share of held-out values inside the 90 % interval with the compound furthest off.
+  These come from the case file (`cv`). Every small **?** opens a drawing of that number.
+- **Weights and equation**: under the plot, a bar per descriptor (its weight per standard deviation, ▲ raises and ▼
+  lowers the response). **as an equation** unfolds the model on normalized descriptors, and in their own units.
+- **Checks**: three chips for the counted checks (fit against test, a scale and not a switch, holds without one
+  compound); hover one for its drawing, **all checks** for the list.
 - **Averaged model**: the average over every sampled model, in the plot and as its five largest weights (`ens` in the
   case file). **Compare models** keeps one model as hollow marks beside a second. **Design**: a slider per descriptor
   (not on the averaged model). **Export**: the picture as SVG, or the model as text.
