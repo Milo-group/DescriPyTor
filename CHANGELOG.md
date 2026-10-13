@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.3.4 — 2026-10-13
+
+### BASSA model explorer
+
+- **A plain page by default.** A case opens on two views, Models and Recipes, with Key models on, the rows grouped by
+  family, and models of up to one descriptor per five compounds. The other views, the filters, the row orders, the
+  links, pins, threshold analysis and the extra Sterimol drawings wait behind **advanced**. Older links open as before.
+- **Families as ideas.** Every family, and every descriptor on its own, has a letter and a colour. A family is one
+  block showing its four most used descriptors, with the rest behind "more"; lettered squares under each column and a
+  line joining its dots show what a model combines; "with" names an idea's most frequent partners.
+- **Exploring models.** A hollow dot swaps a family member into the model; recipe cards pick and step through their
+  models; **Compare** keeps one model in the plot as hollow marks beside a second one.
+- **Checks on a model.** A mark under every column and a list under the shown model: fit against leave-one-out, high
+  or low only (a switch, not a scale), the leading descriptor against the chance line and across the leave-one-out
+  reruns; the ends of the range and far-off compounds are shown and not counted. The thresholds are not calibrated.
+- **On the molecule.** "on molecule" in a family heading draws its descriptors together; a slider sets the length of
+  the dipole arrows.
+- **First visit and keyboard.** Three steps above the table instead of a dialog; Enter and space work on recipes;
+  explanations appear on keyboard focus; the family colours carry white letters at 4.9 to 1 or better.
+- A family now counts as often as a model draws on it: one and two descriptors of the same family are two columns.
+
 ## 0.3.3 — 2026-10-12
 
 ### Fixed
