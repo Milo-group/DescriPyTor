@@ -59,10 +59,29 @@ to the menu.
 
 ## Reading a case
 
+A case opens on the plain page: two views, **Models** and **Recipes**, with **Key models** on, the rows grouped by family,
+and only models of up to one descriptor per five compounds (rounded up). The **advanced** box beside the views adds
+Network, Map and Compounds, the filters (the size limit among them), the other row orders, the links, pins, threshold
+analysis and the extra Sterimol drawings. Switching it off puts those settings back to their defaults. A link made
+before the plain page existed opens in advanced, as it looked then.
+
 - **Models**: the table. **Key models** merges models that differ only within a family of correlated descriptors and
   hides groups visited in less than 1 % of the run; "visited ≥" and the size, Q² and R² filters do the rest.
+  A family counts as often as a model draws on it: one charge and two charges of the same family are two columns.
   Do not rank by Q²: that brings up large models the sampler hardly visited.
+- **Families in the table**: a shaded heading per family gives the share of models that use at least one of its
+  descriptors (a floor when the family has more than two), with the bar cut where it passes from one descriptor to the
+  next; the rows under it show the split. Click a heading to fold it, **Fold families** for one row per family.
+  A hollow dot is a descriptor that another model of the same column uses; click it to draw that model.
+- **Ideas**: every family, and every descriptor on its own, is one idea with a letter and a colour (A is the most used).
+  A family is one coloured block with its four most used descriptors (each in at least 1 % of the run, plus those of
+  the model drawn); **more** under it opens the rest, and a dot on that line means the column draws on one of them.
+  Under each column the lettered squares name the ideas the model combines and a line joins its dots. **with** beside
+  an idea names the ideas it most often shares a model with (counted over the loaded models). Pointing at an idea
+  fades the columns that do not draw on it. "show all" lists every descriptor.
 - **Recipes**: every model reduced to its families; inside a slot, the descriptors that fill it replace each other.
+  Click a descriptor to draw the model of that card that contains it; the arrows step through the card's models.
+- **dipole arrow ×** (shown when the model has a dipole term) makes the arrows longer or shorter; the values stay.
 - **Network**, **Map**: which descriptors share models (green) or stand in for each other (red). Network circles can be dragged.
 - **Compounds**: for the ten most used descriptors, how the frequency moves when each compound is left out.
   A frequency that moves is the sampler changing its choice among near-equivalent models; check the coefficient before
