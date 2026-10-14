@@ -154,13 +154,10 @@ class GeneralConstants(Enum):
         'C.ar':'C6/N6', 'S.2':'S','H':'H' 
         }
     
-    ATOMIC_NUMBERS ={
-    '1':'H', '5':'B', '6':'C', '7':'N', '8':'O', '9':'F', '14':'Si',
-             '15':'P', '16':'S', '17':'Cl', '35':'Br', '53':'I', '27':'Co', '28':'Ni',
-              # metals and other elements that used to come out as NaN (a Pd complex lost its metal)
-              '3':'Li', '11':'Na', '12':'Mg', '13':'Al', '19':'K', '20':'Ca', '22':'Ti', '23':'V', '24':'Cr', '25':'Mn', '26':'Fe',
-              '29':'Cu', '30':'Zn', '33':'As', '34':'Se', '40':'Zr', '42':'Mo', '44':'Ru', '45':'Rh', '46':'Pd', '47':'Ag',
-              '50':'Sn', '74':'W', '77':'Ir', '78':'Pt', '79':'Au'}
+    ATOMIC_NUMBERS = {str(z): s for z, s in enumerate(      # every element: a short table wrote NaN for Pd, Cu, Rh ... without an error
+        "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr "
+        "Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu "
+        "Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn".split(), 1)}
         
 
     ATOMIC_WEIGHTS = {

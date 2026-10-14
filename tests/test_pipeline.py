@@ -61,6 +61,21 @@ def test_chelate_order_is_metal_ancillaries_donors(tmp_path):
     assert all(1.9 < np.linalg.norm(X[0] - X[k]) < 2.3 for k in (3, 4))
 
 
+def test_pdcl2_chelate_keeps_both_chlorides_apart(tmp_path):
+    # Guo 2017 i-Pr-PyrOx: the build crashed on ring info, then tilted both Cl in-plane to 1.8 A apart and recorded a Cl-Cl bond
+    p = _protocol(tmp_path, ["iPrPyrOx,CC(C)[C@H]1COC(c2ccccn2)=N1"],
+                  build={"type": "metal_chelate", "metal": "Pd", "ancillary": "Cl", "n_ancillary": 2,
+                         "donor_smarts": "[n:1]c-C=[N:2]"})
+    pl.build_all(p)
+    sym, X = _xyz(p.workdir / "build" / "m001.xyz")
+    assert sym[:3] == ["Pd", "Cl", "Cl"]
+    u, v = X[1] - X[0], X[2] - X[0]
+    assert 75 < np.degrees(np.arccos(u @ v / np.linalg.norm(u) / np.linalg.norm(v))) < 105
+    assert np.linalg.norm(X[1] - X[2]) > 2.7
+    bonds = {tuple(map(int, l.split())) for l in (p.workdir / "refs" / "m001.bonds").read_text().splitlines()}
+    assert not any(i in (2, 3) or j in (2, 3) for i, j in bonds)     # 1-based: the two Cl
+
+
 def test_every_stage_script_renders_and_targets_the_queue(tmp_path):
     stages = [{"kind": "goat"}, {"kind": "uma"}, {"kind": "xtb"}, {"kind": "orca"},
               {"kind": "gaussian", "route": "#p M062X/def2TZVP opt freq pop=(nbo,hirshfeld)"}]
@@ -374,3 +389,18 @@ def test_structure_check_flags_an_agostic_hydrogen(tmp_path):
     ag = X.copy(); ag[h] = X[0] + (X[h] - X[0]) / np.linalg.norm(X[h] - X[0]) * 1.85   # a C-H pointing at Ni
     out = _run_check(tmp_path, p, "m001", sym, ag)
     assert any(l.startswith(f"WARN metal contact H{h + 1}") and "agostic" in l for l in out), out
+
+
+def test_submit_with_an_empty_only_list_is_refused(tmp_path):
+    # `--only "$IDS"` with an empty shell variable used to submit every molecule
+    import types
+
+    from descripytor import cli
+
+    p = _protocol(tmp_path, ["PMe3,CP(C)C", "PPh3,P(c1ccccc1)(c1ccccc1)c1ccccc1"])
+    pl.build_all(p)
+    args = types.SimpleNamespace(protocol=str(p.path), action="submit", only="", only_adopted=False, dry_run=True, force=False, from_stage=1)
+    with pytest.raises(SystemExit, match="names no molecule"):
+        cli.run_pipeline(args)
+    args.only = None
+    cli.run_pipeline(args)                      # no --only at all still plans everything
