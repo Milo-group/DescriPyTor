@@ -135,6 +135,7 @@ def _relax_around_metal(mol, cid, m, donors, dists):
         rw.AddBond(int(d), k, Chem.BondType.SINGLE)
     cx = rw.GetMol()
     cx.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(cx)                 # the stand-in closes a new ring (the chelate); UFF typing needs ring info
     atom = cx.GetAtomWithIdx(k)
     atom.SetHybridization(Chem.HybridizationType.SP3)
     atom.SetNoImplicit(True)
@@ -186,14 +187,16 @@ def _ancillaries(m, d1, d2, ligand, dist, n, target):
     out = []
     for u in ideal:
         best, bestd = u, -1.0
+        clear = np.vstack([ligand] + out)    # the ancillaries placed so far count too: two tilting Cl ended up 1.1-2.3 A apart
         perp = np.cross(nrm, u)
         perp /= np.linalg.norm(perp)
         for tilt in np.radians([0, 10, 20, 30]):
-            for phi in np.linspace(0, 2 * np.pi, 12, endpoint=False):
+            # square planar: tilt out of the plane only; an in-plane turn walks one Cl into the other's site
+            for phi in (np.pi / 2, 3 * np.pi / 2) if n == 2 else np.linspace(0, 2 * np.pi, 12, endpoint=False):
                 axis = np.cos(phi) * nrm + np.sin(phi) * perp
                 v = u * np.cos(tilt) + np.cross(axis, u) * np.sin(tilt)
                 v /= np.linalg.norm(v)
-                score = min(np.linalg.norm(ligand - (m + v * dist), axis=1).min(), target) - 0.15 * tilt
+                score = min(np.linalg.norm(clear - (m + v * dist), axis=1).min(), target) - 0.15 * tilt
                 if score > bestd:
                     best, bestd = v, score
             if bestd > 0.9 * target:
