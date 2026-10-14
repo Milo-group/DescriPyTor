@@ -76,6 +76,25 @@ def test_pdcl2_chelate_keeps_both_chlorides_apart(tmp_path):
     assert not any(i in (2, 3) or j in (2, 3) for i, j in bonds)     # 1-based: the two Cl
 
 
+def test_chelate_relaxation_types_uff_with_the_chelate_ring(monkeypatch):
+    # RDKit 2023.09 raised "RingInfo not initialized"; newer RDKit silently keeps the ligand's rings without the chelate
+    from M1_pre_calculations.pipeline import build
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    mol = Chem.AddHs(Chem.MolFromSmiles("c1ccc(C2=NCCO2)nc1"))
+    cid = AllChem.EmbedMolecule(mol, randomSeed=0)
+    donors = [a.GetIdx() for a in mol.GetAtoms() if a.GetSymbol() == "N"]
+    seen, uff = [], AllChem.UFFGetMoleculeForceField
+
+    def spy(cx, **kw):
+        seen.append(cx.GetRingInfo().NumRings())
+        return uff(cx, **kw)
+    monkeypatch.setattr(build.AllChem, "UFFGetMoleculeForceField", spy)
+    X = mol.GetConformer(cid).GetPositions()
+    build._relax_around_metal(mol, cid, X[donors].mean(axis=0) + 1.0, donors, [2.05, 2.05])
+    assert seen == [3]                     # pyridine, oxazoline and the chelate through the stand-in
+
+
 def test_every_stage_script_renders_and_targets_the_queue(tmp_path):
     stages = [{"kind": "goat"}, {"kind": "uma"}, {"kind": "xtb"}, {"kind": "orca"},
               {"kind": "gaussian", "route": "#p M062X/def2TZVP opt freq pop=(nbo,hirshfeld)"}]
