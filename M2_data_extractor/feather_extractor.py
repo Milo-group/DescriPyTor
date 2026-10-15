@@ -374,9 +374,11 @@ def process_gaussian_vibs_string(log_file_lines):
 def process_gaussian_info(frequency_string):
     ir,frequency=[],[]
     for data in frequency_string:
-        match=extract_lines_from_text(data, re_expression=ReExpressions.FLOATS_ONLY.value)
-        frequency.append((match[0:3]))
-        ir.append(match[6:9])
+        # Read by label: each block is Frequencies / Red. masses / Frc consts / IR Inten, and the last may hold fewer than 3 modes
+        lines=data.splitlines()
+        frequency.append(extract_lines_from_text(lines[0], re_expression=ReExpressions.FLOATS_ONLY.value))
+        ir_line=next(line for line in lines if 'IR Inten' in line)
+        ir.append(extract_lines_from_text(ir_line.split('--')[1], re_expression=ReExpressions.FLOATS_ONLY.value))
     info_df=pd.DataFrame()
     info_df['Frequency']=[(item) for sublist in frequency for item in sublist]
     info_df['IR']=[(item) for sublist in ir for item in sublist] 
