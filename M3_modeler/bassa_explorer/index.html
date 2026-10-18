@@ -235,6 +235,24 @@
   #adv .arow { padding: 4px 0 5px; border-top: 1px solid #eef1f5; } #adv .arow:first-of-type { border-top: 0; } #adv .ah { display: flex; align-items: center; gap: 4px; font-size: 12px; } #adv .gain { margin-left: auto; font-weight: 650; color: var(--up); font-variant-numeric: tabular-nums; white-space: nowrap; }
   #adv .ab { display: flex; align-items: center; gap: 8px; font-size: 11.5px; margin: 2px 0 1px; } #adv .ab a { cursor: pointer; font-weight: 600; } #adv .advs { flex: none; } #adv > .lab:last-child { margin-top: 3px; font-size: 10.5px; }
   #parity .halo { pointer-events: none; }
+  /* recipes: one card per combination, its share first, its own small fit beside it */
+  #recipes { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; padding: 12px 4px; }
+  .rec { display: flex; flex-direction: column; gap: 7px; padding: 11px 12px 9px; border-radius: 12px; background: #fff; border-color: #e6e9ef; } .rec.dim { opacity: .45; }
+  .rhead { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; border-radius: 8px; } .rinfo { flex: 1; min-width: 0; } .rhead:hover .rshare b, .rhead:focus-visible .rshare b { color: var(--accent); }
+  .rec .combo { display: flex; flex-wrap: wrap; gap: 3px; margin: 0 0 4px; } .rec .combo .idb { margin: 0; min-width: 19px; height: 19px; line-height: 19px; border-radius: 5px; font-size: 11px; }
+  .rshare { font-size: 11.5px; color: var(--mute); } .rshare b { font-size: 21px; font-weight: 650; letter-spacing: -.02em; color: var(--ink); transition: color .15s; font-variant-numeric: tabular-nums; } .rmeta { font-size: 11.5px; color: var(--mute); }
+  .rmini { flex: none; } .rec .rbar { margin: 0; height: 3px; } .rec .slot { border-radius: 0 9px 9px 0; padding: 5px 7px 5px 9px; } .rec .slot .lab { font-size: 10.5px; text-transform: none; }
+  .rec .step { margin-top: auto; padding-top: 6px; border-top: 1px solid #eef1f5; justify-content: center; gap: 10px; font-size: 11.5px; } .rec .step button { border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; }
+  /* your families: steps, a map, cards with their own matrix */
+  .bsteps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 2px 0 10px; } @media (max-width: 900px) { .bsteps { grid-template-columns: 1fr; } }
+  .bstep { display: flex; gap: 8px; align-items: flex-start; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 12px; color: var(--mute); }
+  .bstep > b { flex: none; width: 20px; height: 20px; line-height: 20px; border-radius: 50%; text-align: center; font-size: 11px; background: #e8ecf2; color: var(--mute); }
+  .bstep.now { border-color: #b9cdf3; background: #f5f8ff; color: var(--ink); box-shadow: 0 1px 2px rgba(31,95,208,.08); } .bstep.now > b { background: var(--accent); color: #fff; } .bstep.done > b { background: var(--up); color: #fff; }
+  .bmapw { margin-bottom: 10px; } .bmap { width: 100%; height: auto; display: block; } .bmap .bdot { cursor: pointer; transition: r .15s; } .bmap .bdot:hover { stroke: #18212b; stroke-width: 2; }
+  .bmap text { font-size: 10px; fill: #3b4757; cursor: pointer; paint-order: stroke; stroke: #fbfcfe; stroke-width: 3px; } .bmap text.on { font-weight: 700; fill: var(--ink); font-size: 11px; } .bkey { margin-top: 4px; font-size: 11px; line-height: 1.45; }
+  .gbody { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; } .gbody .gchips { flex: 1; } .gmat { flex: none; margin-top: 4px; }
+  .bgrp { border-radius: 10px; padding: 7px 9px; box-shadow: 0 1px 2px rgba(20,30,45,.04); } .bmatd { margin-top: 12px; } .bmatd > summary { cursor: pointer; font-size: 12px; color: var(--mute); margin-bottom: 6px; }
+  @media print { body.printcase main > section:first-child, body.printcase #gutter, body.printcase #stages, body.printcase #molopts, body.printcase .predsw, body.printcase .side > .bar { display: none !important; } body.printcase header { position: static; box-shadow: none; } body.printcase main > section:last-child { box-shadow: none; border: 0; overflow: visible; } body.printcase .lcol > .molrow { grid-template-columns: 1fr !important; } }
   /* the column head: visits, the bar, then the model's Q² and R² */
   .mid.qq { font-size: 9.5px; font-weight: 700; line-height: 1.25; margin-top: 2px; font-variant-numeric: tabular-nums; } .mid.rr { font-size: 9px; color: var(--faint); line-height: 1.2; font-variant-numeric: tabular-nums; }
   .binkey { font-size: 10.5px; color: var(--mute); padding: 0 6px 6px; white-space: normal; max-width: 340px; line-height: 1.4; display: block; } .binkey .q1 { visibility: visible; display: inline-block; vertical-align: -2px; margin-left: 3px; }
@@ -256,7 +274,7 @@
   <div class="tools">
     <button id="overview" title="every case in one table">All cases</button><details class="filt" id="morebox"><summary>More</summary><div class="pop"><button id="new">New case…</button><button id="keep" hidden title="add this case to the menu for next time">Keep this case</button><button id="checks" hidden>Add chance line and nested Q²</button>
     <button id="onefile" title="this case, the page and the molecule viewer in one HTML file that opens without a server">Save as one file</button>
-    <button id="link" title="copy a link to exactly this view">Copy link</button></div></details><button id="scheme" hidden title="the reaction this case is about">Reaction</button><button id="help" class="round" aria-label="how to read this page">?</button>
+    <button id="link" title="copy a link to exactly this view">Copy link</button><button id="printcase" title="this case on one page: its evidence, the averaged model, the plot, the compound in hand and what would make it better. Print it or save it as PDF.">Print this case</button></div></details><button id="scheme" hidden title="the reaction this case is about">Reaction</button><button id="help" class="round" aria-label="how to read this page">?</button>
   </div>
 </header>
 <main>
@@ -457,6 +475,8 @@ let toastT; const say = (msg, ms = 4500) => { $('toast').textContent = msg; $('t
 // a compound is one of the fitted ones, or an external one that is only ever predicted
 // which end of the response is better: the case says so (better: "low" | "high"), else its response text does ("more negative = more selective")
 const lowBetter = () => C.better ? C.better === 'low' : /more negative|lower (is|=) better|lower = more/i.test(C.response || ''), SGN = () => lowBetter() ? -1 : 1;
+// a Q² or R² over a column: two decimals without the leading zero, coloured by how much it explains
+const q2s2 = (v) => v < -0.99 ? '<−1' : v.toFixed(2).replace(/^(-?)0\./, '$1.').replace('-', '−'), qcol = (v) => v >= 0.7 ? '#13774c' : v >= 0.4 ? '#1f5fd0' : v >= 0 ? '#b45309' : '#c0392b';
 const everyone = () => C.ext ? [...C.ligands, ...C.ext.names] : C.ligands, yOf = (n) => n in C.y ? C.y[n] : C.ext.y[C.ext.names.indexOf(n)];
 const xOf = (i, n) => { const k = C.ligands.indexOf(n); return k >= 0 ? C.X[C.names[i]][k] : C.ext.X[C.names[i]][C.ext.names.indexOf(n)]; };
 
@@ -558,6 +578,26 @@ let PSC = {};
 function pairSay(i, j) { const key = i < j ? i * N + j : j * N + i; if (PSC[key]) return PSC[key]; const o = lorOf(i, j), told = o.e >= 5, z = told ? (o.l - MU) / Math.hypot(o.se, SDI) : 0;
   return (PSC[key] = !told ? { k: 'rare', w: 'too rarely used to tell' } : o.l / o.se >= 2 ? { k: 'with', w: 'used together' } : z <= -2 ? { k: 'swap', w: 'one or the other' } : { k: 'none', w: 'no preference' }); }
 const grpOf = (i) => BF.groups.findIndex((g) => g.cols.includes(i)), gcol = (k) => IDEA[k % IDEA.length];
+function simMap() { if (C._mds) return C._mds; const n = N, D2 = range(n).map((i) => range(n).map((j) => (1 - Math.abs(C.corr[i][j])) ** 2)), rm = D2.map((r) => r.reduce((a, b) => a + b, 0) / n), gm = rm.reduce((a, b) => a + b, 0) / n;
+  const B = range(n).map((i) => range(n).map((j) => -0.5 * (D2[i][j] - rm[i] - rm[j] + gm)));
+  const eig = (skip) => { let v = range(n).map((i) => Math.sin(1.3 * i + (skip ? 2 : 1))); for (let it = 0; it < 300; it++) { let w = B.map((r) => r.reduce((a, x, k) => a + x * v[k], 0)); if (skip) { const d = w.reduce((a, x, k) => a + x * skip[k], 0); w = w.map((x, k) => x - d * skip[k]); } const nn = Math.hypot(...w) || 1; v = w.map((x) => x / nn); }
+    return [v, B.map((r) => r.reduce((a, x, k) => a + x * v[k], 0)).reduce((a, x, k) => a + x * v[k], 0)]; };
+  const [v1, l1] = eig(null), [v2, l2] = eig(v1); return (C._mds = range(n).map((i) => [v1[i] * Math.sqrt(Math.max(l1, 0)), v2[i] * Math.sqrt(Math.max(l2, 0))])); }
+// the map: a bubble per descriptor (size: how often BASSA used it; colour: your family), lines from the one in hand to its look-alikes coloured by how the sampler treats the pair
+function famMap(f, o) { const P = simMap(), W = 640, H = 290, m = 26, xs = P.map((q) => q[0]), ys = P.map((q) => q[1]), ax = Math.min(...xs), bx = Math.max(...xs), ay = Math.min(...ys), by = Math.max(...ys), fmax = Math.max(...C.freq);
+  const X = (i) => m + (W - 2 * m) * (P[i][0] - ax) / (bx - ax || 1), Yp = (i) => m + (H - 2 * m) * (P[i][1] - ay) / (by - ay || 1), R = (i) => 4 + 10 * Math.sqrt(C.freq[i] / fmax);
+  const near = range(N).filter((j) => j !== f && Math.abs(C.corr[f][j]) >= 0.6), named = new Set([f, o, ...near.slice(0, 6), ...range(N).sort((a, b) => C.freq[b] - C.freq[a]).slice(0, 8)]);
+  let h = `<svg class="bmap" viewBox="0 0 ${W} ${H}" role="img" aria-label="the descriptors placed so that look-alikes sit together"><rect x="0" y="0" width="${W}" height="${H}" rx="10" fill="#fbfcfe" stroke="#e3e7ec"/>`;
+  h += near.map((j) => { const k = pairSay(f, j).k; return `<line x1="${X(f).toFixed(1)}" y1="${Yp(f).toFixed(1)}" x2="${X(j).toFixed(1)}" y2="${Yp(j).toFixed(1)}" stroke="${SAYCOL[k]}" stroke-width="${(1 + 2 * Math.abs(C.corr[f][j])).toFixed(1)}" opacity=".55"${k === 'swap' ? ' stroke-dasharray="5 3"' : ''}/>`; }).join('');
+  h += range(N).sort((a, b) => C.freq[a] - C.freq[b]).map((i) => { const g = grpOf(i), pf = !st.uf && members[fam[i]] && members[fam[i]].length > 1 ? ideaCol[fam[i]] : null, fill = g >= 0 ? gcolour(g) : pf || '#cfd6df', on = i === f, ot = i === o;      // not in one of yours: the page's family, faint
+    return `<circle cx="${X(i).toFixed(1)}" cy="${Yp(i).toFixed(1)}" r="${R(i).toFixed(1)}" fill="${fill}" fill-opacity="${g >= 0 ? .92 : pf ? .32 : .7}" stroke="${on ? '#18212b' : ot ? '#1f5fd0' : '#fff'}" stroke-width="${on || ot ? 2.5 : 1.2}" data-bf="${i}" class="bdot"><title>${esc(C.label[i])}: in ${pct(C.freq[i])} of models${i !== f ? `; r ${C.corr[f][i].toFixed(2)} with ${esc(C.label[f])}, the sampler: ${pairSay(f, i).w}` : ''}${g >= 0 ? `; in ${esc(BF.groups[g].name)}` : ''}. Click to pick it; shift-click to put it in the family of ${esc(C.label[f])}.</title></circle>`; }).join('');
+  const boxes = []; h += [f, o, ...[...named].filter((i) => i !== f && i !== o)].map((i) => { const t = C.label[i].slice(0, 24), x = X(i) + R(i) + 3, y = Yp(i) + 3.5, w = t.length * 5.4, bx = [x - 1, y - 9, x + w + 1, y + 3];      // a name only where it does not cover another
+    if (boxes.some((b) => bx[0] < b[2] && b[0] < bx[2] && bx[1] < b[3] && b[1] < bx[3])) return ''; boxes.push(bx); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" class="${i === f ? 'on' : ''}" data-bf="${i}">${esc(t)}</text>`; }).join('');
+  return h + '</svg>'; }
+// a family's own little matrix: how strongly each pair moves together, with the sampler's verdict as a dot
+function grpMat(g) { const cs = [...g.cols].sort((a, b) => C.freq[b] - C.freq[a]), c = 11; if (cs.length < 2) return '';
+  return `<svg class="gmat" width="${cs.length * c}" height="${cs.length * c}" aria-hidden="true">` + cs.map((i, a) => cs.map((j, b) => { const sy = i === j ? null : pairSay(i, j);
+    return `<rect x="${b * c}" y="${a * c}" width="${c - 1.5}" height="${c - 1.5}" rx="2" fill="${i === j ? '#26354a' : `rgba(31,95,208,${(0.08 + 0.92 * C.corr[i][j] ** 2).toFixed(2)})`}"><title>${esc(C.label[i])} × ${esc(C.label[j])}: r ${C.corr[i][j].toFixed(2)}${sy ? ', the sampler: ' + sy.w : ''}</title></rect>` + (sy && a < b && (sy.k === 'swap' || sy.k === 'with') ? `<circle cx="${b * c + (c - 1.5) / 2}" cy="${a * c + (c - 1.5) / 2}" r="2" fill="${SAYCOL[sy.k]}" stroke="#fff" stroke-width=".6"/>` : ''); }).join('')).join('') + '</svg>'; }
 const gbadge = (k) => { const g = BF.groups[k], lead = [...g.cols].sort((a, b) => C.freq[b] - C.freq[a])[0]; return st.uf && ideaCol[lead] ? idb(lead) : `<span class="idb" style="background:${gcol(k)}">${k + 1}</span>`; };
 const gcolour = (k) => { const g = BF.groups[k], lead = [...g.cols].sort((a, b) => C.freq[b] - C.freq[a])[0]; return st.uf && ideaCol[lead] ? ideaCol[lead] : gcol(k); };
 const lookAlikes = (f) => range(N).filter((j) => j !== f).sort((a, b) => Math.abs(C.corr[f][b]) - Math.abs(C.corr[f][a]) || C.freq[b] - C.freq[a]);
@@ -574,10 +614,12 @@ function build() {
   const f = BF.focus, like = lookAlikes(f); if (BF.other < 0 || BF.other === f || BF.other >= N) BF.other = like[0];
   const o = BF.other, gf = grpOf(f), free = range(N).filter((i) => grpOf(i) < 0).sort((a, b) => C.freq[b] - C.freq[a]), fmax = Math.max(...C.freq);
   const chip = (i) => `<span class="bchip${i === f ? ' on' : ''}" data-bf="${i}" tabindex="0" role="button">${esc(C.label[i])}<b data-bout="${i}" role="button" aria-label="take ${esc(C.label[i])} out" title="take it out">×</b></span>`;
-  let h = `<div class="bhead"><p>Group the descriptors you think measure the same thing. Pick one, below or in the map: the page lists the descriptors that look like it, by how their values move together (r) and by how the sampler treats the two (in one model, or one or the other). Your families are kept in this browser.</p>
+  const stp = (k, done, now, t) => `<div class="bstep${done ? ' done' : ''}${now ? ' now' : ''}"><b>${done ? '✓' : k}</b><span>${t}</span></div>`;
+  let h = `<div class="bhead"><div class="bsteps">${stp(1, true, !BF.groups.length && !st.uf, `Pick a descriptor: click a bubble in the map, or one in the list`)}${stp(2, BF.groups.length > 0, BF.groups.length === 0, `Add its look-alikes: <b>+ add</b> beside them, or shift-click their bubbles`)}${stp(3, st.uf, BF.groups.length > 0 && !st.uf, `Tick <b>use my families</b>: the table and the recipes follow them`)}</div>
+    <div class="bmapw">${famMap(f, o)}<div class="lab bkey">Close together: their values move together (1 − |r|). Size: how often BASSA used it. Colour: your family; faint, the page's family (a suggestion); grey, alone. Lines from <b>${esc(C.label[f])}</b> to its look-alikes (|r| ≥ 0.6): <span style="color:${SAYCOL.with}">green</span> used together, <span style="color:${SAYCOL.swap}">red dashed</span> one or the other, grey no preference. Your families are kept in this browser.</div></div>
     <div class="row"><button id="bauto" title="copy the page's own families as a start">Start from the page's families</button><button id="bclear">Clear mine</button><button id="bcsv"${BF.groups.length ? '' : ' disabled'}>Save as CSV</button>
     <label class="lab" data-tip="The table, the recipes and the letters then follow your families instead of the page's. The validation numbers do not change: BASSA's averaged model does not depend on how its descriptors are grouped."><input id="ufon" type="checkbox"${st.uf ? ' checked' : ''}${BF.groups.length ? '' : ' disabled'}> use my families in the table</label></div></div><div class="bcols"><div>`;
-  h += `<h4>Your families${BF.groups.length ? ` (${BF.groups.length})` : ''}</h4>` + (BF.groups.length ? BF.groups.map((g, k) => `<div class="bgrp" style="--g:${gcolour(k)}"><div class="gh">${gbadge(k)}<input data-gn="${k}" value="${esc(g.name)}" aria-label="name of the family"><span class="lab">${pct(famShare(g.cols))} of models</span><b data-gdel="${k}" role="button" tabindex="0" title="dissolve this family" aria-label="dissolve">×</b></div><div class="gchips">${[...g.cols].sort((a, b) => C.freq[b] - C.freq[a]).map(chip).join('')}</div><div class="gnote">${grpNote(g)}</div></div>`).join('')
+  h += `<h4>Your families${BF.groups.length ? ` (${BF.groups.length})` : ''}</h4>` + (BF.groups.length ? BF.groups.map((g, k) => `<div class="bgrp" style="--g:${gcolour(k)}"><div class="gh">${gbadge(k)}<input data-gn="${k}" value="${esc(g.name)}" aria-label="name of the family"><span class="lab">${pct(famShare(g.cols))} of models</span><b data-gdel="${k}" role="button" tabindex="0" title="dissolve this family" aria-label="dissolve">×</b></div><div class="gbody"><div class="gchips">${[...g.cols].sort((a, b) => C.freq[b] - C.freq[a]).map(chip).join('')}</div>${grpMat(g)}</div><div class="gnote">${grpNote(g)}</div></div>`).join('')
     : '<p class="lab">None yet. Pick a descriptor and add its look-alikes, or start from the page\'s families.</p>');
   h += `<h4>Not in a family (${free.length})</h4><div class="bfree">` + free.map((i) => `<div class="opt${i === f ? ' sel' : ''}" data-bf="${i}" tabindex="0" role="button"><span title="${esc(C.label[i])}">${esc(C.label[i])}</span><i style="width:${(64 * C.freq[i] / fmax).toFixed(0)}px"></i><b>${pct(C.freq[i])}</b></div>`).join('') + '</div></div><div>';
   // the descriptor in hand: what the page's rule says, where it is, and its look-alikes
@@ -600,16 +642,19 @@ function build() {
   h += '</div></div>';
   // every pair at once: shade = |r|; a red dot, the sampler takes one or the other; a green dot, it uses them together. Your families are framed
   { const ord = [...BF.groups.flatMap((g) => [...g.cols].sort((a, b) => C.freq[b] - C.freq[a])), ...free], c = Math.max(7, Math.min(12, Math.floor(460 / N))), L = 150, S = c * N, at = {}; ord.forEach((i, k) => at[i] = k);
-    let m = `<h4>Every pair</h4><div class="lab" style="margin-bottom:4px">Shade: how strongly the two columns move together (|r|). <span style="color:#c0392b">●</span> the sampler takes one or the other. <span style="color:#13774c">●</span> it puts them in one model. Your families are framed. Click a cell to compare the two.</div><svg class="bmat" width="${L + S + 2}" height="${S + 2}" font-size="${Math.min(10, c)}">`;
+    let m = `<div class="lab" style="margin-bottom:4px">Shade: how strongly the two columns move together (|r|). <span style="color:#c0392b">●</span> the sampler takes one or the other. <span style="color:#13774c">●</span> it puts them in one model. Your families are framed. Click a cell to compare the two.</div><svg class="bmat" width="${L + S + 2}" height="${S + 2}" font-size="${Math.min(10, c)}">`;
     ord.forEach((i, a) => { m += `<text x="${L - 4}" y="${a * c + c - 1.5}" text-anchor="end" data-bf="${i}" style="cursor:pointer${i === f ? ';font-weight:700' : ''}">${esc(C.label[i]).slice(0, 26)}</text>`;
       ord.forEach((j, b) => { const r = Math.abs(C.corr[i][j]), s = i === j ? null : pairSay(i, j);
         m += `<rect x="${L + b * c}" y="${a * c}" width="${c - 1}" height="${c - 1}" fill="${i === j ? '#18212b' : `rgba(31,95,208,${(0.06 + 0.94 * r * r).toFixed(2)})`}" data-bm="${i},${j}"><title>${esc(C.label[i])} × ${esc(C.label[j])}: r ${C.corr[i][j].toFixed(2)}${s ? ', the sampler: ' + s.w : ''}</title></rect>` +
           (s && (s.k === 'swap' || s.k === 'with') && a < b ? `<circle cx="${L + b * c + (c - 1) / 2}" cy="${a * c + (c - 1) / 2}" r="${Math.max(1.6, c / 5)}" fill="${SAYCOL[s.k]}" stroke="#fff" stroke-width=".6" pointer-events="none"/>` : ''); }); });
     let k0 = 0; BF.groups.forEach((g, k) => { const n = g.cols.length; m += `<rect x="${L + k0 * c - 1}" y="${k0 * c - 1}" width="${n * c + 1}" height="${n * c + 1}" fill="none" stroke="${gcolour(k)}" stroke-width="2" rx="2" pointer-events="none"/>`; k0 += n; });
     if (at[f] !== undefined) m += `<rect x="${L - 0.5}" y="${at[f] * c - 0.5}" width="${S}" height="${c}" fill="none" stroke="#18212b" stroke-width="1" pointer-events="none"/>`;
-    h += `<div class="bmatw">${m}</svg></div>`; }
+    h += `<details class="bmatd"><summary>Every pair, as a matrix</summary><div class="bmatw">${m}</svg></div></details>`; }
   $('build').innerHTML = h;
 }
+// j joins the family of the descriptor in hand (or starts one with it), leaving any family it was in
+function addTo(j) { const f = BF.focus, k0 = grpOf(j); if (k0 >= 0) BF.groups[k0].cols = BF.groups[k0].cols.filter((q) => q !== j); const k = grpOf(f);
+  if (k >= 0) BF.groups[k].cols.push(j); else BF.groups.push({ name: C.label[f], cols: [f, j] }); BF.other = j; lookAt(); return ownChanged(); }
 // a change of the user's families: kept, shown in the table when it uses them, and the page drawn again
 function ownChanged() { BF.groups = BF.groups.filter((g) => g.cols.length); saveOwn(); if (st.uf && !BF.groups.length) st.uf = false; if (st.uf) setFamilies(); refresh(); }
 const lookAt = () => { st.rows = [BF.focus, BF.other].filter((i) => i >= 0 && i < N); st.model = -1; st.ens = false; st.famView = -1; st.dv = {}; };      // the two in hand are drawn on the molecule
@@ -619,8 +664,8 @@ $('build').addEventListener('click', (e) => { const d = (e.target.closest('[data
   if (e.target.id === 'bcsv') return download('family,descriptor,column\n' + BF.groups.flatMap((g) => g.cols.map((i) => [g.name, C.label[i], C.names[i]].map(csvq).join(','))).join('\n') + '\n', `${C.case}_my_families.csv`, 'text/csv');
   if (d.bout !== undefined) { const i = +d.bout, k = grpOf(i); if (k >= 0) BF.groups[k].cols = BF.groups[k].cols.filter((j) => j !== i); return ownChanged(); }
   if (d.gdel !== undefined) { BF.groups.splice(+d.gdel, 1); return ownChanged(); }
-  if (d.badd !== undefined) { const j = +d.badd, f = BF.focus, k0 = grpOf(j); if (k0 >= 0) BF.groups[k0].cols = BF.groups[k0].cols.filter((q) => q !== j); const k = grpOf(f);
-    if (k >= 0) BF.groups[k].cols.push(j); else BF.groups.push({ name: C.label[f], cols: [f, j] }); BF.other = j; lookAt(); return ownChanged(); }
+  if (e.shiftKey && d.bf !== undefined && +d.bf !== BF.focus) return addTo(+d.bf);
+  if (d.badd !== undefined) return addTo(+d.badd);
   if (d.bm !== undefined) { const [i, j] = d.bm.split(',').map(Number); BF.focus = i; BF.other = i === j ? lookAlikes(i)[0] : j; lookAt(); return refresh(); }
   if (d.bo !== undefined) { BF.other = +d.bo; lookAt(); return refresh(); }
   if (d.bf !== undefined) { BF.focus = +d.bf; BF.other = lookAlikes(BF.focus)[0]; lookAt(); return refresh(); }
@@ -743,6 +788,12 @@ function kfold(cols, K) {
 function recipeQ(ms) { const ks = ms.map((m) => [kfold(C.models[m].cols, 5), C.models[m].share]).filter((x) => x[0]); if (!ks.length) return null;
   const w = ks.reduce((a, x) => a + x[1], 0), use = range(Y.length).filter((r) => !st.out.has(r)), ym = use.reduce((a, r) => a + Y[r], 0) / use.length;
   return 1 - use.reduce((a, r) => a + (Y[r] - ks.reduce((b, x) => b + x[1] * x[0].pred[r], 0) / w) ** 2, 0) / use.reduce((a, r) => a + (Y[r] - ym) ** 2, 0); }
+// a recipe's own small fit: measured across, its models' 5-fold predictions averaged (weighted by visits) up, the diagonal dashed
+function miniFit(ms) { const ks = ms.map((m) => [kfold(C.models[m].cols, 5), C.models[m].share]).filter((x) => x[0]); if (!ks.length) return '';
+  const w = ks.reduce((a, x) => a + x[1], 0), P = Y.map((_, r) => ks.every((x) => x[0].pred[r] !== undefined) ? ks.reduce((b, x) => b + x[1] * x[0].pred[r], 0) / w : null), W = 76;
+  const all = [...Y, ...P.filter((v) => v != null)], lo = Math.min(...all), hi = Math.max(...all), sc = (v) => 5 + (W - 10) * (v - lo) / (hi - lo || 1), ylo = Math.min(...Y), yhi = Math.max(...Y);
+  return `<svg class="rmini" width="${W}" height="${W}" viewBox="0 0 ${W} ${W}" aria-hidden="true"><rect x=".5" y=".5" width="${W - 1}" height="${W - 1}" rx="7" fill="#fafbfd" stroke="#e3e7ec"/><line x1="5" y1="${W - 5}" x2="${W - 5}" y2="5" stroke="#c3cad3" stroke-dasharray="3 3"/>` +
+    Y.map((v, r) => P[r] == null ? '' : `<circle cx="${sc(v).toFixed(1)}" cy="${(W - sc(P[r])).toFixed(1)}" r="2.5" fill="${shade((v - ylo) / (yhi - ylo || 1))}" stroke="#fff" stroke-width=".6"/>`).join('') + '</svg>'; }
 // BASSA's averaged model in the shape of the page's other fits. Shown: its five largest weights; the prediction uses every descriptor.
 // "Left out" is the 5-fold prediction with the sampler rerun in every fold (the case file's cv, from ensemble_cv.py)
 const autoPlot = () => Math.round(Math.max(256, Math.min(430, 0.56 * ($('ensbox').parentElement.clientWidth - 214))));
@@ -886,9 +937,7 @@ function grid() {
       const take = drawn.has(i) || st.open.has(f) || (left[f] > 0 && (C.freq[i] >= 0.01 || !got[f]) && left[f]-- > 0); if (take) got[f] = 1; else (more[f] ||= []).push(i); return take; }); }
   $('count').innerHTML = `${cols.length}${total > cols.length ? ' of ' + total : ''} ${st.merge ? 'combinations of families' : 'models'}` + (sizesDefault() && sizeCap() < 5 ? `, up to ${sizeCap()} descriptors` : '') + `, ${st.msort === 'str' ? 'strongest first' : st.msort === 'share' ? 'most visited first' : 'best ' + (st.msort === 'q2' ? 'Q²' : 'R²') + ' first'}${hq(st.msort === 'str' ? T.str : T.order)}` + (st.rows.length && !st.only ? `; ${lit} contain the selection` : '') +
     (st.find.trim() ? '' : st.allrows ? ` · <button id="allrows" class="linkb">only the descriptors in these models</button>` : rows.length < allN ? ` · ${rows.length} of ${allN} descriptors, <button id="allrows" class="linkb">show all</button>` : '');
-  // a Q² or R² over a column: two decimals without the leading zero, coloured by how much it explains
-const q2s2 = (v) => v < -0.99 ? '<−1' : v.toFixed(2).replace(/^(-?)0\./, '$1.').replace('-', '−'), qcol = (v) => v >= 0.7 ? '#13774c' : v >= 0.4 ? '#1f5fd0' : v >= 0 ? '#b45309' : '#c0392b';
-// the head: one cell over the four fixed columns, with the key to the marks in the room the bars leave free and the column titles at its foot
+  // the head: one cell over the four fixed columns, with the key to the marks in the room the bars leave free and the column titles at its foot
   let h = `<thead><tr><th class="cnr" colspan="4">${st.adv ? '' : `<div class="binkey">over each column: % of sampled models, the bar, then <b style="color:#1f5fd0">Q²</b> (5-fold) and <b style="color:#8793a1">R²</b> of its model kept fixed${hq(T.binq)}</div>`}<div class="cnrlab"><span style="width:calc(var(--w0) + var(--w1))">${st.links === 'off' ? '' : 'links · '}descriptor</span><span style="width:104px">% of all models</span><span class="advonly">${anchor >= 0 ? 'beside ' + esc(C.label[anchor]) : C.before ? 'before, with all compounds' : C.fold_top ? 'without one compound: top 3 · range' : ''}</span></div></th>`;
   const tall = Math.max(1, ...cols.map((c) => C.models[shownOf(c)].cols.length));
   const topShare = Math.max(...cols.map((c) => c.share), 1e-9);
@@ -956,14 +1005,17 @@ function recipes() {
   $('count').textContent = `${top.length} of ${Object.keys(by).length} recipes, ${pct(shown)} of sampled models` + (sizesDefault() && sizeCap() < 5 ? `, up to ${sizeCap()} descriptors` : '');
   // a card: one combination of families. The model it shows is the selected one when that belongs to the card, else its most visited; a click on a descriptor swaps it in, the arrows step through the card's models
   $('recipes').innerHTML = top.map((g) => { g.ms.sort((a, b) => C.models[b].share - C.models[a].share); const sel = g.ms.includes(st.model), cur = sel ? st.model : g.ms[0], M = C.models[cur], k = g.ms.indexOf(cur), n = g.ms.length, drawn = sigOf(cur).split(',').map(Number).sort((a, b) => ideaRank[a] - ideaRank[b]), fams = [...new Set(drawn)], qs = g.ms.map((m) => C.models[m].q2), qa = Math.min(...qs), qb = Math.max(...qs);
-    return `<div class="rec${sel ? ' sel' : ''}${g.ms.some(hasSel) ? '' : ' dim'}"><div class="rbar" title="${(100 * g.share).toFixed(1)} % of sampled models; the bar is relative to the most visited recipe"><i style="width:${(100 * g.share / widest).toFixed(1)}%"></i></div><h3 data-pick="${cur}" tabindex="0" role="button" title="click to draw this model on the molecule"><span class="combo">${drawn.map((f) => idb(f)).join('<em>+</em>')}</span>${(100 * g.share).toFixed(1)} % <span>of sampled models · ${n} model${n > 1 ? 's' : ''} · ${n > 1 ? 'together' : 'its'} 5-fold Q² ${(() => { const v = recipeQ(g.ms); return v == null ? '–' : v.toFixed(2); })()}</span>${n > 1 ? hq('The models of this recipe taken together: their 5-fold predictions averaged, each model weighted by how often the sampler visited it. This is the averaged model restricted to one recipe, with plain least squares for each model.') : ''}</h3>` +
+    const rq = recipeQ(g.ms);
+    return `<div class="rec${sel ? ' sel' : ''}${g.ms.some(hasSel) ? '' : ' dim'}"><div class="rhead" data-pick="${cur}" tabindex="0" role="button" title="click to draw this model on the molecule"><div class="rinfo"><div class="combo">${drawn.map((f) => idb(f)).join('')}</div>` +
+      `<div class="rshare"><b>${(100 * g.share).toFixed(1)} %</b> of sampled models</div><div class="rmeta">${n} model${n > 1 ? 's' : ''} · ${n > 1 ? 'together' : 'its'} 5-fold Q² <b style="color:${rq == null ? 'inherit' : qcol(rq)}">${rq == null ? '–' : rq.toFixed(2)}</b>${n > 1 ? hq('The models of this recipe taken together: their 5-fold predictions averaged, each model weighted by how often the sampler visited it. This is the averaged model restricted to one recipe, with plain least squares for each model.') : ''}</div></div>${miniFit(g.ms)}</div>` +
+      `<div class="rbar" title="${(100 * g.share).toFixed(1)} % of sampled models; the bar is relative to the most visited recipe"><i style="width:${(100 * g.share / widest).toFixed(1)}%"></i></div>` +
       fams.map((f) => { const use = members[f].map((i) => [i, g.ms.reduce((s, m) => s + (C.models[m].cols.includes(i) ? C.models[m].share : 0), 0) / g.share]).filter((u) => u[1] > 0).sort((a, b) => b[1] - a[1]), take = drawn.filter((d) => d === f).length;
         // a slot: the idea's letter and colour, its most used descriptors (FAMCAP, and the ones of the model drawn), the others behind "more"
         const fc = ideaCol[f], opt = ([i, w]) => `<div class="opt${M.cols.includes(i) ? ' on' : ''}${st.rows.includes(i) ? ' sel' : ''}" tabindex="0" role="button" data-pick="${variant(g.ms, cur, i)}" title="${esc(C.names[i])}: in ${pct(w)} of the models of this recipe. Click to draw the model with it."><u></u><span>${esc(C.label[i])}</span><i style="width:${Math.max(3, 64 * Math.min(1, w))}px;background:color-mix(in srgb, ${fc} 55%, #fff)"></i><b>${pct(w)}</b></div>`;
         const lead = use.filter(([i], a) => a < FAMCAP || M.cols.includes(i)), rest = use.filter((u) => !lead.includes(u));
         return `<div class="slot" style="--fam:${fc}"><span class="lab">${idb(f, true)} ${members[f].length > 1 ? esc(famName(f, cur)) + ' family' : 'on its own'}${use.length > take ? ` · ${['', 'one', 'two', 'three', 'four', 'five'][take] || take} of these ${use.length}` : ''}</span>` +
-          lead.map(opt).join('') + (rest.length ? `<details class="moreopt"><summary>${rest.length} more, each in ${pct(rest[0][1])} of these models or less</summary>${rest.map(opt).join('')}</details>` : '') + '</div>'; }).join('<div class="plus">+</div>') +
-      `<div class="step">${n > 1 ? `<button data-pick="${g.ms[(k + n - 1) % n]}" aria-label="the previous model of this recipe">‹</button>` : ''}<span>model ${k + 1} of ${n} · R² ${M.r2.toFixed(2)} · 5-fold Q² ${(kfold(M.cols, 5) || M).q2.toFixed(2)} · ${(100 * M.share).toFixed(1)} % of sampled models</span>${n > 1 ? `<button data-pick="${g.ms[(k + 1) % n]}" aria-label="the next model of this recipe">›</button>` : ''}</div></div>`; }).join('') ||
+          lead.map(opt).join('') + (rest.length ? `<details class="moreopt"><summary>${rest.length} more, each in ${pct(rest[0][1])} of these models or less</summary>${rest.map(opt).join('')}</details>` : '') + '</div>'; }).join('') +
+      `<div class="step">${n > 1 ? `<button data-pick="${g.ms[(k + n - 1) % n]}" aria-label="the previous model of this recipe">‹</button>` : ''}<span>model <b>${k + 1}</b> / ${n} · R² ${q2s2(M.r2)} · Q² <b style="color:${qcol((kfold(M.cols, 5) || M).q2)}">${q2s2((kfold(M.cols, 5) || M).q2)}</b> · ${pct(M.share)}</span>${n > 1 ? `<button data-pick="${g.ms[(k + 1) % n]}" aria-label="the next model of this recipe">›</button>` : ''}</div></div>`; }).join('') ||
     '<p class="hint" style="padding:10px">No model passes the filters.</p>';
 }
 
@@ -1093,6 +1145,12 @@ function show(k, name, also) {
   if (k === 0) $('open').href = 'feature_explorer.html#s=' + btoa(unescape(encodeURIComponent(json)));
   return skipped;
 }
+// the plot's points glide from where they were to where they are now (same plot size, motion allowed); names fade in after them
+let PREVPT = {}, PREVS = 0;
+function glide(S) { const prev = PREVPT, now = {}, still = matchMedia('(prefers-reduced-motion: reduce)').matches || S !== PREVS || !Element.prototype.animate; PREVS = S; let moved = 0;
+  $('parity').querySelectorAll('.pt[data-n]').forEach((el) => { const b = el.getBBox(), c = [b.x + b.width / 2, b.y + b.height / 2], o = prev[el.dataset.n]; now[el.dataset.n] = c;      // an animation, not a style: nothing is left offset if it never plays
+    if (!still && o && Math.hypot(o[0] - c[0], o[1] - c[1]) > 0.5) { el.animate([{ transform: `translate(${o[0] - c[0]}px, ${o[1] - c[1]}px)` }, { transform: 'translate(0px, 0px)' }], { duration: 500, easing: 'cubic-bezier(.2,.7,.2,1)' }); moved++; } });
+  PREVPT = now; if (moved) $('parity').querySelectorAll('text').forEach((t) => t.animate([{ opacity: 0 }, { opacity: 0 }, { opacity: 1 }], { duration: 600, easing: 'ease-out' })); }
 const shade = (t) => `rgb(${Math.round(207 - 196 * t)},${Math.round(225 - 146 * t)},${Math.round(242 - 104 * t)})`;      // one hue, light to dark, for the response
 function draw() {
   const bare_ = !Object.keys(C.mols).length; $('stages').hidden = $('savefig').hidden = bare_; $('resetview').hidden = bare_; $('molopts').querySelectorAll('label').forEach((l) => l.hidden = bare_); $('molopts').firstElementChild.hidden = bare_; const onMol = st.whyOn ? whyCols(st.mol) : active(); $('sterbox').hidden = bare_ || !st.showD || !onMol.some((i) => C.draw[i] && C.draw[i].kind === 'sterimol'); $('dipgrp').hidden = bare_ || !st.showD || !onMol.some((i) => C.draw[i] && /^dipole/.test(C.draw[i].kind));                            // no structure at all: the plot takes the room of the viewer
@@ -1171,7 +1229,7 @@ function draw() {
   if (Fc) { const maeC = inc.reduce((a, r) => a + Math.abs(Y[r] - Fc.loo[r]), 0) / inc.length, moved = inc.slice().sort((a, b) => Math.abs(LO[b] - Fc.loo[b]) - Math.abs(LO[a] - Fc.loo[a])).slice(0, 3);
     ps += `<div style="white-space:normal">○ kept for comparison (${esc(st.cmp.map((i) => C.label[i]).join(' + '))}): R² ${Fc.r2.toFixed(2)} · Q² ${Fc.q2.toFixed(2)} · MAE ${maeC.toFixed(2)}. Moved most: ${moved.map((r) => `${esc(C.ligands[r])} (${(LO[r] - Fc.loo[r] > 0 ? '+' : '') + (LO[r] - Fc.loo[r]).toFixed(2)})`).join(', ')}</div>`; }
   else if (st.cmp && F) ps += '<div style="white-space:normal">○ this model is kept for comparison: pick another column or recipe</div>';
-  $('parity').innerHTML = p; $('pstats').innerHTML = ps; $('ensbox').innerHTML = eb;
+  $('parity').innerHTML = p; $('pstats').innerHTML = ps; $('ensbox').innerHTML = eb; glide(S);
   let h = M ? `<div class="lab" style="margin-bottom:3px"><b style="color:var(--ink)">The column you clicked</b> · visited in ${(100 * M.share).toFixed(1)} % of sampled models${hq(T.visit)}</div>` : cols.length ? (st.ens ? '<div class="lab" style="margin-bottom:3px">The average over every sampled model, each weighted by how often it was visited. Listed: its five largest weights; the prediction uses every descriptor.</div>' : '<div class="lab" style="margin-bottom:3px">Your selection, fitted here by least squares.</div>') : '';
   if (cols.length) { h += `<table><tr class="head"><td></td><td class="r">weight${hq(T.weight)}</td></tr>`;
     cols.forEach((i, j) => {
@@ -1506,6 +1564,8 @@ async function rerun() {
   catch (err) { done(); say('Could not rerun: ' + err.message, 9000); }
 }
 const bare = (d) => Object.fromEntries(Object.entries(d).filter(([k]) => !k.startsWith('_')));
+$('printcase').onclick = () => { $('morebox').open = false; document.body.classList.add('printcase'); setTimeout(() => window.print(), 50); };
+addEventListener('afterprint', () => document.body.classList.remove('printcase'));
 $('keep').onclick = async () => { const name = prompt('A short name for this case (letters and digits):', C.case); if (!name) return;
   try { const r = await post('keep', { name, case: bare(C) }), was = ownKey(); try { const g = localStorage.getItem(was); if (g != null) localStorage.setItem('bassa-explorer-families|' + r.name, g); } catch (e) {} delete CASES[$('case').value]; C.case = r.name; C.uploaded = false; C.title = C.title.replace(/^Your table: /, ''); CASES[r.name] = C; window.CASE_FILES = r.cases; boot(C); say(`Kept as "${r.name}". It will be in the menu next time.`); }
   catch (err) { say('Could not keep it: ' + err.message, 9000); } };
@@ -1565,14 +1625,14 @@ async function selfTest() {
         { const w = whyData(st.mol, null, []), tot = w.base + w.parts.reduce((s, q) => s + q.c, 0), at = ensFit([]).at((i) => xOf(i, st.mol)); need(Math.abs(tot - at) < 1e-8 && count('#why tr') >= 3, 'a compound taken apart adds up to the averaged model'); } need(count('#ensw .ewt tr') === N + 2, 'every weight of the averaged model');
         $('ens').click(); need(st.ens && count('#parity .pt') === C.ligands.length + (C.ext ? C.ext.names.length : 0) && $('ensbox').textContent.includes('Q² ' + C.cv.k5.q2.toFixed(2)), 'the averaged model on the molecule and in the plot'); $('ens').click(); need(!st.ens, 'and back to the model'); }
       st.adv = false; syncUI(); refresh();
-      { const keep = localStorage.getItem(ownKey()), g0 = BF.groups; BF.groups = []; st.view = 'build'; refresh(); need(count('#build .bmat rect[data-bm]') === N * N && count('#build .blike [data-badd]') > 0, 'your families: the look-alikes and the map');
+      { const keep = localStorage.getItem(ownKey()), g0 = BF.groups; BF.groups = []; st.view = 'build'; refresh(); need(count('#build .bmat rect[data-bm]') === N * N && count('#build .blike [data-badd]') > 0, 'your families: the look-alikes and the map'); need(count('#build .bmap circle[data-bf]') === N && count('#build .bstep') === 3, 'your families: the steps and the map of look-alikes');
         document.querySelector('#build .blike [data-badd]').click(); need(BF.groups.length === 1 && BF.groups[0].cols.length === 2 && count('#build .bgrp') === 1, 'your families: a look-alike added');
         BF.groups = []; $('bauto').click(); $('ufon').checked = true; $('ufon').dispatchEvent(new Event('change', { bubbles: true })); need(st.uf && range(N).every((i) => fam[i] === autoFam[i]), "your families: the page's own, used in the table, give the page's families");
         const g = BF.groups.find((q) => q.cols.length > 2); if (g) { const x = g.cols[g.cols.length - 1]; BF.focus = x; refresh(); document.querySelector(`#build .bfocus [data-bout="${x}"]`).click(); need(fam[x] === x && g.cols.every((i) => i === x || fam[i] === fam[g.cols[0]]), 'your families: one taken out is on its own in the table'); }
         st.uf = false; BF.groups = g0; setFamilies(); try { keep == null ? localStorage.removeItem(ownKey()) : localStorage.setItem(ownKey(), keep); } catch (e) {} st.view = 'models'; st.rows = []; st.model = columns().cols[0]?.m ?? -1; refresh(); }
       const eye = document.querySelector('[data-eye]'); if (eye) { const f = +eye.dataset.eye; eye.click(); need(st.famView === f && count('.chip [data-fv]') === 1 && (!C.mols[st.mol] || famShown().every((i) => fam[i] === f)), 'a family on the molecule'); document.querySelector('.chip [data-fv]').click(); need(st.famView === -1, 'and back to the model'); }
       const hollow = document.querySelector('td.alt[data-pick]'); if (hollow) { const want = +hollow.dataset.pick, row = +hollow.parentElement.dataset.row; hollow.click(); need(st.model === want && C.models[want].cols.includes(row) && count('th.m.sel') === 1, 'a hollow dot switches its column to the model with that descriptor'); }
-      st.view = 'recipes'; refresh(); const o = document.querySelector('.rec .opt:not(.on)') || document.querySelector('.rec .opt'); if (o) { const want = +o.dataset.pick; o.click(); need(st.model === want && count('.rec.sel') === 1 && count('.rec.sel .opt.on') === C.models[want].cols.length && count('.rec .opt[tabindex]') === count('.rec .opt'), 'a descriptor of a recipe draws the model with it'); }
+      st.view = 'recipes'; refresh(); need(!count('.rec') || count('.rec .rmini') > 0, 'a recipe shows its own small fit'); const o = document.querySelector('.rec .opt:not(.on)') || document.querySelector('.rec .opt'); if (o) { const want = +o.dataset.pick; o.click(); need(st.model === want && count('.rec.sel') === 1 && count('.rec.sel .opt.on') === C.models[want].cols.length && count('.rec .opt[tabindex]') === count('.rec .opt'), 'a descriptor of a recipe draws the model with it'); }
       const nx = document.querySelector('.rec.sel .step button:last-child'); if (nx) { const want = +nx.dataset.pick; nx.click(); need(st.model === want && count('.rec.sel') === 1, 'stepping through the models of a recipe'); } st.view = 'models';
       const di = C.draw.findIndex((d) => d && /^dipole/.test(d.kind)); if (di >= 0 && C.mols[st.mol] && C.mols[st.mol].dipole) { st.model = -1; st.rows = [di]; const own = (C.style || {}).muPerD || 0, base = own || Math.min(0.6, 2.6 / (Math.hypot(...C.mols[st.mol].dipole.slice(0, 3)) || 1)); st.dipx = 2; const two = session(st.mol).s.style.muPerD; st.dipx = 1; draw();
         need(Math.abs(two - 2 * base) < 1e-9 && session(st.mol).s.style.muPerD === own && !$('dipgrp').hidden, 'the dipole arrow twice as long, and the slider shown with a dipole descriptor'); st.rows = []; }

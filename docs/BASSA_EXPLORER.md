@@ -74,6 +74,8 @@ adds the rest (listed at the end of this section). A link made before the plain 
 - **Which end is better**: a case file's `better` ("low" or "high"; otherwise read from the response text, e.g. "more
   negative = more selective"). Green bars, the threshold's default hits and "(better)/(worse)" follow it; a "lower is
   better" badge says so in the header.
+- **Print this case** (More): one page with the case's evidence, the averaged model, the plot, the compound in hand and
+  what would make it better, to print or save as PDF. In the plot, points glide to their new places when the model changes.
 - **Two compounds compared**: pick a **second compound** (or shift-click a second point). Under the molecule, the table
   "A → B: what changes" gives each family's part of the change (averaged model) or each descriptor's (the model in hand),
   the fitted change, the change predicted with both left out, and the measured change, with a mark when the left-out
@@ -121,7 +123,12 @@ adds the rest (listed at the end of this section). A link made before the plain 
   (not shown when the first-fold check failed: `cv.d_ok` false) and the compound furthest off, with Q² without it.
   The plot shows the same left-out predictions with their intervals. These come from the case file (`cv`;
   `cv.chance` and `cv.d_ok` are added by `attach_checks.py` in the cases folder). Every small **?** opens a drawing of that number.
-- **Your families** (tab): make the families yourself. Pick a descriptor (in the list, the map or a family): the page
+- **Your families** (tab): make the families yourself, in three steps shown at the top (pick, add look-alikes, use them).
+  The map places every descriptor so that look-alikes sit together (classical scaling of 1 − |r|): size is how often BASSA
+  used it, colour your family (faint: the page's family, as a suggestion), lines from the one in hand to its look-alikes
+  coloured by how the sampler treats the pair. Click a bubble to pick it, shift-click to put it in the family of the one
+  in hand. Each family card carries its own small matrix of |r| with the sampler's verdicts; the matrix of every pair is
+  folded at the bottom. Pick a descriptor (in the list, the map or a family): the page
   lists the twelve that look most like it, with their correlation and how the sampler treats the pair (in one model
   more than chance, one or the other, no preference, too rarely used to tell; judged as the page's own rule judges it),
   draws the two against each other with every compound coloured by the response, and draws both on the molecule.
@@ -147,7 +154,8 @@ adds the rest (listed at the end of this section). A link made before the plain 
 - **Averaged model**: the average over every sampled model, on the molecule and as its five largest weights (`ens` in the
   case file). **Design**: a slider per descriptor
   (not on the averaged model). **Export**: the picture as SVG, or the model as text.
-- **Recipes**: every model reduced to its families; click a descriptor to draw the model of that card that contains it,
+- **Recipes**: every model reduced to its families. A card leads with its share of sampled models, its letters and its
+  5-fold Q² (coloured), with a small fit of its own (measured across, the card's models' 5-fold predictions up); click a descriptor to draw the model of that card that contains it,
   the arrows step through the card's models, and "together" is the card's models averaged by visits.
 - **On the molecule**: Sterimol axes, charges and dipole components of the shown model, each with its value. A length, an
   angle or a dihedral is a dashed line through its atoms with the table's value (d, ∠, τ). **dipole arrow ×** and
