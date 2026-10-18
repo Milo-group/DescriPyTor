@@ -186,6 +186,17 @@ adds the rest (listed at the end of this section). A link made before the plain 
   chosen on all compounds, so they flatter it), and the line over the plot keeps the averaged model's Q², the number
   to quote. At a wide window the molecule sits beside the plot, the weights under the plot and the tabs under the
   molecule.
+- **What drives the predictions** (a bar over the table, cases with an averaged model): one segment per family, as long
+  as its share of how the averaged model's predictions differ from compound to compound (each family on its own; the
+  families under 3 % share a grey end), named as in the table, with an arrow for whether a higher value of its most
+  used descriptor predicts better (▲) or worse (▼). Point at a segment to mark its rows in the table; click it to draw
+  the family on the molecule (click again to go back).
+- **Ranked plot** (the switch over the plot: measured vs predicted / ranked): the compounds in the order the averaged
+  model ranks them while each is left out, best first; dot measured, blue tick predicted, grey bar the 90 % interval.
+  The shaded band is the model's top quarter, a green ring marks the measured best quarter, and the corner says how
+  many of the best quarter the model's top quarter holds against chance (quarter²/n). Hover card, click, box
+  selection and the designer's line work as in the other plot. The link keeps the choice (`pk`).
+- **New here?** A first visit gets one line over the table; it opens the three steps.
 - **Plain page, quieter**: the table's grouping and folding (A column is, Fold families, Families by, |r|) are in
   one **View** menu; Show, Design and Export share one row; in the plot only the compound in hand keeps a strong 90 %
   interval bar (the others are faint, all of them as before in advanced), and the class-mean ticks and the Sterimol
