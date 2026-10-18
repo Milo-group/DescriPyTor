@@ -183,6 +183,10 @@ adds the rest (listed at the end of this section). A link made before the plain 
   whether it beats chance; **how it was checked** opens the deals, the leave-one-out Q², the 90 % interval and the
   compound furthest off), the plot with the model in hand beside it, then the molecule with one panel at a time in
   tabs: **Why this value**, **What would make it better**, or **Compared** when a second compound is picked.
+  The compound menus sit under the molecule (**Compound**, **vs** a second one); the menus name the compound only, its
+  measured value is on the molecule. The model in hand shows each descriptor's effect as a bar and an arrow, its
+  weight and the compound's value under the pointer (on the page in advanced). **Colour** over the plot opens the
+  colour choice; the key beside it stays. The viewer's own hint shows while the pointer is on the molecule.
 - **Why a compound is predicted where it is** (the first tab beside the molecule): the prediction for an
   average compound, then what each family adds for this compound (the four largest on the plain page, six in advanced; weight × its distance from the mean in standard
   deviations), the total fitted to every compound, and under it the left-out prediction and the measured value. With
