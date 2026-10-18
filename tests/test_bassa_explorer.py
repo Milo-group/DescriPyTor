@@ -1,5 +1,6 @@
 """The BASSA model explorer's server: the page, the bundled example, the package's feature explorer, and a kept case
 that lands in the cases folder (never inside the package). No sampler run: bassa_reg is optional."""
+import base64
 import json
 import os
 import socket
@@ -190,3 +191,37 @@ def test_names_and_tables_from_the_review():
     )
     r = subprocess.run([sys.executable, "-c", code], cwd=str(TOOL), capture_output=True, text=True)
     assert r.returncode == 0, r.stderr[-800:]
+
+
+def _featurize(url, case, files, headers=None):
+    body = dict(case=case, files=[dict(name=Path(f).name if isinstance(f, (str, Path)) else f[0], data=base64.b64encode(Path(f).read_bytes() if isinstance(f, (str, Path)) else f[1]).decode()) for f in files])
+    q = urllib.request.Request(url + "featurize", data=json.dumps(body).encode(), headers=dict({"Content-Type": "application/json"}, **(headers or {})))
+    try: return 200, json.loads(urllib.request.urlopen(q, timeout=300).read())
+    except urllib.error.HTTPError as e: return e.code, (json.loads(e.read() or b"{}") if e.code == 400 else {})
+
+
+def test_a_structure_file_becomes_a_candidate_by_the_case_s_recipe(server):
+    """POST /featurize: a measured compound's own files (a cs3_cp complex and its stored GFN2 single point), dropped in as
+    new, give exactly the case's X, so the page prices it at its fitted value; what does not fit the recipe is refused, with the reason."""
+    url, cases = server
+    fx = ROOT / "tests" / "fixtures" / "bassa_featurize"; d = json.loads((fx / "case_cs3_cp_045.json").read_text(encoding="utf-8"))
+    cases.mkdir(parents=True, exist_ok=True); (cases / "fx.js").write_text('(window.CASES = window.CASES || {})["fx"] = %s;\n' % json.dumps(d), encoding="utf-8")
+    xyz, sp = fx / "045_lig_CuCl.xyz", fx / "045_lig_CuCl.txt"
+    code, out = _featurize(url, "fx", [xyz, sp])
+    assert code == 200, out
+    assert out["x"] == {c: d["X"][c][0] for c in d["names"]}
+    pred = lambda x: d["ens"]["b0"] + sum(d["ens"]["beta"].get(c, 0) * x[c] for c in d["names"])
+    assert pred(out["x"]) == pred({c: d["X"][c][0] for c in d["names"]})
+    # refused, with the reason
+    assert "two files" in _featurize(url, "fx", [xyz])[1]["error"]
+    assert "reads one .xyz" in _featurize(url, "fx", [("x.bin", b"not a structure")])[1]["error"]
+    rows = xyz.read_text().splitlines(); moved = "\n".join(rows[:2] + rows[3:4] + rows[2:3] + rows[4:]) + "\n"        # metal no longer atom 1
+    assert "atom 1 is" in _featurize(url, "fx", [("m.xyz", moved.encode()), sp])[1]["error"]
+    d2 = dict(d); d2.pop("extraction"); (cases / "plain.js").write_text('(window.CASES = window.CASES || {})["plain"] = %s;\n' % json.dumps(d2), encoding="utf-8")
+    assert "no recipe" in _featurize(url, "plain", [xyz, sp])[1]["error"]
+    assert "no such case" in _featurize(url, "../fx", [xyz, sp])[1]["error"]
+    assert _featurize(url, "fx", [xyz, sp], {"Origin": "http://evil.example"})[0] == 403
+    q = urllib.request.Request(url + "featurize", data=b"{}", headers={"Content-Type": "text/plain"})
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(q, timeout=30)
+    assert e.value.code == 415

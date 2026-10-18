@@ -333,6 +333,9 @@ def page(case):
     d["mols"] = dict(structures(case, d["ligands"] + (d["ext"]["names"] if d["ext"] else [])))
     d.update(lines(case))                                                       # the two lines that stay on screen
     d["style"] = dict(SA.LOOK, values=True, atomLabels="all", shadow=False, **LOOKS.get(case, {}))
+    if (C / f"{case}.js").exists():                                             # the recipe for structure files (featurize.py) stays while the columns do
+        t = (C / f"{case}.js").read_text(encoding="utf-8"); was = json.loads(t[t.index("] = ") + 4:].rstrip().rstrip(";"))
+        if was.get("extraction") and was["names"] == d["names"]: d["extraction"] = was["extraction"]
     (C / f"{case}.js").write_text("(window.CASES = window.CASES || {})[%s] = %s;\n" % (json.dumps(case), json.dumps(d)), encoding="utf-8")
     print("wrote", case + ".js", len(d["mols"]), "structures; cases:", manifest(case))
 

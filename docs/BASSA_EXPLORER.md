@@ -107,6 +107,8 @@ adds the rest (listed at the end of this section). A link made before the plain 
   the model weighs, than the measured ones are from each other), past the measured range (a descriptor with ≥ 2 % of the
   weight), or too many columns missing (≥ 25 % of the weight). A strip places them among the measured compounds. Kept in
   this browser per case; Save as CSV writes them out. The CSV's numbers must be computed the way the case's were.
+  **Add from a structure file** (only on a case that carries its recipe, see below) computes a new compound's columns
+  from its own structure file by the recipe that made the case's.
 - **Colour the plot by** any descriptor (the select over the plot); pointing at a row of the table colours it by that
   descriptor while the pointer stays.
 - **What is left over** (under the molecule): each compound's error (measured − predicted while left out) against one
@@ -235,6 +237,35 @@ What **advanced** adds:
   (above, weak, not above), the 90 % interval and the leading descriptor.
 - The grey band around the chance line is how far the line could move with other shuffles. With 100 shuffles it is wide;
   `../bassa/null1000.py` computes it from 1,000 for a prepared case.
+
+## A new compound from its structure file
+
+**Add from a structure file**, in Your candidates, sends the file to `POST /featurize`. The server runs
+`featurize.py` under the reader Python with the recipe that made the case's columns, which is stored in the case file as
+`extraction`, and the compound lands as a candidate. Nothing is optimised and no xTB is run: the structure must be
+computed the way the set's were. A file whose atoms cannot play the roles the columns assume is refused, and the reason
+is shown. The values are rounded as the case's X was, so a measured compound added as new is priced at its fitted value.
+
+| case | file(s) | how the atoms are matched |
+|---|---|---|
+| cs1_acids, cs1_acids_frames | Gaussian opt+freq `.log` (M06-2X/def2-TZVP, NBO, Hirshfeld, polar) | found from the bonds: the one aryl COOH |
+| cs2, cs2_steric | Gaussian `.log` or its `.feather` | fixed numbering of the set (H21-O1-C2(-C17)=X3-C4(=N5-C6-C7)…), C6 of the set's configuration |
+| cs3_cp, cs3_oa, cs3_cc, cs3_cc_sym, cs3_da_f | the GFN2 complex `.xyz` **and** its single point (`.txt`: the Q, W, D, E lines of `collect.sh`) | metal first, then its co-ligands, then the two donors; each arm needs a stereocentre |
+| lucas_pdh2 | Gaussian opt+freq `.log` or its `.feather` of the (N,N)PdH2 complex | fixed PdMeCl v7 numbering, hydrides 13 and 14 |
+
+The other cases have no recipe. wu_doyle reads three published numbers (vmin, %Vbur, cone angle) that no structure gives.
+The recipe of `lucas_pdh2` runs scripts of the paper folder; `extraction.code` holds their hashes, and an edited script
+stops the recipe until it is checked again.
+
+A recipe is checked by re-extracting compounds of the case from their own files:
+
+    <reader python> featurize.py check <case> <folder>      a folder of <name>.<suffix> (and <name>.txt for a companion)
+
+It prints, per compound, the largest difference from the case's source table (`extraction.table`) and from the case's X.
+On 18 October every measured compound of the ten cases above matched its source table to the table's own rounding
+(at most 5e-7) and the case's X exactly. The two exceptions are in lucas_pdh2: LS1642 and LS1723 differ by 1e-4 in
+nu_PdH_mean, on an exact half-tie at the 4th decimal that 1e-13 of float noise decides; this moves the prediction by
+less than 1e-7 kcal/mol. External compounds kept with a different rounding (p-Me, the cs2_steric five) differ in the last digit.
 
 ## Structures for a case kept without them
 

@@ -14,6 +14,9 @@ GET  /status                                             ->  {ok, app, api, samp
 GET  /checks?job=N                                      ->  {done, total, chance, nested_q2, fold_top, n_folds, error}
 POST /keep    {name, case}                              ->  writes <name>.js beside the page and lists it, so the case is there next time
 POST /export  {cases}                                   ->  one HTML file holding the page, the explorer and those cases
+POST /featurize {case, files: [{name, data}]}           ->  {x}: one compound's descriptors from its structure file (and the file the
+                                                            recipe needs with it; data: the bytes, base64), by the recipe that made the
+                                                            case's columns (the case's `extraction`; featurize.py). Nothing is optimised.
 
 The table: first column the compound name, one numeric response column, the rest descriptors. Columns that are not
 numeric, have a missing value or are constant are dropped and named in the answer. `structures` is an optional folder
@@ -22,7 +25,7 @@ The checks are the ones of bayes_checks.py: the chance line is the 95th percenti
 of the highest inclusion frequency (chains of 6,000); the nested Q2 reruns the sampler without each compound in turn.
 Listens on this computer only.
 """
-import inspect, io, itertools, json, os, re, subprocess, sys, threading, time
+import base64, inspect, io, tempfile, itertools, json, os, re, subprocess, sys, threading, time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -122,6 +125,29 @@ def keep(q):
     return dict(name=name, cases=BC.manifest(name))
 
 
+def featurize(q):
+    """one structure, featurized under the reader Python by the recipe stored with the case; nothing is optimised, nothing kept"""
+    case = str(q["case"])
+    if not re.fullmatch(r"[\w-]+", case) or not (C / f"{case}.js").is_file(): raise ValueError("no such case: " + case)
+    t = (C / f"{case}.js").read_text(encoding="utf-8"); d = json.loads(t[t.index("] = ") + 4:].rstrip().rstrip(";")); e = d.get("extraction")
+    if not e: raise ValueError("this case has no recipe for structure files: add its descriptors from a CSV")
+    files = q.get("files") or []
+    if not 1 <= len(files) <= 2: raise ValueError("send the structure file%s" % (" and " + e["companion"] if e.get("companion") else ""))
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = []
+        for k, f in enumerate(files):                                           # of the sender's name only the extension is kept
+            suffix = Path(str(f.get("name", ""))).suffix.lower()
+            if not re.fullmatch(r"\.[a-z0-9]{1,10}", suffix): raise ValueError("%s: the file needs an extension (%s)" % (f.get("name"), " or ".join(e["accepts"])))
+            paths.append(Path(tmp) / ("file%d%s" % (k, suffix))); paths[-1].write_bytes(base64.b64decode(f["data"], validate=True))
+        r = subprocess.run([READER, str(H / "featurize.py")], input=json.dumps(dict(extraction=e, paths=[str(p) for p in paths])), capture_output=True, text=True, encoding="utf-8", timeout=300, cwd=str(H))
+    if r.returncode: raise ValueError("could not read the structure: " + (r.stderr.strip().splitlines() or ["no message"])[-1])
+    out = json.loads(r.stdout)
+    if "error" in out: raise ValueError(out["error"])
+    miss = [c for c in d["names"] if not np.isfinite(out["x"].get(c, np.nan))]
+    if miss: raise ValueError("the recipe gave no value for %s: the case's columns and its recipe have parted" % ", ".join(miss[:5]))
+    return dict(x={c: out["x"][c] for c in d["names"]})
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **k): super().__init__(*a, directory=str(H), **k)
 
@@ -170,6 +196,7 @@ class Handler(SimpleHTTPRequestHandler):
             if self.path == "/run": return self.answer(run(q))
             if self.path == "/keep": return self.answer(keep(q))
             if self.path == "/handoff": table(q); name = "%d%d" % (int(time.time()), next(IDS)); HANDOFF[name] = q; return self.answer(dict(id=name))      # table(): refuse here what a run would refuse
+            if self.path == "/featurize": return self.answer(featurize(q))
             if self.path == "/export": return self.answer(dict(html=BC.standalone(q["cases"])))
             if self.path == "/checks":
                 if not SAMPLER: raise RuntimeError(NEEDS)

@@ -1,0 +1,376 @@
+{
+"case": "fx",
+"names": [
+"MCs_theta_asym",
+"mu_bisector",
+"CsR_loc_B5_asym",
+"DCs_theta_asym",
+"CsR_loc_B5_sym",
+"fromM_B1_asym",
+"fromM_B5_asym",
+"MCs_L_asym",
+"DR_loc_B5_asym",
+"MD_loc_B5_asym",
+"MR_loc_B5_asym",
+"MCs_loc_B5_asym",
+"bite",
+"MR_theta_asym",
+"CsR_L_sym",
+"MCs_loc_B5_sym",
+"DCs_loc_B5_sym",
+"MD_B5_sym",
+"MR_phi_sym",
+"DR_theta_sym",
+"sub_phi_sym",
+"sub_phi_asym",
+"DCs_loc_B5_asym",
+"DCs_L_asym",
+"DR_theta_asym",
+"MD_asym",
+"mu_desym",
+"sub_B1_asym",
+"sub_theta_asym",
+"MD_phi_asym",
+"DCs_theta_sym",
+"tf_kappa2",
+"fromM_phi_sym",
+"sub_B5_sym",
+"MD_mean",
+"tf_estrada",
+"tf_chi3v",
+"fromM_L_sym",
+"vbur_3.5",
+"q_metal",
+"fromM_L_asym",
+"lumo",
+"sub_theta_sym",
+"CsR_B1_sym",
+"tf_chi1",
+"tf_chi1v",
+"MD_loc_B5_sym",
+"MCs_theta_sym",
+"DCs_B1_asym",
+"DCs_B1_sym"
+],
+"ligands": [
+"045_lig"
+],
+"X": {
+"MCs_theta_asym": [
+0.0048
+],
+"mu_bisector": [
+10.4771
+],
+"CsR_loc_B5_asym": [
+0.0
+],
+"DCs_theta_asym": [
+0.0066
+],
+"CsR_loc_B5_sym": [
+1.7673
+],
+"fromM_B1_asym": [
+0.0002
+],
+"fromM_B5_asym": [
+0.0009
+],
+"MCs_L_asym": [
+0.0003
+],
+"DR_loc_B5_asym": [
+0.0001
+],
+"MD_loc_B5_asym": [
+0.0022
+],
+"MR_loc_B5_asym": [
+0.0005
+],
+"MCs_loc_B5_asym": [
+0.0007
+],
+"bite": [
+92.2524
+],
+"MR_theta_asym": [
+0.0077
+],
+"CsR_L_sym": [
+4.1805
+],
+"MCs_loc_B5_sym": [
+2.6937
+],
+"DCs_loc_B5_sym": [
+1.8807
+],
+"MD_B5_sym": [
+5.9592
+],
+"MR_phi_sym": [
+170.8216
+],
+"DR_theta_sym": [
+7.0967
+],
+"sub_phi_sym": [
+85.7512
+],
+"sub_phi_asym": [
+0.0274
+],
+"DCs_loc_B5_asym": [
+0.0001
+],
+"DCs_L_asym": [
+0.0
+],
+"DR_theta_asym": [
+0.0014
+],
+"MD_asym": [
+0.0002
+],
+"mu_desym": [
+0.0044
+],
+"sub_B1_asym": [
+0.0
+],
+"sub_theta_asym": [
+0.0137
+],
+"MD_phi_asym": [
+0.0629
+],
+"DCs_theta_sym": [
+52.7504
+],
+"tf_kappa2": [
+0.2653
+],
+"fromM_phi_sym": [
+83.6157
+],
+"sub_B5_sym": [
+3.1731
+],
+"MD_mean": [
+2.0039
+],
+"tf_estrada": [
+2.4975
+],
+"tf_chi3v": [
+0.2081
+],
+"fromM_L_sym": [
+5.9183
+],
+"vbur_3.5": [
+69.6079
+],
+"q_metal": [
+0.1961
+],
+"fromM_L_asym": [
+0.0
+],
+"lumo": [
+-6.8665
+],
+"sub_theta_sym": [
+32.5464
+],
+"CsR_B1_sym": [
+2.7449
+],
+"tf_chi1": [
+0.4486
+],
+"tf_chi1v": [
+0.3735
+],
+"MD_loc_B5_sym": [
+-1.1674
+],
+"MCs_theta_sym": [
+15.2724
+],
+"DCs_B1_asym": [
+0.0
+],
+"DCs_B1_sym": [
+1.9208
+]
+},
+"ens": {
+"b0": -0.8792989341060222,
+"beta": {
+"MCs_theta_asym": 0.0002803423153372415,
+"mu_bisector": 0.00015617330133701668,
+"CsR_loc_B5_asym": -0.0004451729130083439,
+"DCs_theta_asym": -0.0006275605711340253,
+"CsR_loc_B5_sym": -0.0012817256907559438,
+"fromM_B1_asym": 0.0035315642496092053,
+"fromM_B5_asym": 0.0005489858098065627,
+"MCs_L_asym": 0.005432721741714845,
+"DR_loc_B5_asym": 0.0005495517995929165,
+"MD_loc_B5_asym": -1.2495815110695107e-06,
+"MR_loc_B5_asym": 0.002198449431483602,
+"MCs_loc_B5_asym": 0.0013201498772399073,
+"bite": -0.0002463267494238606,
+"MR_theta_asym": 0.00014718671619921725,
+"CsR_L_sym": -0.0003410223660657851,
+"MCs_loc_B5_sym": -0.0010550934379348956,
+"DCs_loc_B5_sym": -0.0013960234737457947,
+"MD_B5_sym": 0.000819144785996544,
+"MR_phi_sym": 0.00022209756176624944,
+"DR_theta_sym": 0.00015727672557288246,
+"sub_phi_sym": 0.00034758665787463144,
+"sub_phi_asym": -9.595244402723871e-06,
+"DCs_loc_B5_asym": 0.0007523693387877906,
+"DCs_L_asym": -0.0007301721549677922,
+"DR_theta_asym": 1.4234093157847733e-05,
+"MD_asym": -0.7296931740504897,
+"mu_desym": 0.0011849627141614619,
+"sub_B1_asym": -0.022477603799329105,
+"sub_theta_asym": -0.00044273745769384307,
+"MD_phi_asym": 0.0023971873799913833,
+"DCs_theta_sym": 0.00012857333823231658,
+"tf_kappa2": -0.0069171047099892335,
+"fromM_phi_sym": -0.00014154267415121655,
+"sub_B5_sym": -0.00526249751025405,
+"MD_mean": 0.16845623150585817,
+"tf_estrada": 0.05088302581599598,
+"tf_chi3v": 0.10317421923860859,
+"fromM_L_sym": 0.004068415011381303,
+"vbur_3.5": 6.145720078305664e-05,
+"q_metal": -5.947794615777923,
+"fromM_L_asym": 0.00035532369114233867,
+"lumo": 0.04027532295892986,
+"sub_theta_sym": 0.0007893895384470618,
+"CsR_B1_sym": 1.2257382561549082,
+"tf_chi1": 0.10040056662244215,
+"tf_chi1v": 1.0298718222580876,
+"MD_loc_B5_sym": 0.0006528002030361256,
+"MCs_theta_sym": -3.1195683506368844e-06,
+"DCs_B1_asym": -0.003384446728851768,
+"DCs_B1_sym": -0.001356530355927304
+}
+},
+"extraction": {
+"kind": "chelate_xyz",
+"accepts": [
+".xyz"
+],
+"companion": "its GFN2 single point (a .txt with the Q, W, D and E lines)",
+"settings": {
+"reaction": "cp"
+},
+"round": {
+"*": [
+4
+],
+"mu_bisector": [
+6,
+4
+],
+"fromM_B1_asym": [
+6,
+4
+],
+"fromM_B5_asym": [
+6,
+4
+],
+"bite": [
+6,
+4
+],
+"sub_phi_sym": [
+6,
+4
+],
+"sub_phi_asym": [
+6,
+4
+],
+"MD_asym": [
+6,
+4
+],
+"mu_desym": [
+6,
+4
+],
+"sub_B1_asym": [
+6,
+4
+],
+"sub_theta_asym": [
+6,
+4
+],
+"tf_kappa2": [
+6,
+4
+],
+"fromM_phi_sym": [
+6,
+4
+],
+"sub_B5_sym": [
+6,
+4
+],
+"MD_mean": [
+6,
+4
+],
+"tf_estrada": [
+6,
+4
+],
+"tf_chi3v": [
+6,
+4
+],
+"fromM_L_sym": [
+6,
+4
+],
+"vbur_3.5": [
+6,
+4
+],
+"q_metal": [
+6,
+4
+],
+"fromM_L_asym": [
+6,
+4
+],
+"lumo": [
+6,
+4
+],
+"sub_theta_sym": [
+6,
+4
+],
+"tf_chi1": [
+6,
+4
+],
+"tf_chi1v": [
+6,
+4
+]
+}
+}
+}
