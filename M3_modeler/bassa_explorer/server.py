@@ -205,6 +205,7 @@ class Handler(SimpleHTTPRequestHandler):
                 X, y, _, _ = table(q); name = str(next(IDS)); JOBS[name] = job = dict(done=0, total=N_PERM + len(y), chance=None, nested_q2=None, error=None)
                 threading.Thread(target=checks, args=(job, X, y), daemon=True).start(); return self.answer(dict(job=name, total=job["total"]))
             self.send_error(404)
+        except ValueError as e: self.answer(dict(error=str(e)), 400)                     # our own refusals are sentences for the reader
         except Exception as e: self.answer(dict(error="%s: %s" % (type(e).__name__, e)), 400)
 
 

@@ -199,6 +199,11 @@ adds the rest (listed at the end of this section). A link made before the plain 
   many of the best quarter the model's top quarter holds against chance (quarter²/n). Hover card, click, box
   selection and the designer's line work as in the other plot. The link keeps the choice (`pk`).
 - **New here?** A first visit gets one line over the table; it opens the three steps.
+- **Print this case** keeps the drive bar, opens the design tests, leaves out the controls and closed panels, and
+  prints the colours as on screen; the right panel no longer jumps to a second page. A second compound opens the
+  comparison tab; going back to the averaged model puts held-out compounds back (it is never refitted); a family is
+  named by its most used descriptor everywhere; the ranked plot counts the best quarter rounded up, as the design
+  test does; an uploaded table keeps its own families, candidates and better end even under a prepared case's name.
 - **One model at a time**: every way of picking a column (a click on its head, the arrow keys, a hollow dot, a recipe,
   the jump box, Your families) shows that column in the plot, on the molecule and under the plot; holding a compound
   out on the averaged model moves to the column in hand first and says so, since only a fixed model can be refitted.
