@@ -95,6 +95,19 @@ adds the rest (listed at the end of this section). A link made before the plain 
   whose part of its prediction could gain most if they took the best value any compound of the set has, that compound
   (click it), a strip of every compound's part (blue: this one, green: the best, better to the right), and how the
   family's lead descriptor differs between the two. A direction inside the measured range; the gains do not add up.
+- **Design with the averaged model** (Design, when the plot shows the averaged model): start from a compound and move a
+  slider per family (those with at least 2 % of the spread, five at most). A slider moves the family's lead descriptor;
+  its look-alikes follow by their correlation with it. Beside it: the predicted value, the change from the starting
+  compound with the typical miss, a bar from worse to better with every measured compound, the closest measured compound
+  in these families, and a warning outside the measured range. The plot draws the prediction as a line.
+- **Colour the plot by** any descriptor (the select over the plot); pointing at a row of the table colours it by that
+  descriptor while the pointer stays.
+- **What is left over** (under the molecule): each compound's error (measured − predicted while left out) against one
+  family's part of the prediction, with a running mean and Spearman ρ. A trend means the model uses that family too
+  much or too little.
+- **Box selection**: drag over the plot, then **Hold out** (refit without the selected compounds) or **On the molecule**
+  (the first as the compound, the others compared with it); × clears it.
+- **Jump to…** (Ctrl+K, or More): type part of a compound, descriptor, case or view name; Enter goes there.
 
 - **The table**: a column is a model, a row a descriptor. Over each column: how often the sampler visited it, in % of
   its steps, which is also the height of its bar; under the bar, the 5-fold Q² (coloured: green ≥ 0.7, blue ≥ 0.4, amber
