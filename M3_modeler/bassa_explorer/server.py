@@ -14,8 +14,6 @@ GET  /status                                             ->  {ok, app, api, samp
 GET  /checks?job=N                                      ->  {done, total, chance, nested_q2, fold_top, n_folds, error}
 POST /keep    {name, case}                              ->  writes <name>.js beside the page and lists it, so the case is there next time
 POST /export  {cases}                                   ->  one HTML file holding the page, the explorer and those cases
-POST /featurize {smiles}                                ->  {rows: {cs3 case: {column: value}}, info, errors}: a new BOX-type ligand by the
-                                                            light xTB route (cs3_light.py; needs xtb, about 40 s; a rough estimate)
 
 The table: first column the compound name, one numeric response column, the rest descriptors. Columns that are not
 numeric, have a missing value or are constant are dropped and named in the answer. `structures` is an optional folder
@@ -33,7 +31,7 @@ import numpy as np, pandas as pd
 import build_case as BC
 import running as RUN
 
-H = Path(__file__).resolve().parent; C = BC.C; LOCK = threading.Lock(); FLOCK = threading.Lock(); JOBS = {}; HANDOFF = {}; N_PERM, NULL_ITERS = 100, 6000; IDS = itertools.count(1)
+H = Path(__file__).resolve().parent; C = BC.C; LOCK = threading.Lock(); JOBS = {}; HANDOFF = {}; N_PERM, NULL_ITERS = 100, 6000; IDS = itertools.count(1)
 PORT, LOOPBACK, MAX_BODY = 8765, True, 64 * 2 ** 20                 # set at start; requests larger than 64 MB are refused
 READER = BC.S["reader_python"]
 try:
@@ -116,19 +114,6 @@ def checks(job, X, y):
     except Exception as e: job["error"] = "%s: %s" % (type(e).__name__, e)
 
 
-def featurize(q):
-    """a new ligand on the cs3 cases by the light xTB route (cs3_light.py, under the reader Python, which has RDKit): {rows: {case: row}, info, errors}"""
-    smi = str(q.get("smiles", "")).strip()
-    if not smi or len(smi) > 400 or re.search(r"\s", smi): raise ValueError("give one SMILES (up to 400 characters, no spaces)")
-    with FLOCK:                                                                 # one ligand at a time: each request runs three xTB optimisations
-        try: r = subprocess.run([READER, str(H / "cs3_light.py")], input=json.dumps(dict(smiles=smi)), capture_output=True, text=True, encoding="utf-8", timeout=600)
-        except subprocess.TimeoutExpired: raise RuntimeError("the xTB route took more than 10 minutes and was stopped")
-    try: d = json.loads(r.stdout.strip().splitlines()[-1])
-    except (IndexError, ValueError): raise RuntimeError("the xTB route failed: " + (r.stderr.strip().splitlines() or ["no message"])[-1])
-    if d.get("error"): raise ValueError(d["error"])
-    return d
-
-
 def keep(q):
     """a case computed from the page becomes a file beside it; the prepared cases cannot be overwritten from here"""
     name = re.sub(r"[^a-z0-9]+", "_", str(q["name"]).lower()).strip("_")
@@ -184,7 +169,6 @@ class Handler(SimpleHTTPRequestHandler):
             q = json.loads(self.rfile.read(n))
             if self.path == "/run": return self.answer(run(q))
             if self.path == "/keep": return self.answer(keep(q))
-            if self.path == "/featurize": return self.answer(featurize(q))
             if self.path == "/handoff": table(q); name = "%d%d" % (int(time.time()), next(IDS)); HANDOFF[name] = q; return self.answer(dict(id=name))      # table(): refuse here what a run would refuse
             if self.path == "/export": return self.answer(dict(html=BC.standalone(q["cases"])))
             if self.path == "/checks":

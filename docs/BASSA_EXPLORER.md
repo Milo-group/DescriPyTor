@@ -107,15 +107,6 @@ adds the rest (listed at the end of this section). A link made before the plain 
   the model weighs, than the measured ones are from each other), past the measured range (a descriptor with ≥ 2 % of the
   weight), or too many columns missing (≥ 25 % of the weight). A strip places them among the measured compounds. Kept in
   this browser per case; Save as CSV writes them out. The CSV's numbers must be computed the way the case's were.
-- **From SMILES** (the candidates card of the four case-study-3 cases): type the SMILES of a new BOX-type ligand; the
-  server (`POST /featurize`, `cs3_light.py` under the reader Python) builds it on CuCl, Ni(H)2 and CuCl2 with the donors
-  held 2.5–3.0 Å apart while embedding (`build_general.py`, a verbatim copy of the deposit's), optimises each once with
-  GFN2-xTB on this computer (xtb 6.7.1: `$XTB`, else on PATH, else a conda env's; about 40 s for the three) and reads every
-  column exactly as for the measured ligands. The ligand is added as a candidate on all four reactions, marked "rough:
-  xTB from SMILES". A rough first look, not a reproduction: from their SMILES the measured ligands land up to 0.37 (cp),
-  0.99 (cc), 0.09 (oa) and 0.13 (da_f) kcal/mol from their case predictions (one optimisation from a new start finds
-  another minimum), so the 90 % range is widened by the 90th percentile of those shifts (0.25, 0.45, 0.07, 0.07).
-  The paper's notes/PREREG_cs3_light_route*.md and RESULT_cs3_light_route*.md hold the check.
 - **Colour the plot by** any descriptor (the select over the plot); pointing at a row of the table colours it by that
   descriptor while the pointer stays.
 - **What is left over** (under the molecule): each compound's error (measured − predicted while left out) against one
