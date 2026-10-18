@@ -190,3 +190,24 @@ def test_names_and_tables_from_the_review():
     )
     r = subprocess.run([sys.executable, "-c", code], cwd=str(TOOL), capture_output=True, text=True)
     assert r.returncode == 0, r.stderr[-800:]
+
+
+def _post(url, path, body, headers=None):
+    q = urllib.request.Request(url + path, data=json.dumps(body).encode(), headers=headers or {"Content-Type": "application/json"})
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(q, timeout=120)
+    return e.value
+
+
+def test_from_smiles_refuses_before_any_xtb(server):
+    """/featurize (the cs3 light xTB route): a missing or unreadable SMILES is refused with a reason; no xTB is started for it."""
+    url, _ = server
+    for smi in ("", "C C", "x" * 401):
+        e = _post(url, "featurize", dict(smiles=smi)); assert e.code == 400 and "SMILES" in json.loads(e.read())["error"]
+    try:
+        import rdkit  # noqa: F401
+    except ImportError:
+        return
+    e = _post(url, "featurize", dict(smiles="C1CC(("))                  # read by RDKit under the reader Python (here this one)
+    assert e.code == 400 and "RDKit cannot read" in json.loads(e.read())["error"]
+    assert _post(url, "featurize", dict(smiles="CC"), {"Content-Type": "text/plain"}).code == 415
