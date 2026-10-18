@@ -33,6 +33,8 @@ the cases folder:
     python M3_modeler/bassa_explorer/build_case.py attach <case> <folder> ["title"] ["response"] ["unit"]
     python M3_modeler/bassa_explorer/build_case.py export [cases]      writes explorer_standalone.html in the cases folder
     python M3_modeler/bassa_explorer/test_page.py                      the page's click-through test, in headless Chrome
+    (set BASSA_EXPLORER_CASES to the cases folder you use: without it the test sees only the bundled example case, and
+     checks that need a validated case with an averaged model never run)
 
 ## From the visual extractor, in one click
 
@@ -197,6 +199,10 @@ adds the rest (listed at the end of this section). A link made before the plain 
   many of the best quarter the model's top quarter holds against chance (quarter²/n). Hover card, click, box
   selection and the designer's line work as in the other plot. The link keeps the choice (`pk`).
 - **New here?** A first visit gets one line over the table; it opens the three steps.
+- **One model at a time**: every way of picking a column (a click on its head, the arrow keys, a hollow dot, a recipe,
+  the jump box, Your families) shows that column in the plot, on the molecule and under the plot; holding a compound
+  out on the averaged model moves to the column in hand first and says so, since only a fixed model can be refitted.
+  Links also keep the colour, the tab beside the molecule and "More about this model".
 - **Words for the chemist (18 Oct)**: the drive bar opens with one sentence, "The model expects better compounds
   with a higher X (share) and a lower Y (share)", with a caveat when Q² is under 0.4; the prediction line reads "How
   well it predicts new compounds: Q² (good ≥ 0.7, fair ≥ 0.4, weak) · off by ±MAE on average · better than chance";
