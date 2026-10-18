@@ -57,7 +57,7 @@
   .fbar { position: relative; width: 96px; height: 13px; background: #edf0f3; border-radius: 3px; }
   .fbar i { position: absolute; left: 0; top: 0; bottom: 0; background: #a9b4c0; border-radius: 3px; }
   .fbar b { position: absolute; top: -2px; bottom: -2px; width: 0; border-left: 1.5px dashed var(--ink); }
-  .fbar span { position: absolute; right: 4px; top: -2px; font-size: 10.5px; }
+  .fbar span { position: absolute; left: calc(100% + 5px); top: -2px; font-size: 10.5px; white-space: nowrap; font-variant-numeric: tabular-nums; } .fbar { margin-right: 34px; }
   .fbar b.band { border: 0; top: -2px; bottom: -2px; background: rgba(24,33,43,.13); }
   #allcases table { border-collapse: collapse; width: 100%; font-size: 12.5px; } #allcases th, #allcases td { text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
   #allcases th { font-weight: 600; color: var(--mute); font-size: 11.5px; } #allcases tbody tr { cursor: pointer; } #allcases tbody tr:hover { background: var(--hover); } #allcases td.num2 { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -94,8 +94,8 @@
   .rec { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; } .rec.sel { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
   .rec h3 { margin: 0 0 6px; font-size: 14px; display: flex; gap: 6px; align-items: baseline; white-space: nowrap; } .rec h3 span { font-weight: 400; color: var(--mute); font-size: 12px; } .rec h3 button { margin-left: auto; padding: 1px 8px; font-size: 12px; }
   .slot { border-left: 4px solid var(--fam, #cfd6de); padding: 4px 6px 4px 8px; border-radius: 0 8px 8px 0; background: color-mix(in srgb, var(--fam, #cfd6de) 7%, #fff); } .slot .lab { display: block; font-size: 11px; margin-bottom: 2px; }
-  .plus { text-align: center; color: var(--faint); font-weight: 700; font-size: 13px; line-height: 15px; } .step { margin-top: 7px; }
-  .moreopt summary { cursor: pointer; font-size: 11px; color: var(--mute); padding: 2px 2px 0; } .combo { display: inline-flex; align-items: center; margin-right: 4px; } .combo em { font-style: normal; font-weight: 400; color: var(--faint); margin: 0 3px 0 -3px; }
+  .step { margin-top: 7px; }
+  .moreopt summary { cursor: pointer; font-size: 11px; color: var(--mute); padding: 2px 2px 0; } .combo { display: inline-flex; align-items: center; margin-right: 4px; }
   /* an idea: a family of look-alike descriptors, or a descriptor on its own. Its letter and colour are the same wherever it shows */
   .idb { display: inline-block; min-width: 16px; height: 16px; line-height: 16px; padding: 0 3px; border-radius: 4px; color: #fff; font-size: 10.5px; font-weight: 700; text-align: center; margin-right: 6px; vertical-align: 1px; }
   .idb.s { min-width: 13px; height: 13px; line-height: 13px; font-size: 9px; padding: 0 2px; margin: 0 1px; vertical-align: 0; } .with { white-space: nowrap; }
@@ -103,7 +103,7 @@
   /* a family is one block: a rail and a wash of its colour, a stronger heading, round ends, and air before the next */
   tr.fm th.name, tr.fm td.freq, tr.fm td.num { background-color: var(--tint, var(--card)); } tr.fh.fm th.name, tr.fh.fm td.freq, tr.fh.fm td.num { background-color: color-mix(in srgb, var(--fam) 17%, #fff); }
   tr.fm th.name { border-left-width: 5px; } tr.b0 th.name { border-top-left-radius: 9px; } tr.b1 th.name { border-bottom-left-radius: 9px; } tr.b0 td.num { border-top-right-radius: 9px; } tr.b1 td.num { border-bottom-right-radius: 9px; }
-  tr.fh .fbar span { font-weight: 700; text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; } tr.fh .fbar { background: color-mix(in srgb, var(--fam) 12%, #fff); } tr.more th.name { color: var(--mute); font-size: 11.5px; padding-left: 27px; }
+  tr.fh .fbar span { font-weight: 700; } tr.fh .fbar { background: color-mix(in srgb, var(--fam) 12%, #fff); } tr.more th.name { color: var(--mute); font-size: 11.5px; padding-left: 27px; }
   tr.gap { pointer-events: none; } tr.gap th.name, tr.gap td { height: 9px; padding: 0; border: 0; background-color: var(--card); } td.c.on i { color: #fff; font: 700 8px/11px sans-serif; text-align: center; }
   /* the dots of one column are joined: what the model combines reads as one stroke */
   td.c.v, td.c.v0, td.c.v1 { background-image: linear-gradient(#c9d0d9, #c9d0d9); background-repeat: no-repeat; background-size: 2px 100%; background-position: center top; }
@@ -112,7 +112,7 @@
   .cks { margin-top: 8px; font-size: 12px; } .cks div { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 5px; margin-top: 3px; } .cks .ck { margin: 1px 0 0; } .cks .ck.na { background: #9aa5b1; } .cks a { cursor: pointer; text-decoration: underline; }
   .q1.qv { visibility: visible; display: inline-block; margin-left: 4px; vertical-align: 1px; }
   .ensb { border: 1px solid var(--accent); background: #f5f8ff; border-radius: 8px; padding: 7px 10px 6px; margin-bottom: 5px; } .ensb .tl { font-size: 11px; color: var(--mute); } .ensb .tv b { font-size: 19px; font-weight: 650; } .ensb .tv small { font-size: 11px; color: var(--mute); }
-  .ensb .strip { display: block; margin: 3px 0 1px; } .ensb .ts { font-size: 10.5px; color: var(--mute); } .ensb .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; opacity: .6; margin: 0 3px 0 6px; vertical-align: 0; } .ensb .dot:first-child { margin-left: 0; }
+  .ensb .strip { display: block; margin: 3px 0 1px; } .ensb .ts { font-size: 10.5px; color: var(--mute); } .ensb .dot:first-child { margin-left: 0; }
   .vd { font-size: 11.5px; font-weight: 600; margin-top: 3px; } .vd.ok { color: #13774c; } .vd.warn { color: #b45309; } .vd.bad { color: #c0392b; } .ensb .row2 { display: flex; flex-wrap: wrap; gap: 2px 16px; font-size: 11.5px; margin-top: 3px; } .ensb a { cursor: pointer; text-decoration: underline; }
   .mid.vs { color: var(--mute); font-size: 9.5px; }
   /* your families */
@@ -204,6 +204,7 @@
   button, select, summary, .bchip, .opt, .rec, td.c, th.name, td.freq, td.num, .ev, .stage, #why, #pair { transition: background-color .16s var(--ease), border-color .16s var(--ease), color .16s var(--ease), box-shadow .16s var(--ease), transform .12s var(--ease), opacity .16s var(--ease); }
   button:hover:not(:disabled), select:hover { background-color: #f6f8fb; } button:active:not(:disabled) { transform: translateY(1px); }
   button[aria-pressed="true"] { background: var(--ink2); border-color: var(--ink2); box-shadow: 0 1px 2px rgba(20,30,45,.2); } button[aria-pressed="true"]:hover { background: var(--ink); }
+  .tabs button[aria-pressed="true"], .tabs button[aria-pressed="true"]:hover { background: none; box-shadow: none; border-color: transparent; border-bottom-color: var(--ink); color: var(--ink); }
   button.go { box-shadow: 0 2px 8px rgba(31,95,208,.28); } button.go:hover { background: #1a52b6; }
   .tabs button { position: relative; } .tabs button[aria-pressed="true"] { border-bottom-color: transparent; } .tabs button::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--ink); transform: scaleX(0); transition: transform .2s var(--ease); } .tabs button[aria-pressed="true"]::after { transform: scaleX(1); } .tabs button:hover { color: var(--ink); }
   @keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
@@ -273,10 +274,10 @@
   /* colour of the plot */
   .colbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; } .colbar select { max-width: 200px; padding: 2px 6px; font-size: 12px; } .cgrad { display: inline-block; width: 64px; height: 8px; border-radius: 4px; border: 1px solid #e3e7ec; }
   /* box selection */
-  #pbox { position: relative; } #parity { touch-action: none; } .boxsel { fill: rgba(31,95,208,.08); stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 4 3; } #parity .pt.bsel { stroke: var(--accent) !important; stroke-width: 3px !important; }
+  #pbox { position: relative; } #parity { touch-action: pan-y; } .boxsel { fill: rgba(31,95,208,.08); stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 4 3; } #parity .pt.bsel { stroke: var(--accent) !important; stroke-width: 3px !important; }
   .selbar { position: absolute; left: 44px; top: 6px; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; background: rgba(255,255,255,.95); border: 1px solid #c9d8f5; border-radius: 999px; box-shadow: var(--sh1); font-size: 12px; animation: pop .15s var(--ease); } .selbar button { padding: 2px 9px; border-radius: 999px; font-size: 11.5px; }
   /* jump box */
-  #pal { position: fixed; inset: 0; z-index: 40; background: rgba(20,30,45,.28); display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; animation: fadein .12s ease-out; } #pal[hidden] { display: none; }
+  #pal { position: fixed; inset: 0; z-index: 40; background: rgba(20,30,45,.28); display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; animation: fadein .12s ease-out; }
   .palbox { width: min(560px, calc(100vw - 32px)); background: #fff; border-radius: 14px; box-shadow: 0 24px 60px rgba(20,30,45,.3); overflow: hidden; animation: pop .16s var(--ease); } #palq { width: 100%; border: 0; border-bottom: 1px solid var(--line); padding: 14px 16px; font-size: 15px; outline: none; border-radius: 0; }
   #pallist { max-height: 50vh; overflow: auto; padding: 6px; } .pali { display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 8px; cursor: pointer; } .pali.on, .pali:hover { background: var(--hover); }
   .pall { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .palk { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; padding: 1px 6px; border-radius: 6px; text-align: center; background: #eef1f5; color: #475569; } .palk.compound { background: #e8f0fe; color: #1f5fd0; } .palk.descriptor { background: #f1ebfd; color: #6d28d9; } .palk.case { background: #e8f6ee; color: #13774c; }
@@ -287,14 +288,12 @@
   #pcard .pcp > div { display: grid; grid-template-columns: minmax(0, 1fr) 56px 40px; gap: 5px; align-items: center; } #pcard .pcl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; } #pcard .pcp b { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; font-size: 11.5px; }
   #pcard .pcf { margin-top: 5px; font-size: 10.5px; } td.evc { white-space: normal; } td.evc .ev { margin: 1px 2px 1px 0; }
   /* your candidates */
-  button.prim { background: var(--accent); color: #fff; border-color: var(--accent); } button.prim:hover { filter: brightness(1.08); }
   .smibox { display: inline-flex; gap: 6px; align-items: center; } .smibox input { width: 230px; font: 12.5px ui-monospace, monospace; padding: 3px 6px; border: 1px solid #dfe4ea; border-radius: 8px; } .ctab td.cn { word-break: break-all; }
   .cands { margin: 4px 0 10px; padding: 12px 14px; border-radius: 12px; border: 1px solid #dfe4ea; background: #fff; }
   .cstrip { display: block; max-width: 100%; margin: 2px 0 6px; } .ctab { width: 100%; border-collapse: collapse; font-size: 12.5px; } #info .ctab td { padding: 5px 6px 5px 12px; border-top: 1px solid #eef1f5; vertical-align: top; } .ctab tr.head td { border-top: 0; color: #667382; font-size: 11px; }
   .ctab td.r { text-align: right; font-variant-numeric: tabular-nums; } .ctab .cn { font-weight: 600; } .ctab .cn .lab { font-weight: 400; } .ctab a { cursor: pointer; }
   .cdot { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10px; margin-right: 6px; vertical-align: 1px; }
   .cx { border: 0; background: none; color: #8a96a3; font-size: 15px; cursor: pointer; padding: 0 4px; } .cx:hover { color: var(--down); }
-  label.btnlike { display: inline-block; padding: 4px 10px; border: 1px solid #dfe4ea; border-radius: 8px; background: #fff; cursor: pointer; font-size: 12.5px; } label.btnlike:hover { background: #f4f6f9; }
   /* the column head: visits, the bar, then the model's Q² and R² */
   .mid.qq { font-size: 9.5px; font-weight: 700; line-height: 1.25; margin-top: 2px; font-variant-numeric: tabular-nums; } .mid.rr { font-size: 9px; color: var(--faint); line-height: 1.2; font-variant-numeric: tabular-nums; }
   .binkey { font-size: 10.5px; color: var(--mute); padding: 0 6px 6px; white-space: normal; max-width: 340px; line-height: 1.4; display: block; } .binkey .q1 { visibility: visible; display: inline-block; vertical-align: -2px; margin-left: 3px; }
@@ -376,7 +375,7 @@
     </div><div id="ensbox"></div></div>
   </section>
 </main>
-<div id="pcard" hidden role="tooltip"></div><div id="pal" hidden><div class="palbox" role="dialog" aria-label="jump to"><input id="palq" placeholder="Jump to a compound, a descriptor, a case or a view…" autocomplete="off"><div id="pallist"></div><div class="palfoot lab">↑ ↓ to move · Enter to go · Esc to close</div></div></div><div id="toast" hidden role="status"></div><div id="tip" hidden role="tooltip"></div>
+<div id="pcard" hidden role="tooltip"></div><div id="pal" hidden><div class="palbox" role="dialog" aria-modal="true" aria-label="jump to"><input id="palq" role="combobox" aria-controls="pallist" aria-label="jump to a compound, a descriptor, a case or a view" placeholder="Jump to a compound, a descriptor, a case or a view…" autocomplete="off"><div id="pallist" role="listbox" aria-label="matches"></div><div class="palfoot lab">↑ ↓ to move · Enter to go · Esc to close</div></div></div><div id="toast" hidden role="status"></div><div id="tip" hidden role="tooltip"></div>
 <dialog id="schemedlg" style="max-width:min(960px,94vw);border:1px solid #d5dbe2;border-radius:10px;padding:16px"><div class="lab" id="schemecap" style="margin-bottom:8px"></div><img id="schemeimg" alt="reaction scheme" style="max-width:100%;display:block"><form method="dialog" style="text-align:right;margin-top:10px"><button>Close</button></form></dialog>
 <dialog id="guide">
   <h2>How to read this page</h2>
@@ -595,7 +594,7 @@ function boot(data, p) {
 
 // what follows from the families in use (the page's rule, or the user's own when "use my families" is on): the members, each family's share,
 // the ideas with their letters and colours, the ideas that share models. A change of families folds them all again
-function setFamilies() {
+function setFamilies() { st.fdv = {};      // a slider's offset belongs to the family it was made for
   const own = st.uf && BF.groups.length; fam = autoFam.slice(); famNote = autoNote.slice(); famEv = autoEv.slice(); ownName = {};
   if (own) { fam = range(N); famEv = Array(N).fill(null); BF.groups.forEach((g) => { const lead = [...g.cols].sort((a, b) => C.freq[b] - C.freq[a])[0]; ownName[lead] = g.name;
     g.cols.forEach((i) => { fam[i] = lead; famNote[i] = i === lead ? `You put it in “${g.name}”.` : `You put it in “${g.name}” with ${C.label[lead]} (r ${C.corr[i][lead].toFixed(2)}).`; }); });
@@ -636,8 +635,8 @@ function famMap(f, o) { const P = simMap(), W = 640, H = 290, m = 26, xs = P.map
   h += near.map((j) => { const k = pairSay(f, j).k; return `<line x1="${X(f).toFixed(1)}" y1="${Yp(f).toFixed(1)}" x2="${X(j).toFixed(1)}" y2="${Yp(j).toFixed(1)}" stroke="${SAYCOL[k]}" stroke-width="${(1 + 2 * Math.abs(C.corr[f][j])).toFixed(1)}" opacity=".55"${k === 'swap' ? ' stroke-dasharray="5 3"' : ''}/>`; }).join('');
   h += range(N).sort((a, b) => C.freq[a] - C.freq[b]).map((i) => { const g = grpOf(i), pf = !st.uf && members[fam[i]] && members[fam[i]].length > 1 ? ideaCol[fam[i]] : null, fill = g >= 0 ? gcolour(g) : pf || '#cfd6df', on = i === f, ot = i === o;      // not in one of yours: the page's family, faint
     return `<circle cx="${X(i).toFixed(1)}" cy="${Yp(i).toFixed(1)}" r="${R(i).toFixed(1)}" fill="${fill}" fill-opacity="${g >= 0 ? .92 : pf ? .32 : .7}" stroke="${on ? '#18212b' : ot ? '#1f5fd0' : '#fff'}" stroke-width="${on || ot ? 2.5 : 1.2}" data-bf="${i}" class="bdot"><title>${esc(C.label[i])}: in ${pct(C.freq[i])} of models${i !== f ? `; r ${C.corr[f][i].toFixed(2)} with ${esc(C.label[f])}, the sampler: ${pairSay(f, i).w}` : ''}${g >= 0 ? `; in ${esc(BF.groups[g].name)}` : ''}. Click to pick it; shift-click to put it in the family of ${esc(C.label[f])}.</title></circle>`; }).join('');
-  const boxes = []; h += [f, o, ...[...named].filter((i) => i !== f && i !== o)].map((i) => { const t = C.label[i].slice(0, 24), x = X(i) + R(i) + 3, y = Yp(i) + 3.5, w = t.length * 5.4, bx = [x - 1, y - 9, x + w + 1, y + 3];      // a name only where it does not cover another
-    if (boxes.some((b) => bx[0] < b[2] && b[0] < bx[2] && bx[1] < b[3] && b[1] < bx[3])) return ''; boxes.push(bx); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" class="${i === f ? 'on' : ''}" data-bf="${i}">${esc(t)}</text>`; }).join('');
+  const boxes = []; h += [f, o, ...[...named].filter((i) => i !== f && i !== o)].map((i) => { const t = C.label[i].slice(0, 24), w = t.length * 5.4, left = X(i) + R(i) + 3 + w > W - 4, x = left ? X(i) - R(i) - 3 : X(i) + R(i) + 3, y = Yp(i) + 3.5, bx = left ? [x - w - 1, y - 9, x + 1, y + 3] : [x - 1, y - 9, x + w + 1, y + 3];      // a name only where it does not cover another
+    if (boxes.some((b) => bx[0] < b[2] && b[0] < bx[2] && bx[1] < b[3] && b[1] < bx[3])) return ''; boxes.push(bx); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}"${left ? ' text-anchor="end"' : ''} class="${i === f ? 'on' : ''}" data-bf="${i}">${esc(t)}</text>`; }).join('');
   return h + '</svg>'; }
 // a family's own little matrix: how strongly each pair moves together, with the sampler's verdict as a dot
 function grpMat(g) { const cs = [...g.cols].sort((a, b) => C.freq[b] - C.freq[a]), c = 11; if (cs.length < 2) return '';
@@ -654,7 +653,7 @@ function grpNote(g) { const cs = g.cols, pr = []; for (let a = 0; a < cs.length;
   return `<span class="lab">|r| ${Math.min(...rs).toFixed(2)} to ${Math.max(...rs).toFixed(2)} · ${auto.size === 1 ? 'the page puts them in one family too' : `the page splits them into ${auto.size}`}${extra.length ? ` and would add ${extra.slice(0, 3).map((j) => esc(C.label[j])).join(', ')}${extra.length > 3 ? '…' : ''}` : ''}</span>` +
     (both.length ? `<div class="warn">${both.slice(0, 2).map(([i, j]) => `${esc(C.label[i])} and ${esc(C.label[j])} are in one model more often than chance: for BASSA they are two ideas, not stand-ins.`).join(' ')}</div>` : '') +
     (weak.length ? `<div class="warn">${weak.slice(0, 2).map(([i, j]) => `${esc(C.label[i])} and ${esc(C.label[j])} hardly move together (r ${C.corr[i][j].toFixed(2)}).`).join(' ')}</div>` : ''); }
-function build() {
+function build() { const ng = BF.groups.length; $('count').textContent = ng ? `${ng} of your families, ${BF.groups.reduce((t, g) => t + g.cols.length, 0)} descriptors in them` : `${N} descriptors, none grouped yet`;
   if (BF.focus < 0 || BF.focus >= N) BF.focus = range(N).sort((a, b) => C.freq[b] - C.freq[a])[0];
   const f = BF.focus, like = lookAlikes(f); if (BF.other < 0 || BF.other === f || BF.other >= N) BF.other = like[0];
   const o = BF.other, gf = grpOf(f), free = range(N).filter((i) => grpOf(i) < 0).sort((a, b) => C.freq[b] - C.freq[a]), fmax = Math.max(...C.freq);
@@ -722,7 +721,7 @@ $('build').addEventListener('change', (e) => { if (e.target.id === 'ufon') { st.
   if (e.target.dataset.gn !== undefined) { BF.groups[+e.target.dataset.gn].name = e.target.value.trim() || 'family'; saveOwn(); if (st.uf) { setFamilies(); grid(); } } });
 $('build').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-bf],[data-bo],[data-gdel]')) { e.preventDefault(); e.target.click(); } });
 // a compound's prediction taken apart: the prediction for an average compound, then what each family (averaged model) or each descriptor (one model) adds for this compound
-function whyData(name, F, cols) { const z = (i) => (xOf(i, name) - MS[i][0]) / MS[i][1];
+function whyData(name, F, cols) { const k = C.ligands.indexOf(name), e = k < 0 ? C.ext.names.indexOf(name) : -1, xv = (i) => k >= 0 ? C.X[C.names[i]][k] : C.ext.X[C.names[i]][e], z = (i) => (xv(i) - MS[i][0]) / MS[i][1];
   if (!F || F.ens) { const by = {}; range(N).forEach((i) => { const w = ensW(i); if (w) by[fam[i]] = (by[fam[i]] || 0) + w * z(i); });
     return { ens: true, base: C.ens.b0 + C.names.reduce((s, c, i) => s + (C.ens.beta[c] || 0) * MS[i][0], 0), parts: Object.entries(by).map(([f, c]) => ({ f: +f, c })) }; }
   return { ens: false, base: F.b[0], parts: cols.map((i, j) => ({ i, c: F.b[j + 1] * z(i) })) }; }
@@ -1195,7 +1194,8 @@ function show(k, name, also) {
 
 // ================= design with the averaged model: a slider per family, its members move along with their lead =================
 // the families that move the averaged model's predictions most, largest first (at most five, each at least 2 % of the spread)
-function fdFams() { const d = C.ligands.map((n) => whyData(n, null, [])), sp = {}; d.forEach((w) => w.parts.forEach((q) => (sp[q.f] ||= []).push(q.c)));
+function fdFams() { if (st._F5 && st._F5.k === fam) return st._F5.v; const v = fdFams0(); st._F5 = { k: fam, v }; return v; }
+function fdFams0() { const d = C.ligands.map((n) => whyData(n, null, [])), sp = {}; d.forEach((w) => w.parts.forEach((q) => (sp[q.f] ||= []).push(q.c)));
   const v = Object.entries(sp).map(([f, a]) => { const m = a.reduce((s, x) => s + x, 0) / a.length; return [+f, a.reduce((s, x) => s + (x - m) ** 2, 0)]; }), tot = v.reduce((s, x) => s + x[1], 0) || 1;
   return v.filter((x) => x[1] / tot >= 0.02).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([f, w]) => ({ f, share: w / tot })); }
 const fdFrom = () => everyone().includes(st.fdFrom) ? st.fdFrom : st.mol;
@@ -1203,13 +1203,13 @@ const fdFrom = () => everyone().includes(st.fdFrom) ? st.fdFrom : st.mol;
 function fdX() { const from = fdFrom(), x = range(N).map((i) => xOf(i, from));
   for (const [k, v] of Object.entries(st.fdv || {})) { const L = +k, dv = v - xOf(L, from); (members[fam[L]] || [L]).forEach((m) => { x[m] += C.corr[m][L] * MS[m][1] / MS[L][1] * dv; }); }
   return x; }
-const fdPred = () => { const x = fdX(); return C.ens.b0 + C.names.reduce((s, c, i) => s + (C.ens.beta[c] || 0) * x[i], 0); };
+const fdPred = () => candPred(fdX());
 function fdHtml() { const from = fdFrom(), g = (v) => +(+v).toPrecision(4), F5 = fdFams();
   const rows = F5.map(({ f, share }) => { const x = C.X[C.names[f]], a = Math.min(...x), b = Math.max(...x), m = (b - a) * 0.2 || 1, v = st.fdv && st.fdv[f] !== undefined ? st.fdv[f] : xOf(f, from), W = 150, px = (u) => 4 + (W - 8) * (u - (a - m)) / (b - a + 2 * m);
     return `<div class="fdr"><div class="fdn">${idb(f, true)}<span>${esc(famName(f, -1))}</span><span class="lab">${(100 * share).toFixed(0)} % of the spread</span></div><div class="fdl" title="${esc(C.label[f])}">${esc(C.label[f])}</div>` +
       `<div class="fdc"><input type="range" data-fd="${f}" min="${g(a - m)}" max="${g(b + m)}" step="${g((b - a + 2 * m) / 300)}" value="${v}" aria-label="${esc(C.label[f])}"><output id="fdo${f}">${g(v)}</output></div>` +
       `<svg class="fdstrip" width="${W}" height="12" aria-hidden="true"><rect x="${px(a).toFixed(1)}" y="5" width="${(px(b) - px(a)).toFixed(1)}" height="2" rx="1" fill="#dfe4ea"/>` + x.map((u) => `<circle cx="${px(u).toFixed(1)}" cy="6" r="1.8" fill="#aab4c0"/>`).join('') + `<circle cx="${px(xOf(f, from)).toFixed(1)}" cy="6" r="3.2" fill="var(--accent)"/><circle id="fdk${f}" cx="${px(v).toFixed(1)}" cy="6" r="4" fill="none" stroke="var(--ink)" stroke-width="1.6"/></svg></div>`; }).join('');
-  return `<div class="fdes" id="fdes"><div class="fdh"><b>Design with the averaged model</b>${hq(T.fd)}<span class="lab">start from</span><select id="fdfrom">${everyone().map((n) => `<option${n === from ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select><button id="fdreset">Back to ${esc(from)}</button><button id="fdkeep" class="prim">Keep as candidate</button></div>` +
+  return `<div class="fdes" id="fdes"><div class="fdh"><b>Design with the averaged model</b>${hq(T.fd)}<label class="lab" for="fdfrom">start from</label><select id="fdfrom">${everyone().map((n) => `<option${n === from ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select><button id="fdreset">Back to ${esc(from)}</button><button id="fdkeep" class="go">Keep as candidate</button></div>` +
     `<div class="fdgrid"><div class="fdsl">${rows || '<span class="lab">No family carries 2 % of the spread.</span>'}</div><div class="fdout"><div class="fdv"><b id="fdpred"></b><span id="fdunit">${C.unit ? esc(C.unit) : ''}</span></div><div id="fddelta"></div><svg id="fdgauge" width="270" height="54" aria-label="the designed compound among the measured ones"></svg><div id="fdnear" class="lab"></div><div id="fdwarn"></div></div></div></div>`; }
 function fdUpdate() { if (!$('fdes')) return; const v = fdPred(), from = fdFrom(), v0 = whyData(from, null, []).base + whyData(from, null, []).parts.reduce((s, q) => s + q.c, 0), S = SGN(), u = C.unit ? ' ' + esc(C.unit) : '', mae = C.cv && C.cv.k5 ? C.cv.k5.mae : null;
   $('fdpred').textContent = v.toFixed(2); const d = v - v0, good = d * S > 0;
@@ -1241,7 +1241,7 @@ const candPred = (x) => C.ens.b0 + C.names.reduce((s, c, i) => s + (C.ens.beta[c
 // distance in what the averaged model sees: each descriptor's change times its weight, so a column the model ignores costs nothing
 const cdist = (a, b) => Math.sqrt(C.names.reduce((s, c, i) => s + ((C.ens.beta[c] || 0) * (a[i] - b[i])) ** 2, 0));
 const trainX = (r) => C.names.map((c) => C.X[c][r]);
-const wShare = (i) => { const w = (j) => Math.abs((C.ens.beta[C.names[j]] || 0) * MS[j][1]); return w(i) / (range(N).reduce((s, j) => s + w(j), 0) || 1); };      // a descriptor's share of the averaged model's weight
+const wShare = (i) => { if (!C._ws) { const w = range(N).map((j) => Math.abs((C.ens.beta[C.names[j]] || 0) * MS[j][1])), t = w.reduce((a, b) => a + b, 0) || 1; C._ws = w.map((v) => v / t); } return C._ws[i]; };      // a descriptor's share of the averaged model's weight
 // the 90 % range of a new prediction: the 5-fold errors of the measured compounds (split-conformal); the nearest-neighbour distances of the measured compounds set what counts as inside
 function candRef() { if (C._cref) return C._cref; const n = C.ligands.length, T = range(n).map(trainX);
   const nn = T.map((a, r) => Math.min(...T.map((b, s) => s === r ? Infinity : cdist(a, b)))).sort((a, b) => a - b);
@@ -1261,15 +1261,15 @@ function candHtml() { if (!CANDS.length && !st.fd && !ROUGH[C.case]) return ''; 
   const strip = CANDS.length ? `<svg class="cstrip" viewBox="0 0 ${W} 40" width="${W}" height="40" aria-label="the candidates among the measured compounds"><rect x="14" y="16" width="${W - 28}" height="8" rx="4" fill="#eef1f5"/>` + Y.map((t, r) => `<line x1="${px(t).toFixed(1)}" x2="${px(t).toFixed(1)}" y1="17" y2="23" stroke="#8a96a3"><title>${esc(C.ligands[r])} ${t.toFixed(2)}</title></line>`).join('') +
     sc.map((q, k) => `<g transform="translate(${px(q.v).toFixed(1)} 20)"><path d="M0 -7 L6 0 L0 7 L-6 0 Z" fill="${q.where === 'inside' || q.where === 'edge' ? 'var(--accent)' : '#fff'}" stroke="var(--accent)" stroke-width="1.6"/><text y="-10" font-size="9.5" text-anchor="middle" fill="var(--ink)">${k + 1}</text></g>`).join('') +
     `<text x="14" y="38" font-size="10" fill="#667382">← worse</text><text x="${W - 14}" y="38" font-size="10" fill="#667382" text-anchor="end">better →</text></svg>` : '';
-  return `<div class="cands" id="cands"><div class="fdh"><b>Your candidates</b>${hq(T.cand)}<label class="btnlike">Add from CSV<input type="file" id="candfile" accept=".csv,text/csv" hidden></label>${ROUGH[C.case] ? `<span class="smibox"><input id="candsmi" placeholder="SMILES of a new ligand" aria-label="SMILES of a new ligand" ${SMI_BUSY ? 'disabled' : ''}><button id="candgo" ${SMI_BUSY ? 'disabled' : ''}>${SMI_BUSY ? 'xTB running… (about 40 s)' : 'From SMILES'}</button>${hq(T.smi)}</span>` : ''}${CANDS.length ? '<button id="candcsv">Save as CSV</button><button id="candclr">Clear</button>' : ''}</div>` +
+  return `<div class="cands" id="cands"><div class="fdh"><b>Your candidates</b>${hq(T.cand)}<button id="candadd">Add from CSV</button><input type="file" id="candfile" accept=".csv,text/csv" hidden>${ROUGH[C.case] ? `<span class="smibox"><input id="candsmi" placeholder="SMILES of a new ligand" aria-label="SMILES of a new ligand" ${SMI_BUSY ? 'disabled' : ''}><button id="candgo" ${SMI_BUSY ? 'disabled' : ''}>${SMI_BUSY ? 'xTB running… (about 40 s)' : 'From SMILES'}</button>${hq(T.smi)}</span>` : ''}${CANDS.length ? '<button id="candcsv">Save as CSV</button><button id="candclr">Clear</button>' : ''}</div>` +
     (CANDS.length ? strip + `<table class="ctab"><tr class="head"><td>candidate</td><td class="r">predicted${R.q90 != null ? ', 90 % range' : ''}</td><td class="r">vs the best</td><td>where it sits</td><td></td></tr>${rows}</table>` :
       `<div class="lab">Keep a design here (Keep as candidate above), or add rows of a CSV: the compound's name first, then columns named as in this case (${esc(C.names.slice(0, 2).join(', '))} …). A missing column is set to the mean of the set.</div>`) + '</div>'; }
 function candCsv(text, file) { const rows = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.trim()).map((l) => { const out = []; let cur = '', q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === ',' && !q) { out.push(cur); cur = ''; } else cur += ch; } out.push(cur); return out.map((v) => v.trim()); });
   if (rows.length < 2) return say('The file needs a header row and at least one compound.'); const head = rows[0], at = range(N).map((i) => head.findIndex((h, j) => j > 0 && (h === C.names[i] || h === C.label[i])));
   if (!at.some((j) => j > 0)) return say('No column of the file matches a descriptor of this case.');
-  const miss = range(N).filter((i) => at[i] < 0 && wShare(i) > 0), ms = Math.round(100 * miss.reduce((t, i) => t + wShare(i), 0)); let n = 0;
-  rows.slice(1).forEach((r) => { const x = range(N).map((i) => at[i] > 0 && r[at[i]] !== '' && isFinite(+r[at[i]]) ? +r[at[i]] : MS[i][0]); if (!r[0]) return; CANDS.push({ name: r[0], x, src: file, miss }); n++; });
-  candSave(); draw(); say(`Added ${n} candidate${n === 1 ? '' : 's'}${ms ? `; the missing columns carry ${ms} % of the model's weight and are set to the mean` : ''}.`); }
+  const has = (r, i) => at[i] > 0 && r[at[i]] !== '' && r[at[i]] !== undefined && isFinite(+r[at[i]]); let n = 0, ms = 0;
+  rows.slice(1).forEach((r) => { if (!r[0]) return; const x = range(N).map((i) => has(r, i) ? +r[at[i]] : MS[i][0]), miss = range(N).filter((i) => !has(r, i) && wShare(i) > 0); ms = Math.max(ms, Math.round(100 * miss.reduce((t, i) => t + wShare(i), 0))); CANDS.push({ name: r[0], x, src: file, miss }); n++; });
+  candSave(); draw(); say(`Added ${n} candidate${n === 1 ? '' : 's'}${ms ? `; missing cells (up to ${ms} % of the model's weight in a row) are set to the mean` : ''}.`); }
 
 // one xTB run gives a row for every cs3 case; each case keeps its candidates under its own key, so the others are written there
 function candAdd(d, smi) { const got = [];
@@ -1287,8 +1287,10 @@ async function candSmiles(smi) { smi = (smi || '').trim(); if (!smi) return say(
   finally { SMI_BUSY = false; draw(); } }
 
 // ================= what is left over: the error of each compound against one family's part =================
-function resHtml() { if (!PLOTF.ens && !(PLOTF.F && !PLOTF.F.ens)) return ''; const ens = PLOTF.ens, D = C.ligands.map((n) => whyData(n, ens ? null : PLOTF.F, ens ? [] : PLOTF.cols)), key = (q) => q.i !== undefined ? 'i' + q.i : 'f' + q.f;
-  const opts = D[0].parts.map((q) => [key(q), q]).sort((a, b) => { const sp = (k) => { const v = D.map((d) => (d.parts.find((q) => key(q) === k) || { c: 0 }).c), m = v.reduce((s, x) => s + x, 0) / v.length; return v.reduce((s, x) => s + (x - m) ** 2, 0); }; return sp(b[0]) - sp(a[0]); });
+function resHtml() { if (!PLOTF.ens && !(PLOTF.F && !PLOTF.F.ens)) return ''; if (!st.resOpen) return `<details class="resd" id="resd"><summary>What is left over${hq(T.res)}</summary></details>`;      // folded: nothing to compute
+  const ens = PLOTF.ens, D = C.ligands.map((n) => whyData(n, ens ? null : PLOTF.F, ens ? [] : PLOTF.cols)), key = (q) => q.i !== undefined ? 'i' + q.i : 'f' + q.f;
+  const sp = {}; D.forEach((d) => d.parts.forEach((q) => (sp[key(q)] ||= []).push(q.c))); const spread = (k) => { const v = sp[k] || [0], m = v.reduce((s, x) => s + x, 0) / v.length; return v.reduce((s, x) => s + (x - m) ** 2, 0); }, SP = {}; Object.keys(sp).forEach((k) => SP[k] = spread(k));
+  const opts = D[0].parts.map((q) => [key(q), q]).sort((a, b) => SP[b[0]] - SP[a[0]]);
   if (!opts.length) return ''; if (!opts.some(([k]) => k === st.resK)) st.resK = opts[0][0];
   const xv = D.map((d) => (d.parts.find((q) => key(q) === st.resK) || { c: 0 }).c), lo = PLOTLO, res = Y.map((y, r) => lo && lo[r] != null ? y - lo[r] : null), use = range(Y.length).filter((r) => res[r] != null);
   const W = 330, H = 170, P = 30, ax = Math.min(...xv), bx = Math.max(...xv), ry = Math.max(...use.map((r) => Math.abs(res[r])), 1e-9), X = (v) => P + (W - P - 8) * (v - ax) / (bx - ax || 1), Yy = (v) => H / 2 - 4 - (H / 2 - 16) * v / ry;
@@ -1309,26 +1311,32 @@ function colourBar() { const k = st.colorHover >= 0 ? st.colorHover : st.colorBy
   return `<div class="colbar"><label class="lab" for="colby">colour</label><select id="colby"><option value="-1">by the measured response</option>${range(N).sort((a, b) => C.freq[b] - C.freq[a]).map((i) => `<option value="${i}"${i === st.colorBy ? ' selected' : ''}>${esc(C.label[i])}</option>`).join('')}</select>` +
     (k >= 0 && k < N ? `<span class="cgrad" style="background:linear-gradient(90deg, ${COLV(0)}, ${COLV(1)})"></span><span class="lab">${num(Math.min(...C.X[C.names[k]]))} → ${num(Math.max(...C.X[C.names[k]]))}${st.colorHover >= 0 ? ' · the row under the pointer' : ''}</span>` : `<span class="cgrad" style="background:linear-gradient(90deg, ${shade(0)}, ${shade(1)})"></span><span class="lab">low → high ${esc(C.response.split(' (')[0])}</span>`) + `</div>`; }
 
+function recolour() { const k = st.colorHover >= 0 ? st.colorHover : st.colorBy, x = k >= 0 && k < N ? C.X[C.names[k]] : null, a = x ? Math.min(...x) : 0, b = x ? Math.max(...x) : 1;
+  $('parity').querySelectorAll('.pt[data-f0]').forEach((el) => { if (el.dataset.f0 !== '#fff') el.setAttribute('fill', x ? COLV((x[+el.dataset.i] - a) / (b - a || 1)) : el.dataset.f0); });
+  const cb = $('pstats').querySelector('.colbar'); if (cb) cb.outerHTML = colourBar(); }
+
 // ================= box selection in the plot =================
 let BOXSEL = null;
 function selBar() { const n = (st.sel || []).length; if (!n) return ''; return `<div class="selbar" id="selbar"><b>${n}</b> selected<button data-sa="out" title="fit without them; the plot shows how the model predicts them">Hold out</button><button data-sa="mol" title="draw them on the molecule, stacked">On the molecule</button><button data-sa="clear" aria-label="clear the selection">×</button></div>`; }
 
 // ================= jump to anything (Ctrl+K) =================
 function palItems(q) { q = q.trim().toLowerCase(); const out = [], add = (kind, label, sub, go) => { const l = label.toLowerCase(), at = l.indexOf(q); if (!q || at >= 0) out.push({ kind, label, sub, go, sc: !q ? 0 : at === 0 ? 0 : 1 }); };
-  everyone().forEach((n) => add('compound', n, `measured ${yOf(n).toFixed(2)}`, () => { st.mol = n; $('mol').value = n; st.dv = {}; draw(); }));
-  range(N).forEach((i) => add('descriptor', C.label[i], `in ${pct(C.freq[i])} of models`, () => { st.view = 'models'; st.rows = [i]; st.model = -1; st.shut.delete(fam[i]); refresh(); const tr = document.querySelector(`tr[data-row="${i}"]`); if (tr) tr.scrollIntoView({ block: 'center', behavior: 'smooth' }); }));
+  everyone().forEach((n) => add('compound', n, `measured ${yOf(n).toFixed(2)}`, () => { st.mol = n; st.dv = {}; tidyCompare(); draw(); }));
+  range(N).forEach((i) => add('descriptor', C.label[i], `in ${pct(C.freq[i])} of models`, () => { st.view = 'models'; st.rows = [i]; st.model = -1; st.famView = -1; st.whyOn = false; st.ens = false; st.dv = {}; st.shut.delete(fam[i]); press('view', 'models'); refresh(); const tr = document.querySelector(`tr[data-row="${i}"]`); if (tr) tr.scrollIntoView({ block: 'center', behavior: 'smooth' }); }));
   Object.entries(CASES).forEach(([k, d]) => add('case', d.title || k, `${d.n} compounds`, () => boot(d)));
-  [['models', 'Models'], ['recipes', 'Recipes'], ['build', 'Your families']].forEach(([v, l]) => add('view', l, 'view', () => { st.view = v; refresh(); }));
+  [['models', 'Models'], ['recipes', 'Recipes'], ['build', 'Your families']].forEach(([v, l]) => add('view', l, 'view', () => { st.view = v; press('view', v); refresh(); }));
   return out.sort((a, b) => a.sc - b.sc).slice(0, 14); }
 let JMP = [], JMPI = 0;
-function palDraw() { JMP = palItems($('palq').value); JMPI = Math.min(JMPI, Math.max(0, JMP.length - 1)); $('pallist').innerHTML = JMP.map((it, k) => `<div class="pali${k === JMPI ? ' on' : ''}" data-pi="${k}"><span class="palk ${it.kind}">${it.kind}</span><span class="pall">${esc(it.label)}</span><span class="lab">${esc(it.sub)}</span></div>`).join('') || '<div class="lab" style="padding:8px">Nothing matches.</div>'; }
-function palOpen() { $('pal').hidden = false; $('palq').value = ''; JMPI = 0; palDraw(); $('palq').focus(); }
-function palGo(k) { const it = JMP[k]; $('pal').hidden = true; if (it) it.go(); }
+function palDraw() { JMP = palItems($('palq').value); JMPI = Math.min(JMPI, Math.max(0, JMP.length - 1)); $('palq').setAttribute('aria-activedescendant', JMP.length ? 'pali' + JMPI : ''); $('pallist').innerHTML = JMP.map((it, k) => `<div class="pali${k === JMPI ? ' on' : ''}" data-pi="${k}" id="pali${k}" role="option" aria-selected="${k === JMPI}"><span class="palk ${it.kind}">${it.kind}</span><span class="pall">${esc(it.label)}</span><span class="lab">${esc(it.sub)}</span></div>`).join('') || '<div class="lab" style="padding:8px">Nothing matches.</div>'; }
+let palBack = null;
+function palClose() { $('pal').hidden = true; if (palBack && palBack.isConnected) palBack.focus(); palBack = null; }
+function palOpen() { palBack = document.activeElement; $('pal').hidden = false; $('palq').value = ''; JMPI = 0; palDraw(); $('palq').focus(); }
+function palGo(k) { const it = JMP[k]; palClose(); if (it) it.go(); }
 
 // the plot's points glide from where they were to where they are now (same plot size, motion allowed); names fade in after them
 let PREVPT = {}, PREVS = 0, PLOTLO = null;
 function glide(S) { const prev = PREVPT, now = {}, still = matchMedia('(prefers-reduced-motion: reduce)').matches || S !== PREVS || !Element.prototype.animate; PREVS = S; let moved = 0;
-  $('parity').querySelectorAll('.pt[data-n]').forEach((el) => { const tt = el.querySelector('title'); if (tt) { el.setAttribute('aria-label', tt.textContent); tt.remove(); } const b = el.getBBox(), c = [b.x + b.width / 2, b.y + b.height / 2], o = prev[el.dataset.n]; now[el.dataset.n] = c;      // an animation, not a style: nothing is left offset if it never plays
+  $('parity').querySelectorAll('.pt[data-n]').forEach((el) => { const tt = el.querySelector('title'); if (tt) { el.setAttribute('aria-label', tt.textContent); tt.remove(); } const A = (k) => +el.getAttribute(k), b = el.tagName === 'circle' ? null : el.tagName === 'rect' ? { x: A('x'), y: A('y'), width: A('width'), height: A('height') } : el.getBBox(), c = b ? [b.x + b.width / 2, b.y + b.height / 2] : [A('cx'), A('cy')], o = prev[el.dataset.n]; now[el.dataset.n] = c;      // an animation, not a style: nothing is left offset if it never plays
     if (!still && o && Math.hypot(o[0] - c[0], o[1] - c[1]) > 0.5) { el.animate([{ transform: `translate(${o[0] - c[0]}px, ${o[1] - c[1]}px)` }, { transform: 'translate(0px, 0px)' }], { duration: 500, easing: 'cubic-bezier(.2,.7,.2,1)' }); moved++; } });
   PREVPT = now; if (moved) $('parity').querySelectorAll('text').forEach((t) => t.animate([{ opacity: 0 }, { opacity: 0 }, { opacity: 1 }], { duration: 600, easing: 'ease-out' })); }
 // what the plot shows, for the card under the pointer
@@ -1364,12 +1372,12 @@ function draw() {
   // external compounds: predicted by the fit, never part of it
   const X = C.ext, pe = X && FP ? X.names.map((n) => FP.ens ? FP.at((i) => xOf(i, n)) : predictAt(FP, cols, (i) => xOf(i, n))) : null;
   const extStat = pe ? { r2: 1 - X.y.reduce((a, y, j) => a + (y - pe[j]) ** 2, 0) / X.y.reduce((a, y) => a + (y - ymI) ** 2, 0), mae: X.y.reduce((a, y, j) => a + Math.abs(y - pe[j]), 0) / X.y.length } : null;
-  const Fc = F && st.cmp && st.cmp.join() !== cols.join() ? fit(st.cmp) : null; $('cmp').setAttribute('aria-pressed', !!st.cmp); $('mplot').setAttribute('aria-pressed', !!st.mplot); $('pens').setAttribute('aria-pressed', PE); $('mplot').setAttribute('aria-pressed', !PE); $('mplot').disabled = !cols.length || (st.ens && hasEns()); $('pens').closest('.predsw').hidden = !hasEns(); $('how').hidden = !dealt();
+  const Fc = F && st.cmp && st.cmp.join() !== cols.join() ? fit(st.cmp) : null; $('cmp').setAttribute('aria-pressed', !!st.cmp); $('pens').setAttribute('aria-pressed', PE); $('mplot').setAttribute('aria-pressed', !PE); $('mplot').disabled = !cols.length || (st.ens && hasEns()); $('pens').closest('.predsw').hidden = !hasEns(); $('how').hidden = !dealt();
   const S = bare_ ? 420 : st.psz || autoPlot(), pad = 40; $('pbox').style.width = $('pbox').style.height = S + 'px'; $('pbox')._set = S; $('parity').setAttribute('viewBox', `0 0 ${S} ${S}`); $('parity').style.width = $('parity').style.height = ''; let p = '', ps = '', eb = ''; $('parity').setAttribute('width', S); $('parity').setAttribute('height', S); $('parity').closest('.under').style.gridTemplateColumns = bare_ ? '1fr' : '';
   if (FP) { const all = [...Y, ...LO, ...(cl || []), ...(pe ? [...X.y, ...pe] : [])], meas = [...Y, ...(pe ? X.y : [])], span = Math.max(...meas) - Math.min(...meas) || 1;
     const a = Math.max(Math.min(...all), Math.min(...meas) - span / 2), b = Math.min(Math.max(...all), Math.max(...meas) + span / 2), m = (b - a) * 0.06 || 1, x = (v) => pad + (v - a + m) / (b - a + 2 * m) * (S - pad - 8);
     const off = (v) => v < a - m ? '▼' : v > b + m ? '▲' : '', yy = (v) => S - pad - (Math.min(b + m, Math.max(a - m, v)) - a + m) / (b - a + 2 * m) * (S - pad - 8);      // a prediction beyond half the measured range again is drawn on the frame
-    PY = yy; const dp = st.fd && FP.ens ? fdPred() : st.design && F && !F.ens ? (FP.ens ? ensDesign() : designPred(F, cols)) : null; PLOTLO = LO; PLOTENS = !!FP.ens; const worst = inc.slice().sort((i, j) => Math.abs(Y[j] - LO[j]) - Math.abs(Y[i] - LO[i])).slice(0, 3);      // the three compounds named in the plot
+    PY = yy; const dp = st.fd && FP.ens ? fdPred() : st.design && F && !F.ens ? (FP.ens ? ensDesign() : designPred(F, cols)) : null; PLOTLO = LO; const worst = inc.slice().sort((i, j) => Math.abs(Y[j] - LO[j]) - Math.abs(Y[i] - LO[i])).slice(0, 3);      // the three compounds named in the plot
     const ticks = (() => { const raw = (b - a + 2 * m) / 4, mag = 10 ** Math.floor(Math.log10(raw)), step = [1, 2, 2.5, 5, 10].map((q) => q * mag).find((q) => q >= raw), out = []; for (let v = Math.ceil((a - m) / step) * step; v <= b + m + 1e-9; v += step) out.push(+v.toFixed(10)); return out; })();
     const maeL = inc.reduce((acc, r) => acc + Math.abs(Y[r] - LO[r]), 0) / inc.length, x0 = pad, x1 = S - 8, y0 = 8, y1 = S - pad;      // leave-one-out error of the compounds in the fit
     p = `<defs><marker id="parr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6D28D9"/></marker><clipPath id="pclip"><rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="4"/></clipPath></defs><rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="#fff" stroke="#d5dbe2" rx="4"/>` +
@@ -1384,11 +1392,11 @@ function draw() {
         if (A && B) { const dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy); if (L > 18) h += `<line x1="${(A[0] + dx * 8 / L).toFixed(1)}" y1="${(A[1] + dy * 8 / L).toFixed(1)}" x2="${(B[0] - dx * 9 / L).toFixed(1)}" y2="${(B[1] - dy * 9 / L).toFixed(1)}" stroke="#6D28D9" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#parr)" opacity=".85"/>`; }
         return h; })() +
       Y.map((v, i) => { const [sc, sw] = ring(i === k, i === k2 || cmp.has(C.ligands[i])), r = i === k || i === k2 || cmp.has(C.ligands[i]) ? 6 : 4.5, cx = x(v), cy = yy(LO[i]), gone = st.out.has(i), name = C.ligands[i];
-        const at = `data-lo="${LO[i]}" class="pt${(st.sel || []).includes(C.ligands[i]) ? ' bsel' : ''}" fill="${gone ? '#fff' : ptFill(i, v, t)}" stroke="${gone && sw === 1 ? '#8793a1' : sc}" stroke-width="${gone && sw === 1 ? 1.5 : sw}"${gone ? ' stroke-dasharray="2 2"' : ''} data-n="${esc(name)}"`, tip = `<title>${esc(name)}${classes.length ? ' (' + esc(C.mols[name].klass) + ')' : ''}: measured ${v.toFixed(2)}, predicted ${gone ? 'by the fit without it' : 'when left out'} ${LO[i].toFixed(2)}</title>`;
-        if (gone) return `<path class="pt" d="M${cx.toFixed(1)} ${(cy - 6.5).toFixed(1)} L${(cx + 6.5).toFixed(1)} ${cy.toFixed(1)} L${cx.toFixed(1)} ${(cy + 6.5).toFixed(1)} L${(cx - 6.5).toFixed(1)} ${cy.toFixed(1)} Z" fill="#fff" stroke="${sw > 1 ? sc : '#6D28D9'}" stroke-width="2.2" data-n="${esc(name)}"><title>${esc(name)}, held out by you: measured ${v.toFixed(2)}, predicted by the model fitted without it ${LO[i].toFixed(2)}</title></path><text x="${(cx + 9).toFixed(1)}" y="${(cy + 3).toFixed(1)}" style="fill:#6D28D9">${esc(name)}${off(LO[i]) ? ' ' + off(LO[i]) + ' ' + LO[i].toFixed(1) : ''}</text>`;
+        const at = `data-lo="${LO[i]}" data-i="${i}" data-f0="${gone ? '#fff' : shade(t(v))}" class="pt${(st.sel || []).includes(C.ligands[i]) ? ' bsel' : ''}" fill="${gone ? '#fff' : ptFill(i, v, t)}" stroke="${gone && sw === 1 ? '#8793a1' : sc}" stroke-width="${gone && sw === 1 ? 1.5 : sw}"${gone ? ' stroke-dasharray="2 2"' : ''} data-n="${esc(name)}"`, tip = `<title>${esc(name)}${classes.length ? ' (' + esc(C.mols[name].klass) + ')' : ''}: measured ${v.toFixed(2)}, predicted ${gone ? 'by the fit without it' : 'when left out'} ${LO[i].toFixed(2)}</title>`;
+        if (gone) return `<path data-lo="${LO[i]}" class="pt${(st.sel || []).includes(name) ? ' bsel' : ''}" d="M${cx.toFixed(1)} ${(cy - 6.5).toFixed(1)} L${(cx + 6.5).toFixed(1)} ${cy.toFixed(1)} L${cx.toFixed(1)} ${(cy + 6.5).toFixed(1)} L${(cx - 6.5).toFixed(1)} ${cy.toFixed(1)} Z" fill="#fff" stroke="${sw > 1 ? sc : '#6D28D9'}" stroke-width="2.2" data-n="${esc(name)}"><title>${esc(name)}, held out by you: measured ${v.toFixed(2)}, predicted by the model fitted without it ${LO[i].toFixed(2)}</title></path><text x="${(cx + 9).toFixed(1)}" y="${(cy + 3).toFixed(1)}" style="fill:#6D28D9">${esc(name)}${off(LO[i]) ? ' ' + off(LO[i]) + ' ' + LO[i].toFixed(1) : ''}</text>`;
         return sq(i) ? `<rect x="${(cx - r * .88).toFixed(1)}" y="${(cy - r * .88).toFixed(1)}" width="${(r * 1.76).toFixed(1)}" height="${(r * 1.76).toFixed(1)}" ${at}>${tip}</rect>` : `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" ${at}>${tip}</circle>`; }).join('') +
       (pe ? X.names.map((n, j) => { const cx = x(X.y[j]), cy = yy(pe[j]), [sc, sw] = ring(n === st.mol, n === st.mol2 || cmp.has(n)), r = sw > 1 ? 7 : 5.5;
-        return `<path data-lo="${pe[j]}" class="pt" d="M${cx.toFixed(1)} ${(cy - r).toFixed(1)} L${(cx + r).toFixed(1)} ${cy.toFixed(1)} L${cx.toFixed(1)} ${(cy + r).toFixed(1)} L${(cx - r).toFixed(1)} ${cy.toFixed(1)} Z" fill="#fff" stroke="${sw > 1 ? sc : '#b45309'}" stroke-width="${sw > 1 ? sw : 2}" data-n="${esc(n)}"><title>${esc(n)} (external, never fitted): measured ${X.y[j].toFixed(2)}, predicted ${pe[j].toFixed(2)}</title></path>` + (off(pe[j]) ? `<text x="${(cx + 8).toFixed(1)}" y="${(cy + (pe[j] > b ? 12 : -5)).toFixed(1)}" style="fill:#b45309">${off(pe[j])} ${pe[j].toFixed(1)}</text>` : ''); }).join('') : '') +
+        return `<path data-lo="${pe[j]}" class="pt${(st.sel || []).includes(n) ? ' bsel' : ''}" d="M${cx.toFixed(1)} ${(cy - r).toFixed(1)} L${(cx + r).toFixed(1)} ${cy.toFixed(1)} L${cx.toFixed(1)} ${(cy + r).toFixed(1)} L${(cx - r).toFixed(1)} ${cy.toFixed(1)} Z" fill="#fff" stroke="${sw > 1 ? sc : '#b45309'}" stroke-width="${sw > 1 ? sw : 2}" data-n="${esc(n)}"><title>${esc(n)} (external, never fitted): measured ${X.y[j].toFixed(2)}, predicted ${pe[j].toFixed(2)}</title></path>` + (off(pe[j]) ? `<text x="${(cx + 8).toFixed(1)}" y="${(cy + (pe[j] > b ? 12 : -5)).toFixed(1)}" style="fill:#b45309">${off(pe[j])} ${pe[j].toFixed(1)}</text>` : ''); }).join('') : '') +
       (st.names === 'all' ? range(Y.length) : st.names === 'worst' ? worst : []).map((i) => `<text x="${(x(Y[i]) + 7).toFixed(1)}" y="${(yy(LO[i]) + 3).toFixed(1)}">${esc(C.ligands[i])}</text>`).join('') +
       (pe && (st.names === 'all' || st.names === 'ext') ? X.names.map((n, j) => `<text x="${(x(X.y[j]) + 9).toFixed(1)}" y="${(yy(pe[j]) + 3).toFixed(1)}" style="fill:#b45309">${esc(n)}</text>`).join('') : '') +
       `<text x="${(x0 + x1) / 2}" y="${S - 5}" text-anchor="middle">measured</text><text transform="translate(9 ${(y0 + y1) / 2}) rotate(-90)" text-anchor="middle">${FP.ens ? 'predicted when left out' : 'predicted, 5-fold'}</text>`;
@@ -1527,7 +1535,7 @@ async function thrShuffle() {
   $('thrP').innerHTML = `The best single descriptor reaches <b>${obs.toFixed(2)}</b> leave-one-out. With the hits shuffled among the compounds ${B} times, the best descriptor reaches that in ${ge}: <b>p = ${((1 + ge) / (1 + B)).toFixed(3)}</b>. Half of the shuffles give ${tops[B / 2].toFixed(2)} or more, 5 % give ${tops[Math.floor(B * 0.95)].toFixed(2)} or more.`;
 }
 // design: the shown model evaluated at slider values; said plainly when a slider is outside the compounds it was fitted on
-let PLOTENS = false; const ensDesign = () => C.ens.b0 + C.names.reduce((s, c, i) => s + (C.ens.beta[c] || 0) * (st.dv[i] ?? xOf(i, st.mol)), 0);
+const ensDesign = () => candPred(range(N).map((i) => st.dv[i] ?? xOf(i, st.mol)));
 const designPred = (F, cols) => predictAt(F, cols, (i) => st.dv[i] ?? xOf(i, st.mol));
 function designText(F, cols) {
   const v = designPred(F, cols), outside = cols.filter((i) => { const x = C.X[C.names[i]]; return st.dv[i] < Math.min(...x) || st.dv[i] > Math.max(...x); });
@@ -1535,7 +1543,7 @@ function designText(F, cols) {
   const ve = hasEns() ? ensDesign() : null;
   $('dpred').innerHTML = `Predicted ${esc(C.response)}: <b>${v.toFixed(2)}${C.unit ? ' ' + esc(C.unit) : ''}</b> by this model${ve != null ? `, <b>${ve.toFixed(2)}</b> by the averaged model (the other descriptors at ${esc(st.mol)}'s values)` : ''} (measured span ${Math.min(...Y).toFixed(2)} to ${Math.max(...Y).toFixed(2)}). Closest compound: <a data-n="${esc(C.ligands[near])}">${esc(C.ligands[near])}</a> (${Y[near].toFixed(2)}).` +
     (outside.length ? `<br><span style="color:var(--down)">Outside the fitted compounds for ${outside.map((i) => esc(C.label[i])).join(', ')}: an extrapolation.</span>` : '');
-  const l = document.getElementById('dline'), lv = PLOTENS && ve != null ? ve : v; if (l && PY) { l.setAttribute('y1', PY(lv)); l.setAttribute('y2', PY(lv)); }
+  const l = document.getElementById('dline'), lv = PLOTF.ens && ve != null ? ve : v; if (l && PY) { l.setAttribute('y1', PY(lv)); l.setAttribute('y2', PY(lv)); }
 }
 function writeHash() {
   if (C.uploaded || ALONE) return C.uploaded && history.replaceState(null, '', location.pathname + location.search);
@@ -1552,7 +1560,7 @@ function evidHtml() { const e = C.evidence, ch = (ok, txt, tip) => `<span class=
   out.push(ch(e.T1.passes, `finds the best ${e.T1.hits}/${e.T1.k}`, `Pre-registered test: of the ${e.T1.k} best measured compounds, ${e.T1.hits} are among the ${e.T1.k} best predicted while left out (p ${e.T1.p.toFixed(3)}).`));
   out.push(ch(e.T2.passes, 'points past what it saw', `Pre-registered test: the averaged model refitted without the best quarter still predicts them above the rest (S ${e.T2.S.toFixed(2)} against at most ${e.T2.null_max.toFixed(2)} in 20 fits with the responses shuffled, p ${e.T2.p.toFixed(3)}).`));
   if (d) out.push(d.lead_incl < 0.5 ? ch(null, 'no term leads', `No descriptor is in half of the sampled models (the most used, ${d.lead}, in ${(100 * d.lead_incl).toFixed(0)} %): read families, not single terms.`)
-    : ch(!d.carriers.length, d.carriers.length ? `lead rests on ${d.carriers.slice(0, 3).join(', ')}${d.carriers.length > 3 ? '…' : ''}` : 'no compound carries it', d.carriers.length ? `Refitted without ${d.carriers.join(', ')}, the leading term (${d.lead}) drops below half of the sampled models or leaves the top model. The predictions move by ${d.max_shift.toFixed(2)} sd at most: quote the family, not the single term.` : `Refitted without each compound in turn, the leading term (${d.lead}) stays in at least ${(100 * d.lead_min).toFixed(0)} % of sampled models and no prediction moves more than ${d.max_shift.toFixed(2)} sd.`));
+    : ch(!d.carriers.length, d.carriers.length ? `lead rests on ${esc(d.carriers.slice(0, 3).join(', '))}${d.carriers.length > 3 ? '…' : ''}` : 'no compound carries it', d.carriers.length ? `Refitted without ${d.carriers.join(', ')}, the leading term (${d.lead}) drops below half of the sampled models or leaves the top model. The predictions move by ${d.max_shift.toFixed(2)} sd at most: quote the family, not the single term.` : `Refitted without each compound in turn, the leading term (${d.lead}) stays in at least ${(100 * d.lead_min).toFixed(0)} % of sampled models and no prediction moves more than ${d.max_shift.toFixed(2)} sd.`));
   return out.join('') + dir; }
 function syncUI() { $('evid').innerHTML = evidHtml();
   for (const id of ['msort', 'rsort', 'view', 'links']) press(id, st[id]);
@@ -1611,6 +1619,7 @@ document.addEventListener('keydown', (e) => { const typing = /INPUT|SELECT|TEXTA
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); return palOpen(); }
   if (e.key === '/' && !typing) { e.preventDefault(); return $('find').focus(); }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && st.view === 'build' && !typing) { e.preventDefault(); return undoOwn(); }
+  if (e.key === 'Escape' && !$('pal').hidden) { palClose(); return; }
   if (e.key === 'Escape') { const open = document.querySelector('details.filt[open]'); if (open) { open.open = false; return; } if (st.mol2 && !document.querySelector('dialog[open]')) { st.mol2 = ''; st.more = []; $('mol2').value = ''; return draw(); } }
   if (e.key === 'Escape' && !document.querySelector('dialog[open]') && (st.rows.length || st.model >= 0)) { st.rows = []; st.model = -1; return refresh(); }
   if (st.model < 0 || st.view !== 'models' || !['ArrowLeft', 'ArrowRight'].includes(e.key) || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
@@ -1682,8 +1691,8 @@ $('stack').onchange = (e) => { st.stack = e.target.checked; draw(); };
 $('showd').onchange = (e) => { st.showD = e.target.checked; draw(); };
 $('resetview').onclick = () => { frames.forEach((f) => f.key = f.json = ''); draw(); };
 $('molopts').addEventListener('change', (e) => { const k = e.target.dataset.x; if (k) { st.extra[k] = e.target.checked; draw(); } });
-$('design').onclick = () => { if (hasEns() && !st.mplot && !st.cmp && !st.out.size) { st.fd = !st.fd; st.fdv = {}; st.fdFrom = st.mol; $('design').setAttribute('aria-pressed', st.fd); if (st.fd) setTimeout(() => $('fdes') && $('fdes').scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 60); return draw(); }
-  if (!active().length) return say('Select a model first.'); st.design = !st.design; st.dv = {}; $('design').setAttribute('aria-pressed', st.design); draw(); };
+$('design').onclick = () => { if (hasEns() && !st.mplot && !st.cmp && !st.out.size) { st.fd = !st.fd; st.design = false; st.fdv = {}; st.fdFrom = st.mol; $('design').setAttribute('aria-pressed', st.fd); if (st.fd) setTimeout(() => $('fdes') && $('fdes').scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 60); return draw(); }
+  if (!active().length) return say('Select a model first.'); st.design = !st.design; st.fd = false; st.dv = {}; $('design').setAttribute('aria-pressed', st.design); draw(); };
 const download = (text, name, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
 $('savefig').onclick = () => { try { download(new XMLSerializer().serializeToString(frames[0].el.contentDocument.querySelector('#fig svg')), `${C.case}_${st.mol}.svg`, 'image/svg+xml'); say('Picture saved.'); }
   catch (err) { say('Could not save the picture here; use the full explorer link.'); } };
@@ -1791,29 +1800,31 @@ $('more').addEventListener('change', (e) => { if (e.target.id === 'fdfrom') { st
 $('more').addEventListener('click', (e) => { if (e.target.id === 'fdreset') { st.fdv = {}; draw(); }
   if (e.target.id === 'fdkeep') { const from = fdFrom(), ch = Object.keys(st.fdv || {}).length; CANDS.push({ name: `design ${CANDS.length + 1}`, x: fdX(), src: ch ? `from ${from}, ${ch} famil${ch > 1 ? 'ies' : 'y'} moved` : `as ${from}` }); candSave(); draw(); say('Kept: see Your candidates.'); }
   const x = e.target.closest('[data-cx]'); if (x) { CANDS.splice(+x.dataset.cx, 1); candSave(); draw(); }
+  if (e.target.id === 'candadd') $('candfile').click();
   if (e.target.id === 'candclr') { CANDS = []; candSave(); draw(); }
   if (e.target.id === 'candgo') candSmiles($('candsmi').value);
   if (e.target.id === 'candcsv') { const R = candRef(); download(['candidate,source,predicted,low90,high90,where,nearest_measured,' + C.names.map(csvq).join(','), ...CANDS.map((c) => { const q = candScore(c); return [csvq(c.name), csvq(c.src || ''), q.v, R.q90 != null ? q.v - halfw(c) : '', R.q90 != null ? q.v + halfw(c) : '', q.where, csvq(q.near), ...c.x].join(','); })].join('\n') + '\n', `${C.case}_candidates.csv`, 'text/csv'); } });
 $('more').addEventListener('keydown', (e) => { if (e.target.id === 'candsmi' && e.key === 'Enter') candSmiles(e.target.value); });
 $('more').addEventListener('change', (e) => { if (e.target.id !== 'candfile' || !e.target.files[0]) return; const f = e.target.files[0]; f.text().then((t) => candCsv(t, f.name)); });
-$('more').addEventListener('toggle', (e) => { if (e.target.id === 'resd') st.resOpen = e.target.open; }, true);
+$('more').addEventListener('toggle', (e) => { if (e.target.id !== 'resd' || st.resOpen === e.target.open) return; st.resOpen = e.target.open; if (st.resOpen) draw(); }, true);
 $('pstats').addEventListener('change', (e) => { if (e.target.id === 'colby') { st.colorBy = +e.target.value; draw(); } });
-let colT; $('grid').addEventListener('mouseover', (e) => { const tr = e.target.closest('tr[data-row]'), k = tr ? +tr.dataset.row : -1; if (k === st.colorHover) return; st.colorHover = k; cancelAnimationFrame(colT); colT = requestAnimationFrame(draw); });
-$('grid').addEventListener('mouseleave', () => { if (st.colorHover < 0) return; st.colorHover = -1; cancelAnimationFrame(colT); colT = requestAnimationFrame(draw); });
-$('parity').addEventListener('pointerdown', (e) => { if (e.button !== 0 || e.target.closest('.pt')) return; const sv = $('parity'), m = sv.getScreenCTM().inverse(), pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(m);
+let colT; $('grid').addEventListener('mouseover', (e) => { const tr = e.target.closest('tr[data-row]'), k = tr ? +tr.dataset.row : -1; if (k === st.colorHover) return; st.colorHover = k; cancelAnimationFrame(colT); colT = requestAnimationFrame(recolour); });
+$('grid').addEventListener('mouseleave', () => { if (st.colorHover < 0) return; st.colorHover = -1; cancelAnimationFrame(colT); colT = requestAnimationFrame(recolour); });
+$('parity').addEventListener('pointerdown', (e) => { if (e.button !== 0 || e.pointerType === 'touch' || e.target.closest('.pt')) return; const sv = $('parity'), m = sv.getScreenCTM().inverse(), pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(m);
   BOXSEL = { x: pt.x, y: pt.y, m, el: document.createElementNS('http://www.w3.org/2000/svg', 'rect') }; BOXSEL.el.setAttribute('class', 'boxsel'); sv.appendChild(BOXSEL.el); sv.setPointerCapture(e.pointerId); });
+['pointercancel', 'lostpointercapture'].forEach((t) => $('parity').addEventListener(t, () => { if (BOXSEL && t === 'pointercancel') { BOXSEL.el.remove(); BOXSEL = null; } }));
 $('parity').addEventListener('pointermove', (e) => { if (!BOXSEL) return; const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(BOXSEL.m), r = BOXSEL.el;
   r.setAttribute('x', Math.min(q.x, BOXSEL.x)); r.setAttribute('y', Math.min(q.y, BOXSEL.y)); r.setAttribute('width', Math.abs(q.x - BOXSEL.x)); r.setAttribute('height', Math.abs(q.y - BOXSEL.y)); });
 $('parity').addEventListener('pointerup', (e) => { if (!BOXSEL) return; const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(BOXSEL.m), x0 = Math.min(q.x, BOXSEL.x), x1 = Math.max(q.x, BOXSEL.x), y0 = Math.min(q.y, BOXSEL.y), y1 = Math.max(q.y, BOXSEL.y); BOXSEL.el.remove(); BOXSEL = null;
   if (x1 - x0 < 4 && y1 - y0 < 4) return; st.sel = [...$('parity').querySelectorAll('.pt[data-n]')].filter((el) => { const b = el.getBBox(), cx = b.x + b.width / 2, cy = b.y + b.height / 2; return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1; }).map((el) => el.dataset.n); draw(); });
 $('selhost').addEventListener('click', (e) => { const a = e.target.dataset.sa; if (!a) return; const sel = st.sel || [];
-  if (a === 'out') { st.out = new Set(sel.map((n) => C.ligands.indexOf(n)).filter((r) => r >= 0)); st.sel = []; say(`Fitted without ${st.out.size}: the plot shows how the model predicts them.`); return refresh(); }
+  if (a === 'out') { const rs = sel.map((n) => C.ligands.indexOf(n)), ext = rs.filter((r) => r < 0).length; rs.forEach((r) => r >= 0 && st.out.add(r)); st.sel = []; say(`Fitted without ${st.out.size}: the plot shows how the model predicts them.${ext ? ` ${ext} external compound${ext > 1 ? 's were' : ' was'} never fitted, so ${ext > 1 ? 'they stay' : 'it stays'} as ${ext > 1 ? 'they are' : 'it is'}.` : ''}`); return refresh(); }
   if (a === 'mol') { st.mol = sel[0]; st.mol2 = sel[1] || ''; st.more = sel.slice(2); st.stack = sel.length > 2; $('mol').value = st.mol; $('mol2').value = st.mol2; $('stack').checked = st.stack; st.sel = []; return draw(); }
   st.sel = []; draw(); });
 $('palq').addEventListener('input', () => { JMPI = 0; palDraw(); });
-$('palq').addEventListener('keydown', (e) => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); JMPI = Math.max(0, Math.min(JMP.length - 1, JMPI + (e.key === 'ArrowDown' ? 1 : -1))); palDraw(); } else if (e.key === 'Enter') { e.preventDefault(); palGo(JMPI); } else if (e.key === 'Escape') { $('pal').hidden = true; } });
+$('palq').addEventListener('keydown', (e) => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); JMPI = Math.max(0, Math.min(JMP.length - 1, JMPI + (e.key === 'ArrowDown' ? 1 : -1))); palDraw(); } else if (e.key === 'Enter') { e.preventDefault(); palGo(JMPI); } else if (e.key === 'Escape') { e.stopPropagation(); palClose(); } });
 $('pallist').addEventListener('click', (e) => { const k = e.target.closest('[data-pi]'); if (k) palGo(+k.dataset.pi); });
-$('pal').addEventListener('click', (e) => { if (e.target.id === 'pal') $('pal').hidden = true; });
+$('pal').addEventListener('click', (e) => { if (e.target.id === 'pal') palClose(); });
 $('jump').onclick = () => { $('morebox').open = false; palOpen(); };
 $('keep').onclick = async () => { const name = prompt('A short name for this case (letters and digits):', C.case); if (!name) return;
   try { const r = await post('keep', { name, case: bare(C) }), was = ownKey(); try { const g = localStorage.getItem(was); if (g != null) localStorage.setItem('bassa-explorer-families|' + r.name, g); } catch (e) {} delete CASES[$('case').value]; C.case = r.name; C.uploaded = false; C.title = C.title.replace(/^Your table: /, ''); CASES[r.name] = C; window.CASE_FILES = r.cases; boot(C); say(`Kept as "${r.name}". It will be in the menu next time.`); }
@@ -1875,8 +1886,12 @@ async function selfTest() {
         { const q = candScore({ x: trainX(0) }); need(q.near === C.ligands[0] && q.nn === 0, 'a measured compound sits on itself'); }
         CANDS.splice(n0, 2); candSave(); $('design').click(); need(!st.fd && !$('fdes'), 'and closes'); }
       need(!PLOTF.ens && !(PLOTF.F && !PLOTF.F.ens) || !!$('resd'), 'what is left over');
+      if ($('resd')) { st.resOpen = true; draw(); need(!!$('resk'), 'what is left over, opened'); st.resOpen = false; draw(); need(!$('resk'), 'and folded, with nothing computed'); }
+      { const pt = document.querySelector('#parity .pt[data-f0]'); if (pt && pt.dataset.f0 !== '#fff') { st.colorHover = 0; recolour(); const f1 = pt.getAttribute('fill'); st.colorHover = -1; recolour(); need(f1.startsWith('rgb(') && pt.getAttribute('fill') === pt.dataset.f0, 'pointing at a row recolours the points in place, and back'); } }
       palOpen(); $('palq').value = C.ligands[1] || C.ligands[0]; palDraw(); need(!$('pal').hidden && count('.pali') > 0, 'the jump box finds a compound'); palGo(0); need($('pal').hidden && st.mol === (C.ligands[1] || C.ligands[0]), 'and opens it');
       st.sel = C.ligands.slice(0, 2); draw(); need(!!$('selbar') && count('#parity .pt.bsel') === 2, 'a box selection in the plot'); st.sel = []; draw();
+      { const m0 = st.model, r0 = st.rows.join(); palOpen(); $('palq').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); need($('pal').hidden && st.model === m0 && st.rows.join() === r0, 'Esc closes the jump box and keeps the model'); }
+      if (C.ligands.length > 3) { const o0 = new Set(st.out); st.out = new Set([0]); st.sel = [C.ligands[1]]; draw(); $('selhost').querySelector('[data-sa="out"]').click(); need(st.out.has(0) && st.out.has(1), 'holding out a box adds to what is held out'); st.out = o0; st.sel = []; refresh(); }
       { const pt = document.querySelector('#parity .pt[data-n]'); if (pt) { pt.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); need(!$('pcard').hidden && $('pcard').textContent.includes('measured') && !document.querySelector('#parity .pt title'), 'the card under the pointer in the plot'); $('pcard').hidden = true; } }
       { const b0 = C.better, low0 = lowBetter(); $('betterdir').click(); need(lowBetter() === !low0 && $('betterdir').textContent.includes(low0 ? 'higher' : 'lower'), 'the better end can be turned round'); $('betterdir').click(); need(lowBetter() === low0, 'and back'); C.better = b0; try { localStorage.removeItem('bassa-explorer-better|' + C.case); } catch (e) {} syncUI(); }
       if (!st.adv && st.view === 'models') need(count('th.m .mid.qq') === count('th.m') && count('th.m .mid.rr') === count('th.m'), 'every column shows its Q² and R²');

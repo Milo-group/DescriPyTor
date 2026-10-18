@@ -121,9 +121,10 @@ adds the rest (listed at the end of this section). A link made before the plain 
 - **What is left over** (under the molecule): each compound's error (measured − predicted while left out) against one
   family's part of the prediction, with a running mean and Spearman ρ. A trend means the model uses that family too
   much or too little.
-- **Box selection**: drag over the plot, then **Hold out** (refit without the selected compounds) or **On the molecule**
-  (the first as the compound, the others compared with it); × clears it.
-- **Jump to…** (Ctrl+K, or More): type part of a compound, descriptor, case or view name; Enter goes there.
+- **Box selection** (mouse or pen; on a touch screen a finger scrolls the page): drag over the plot, then **Hold out**
+  (adds the selected compounds to those already held out and refits; external compounds were never fitted and stay) or
+  **On the molecule** (the first as the compound, the others compared with it); × clears it.
+- **Jump to…** (Ctrl+K, or More): type part of a compound, descriptor, case or view name; Enter goes there. Esc closes it and changes nothing else.
 
 - **The table**: a column is a model, a row a descriptor. Over each column: how often the sampler visited it, in % of
   its steps, which is also the height of its bar; under the bar, the 5-fold Q² (coloured: green ≥ 0.7, blue ≥ 0.4, amber
