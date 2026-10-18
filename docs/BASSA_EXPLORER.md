@@ -74,6 +74,14 @@ adds the rest (listed at the end of this section). A link made before the plain 
 - **Which end is better**: a case file's `better` ("low" or "high"; otherwise read from the response text, e.g. "more
   negative = more selective"). Green bars, the threshold's default hits and "(better)/(worse)" follow it; a "lower is
   better" badge says so in the header.
+- **Predictions as CSV** (Export): one row per compound (external ones marked): measured, predicted while left out
+  (the averaged model's 5-fold, or the model in hand), the 90 % interval, the fitted value, and each family's part of it,
+  the families that move the predictions most first; the parts add up to the fitted value.
+- **Which end is better** can be turned round with the badge in the header (kept in this browser, per case): for a
+  table of your own, set it once.
+- **Copy link** now holds the whole view, also the averaged-model switch, the compounds you held out, design and the
+  "why" drawing, and the family rule. **Keys**: / finds a descriptor; Esc closes a menu, then a comparison, then the
+  selection; Ctrl+Z undoes a change to your families (also the Undo button there).
 - **Print this case** (More): one page with the case's evidence, the averaged model, the plot, the compound in hand and
   what would make it better, to print or save as PDF. In the plot, points glide to their new places when the model changes.
 - **Two compounds compared**: pick a **second compound** (or shift-click a second point). Under the molecule, the table
