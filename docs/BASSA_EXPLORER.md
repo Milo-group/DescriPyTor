@@ -77,7 +77,11 @@ adds the rest (listed at the end of this section). A link made before the plain 
 - **Two compounds compared**: pick a **second compound** (or shift-click a second point). Under the molecule, the table
   "A → B: what changes" gives each family's part of the change (averaged model) or each descriptor's (the model in hand),
   the fitted change, the change predicted with both left out, and the measured change, with a mark when the left-out
-  prediction moves the measured way.
+  prediction moves the measured way. In the plot, a dashed arrow runs from the first compound to the second.
+- **What would make a compound better** (one compound shown): the three families (or descriptors of the model in hand)
+  whose part of its prediction could gain most if they took the best value any compound of the set has, that compound
+  (click it), a strip of every compound's part (blue: this one, green: the best, better to the right), and how the
+  family's lead descriptor differs between the two. A direction inside the measured range; the gains do not add up.
 
 - **The table**: a column is a model, a row a descriptor. Over each column: how often the sampler visited it, in % of
   its steps, which is also the height of its bar; the most visited stand first (BASSA's own ranking). Click a
