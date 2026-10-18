@@ -202,7 +202,7 @@ def compute(X, y, iters=20000, case="uploaded", unit="", response="response", ti
     """one corrected-sampler run on a table: inclusion frequencies, the most visited models, what appears with what.
     More seeds give the spread of each frequency between chains; with_folds adds the leave-one-out reruns."""
     sys.path.insert(0, str(BASSA)); import engine as E
-    f = E.fit(X, y, iters=iters, seed=seeds[0]); s = f["s"].to_numpy(); names = list(f["s"].index); X = X[names]; n = len(y)
+    X0 = X; f = E.fit(X, y, iters=iters, seed=seeds[0]); s = f["s"].to_numpy(); names = list(f["s"].index); X = X[names]; n = len(y)
     assert np.allclose(s.mean(1), f["freq"].to_numpy())
     Z = ((X - X.mean()) / X.std(ddof=0)).to_numpy(); yv = y.to_numpy(float); sst = ((yv - yv.mean()) ** 2).sum()
     keys, counts = np.unique(s.T, axis=0, return_counts=True); order = np.argsort(-counts); out = []
@@ -212,7 +212,7 @@ def compute(X, y, iters=20000, case="uploaded", unit="", response="response", ti
         out.append(dict(cols=idx.tolist(), share=float(counts[k] / s.shape[1]), r2=float(1 - (r ** 2).sum() / sst), q2=float(1 - ((r / np.clip(1 - h, 1e-6, None)) ** 2).sum() / sst)))   # a compound the model fits exactly (leverage 1) has no leave-one-out residual: the clip keeps Q2 finite and very low
     joint = (s.astype(float) @ s.T.astype(float)) / s.shape[1]; assert np.allclose(np.diag(joint), s.mean(1))
     lig = [str(i) for i in X.index]; draw = [drawing(c) for c in names]
-    more = np.array([f["freq"].to_numpy()] + [E.fit(X, y, iters=iters, seed=sd)["freq"].reindex(names).fillna(0.0).to_numpy() for sd in seeds[1:]])
+    more = np.array([f["freq"].to_numpy()] + [E.fit(X0, y, iters=iters, seed=sd)["freq"].reindex(names).fillna(0.0).to_numpy() for sd in seeds[1:]])
     extra = dict(freq_lo=more.min(0).tolist(), freq_hi=more.max(0).tolist(), chains=len(seeds)); extra.update(folds(X, y, E, iters) if with_folds else {})
     return dict(**extra, case=case, title=title or case, n=n, names=names, freq=s.mean(1).tolist(), joint=np.round(joint, 4).tolist(), corr=np.round(np.nan_to_num(np.corrcoef(Z.T)), 3).tolist(), models=out, n_distinct=int(len(counts)),
                 iterations=int(s.shape[1]), shown_share=float(counts[order[:TOP]].sum() / s.shape[1]), y=dict(zip(lig, yv.tolist())), X={c: [float("%.6g" % v) for v in X[c]] for c in names}, ligands=lig, unit=unit, response=response,

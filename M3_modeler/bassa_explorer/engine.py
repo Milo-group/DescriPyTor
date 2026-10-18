@@ -37,7 +37,7 @@ def usable(x, full=None):
 
 def fit(x, y, xt=None, seed=7, k=3, sig=(3, 0.4), iters=ITER, full=None, tau=(1, 1)):
     x = usable(x, full); d = x.shape[1]
-    pri = SpikeAndSlabPriors(a_alpha_prior=1, a_beta_prior=(d - k) / k, sigma_alpha_prior=sig[0], sigma_beta_prior=sig[1], tau_alpha_prior=tau[0], tau_beta_prior=tau[1])
+    pri = SpikeAndSlabPriors(a_alpha_prior=1, a_beta_prior=max(d - k, 1) / k, sigma_alpha_prior=sig[0], sigma_beta_prior=sig[1], tau_alpha_prior=tau[0], tau_beta_prior=tau[1])
     cfg = SpikeAndSlabConfigurations(sampler_iterations=iters, save_meta_data=False, save_samples=False, seed=seed, turn_on_convergence_tracking=False,
                                      dont_save_anything=True, verbose=False)
     np.random.seed(seed)

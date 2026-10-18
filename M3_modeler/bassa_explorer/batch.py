@@ -17,8 +17,9 @@ a = argparse.ArgumentParser(); a.add_argument("folder"); a.add_argument("--respo
 tables = sorted(Path(a.folder).glob("*.csv"))
 if not tables: sys.exit("no .csv in " + a.folder)
 for f in tables:
-    t0 = time.time(); csv = f.read_text(encoding="utf-8-sig"); head = csv.splitlines()[0]; sub = Path(a.structures) / f.stem if a.structures else None
+    t0 = time.time(); sub = Path(a.structures) / f.stem if a.structures else None
     try:
+        csv = f.read_text(encoding="utf-8-sig"); head = (csv.splitlines() or [""])[0]
         import pandas as pd, io
         q = dict(csv=csv, response=a.response or pd.read_csv(io.StringIO(head)).columns[-1], iters=20000, name=f.stem, structures=str(sub if sub and sub.is_dir() else a.structures))
         d = S.run(q)

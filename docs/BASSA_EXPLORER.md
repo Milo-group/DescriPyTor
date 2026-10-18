@@ -16,7 +16,7 @@ The molecule view is the package's [feature explorer](FEATURE_EXPLORER.md), fram
 | option | |
 |---|---|
 | `--cases DIR` | the folder where kept cases live; default `./bassa_cases`. Nothing is written inside the package |
-| `--bassa-python PYTHON` | the Python that has `bassa_reg` (`pip install bassa-reg`), for running new tables. Default: the Python that runs the command, or the environment variable `DESCRIPYTOR_BASSA_PYTHON` |
+| `--bassa-python PYTHON` | the Python that has `bassa_reg` (`pip install -U "bassa-reg>=0.1.16"`; an older one is reported by the page and left unused), for running new tables. Default: the Python that runs the command, or the environment variable `DESCRIPYTOR_BASSA_PYTHON` |
 | `--port`, `--host`, `--no-browser` | as for the other pages; the default port is 8765 |
 
 Without `bassa_reg` the page still opens the example and every kept case; **New case…** then says what is missing.
@@ -59,51 +59,83 @@ to the menu.
 
 ## Reading a case
 
-A case opens on the plain page: the views **Models** and **Recipes**, one column per combination of families, the
-rows grouped by family, and only models of up to one descriptor per five compounds (rounded down); **Filters** changes the sizes and sets a least Q² or R². The **advanced** box
+A case opens on the plain page: the views **Models**, **Recipes** and **Your families**, one column per combination of
+families, the rows grouped by family, and only models of up to one descriptor per five compounds (rounded down);
+**Filters** changes the sizes and the least share of visits. The plain page leads with BASSA's averaged model, validated
+with the sampler rerun in every fold; the fit numbers of single models (R², Q², MAE) and their checks are under
+**advanced**, because a model picked from the table was chosen on all compounds and those numbers flatter it. The **advanced** box
 adds the rest (listed at the end of this section). A link made before the plain page existed opens in advanced.
 
-- **The table**: a column is a model, a row a descriptor. Over each bar: its 5-fold Q² (the grey bar behind is R²). Click a
+- **The table**: a column is a model, a row a descriptor. Over each column: how often the sampler visited it, in % of
+  its steps, which is also the height of its bar; the most visited stand first (BASSA's own ranking). Click a
   column to draw its model; the arrow keys move along. **A column is** switches between a combination of families
   (models that differ only inside a family counted together, combinations under 1 % of sampled models left out) and a
-  single model. A family counts as often as a model draws on it. Columns stand strongest first: by the 5-fold Q² of
-  the column's most visited model, ties by visits; the number under a column is its rank. **?** in the header opens
+  single model. A family counts as often as a model draws on it. The number under a column is its place. **?** in the header opens
   with **How this case is split**: which models are shown, the order, how the folds are dealt, and every family with
   the reason each member is in it.
 - **Families**: descriptors that stand in for one another. A descriptor joins the most used descriptor for which its
   column is correlated at 0.7 or more, or at 0.5 or more when the sampler clearly takes one or the other; it never joins
   one the sampler uses it together with more than chance. The sampler's evidence is the 2x2 table of the two
   descriptors over the kept steps (log odds ratio, a tenth of the steps counted as independent, judged against the
-  unrelated pairs of the same run). The "?" at the end of a row gives the reason with its numbers.
+  unrelated pairs of the same run). The "?" at the end of a row gives the reason with its numbers. **Families by** (beside
+  "Fold families") switches the rule: **correlation** (the rule above, with the threshold |r| set between 0.6 and 0.8; the
+  sampler clause then applies from 0.2 below it) or **sampler** (a descriptor joins when the sampler takes one or the
+  other and the columns are correlated at 0.3 or more; never when the sampler uses the two together).
 - **Ideas**: every family, and every descriptor on its own, has a letter and a colour (A is the most used). A family is
   a coloured block named after the descriptor the model in hand takes from it. It opens when that model uses it, shows
   its four most used descriptors, and keeps the rest behind **more**. **Fold families** leaves one row per idea.
 - **Dots**: one per descriptor of the model. A hollow dot is used by another model of the same column; click it to swap
   it in. A folded family carries its dot on the heading. Lettered squares under a column name its ideas; a line joins
   its dots.
-- **The mark under a column** (! or ‼, none when nothing is flagged): how many checks flag the model. Counted: R² more than 0.15 above the
+- **The mark under a column** (advanced; ! or ‼, none when nothing is flagged): how many checks flag the model. Counted: R² more than 0.15 above the
   leave-one-out Q²; a leave-one-out Q² within 0.05 when every descriptor is cut to high or low at its
   median (a switch, not a scale); the leading descriptor among the three most used in fewer than 80 % of the
   leave-one-out reruns. Shown and not counted: the ends of the range predicted from the rest, compounds beyond two
   standard deviations, and the leading descriptor against the chance line (the same for every model of a case, and
   said once as a pill beside the case name). The thresholds are choices, not calibrated.
-- **The tiles above the plot**: the model in hand, kept fixed (5-fold Q², with R² as the grey part of the line);
-  **BASSA's averaged model**, sampler rerun in every fold, which is the number to quote (each dot is one deal of the
-  folds; a case with one deal says so); the typical miss (MAE against the range of the response); and, for a case run
-  through `ensemble_protocol.py`, the share of held-out values inside the 90 % interval with the compound furthest off.
-  These come from the case file (`cv`). Every small **?** opens a drawing of that number.
+- **The blue box above the plot**: BASSA's prediction for compounds it has not seen, the number to quote. Q² is the
+  mean over the deals of the compounds into 5 folds (sampler rerun in every fold), with its range and the typical
+  miss (MAE). The strip shows every deal as a blue dot and, when the case has a chance line, the same procedure on
+  shuffled responses as grey dots; the line under it says how many deals beat every shuffle and the p of the mean
+  (20 shuffles cannot give less than 0.048). A case where fewer than 90 % of the deals beat every shuffle is marked weak,
+  and the pill beside the case name says "near chance". Then the share of held-out values inside the 90 % interval
+  (not shown when the first-fold check failed: `cv.d_ok` false) and the compound furthest off, with Q² without it.
+  The plot shows the same left-out predictions with their intervals. These come from the case file (`cv`;
+  `cv.chance` and `cv.d_ok` are added by `attach_checks.py` in the cases folder). Every small **?** opens a drawing of that number.
+- **Your families** (tab): make the families yourself. Pick a descriptor (in the list, the map or a family): the page
+  lists the twelve that look most like it, with their correlation and how the sampler treats the pair (in one model
+  more than chance, one or the other, no preference, too rarely used to tell; judged as the page's own rule judges it),
+  draws the two against each other with every compound coloured by the response, and draws both on the molecule.
+  **+ add** puts a look-alike in the family of the descriptor in hand (or starts one with the two). Each family gives
+  its share of models, the range of |r| inside it, where the page's rule differs, and a warning when two members are
+  used together by the sampler (two ideas for BASSA) or hardly correlate. **Every pair** maps |r| for all pairs, with
+  a red dot where the sampler takes one or the other and a green dot where it uses both, and frames your families.
+  **Use my families in the table** makes the table, the recipes and the letters follow them; the validation numbers do
+  not change, because the averaged model does not depend on the grouping. Your families are kept in this browser per
+  case; **Save as CSV** writes them out.
 - **Weights and equation**: under the plot, a bar per descriptor (its weight per standard deviation, ▲ raises and ▼
   lowers the response). **as an equation** unfolds the model on normalized descriptors, and in their own units.
 - **Checks**: three chips for the counted checks (fit against test, a scale and not a switch, holds without one
   compound); hover one for its drawing, **all checks** for the list.
-- **Averaged model**: the average over every sampled model, in the plot and as its five largest weights (`ens` in the
-  case file). **Compare models** keeps one model as hollow marks beside a second. **Design**: a slider per descriptor
+- **The plot shows: the averaged model / the model you clicked** (the switch over the plot, beside the blue box): the column you clicked instead of the averaged model: its fit (R², 5-fold Q², MAE, with its
+  descriptors kept fixed, so they flatter it), its predictions in the plot, and its equation unfolded under the weights.
+  It stays on while you click other columns. **Every weight of the averaged model** (folded under the model) lists the
+  intercept and every coefficient, per standard deviation and per unit, with each descriptor's share of models; **save as CSV**.
+- **Why a compound is predicted where it is** (under the molecule, for the compound in hand): the prediction for an
+  average compound, then what each family adds for this compound (weight × its distance from the mean in standard
+  deviations), the total fitted to every compound, and under it the left-out prediction and the measured value. With
+  "the model you clicked" on the plot, the same per descriptor of that model.
+- **Averaged model**: the average over every sampled model, on the molecule and as its five largest weights (`ens` in the
+  case file). **Design**: a slider per descriptor
   (not on the averaged model). **Export**: the picture as SVG, or the model as text.
 - **Recipes**: every model reduced to its families; click a descriptor to draw the model of that card that contains it,
   the arrows step through the card's models, and "together" is the card's models averaged by visits.
 - **On the molecule**: Sterimol axes, charges and dipole components of the shown model, each with its value. A length, an
   angle or a dihedral is a dashed line through its atoms with the table's value (d, ∠, τ). **dipole arrow ×** and
   **Sterimol drawing** appear when the model has such a term. Untick **descriptors** to see the structures alone.
+- **Layout**: drag the border between the two panels (double-click it to reset; the width is kept in the browser), and
+  pull the corner of the molecule window (both ways) or of the plot to resize them (double-click the plot to reset it).
+  The models table widens its descriptor names and its columns to fill the panel, and every part refits when a border moves.
 - **Header**: **All cases**, **More** (new case, keep this case, add the chance line and leave-one-out reruns, save as
   one file, copy link), **Reaction**, and **?**.
 
@@ -113,8 +145,10 @@ What **advanced** adds:
   ten most used descriptors, how the frequency moves when each compound is left out. A frequency that moves is the
   sampler changing its choice among near-equivalent models; check the coefficient before reading it as "the effect
   rests on that compound". `influence_check.py <case>` prints this for the leading descriptor.
-- Sorting the models by visits, Q² or R², and the filters (these use the leave-one-out Q², not the 5-fold one over the
-  bars). Do not rank by Q²: that brings up large models the sampler hardly visited.
+- Over each column, the model's 5-fold Q² (with R² as the grey bar behind), as a fixed model; sorting the models by
+  strength (that 5-fold Q²), Q² or R², and filters on Q² and R² (these use the leave-one-out Q², not the 5-fold one).
+  Do not rank by Q²: that brings up large models the sampler hardly visited.
+- Over the plot, the model in hand kept fixed (R², 5-fold Q², MAE), also while the averaged model is plotted; **Compare models** keeps one model as hollow marks beside a second; the checks on the model under the plot.
 - Rows by frequency or by what goes with a selection; the links as arcs; pins; the count of merged models.
 - Beside each descriptor, the leave-one-out reruns (top three, range); in family headings, the partner ideas and
   **on molecule**, which draws a family's descriptors together.
@@ -124,8 +158,9 @@ What **advanced** adds:
   compound carries its own values in its own colour.
 - A column the page cannot place on the molecule: click its name under the plot and say what it measures.
 - The browser's Back button undoes the last selection.
-- **All cases** (top right) is one table of every case: leading descriptor, its share and leave-one-out range, p against
-  chance, nested Q².
+- **All cases** (top right) is one table of every case, the ones validated over all the deals first, best Q² first:
+  Q² of the averaged model with its range and typical miss, a strip of the deals against the shuffles, the chance verdict
+  (above, weak, not above), the 90 % interval and the leading descriptor.
 - The grey band around the chance line is how far the line could move with other shuffles. With 100 shuffles it is wide;
   `../bassa/null1000.py` computes it from 1,000 for a prepared case.
 

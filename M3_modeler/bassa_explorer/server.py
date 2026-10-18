@@ -22,7 +22,7 @@ The checks are the ones of bayes_checks.py: the chance line is the 95th percenti
 of the highest inclusion frequency (chains of 6,000); the nested Q2 reruns the sampler without each compound in turn.
 Listens on this computer only.
 """
-import io, json, os, re, socket, subprocess, sys, threading, time
+import inspect, io, itertools, json, os, re, subprocess, sys, threading, time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -31,14 +31,17 @@ import numpy as np, pandas as pd
 import build_case as BC
 import running as RUN
 
-H = Path(__file__).resolve().parent; C = BC.C; LOCK = threading.Lock(); JOBS = {}; HANDOFF = {}; N_PERM, NULL_ITERS = 100, 6000
+H = Path(__file__).resolve().parent; C = BC.C; LOCK = threading.Lock(); JOBS = {}; HANDOFF = {}; N_PERM, NULL_ITERS = 100, 6000; IDS = itertools.count(1)
+PORT, LOOPBACK, MAX_BODY = 8765, True, 64 * 2 ** 20                 # set at start; requests larger than 64 MB are refused
 READER = BC.S["reader_python"]
-try: import bassa_reg; SAMPLER = True
+try:
+    from bassa_reg.spike_and_slab.spike_and_slab import SpikeAndSlabConfigurations
+    SAMPLER = "turn_on_convergence_tracking" in inspect.signature(SpikeAndSlabConfigurations).parameters      # engine.fit needs bassa-reg >= 0.1.16
 except ImportError: SAMPLER = False
 # how the molecule is drawn for a table run from the page (the look of the prepared cases)
 STYLE = dict(look="descriptors", preset="glossy", palette="cylview", ink="colour", bondColor="split", hydrogens="all", atomLabels="all", values=True, featureLabels=True, leaders=False, outline=1.15,
              atomScale=0.62, bondScale=0.6, hiddenLines=True, shadow=False, fog=0.18, perspective=0, labelScale=1.9, locMark="tick", planeNote=False, bg="white", vdw="back", surfKind="cpk", vdwOpacity=0.16)
-NEEDS = "new tables need the sampler: pip install bassa-reg into this Python, or start with --bassa-python <a Python that has it>"                                                  # the environment with pyarrow and the DescriPyTor readers
+NEEDS = "new tables need the sampler: pip install -U \"bassa-reg>=0.1.16\" into this Python, or start with --bassa-python <a Python that has it>"                                                  # the environment with pyarrow and the DescriPyTor readers
 
 
 listening = RUN.listening
@@ -91,8 +94,8 @@ def run(q):
 
 
 def checks(job, X, y):
-    sys.path.insert(0, str(BC.BASSA)); import engine as E
     try:
+        sys.path.insert(0, str(BC.BASSA)); import engine as E
         tops = []; yv = y.to_numpy(float); pred = np.zeros(len(y)); freq = []
         with LOCK: obs = float(E.fit(X, y, iters=NULL_ITERS)["freq"].max())
         for b in range(N_PERM):                                                 # the shuffles and seeds of bayes_checks.run, so a case checked here and in the report gets the same line
@@ -114,7 +117,7 @@ def checks(job, X, y):
 def keep(q):
     """a case computed from the page becomes a file beside it; the prepared cases cannot be overwritten from here"""
     name = re.sub(r"[^a-z0-9]+", "_", str(q["name"]).lower()).strip("_")
-    if not name or name in BC.CASES or name in ("manifest", "index", "example"): raise ValueError("choose another name (letters and digits; not one of the prepared cases)")
+    if not name or name in BC.CASES or name in ("manifest", "index", "example") or re.fullmatch(r"(con|prn|aux|nul|com\d|lpt\d)", name): raise ValueError("choose another name (letters and digits; not one of the prepared cases)")
     C.mkdir(parents=True, exist_ok=True); d = dict(q["case"], case=name, uploaded=False); (C / f"{name}.js").write_text("(window.CASES = window.CASES || {})[%s] = %s;\n" % (json.dumps(name), json.dumps(d)), encoding="utf-8")
     return dict(name=name, cases=BC.manifest(name))
 
@@ -135,7 +138,14 @@ class Handler(SimpleHTTPRequestHandler):
     def answer(self, out, code=200):
         body = json.dumps(out).encode("utf-8"); self.send_response(code); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
 
+    def foreign(self):
+        """a request this server should refuse: another Host (a rebinding page), or a browser page from another origin"""
+        own = {"127.0.0.1:%d" % PORT, "localhost:%d" % PORT, "[::1]:%d" % PORT}
+        if LOOPBACK and self.headers.get("Host", "") not in own: return True
+        o = self.headers.get("Origin"); return bool(o) and o not in {"http://" + h for h in own}
+
     def do_GET(self):
+        if self.foreign(): return self.send_error(403)
         u = urlparse(self.path)
         if u.path == "/manifest.js" and not (C / "manifest.js").exists():       # nothing kept yet: the example that comes with the package
             body = b'window.CASE_FILES = ["example"];\n'; self.send_response(200); self.send_header("Content-Type", "text/javascript"); self.send_header("Content-Length", str(len(body))); self.end_headers(); return self.wfile.write(body)
@@ -148,18 +158,22 @@ class Handler(SimpleHTTPRequestHandler):
         if u.path == "/status": return self.answer(dict(ok=True, app="bassa_explorer", api=RUN.API, sampler=SAMPLER, cases=str(C)))      # who is on this port, and which version
         if u.path == "/handoff": q = HANDOFF.pop(parse_qs(u.query).get("id", [""])[0], None); return self.answer(q or dict(error="this table was already taken, or the server was restarted"), 200 if q else 404)
         if u.path != "/checks": return super().do_GET()
-        job = JOBS.get(parse_qs(u.query).get("job", [""])[0]); self.answer(job or dict(error="no such job"), 200 if job else 404)
+        job = JOBS.get(parse_qs(u.query).get("job", [""])[0]); self.answer(dict(job) if job else dict(error="no such job"), 200 if job else 404)
 
     def do_POST(self):
+        if self.foreign(): return self.send_error(403)
+        if self.headers.get("Content-Type", "").split(";")[0].strip().lower() != "application/json": return self.send_error(415)
         try:
-            q = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            n = int(self.headers.get("Content-Length") or 0)
+            if not 0 < n <= MAX_BODY: return self.answer(dict(error="request body missing or larger than 64 MB"), 413)
+            q = json.loads(self.rfile.read(n))
             if self.path == "/run": return self.answer(run(q))
             if self.path == "/keep": return self.answer(keep(q))
-            if self.path == "/handoff": table(q); name = str(len(HANDOFF) + int(time.time())); HANDOFF[name] = q; return self.answer(dict(id=name))      # table(): refuse here what a run would refuse
+            if self.path == "/handoff": table(q); name = "%d%d" % (int(time.time()), next(IDS)); HANDOFF[name] = q; return self.answer(dict(id=name))      # table(): refuse here what a run would refuse
             if self.path == "/export": return self.answer(dict(html=BC.standalone(q["cases"])))
             if self.path == "/checks":
                 if not SAMPLER: raise RuntimeError(NEEDS)
-                X, y, _, _ = table(q); name = str(len(JOBS) + 1); JOBS[name] = job = dict(done=0, total=N_PERM + len(y), chance=None, nested_q2=None, error=None)
+                X, y, _, _ = table(q); name = str(next(IDS)); JOBS[name] = job = dict(done=0, total=N_PERM + len(y), chance=None, nested_q2=None, error=None)
                 threading.Thread(target=checks, args=(job, X, y), daemon=True).start(); return self.answer(dict(job=name, total=job["total"]))
             self.send_error(404)
         except Exception as e: self.answer(dict(error="%s: %s" % (type(e).__name__, e)), 400)
@@ -167,6 +181,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765; host = sys.argv[2] if len(sys.argv) > 2 else "127.0.0.1"
+    PORT, LOOPBACK = port, host in ("127.0.0.1", "localhost", "::1")              # bound to the network on request: the Host check would refuse the other machines
 
     def warm():                                                               # the first chain compiles the sampler (about 40 s); do it before anyone waits for it
         r = np.random.default_rng(0); X = pd.DataFrame(r.normal(size=(10, 6)), columns=list("abcdef"))
