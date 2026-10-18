@@ -197,6 +197,13 @@ adds the rest (listed at the end of this section). A link made before the plain 
   many of the best quarter the model's top quarter holds against chance (quarter²/n). Hover card, click, box
   selection and the designer's line work as in the other plot. The link keeps the choice (`pk`).
 - **New here?** A first visit gets one line over the table; it opens the three steps.
+- **Simpler plain page (18 Oct)**: the header shows the case's rank, one "✓ n of n checks" pill that opens the design
+  checks, and the better end; the table's head key is one short line (visits, Q², R²) with the rest under its ?;
+  the line naming the column in hand and the order of the columns are advanced details; on the averaged model the
+  weight list under the plot gives way to the bar over the table (every weight is one click away); what cannot be
+  drawn on the molecule is one short line that opens; **More about this model** at the bottom holds Every weight,
+  What is left over and How the number is made as tabs. The ranked plot carries its own key and one line on how to
+  read it, and ties each prediction to its measured value.
 - **Plain page, quieter**: the table's grouping and folding (A column is, Fold families, Families by, |r|) are in
   one **View** menu; Show, Design and Export share one row; in the plot only the compound in hand keeps a strong 90 %
   interval bar (the others are faint, all of them as before in advanced), and the class-mean ticks and the Sterimol
