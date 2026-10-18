@@ -179,6 +179,11 @@ adds the rest (listed at the end of this section). A link made before the plain 
   descriptors kept fixed, so they flatter it), its predictions in the plot, and its equation unfolded under the weights.
   It stays on while you click other columns. **Every weight of the averaged model** (folded under the model) lists the
   intercept and every coefficient, per standard deviation and per unit, with each descriptor's share of models; **save as CSV**.
+- **One switch, Show the averaged model / the model you clicked**, sets what the plot, the molecule and the weight list
+  show, together. A case opens on the averaged model; clicking a column shows that model everywhere (its numbers were
+  chosen on all compounds, so they flatter it), and the line over the plot keeps the averaged model's Q², the number
+  to quote. At a wide window the molecule sits beside the plot, the weights under the plot and the tabs under the
+  molecule.
 - **The right panel** reads top to bottom: the prediction for unseen compounds in one line (Q², the typical miss and
   whether it beats chance; **how it was checked** opens the deals, the leave-one-out Q², the 90 % interval and the
   compound furthest off), the plot with the model in hand beside it, then the molecule with one panel at a time in
