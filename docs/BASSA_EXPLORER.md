@@ -66,6 +66,19 @@ with the sampler rerun in every fold; the fit numbers of single models (R², Q²
 **advanced**, because a model picked from the table was chosen on all compounds and those numbers flatter it. The **advanced** box
 adds the rest (listed at the end of this section). A link made before the plain page existed opens in advanced.
 
+- **How far to trust the case** (badges in the header, when the case file carries `evidence`): its rank among the paper's
+  cases, whether the averaged model finds the best quarter of the compounds while they are left out, whether a model fitted
+  without them still points to them (both pre-registered), and whether one compound carries the leading term (drop-one
+  refits; "no term leads" when no descriptor is in half of the sampled models). Point at a badge for the numbers.
+  `bassa_cases/attach_evidence.py` writes them from the design-test and drop-one results.
+- **Which end is better**: a case file's `better` ("low" or "high"; otherwise read from the response text, e.g. "more
+  negative = more selective"). Green bars, the threshold's default hits and "(better)/(worse)" follow it; a "lower is
+  better" badge says so in the header.
+- **Two compounds compared**: pick a **second compound** (or shift-click a second point). Under the molecule, the table
+  "A → B: what changes" gives each family's part of the change (averaged model) or each descriptor's (the model in hand),
+  the fitted change, the change predicted with both left out, and the measured change, with a mark when the left-out
+  prediction moves the measured way.
+
 - **The table**: a column is a model, a row a descriptor. Over each column: how often the sampler visited it, in % of
   its steps, which is also the height of its bar; the most visited stand first (BASSA's own ranking). Click a
   column to draw its model; the arrow keys move along. **A column is** switches between a combination of families
