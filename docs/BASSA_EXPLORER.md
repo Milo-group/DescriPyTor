@@ -186,6 +186,10 @@ adds the rest (listed at the end of this section). A link made before the plain 
   chosen on all compounds, so they flatter it), and the line over the plot keeps the averaged model's Q², the number
   to quote. At a wide window the molecule sits beside the plot, the weights under the plot and the tabs under the
   molecule.
+- **Plain page, quieter**: the table's grouping and folding (A column is, Fold families, Families by, |r|) are in
+  one **View** menu; Show, Design and Export share one row; in the plot only the compound in hand keeps a strong 90 %
+  interval bar (the others are faint, all of them as before in advanced), and the class-mean ticks and the Sterimol
+  axes on the molecule's label are advanced details.
 - **The right panel** reads top to bottom: the prediction for unseen compounds in one line (Q², the typical miss and
   whether it beats chance; **how it was checked** opens the deals, the leave-one-out Q², the 90 % interval and the
   compound furthest off), the plot with the model in hand beside it, then the molecule with one panel at a time in
