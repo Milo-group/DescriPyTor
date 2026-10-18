@@ -100,6 +100,13 @@ adds the rest (listed at the end of this section). A link made before the plain 
   its look-alikes follow by their correlation with it. Beside it: the predicted value, the change from the starting
   compound with the typical miss, a bar from worse to better with every measured compound, the closest measured compound
   in these families, and a warning outside the measured range. The plot draws the prediction as a line.
+- **Your candidates** (under the designer; Keep as candidate there, or Add from CSV: the name first, then columns named
+  as in the case, a missing column set to the set's mean): each candidate priced by the averaged model, with a 90 % range
+  (split-conformal, from the measured compounds' 5-fold errors), the gap to the best measured compound, the nearest one,
+  and where it sits: among the measured, at the edge, a new combination (further from every measured compound, in what
+  the model weighs, than the measured ones are from each other), past the measured range (a descriptor with ≥ 2 % of the
+  weight), or too many columns missing (≥ 25 % of the weight). A strip places them among the measured compounds. Kept in
+  this browser per case; Save as CSV writes them out. The CSV's numbers must be computed the way the case's were.
 - **Colour the plot by** any descriptor (the select over the plot); pointing at a row of the table colours it by that
   descriptor while the pointer stays.
 - **What is left over** (under the molecule): each compound's error (measured − predicted while left out) against one
