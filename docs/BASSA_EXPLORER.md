@@ -179,8 +179,12 @@ adds the rest (listed at the end of this section). A link made before the plain 
   descriptors kept fixed, so they flatter it), its predictions in the plot, and its equation unfolded under the weights.
   It stays on while you click other columns. **Every weight of the averaged model** (folded under the model) lists the
   intercept and every coefficient, per standard deviation and per unit, with each descriptor's share of models; **save as CSV**.
-- **Why a compound is predicted where it is** (under the molecule, for the compound in hand): the prediction for an
-  average compound, then what each family adds for this compound (weight × its distance from the mean in standard
+- **The right panel** reads top to bottom: the prediction for unseen compounds in one line (Q², the typical miss and
+  whether it beats chance; **how it was checked** opens the deals, the leave-one-out Q², the 90 % interval and the
+  compound furthest off), the plot with the model in hand beside it, then the molecule with one panel at a time in
+  tabs: **Why this value**, **What would make it better**, or **Compared** when a second compound is picked.
+- **Why a compound is predicted where it is** (the first tab beside the molecule): the prediction for an
+  average compound, then what each family adds for this compound (the four largest on the plain page, six in advanced; weight × its distance from the mean in standard
   deviations), the total fitted to every compound, and under it the left-out prediction and the measured value. With
   "the model you clicked" on the plot, the same per descriptor of that model.
 - **Averaged model**: the average over every sampled model, on the molecule and as its five largest weights (`ens` in the
