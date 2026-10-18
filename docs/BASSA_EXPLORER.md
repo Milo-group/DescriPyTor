@@ -197,6 +197,12 @@ adds the rest (listed at the end of this section). A link made before the plain 
   many of the best quarter the model's top quarter holds against chance (quarter²/n). Hover card, click, box
   selection and the designer's line work as in the other plot. The link keeps the choice (`pk`).
 - **New here?** A first visit gets one line over the table; it opens the three steps.
+- **Words for the chemist (18 Oct)**: the drive bar opens with one sentence, "The model expects better compounds
+  with a higher X (share) and a lower Y (share)", with a caveat when Q² is under 0.4; the prediction line reads "How
+  well it predicts new compounds: Q² (good ≥ 0.7, fair ≥ 0.4, weak) · off by ±MAE on average · better than chance";
+  the switch reads "all models, averaged / the column you clicked"; the tabs "Why this prediction / How to make it
+  better"; the plot "predicted vs measured / ranking". On the averaged model a family is named by its most used
+  descriptor everywhere (table, bar, sentence). The Visual extractor and Feature explorer links are in More.
 - **Simpler plain page (18 Oct)**: the header shows the case's rank, one "✓ n of n checks" pill that opens the design
   checks, and the better end; the table's head key is one short line (visits, Q², R²) with the rest under its ?;
   the line naming the column in hand and the order of the columns are advanced details; on the averaged model the
