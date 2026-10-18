@@ -142,7 +142,9 @@ def featurize(q):
         r = subprocess.run([READER, str(H / "featurize.py")], input=json.dumps(dict(extraction=e, paths=[str(p) for p in paths])), capture_output=True, text=True, encoding="utf-8", timeout=300, cwd=str(H))
     if r.returncode: raise ValueError("could not read the structure: " + (r.stderr.strip().splitlines() or ["no message"])[-1])
     out = json.loads(r.stdout)
-    if "error" in out: raise ValueError(out["error"])
+    if "error" in out:
+        for p, f in zip(paths, files): out["error"] = out["error"].replace(p.name, str(f.get("name")))      # the sender's names, not the temporary ones
+        raise ValueError(out["error"])
     miss = [c for c in d["names"] if not np.isfinite(out["x"].get(c, np.nan))]
     if miss: raise ValueError("the recipe gave no value for %s: the case's columns and its recipe have parted" % ", ".join(miss[:5]))
     return dict(x={c: out["x"][c] for c in d["names"]})
