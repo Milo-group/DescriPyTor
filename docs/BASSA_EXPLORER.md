@@ -84,7 +84,9 @@ adds the rest (listed at the end of this section). A link made before the plain 
   family's lead descriptor differs between the two. A direction inside the measured range; the gains do not add up.
 
 - **The table**: a column is a model, a row a descriptor. Over each column: how often the sampler visited it, in % of
-  its steps, which is also the height of its bar; the most visited stand first (BASSA's own ranking). Click a
+  its steps, which is also the height of its bar; under the bar, the 5-fold Q² (coloured: green ≥ 0.7, blue ≥ 0.4, amber
+  above 0, red below) and the R² of that model kept fixed, which flatter it because it was chosen on all compounds; the
+  most visited stand first (BASSA's own ranking). Click a
   column to draw its model; the arrow keys move along. **A column is** switches between a combination of families
   (models that differ only inside a family counted together, combinations under 1 % of sampled models left out) and a
   single model. A family counts as often as a model draws on it. The number under a column is its place. **?** in the header opens
