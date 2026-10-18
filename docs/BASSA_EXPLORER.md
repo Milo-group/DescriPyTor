@@ -74,6 +74,9 @@ adds the rest (listed at the end of this section). A link made before the plain 
 - **Which end is better**: a case file's `better` ("low" or "high"; otherwise read from the response text, e.g. "more
   negative = more selective"). Green bars, the threshold's default hits and "(better)/(worse)" follow it; a "lower is
   better" badge says so in the header.
+- **Pointing at a point in the plot** opens a card: measured, predicted (left out), the 90 % interval, how far off and in
+  which direction, and the three family parts that move it most. **All cases** also lists each case's design evidence
+  (rank, finds the best, points past what it saw, drop-one, the better end).
 - **Predictions as CSV** (Export): one row per compound (external ones marked): measured, predicted while left out
   (the averaged model's 5-fold, or the model in hand), the 90 % interval, the fitted value, and each family's part of it,
   the families that move the predictions most first; the parts add up to the fitted value.
