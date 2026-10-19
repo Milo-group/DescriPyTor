@@ -191,15 +191,27 @@ def map_folder(mols, reference, anchors=None, stages=None, match_charge=False, w
                 break
             done(i, name, lambda: map_atoms(*args[name]))
         return results
+    import threading
+
     with ProcessPoolExecutor(workers, initializer=_worker_threads,
                              initargs=(max(1, (os.cpu_count() or 2) // workers),)) as pool:
         jobs = {pool.submit(map_atoms, *args[name]): name for name in todo}
+
+        def watch():                       # one molecule can take minutes: Stop ends its process instead of waiting
+            while not all(j.done() for j in jobs):
+                if cancelled():
+                    for other in jobs:
+                        other.cancel()
+                    for proc in list(getattr(pool, "_processes", {}).values()):
+                        proc.terminate()
+                    return
+                time.sleep(0.3)
+
+        threading.Thread(target=watch, daemon=True).start()
         for i, job in enumerate(as_completed(jobs), 1):
-            done(i, jobs[job], job.result)
             if cancelled():
-                for other in jobs:
-                    other.cancel()
                 break
+            done(i, jobs[job], job.result)
     return results
 
 
@@ -218,7 +230,11 @@ def write_renumbered(mols, results, out_dir, reference=""):
     import json
     import shutil
 
+    from M2_data_extractor.data_extractor import _molecules_folder_files
+
     os.makedirs(out_dir, exist_ok=True)
+    folder, files = _molecules_folder_files(mols.molecules_path)
+    xyz_in = {os.path.splitext(f)[0] for f, _s, _z in files if f.lower().endswith(".xyz")}
     written, skipped = [], []
     for mol in mols.molecules:
         result = results.get(mol.molecule_name) or {}
@@ -226,8 +242,15 @@ def write_renumbered(mols, results, out_dir, reference=""):
             skipped.append(mol.molecule_name)
             continue
         m = copy.deepcopy(mol)
-        m.renumber_atoms(result["old_to_new"], verbose=False, save_feather=True,
-                         out_file=os.path.join(out_dir, f"{mol.molecule_name}.feather"))
+        if mol.molecule_name in xyz_in:          # coordinates stay coordinates; .log, .out and .json become .feather
+            m.renumber_atoms(result["old_to_new"], verbose=False, save_feather=False)
+            x = m.xyz_df
+            with open(os.path.join(out_dir, f"{mol.molecule_name}.xyz"), "w", encoding="utf-8") as fh:
+                fh.write(f"{len(x)}\nrenumbered like {reference}\n" + "".join(
+                    f"{a} {float(px):.6f} {float(py):.6f} {float(pz):.6f}\n" for a, px, py, pz in x[["atom", "x", "y", "z"]].itertuples(index=False)))
+        else:
+            m.renumber_atoms(result["old_to_new"], verbose=False, save_feather=True,
+                             out_file=os.path.join(out_dir, f"{mol.molecule_name}.feather"))
         written.append(mol.molecule_name)
     outcomes = os.path.join(mols.molecules_path, "outcomes.csv")
     if os.path.isfile(outcomes):

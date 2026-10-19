@@ -101,14 +101,20 @@ def read_orca(path):
     if (h := _hirshfeld(lines, n)) is not None:
         charges["hirshfeld"] = h
 
+    ir = {}                                       # IR SPECTRUM rows are "mode: freq eps Int ...", by ORCA's mode number
+    i = _last(lines, "IR SPECTRUM")
+    if i is not None:
+        for ln in lines[i + 1:i + 6 + 3 * n]:
+            m = re.match(r"\s*(\d+):\s+-?\d+\.\d+\s+\S+\s+(\d+\.\d+)", ln)
+            if m:
+                ir[int(m.group(1))] = float(m.group(2))
     modes = []
     if view.frequencies.size and view.modes is not None:
-        ir = view.intensities if view.intensities is not None else np.zeros(len(view.frequencies))
         for k, f in enumerate(view.frequencies):
             if abs(f) < 1e-3:                     # translations and rotations
                 continue
             disp = view.modes[:, k].reshape(n, 3)
-            modes.append({"frequency_cm-1": float(f), "ir_intensity_km_per_mol": float(ir[k]) if k < len(ir) else 0.0,
+            modes.append({"frequency_cm-1": float(f), "ir_intensity_km_per_mol": ir.get(k, 0.0),
                           "displacements": [{"dx": float(a), "dy": float(b), "dz": float(c)} for a, b, c in disp]})
     return {"molecule": {"atoms": atoms}, "properties": props, "charges": charges,
             "vibrations": {"modes": modes}, "source": {"program": "ORCA", "file": str(path)}}

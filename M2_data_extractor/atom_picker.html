@@ -134,6 +134,15 @@ if (typeof $3Dmol === "undefined") {
     .status-chip.has-data { animation:none; }
   }
   .vizbar.collapsed #vizbarBody { display:none; }
+  .eye { padding:2px 6px; min-height:22px; border-radius:7px; line-height:0; color:var(--muted); background:transparent; box-shadow:none; }
+  .eye svg { width:15px; height:15px; }
+  .eye.off { color:rgba(0,0,0,.28); }
+  .eye.off svg .pupil { display:none; }
+  .field-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:1px; }
+  tr.field-hidden td:first-child, tr.field-hidden .chips { opacity:.45; }
+  tr.field-off td:first-child { color:var(--muted); text-decoration:line-through; text-decoration-color:rgba(0,0,0,.25); }
+  tr.field-off td:first-child .small { text-decoration:none; }
+  #viewClean[aria-pressed="true"] { background:var(--blue); color:#fff; }
   .vizbar.collapsed .vizbar-header { border-bottom:0; margin-bottom:0; padding-bottom:0; }
   .vizbar-title-btn {
     font:inherit; font-size:10.5px; font-weight:700; text-transform:uppercase;
@@ -689,8 +698,11 @@ if (typeof $3Dmol === "undefined") {
   .al-opts-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-top:12px; }
   .al-opts-grid .wide { grid-column:1 / -1; }
   .al-opts-grid textarea { width:100%; min-height:44px; resize:vertical; font:12px/1.4 ui-monospace,Menlo,Consolas,monospace; }
-  .al-stages { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12.5px; text-transform:none; letter-spacing:0;
-    font-weight:400; color:var(--text); }
+  .al-stages { display:grid; gap:4px; margin:4px 0 0; padding-left:22px; font-size:12.5px; text-transform:none;
+    letter-spacing:0; font-weight:400; color:var(--text); }
+  .al-stages li { display:flex; align-items:center; gap:6px; }
+  .al-stages li label { flex:1; }
+  .al-mv { padding:0 7px; min-height:22px; font-size:10px; line-height:1; }
   .al-check { display:flex; gap:6px; align-items:center; font-size:12.5px; text-transform:none; letter-spacing:0;
     font-weight:400; color:var(--text); }
   .al-progress { display:grid; gap:6px; }
@@ -731,6 +743,11 @@ if (typeof $3Dmol === "undefined") {
     .al-fill { transition:none; }
   }
   .al-view { display:grid; gap:8px; position:sticky; top:12px; }
+  .al-viewbar, .al-filter { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; }
+  .al-viewbar button, .al-filter button { min-height:28px; padding:2px 10px; font-size:12px; }
+  .al-filter { margin-bottom:8px; }
+  .al-filter button[aria-pressed="true"] { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .al-viewbar select { font-size:12px; padding:2px 6px; }
   .al-stage { height:430px; border-radius:var(--r); overflow:hidden; background:#fff; border:1px solid var(--line);
     display:grid; place-items:center; color:var(--muted); font-size:13px; text-align:center; padding:0; }
   .al-legend { display:flex; flex-wrap:wrap; gap:8px 14px; font-size:11.5px; color:var(--muted); align-items:center; }
@@ -902,11 +919,14 @@ if (typeof $3Dmol === "undefined") {
         <span id="fileInputWrap" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <label for="loadFileBtn" style="font-size:12.5px;font-weight:500;color:#415165;">Load structure:</label>
         <input type="file" id="fileInput" hidden />
-        <button type="button" id="loadFileBtn" title="Open a .xyz or .feather file">Load file…</button>
+        <button type="button" id="loadFileBtn" title="Open a .xyz, .feather, .json, Gaussian .log or ORCA .out file">Load file…</button>
         <button type="button" id="loadExampleMolBtn" title="Load the bundled unsubstituted benzene (basic.feather) into the 3D view">Load basic.feather</button>
         </span>
         <button type="button" id="pasteBtn">Paste XYZ&hellip;</button>
         <label for="labelToggle"><input type="checkbox" id="labelToggle" checked /> index labels</label>
+        <label class="small" for="viewH" title="Hydrogens drawn">H <select id="viewH"><option value="all">all</option><option value="polar">polar only</option><option value="none">none</option></select></label>
+        <label class="small" for="viewPicks" title="Which picks are ringed on the molecule">rings <select id="viewPicks"><option value="active">field being picked</option><option value="all">every field, by colour</option><option value="none">none</option></select></label>
+        <button class="micro-btn" type="button" id="viewClean" aria-pressed="false" title="Only the molecule: no rings, drawings or labels (C)">Clean view</button>
         <span style="flex:1"></span>
         <button class="micro-btn" type="button" id="measureBtn" aria-label="Measure distances and angles" title="Measurement mode (M) — click 2 atoms for distance, 3 for angle">Measure</button>
         <button class="micro-btn" type="button" id="recenterBtn" aria-label="Recenter view" title="Recenter view (R)">Recenter</button>
@@ -930,9 +950,9 @@ if (typeof $3Dmol === "undefined") {
     </div>
     <div class="sec-head collapsible" id="loadSecHead" onclick="toggleSec(this)" role="button" tabindex="0" aria-expanded="true"><span class="sec-num">1</span>Load<span class="sec-line"></span><span class="sec-chev">▼</span></div>
     <div class="sec-body">
-      <div class="small">Use <b>Load file</b> on the 3D view (<code>.xyz</code> or <code>.feather</code>), drop a file on the molecule, or paste XYZ. The bundled example is unsubstituted benzene (<code>basic.feather</code>). Atom numbers are <b>1-based</b> (Gaussian style).</div>
+      <div class="small">Use <b>Load file</b> on the 3D view (<code>.xyz</code>, <code>.feather</code>, <code>.json</code>, Gaussian <code>.log</code> or ORCA <code>.out</code>), drop a file on the molecule, or paste XYZ. The bundled example is unsubstituted benzene (<code>basic.feather</code>). Atom numbers are <b>1-based</b> (Gaussian style).</div>
       <div class="row" style="margin-top:8px;align-items:center;">
-        <label for="featherDirInput">Feather folder</label>
+        <label for="featherDirInput">Structure folder</label>
         <input type="text" id="featherDirInput" placeholder="path/to/your/feathers" style="flex:1;min-width:160px" autocomplete="off" />
         <button type="button" id="browseFeatherDirBtn" title="Open a native folder dialog on this computer">Browse…</button>
         <button type="button" id="useExampleFeathersBtn" title="Use the bundled substituted benzenes that ship with DescriPyTor">Use example set</button>
@@ -941,7 +961,8 @@ if (typeof $3Dmol === "undefined") {
       <div class="work-progress" id="presetProgress" hidden role="progressbar" aria-label="Applying example picks">
         <div class="work-progress-bar" id="presetProgressBar"></div>
       </div>
-      <div class="small" id="featherDirHint">Extraction runs on every <code>.feather</code> in this folder. The 3D view is only for picking atoms.</div>
+      <div class="small" id="featherDirHint">Extraction runs on every molecule file in this folder: <code>.feather</code>, structured <code>.json</code>, Gaussian <code>.log</code>, ORCA <code>.out</code> or <code>.xyz</code>. The 3D view is only for picking atoms.</div>
+      <div class="small" id="folderInputs" aria-live="polite"></div>
       <div id="numberingBanner" class="numbering-banner idle">
         <span id="numberingMsg">Optional: check that picked atoms are the same element in every file. This loads the whole folder, so it only runs when you ask.</span>
         <button type="button" id="checkNumberingBtn">Check numbering</button>
@@ -959,6 +980,7 @@ if (typeof $3Dmol === "undefined") {
         <summary>
           <span>Picked groups table</span>
           <span class="fold-actions">
+            <label class="small" style="display:inline-flex;gap:5px;align-items:center" onclick="event.stopPropagation()"><input type="checkbox" id="viewCompact"> only fields with picks</label>
             <button type="button" id="clearPicksBtn" title="Remove all committed atom groups from every field">Clear picks</button>
           </span>
         </summary>
@@ -1219,12 +1241,18 @@ if (typeof $3Dmol === "undefined") {
     </div>
     <details class="al-opts" id="alOpts"><summary>More options</summary>
       <div class="al-opts-grid">
-        <div class="al-field">Stages, in this order
-          <div class="al-stages">
-            <label><input type="checkbox" data-al-stage="complete_rings" checked> complete rings</label>
-            <label><input type="checkbox" data-al-stage="extend_mcs" checked> extend the common part</label>
-            <label><input type="checkbox" data-al-stage="coords_proximity_any" checked> any element by position</label>
-          </div>
+        <div class="al-field wide">Look-up order, after the common part (first to last; ▲ ▼ to move, untick to skip)
+          <ol class="al-stages" id="alStages">
+            <li><label title="Ring atoms of the common part are matched around the ring, even when the element differs">
+              <input type="checkbox" data-al-stage="complete_rings" checked> complete the rings</label>
+              <button type="button" class="al-mv" data-mv="-1" aria-label="Move up">▲</button><button type="button" class="al-mv" data-mv="1" aria-label="Move down">▼</button></li>
+            <li><label title="The common part grows bond by bond into what the two molecules share">
+              <input type="checkbox" data-al-stage="extend_mcs" checked> extend the common part</label>
+              <button type="button" class="al-mv" data-mv="-1" aria-label="Move up">▲</button><button type="button" class="al-mv" data-mv="1" aria-label="Move down">▼</button></li>
+            <li><label title="Atoms still unmatched take the number of the reference atom they overlap, whatever the element">
+              <input type="checkbox" data-al-stage="coords_proximity_any" checked> any element by position</label>
+              <button type="button" class="al-mv" data-mv="-1" aria-label="Move up">▲</button><button type="button" class="al-mv" data-mv="1" aria-label="Move down">▼</button></li>
+          </ol>
         </div>
         <label class="al-field">Sigma (mixed and sig) <input id="alSigma" type="number" value="30" min="1" step="1"></label>
         <label class="al-field">Fit on reference atoms <input id="alFitAtoms" placeholder="heavy atoms (default), or 1-9 12"></label>
@@ -1240,18 +1268,30 @@ if (typeof $3Dmol === "undefined") {
     </div>
     <div class="al-main" id="alMain" hidden>
       <div>
+        <div class="al-filter" role="group" aria-label="Which molecules to list">
+          <button type="button" data-alf="all" aria-pressed="true">All</button>
+          <button type="button" data-alf="check" aria-pressed="false">To check</button>
+          <button type="button" data-alf="moved" aria-pressed="false">Renumbered</button>
+          <button type="button" data-alf="same" aria-pressed="false">Unchanged</button>
+        </div>
         <table class="al-table"><thead><tr><th>Molecule</th><th>Numbering</th><th>Time</th></tr></thead><tbody id="alRows"></tbody></table>
       </div>
       <div class="al-view">
-        <div class="al-stage" id="alStage">Choose a molecule to see it on its reference</div>
-        <div class="al-legend">
-          <span class="key"><i style="border-color:#7c3aed"></i>renumbered</span>
-          <span class="key"><i style="border-color:#f59e0b"></i>another element</span>
-          <span class="key"><i style="border-color:#3b9dff"></i>your picks</span>
-          <label class="al-check"><input type="checkbox" id="alGhost" checked> reference, faint</label>
+        <div class="al-viewbar">
+          <button type="button" id="alPrev" aria-label="Previous molecule" title="Previous molecule (↑)">◀</button>
+          <button type="button" id="alNext" aria-label="Next molecule" title="Next molecule (↓)">▶</button>
+          <button type="button" id="alNextCheck" title="The next molecule to check">Next to check</button>
+          <label class="al-check">Show <select id="alShow"><option value="both">molecule on reference</option>
+            <option value="mol">molecule only</option><option value="ref">reference only</option></select></label>
+          <label class="al-check">Rings <select id="alRing"><option value="changes">what changed</option>
+            <option value="stage">how each atom was matched</option><option value="none">none</option></select></label>
           <label class="al-check"><input type="checkbox" id="alLabels" checked> numbers</label>
+        </div>
+        <div class="al-stage" id="alStage">Choose a molecule to see it on its reference</div>
+        <div class="al-legend"><span id="alKey"></span>
           <button type="button" id="alSwap" title="Click two atoms of this molecule to exchange their numbers">Swap two atoms</button>
         </div>
+        <div class="al-note" id="alAtom" aria-live="polite">Click an atom to see what it was and how it was matched.</div>
         <div class="al-detail" id="alDetail"></div>
       </div>
     </div>
@@ -1816,6 +1856,8 @@ document.addEventListener('keydown', e => {
     $("screenshotBtn") && $("screenshotBtn").click();
   } else if (e.key === 'm' || e.key === 'M') {
     toggleMeasureMode();
+  } else if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey) {
+    $("viewClean") && $("viewClean").click();
   }
 });
 
@@ -1838,8 +1880,8 @@ function handleMainDrop(e) {
   loadStructureFile(file);
 }
 
-function isFeatherName(name) {
-  return /\.(feather|ftr)$/i.test(name || "");
+function isFeatherName(name) {                    // files the server reads (the page reads .xyz itself)
+  return /\.(feather|ftr|json|log|out)$/i.test(name || "");
 }
 
 function isXyzName(name) {
@@ -1849,7 +1891,7 @@ function isXyzName(name) {
 async function loadStructureFile(file) {
   if (!file) return;
   if (!isFeatherName(file.name) && !isXyzName(file.name)) {
-    alert("Please choose a .xyz or .feather file.");
+    alert("Please choose a .xyz, .feather, .json, Gaussian .log or ORCA .out file.");
     return;
   }
   if (isFeatherName(file.name)) {
@@ -2006,6 +2048,62 @@ window.addEventListener("message", (e) => {
   else if (d.type === "feature:key" && typeof d.key === "string")      // a key pressed while the figure had the focus: the picker's shortcuts
     document.dispatchEvent(new KeyboardEvent("keydown", { key: d.key, ctrlKey: !!d.ctrlKey, metaKey: !!d.metaKey, altKey: !!d.altKey, shiftKey: !!d.shiftKey, bubbles: true, cancelable: true }));
 });
+/* what the view shows: hydrogens, which fields' picks are ringed, hidden fields, a clean view; kept for the next visit */
+const FIELD_COLOR = { sterimol: "#1d4ed8", bond_length: "#3b9dff", bond_angle: "#22c55e", dipole: "#eab308", charges: "#06b6d4",
+  charge_diff: "#f97316", stretching_vibration: "#f472b6", bending_vibration: "#a78bfa", ring_vibration: "#2dd4bf", drop_atoms: "#94a3b8" };
+const VIEW = (() => {
+  const v = { h: "all", picks: "active", hidden: new Set(), clean: false, compact: false };
+  try { const s = JSON.parse(localStorage.getItem("dpt-view") || "{}"); Object.assign(v, s, { hidden: new Set(s.hidden || []) }); } catch (_) {}
+  return v;
+})();
+function viewSave() {
+  try { localStorage.setItem("dpt-view", JSON.stringify(Object.assign({}, VIEW, { hidden: [...VIEW.hidden] }))); } catch (_) {}
+}
+function viewRings() {                             // the picks ringed on the molecule
+  if (VIEW.clean || VIEW.picks === "none") return;
+  const keys = VIEW.picks === "all" ? allFields().map(f => f.key) : [activeField];
+  keys.filter(k => !VIEW.hidden.has(k)).forEach(k => {
+    const color = k === activeField || VIEW.picks !== "all" ? "#3b9dff" : (FIELD_COLOR[k] || "#94a3b8");
+    [...new Set((state[k] || []).flat(Infinity))].forEach(a => figMark([a], color));
+  });
+}
+/* what the folder's files carry: a descriptor its files cannot give is greyed with the reason */
+const NEEDS = { dipole: "dipole", charges: "charges", charge_diff: "charges", stretching_vibration: "vibrations",
+  bending_vibration: "vibrations", ring_vibration: "vibrations" };
+let INPUTS = null, inputsDir = "";
+function fieldMissing(key) {
+  const need = NEEDS[key], sh = INPUTS && INPUTS.shared;
+  if (!need || !sh) return "";
+  const have = need === "charges" ? sh.charges.length > 0 : sh[need];
+  return have ? "" : `the files in this folder have no ${need === "vibrations" ? "vibrations (no frequency job)" : need}`;
+}
+async function inspectFolder() {
+  const dir = ($("featherDirInput") && $("featherDirInput").value.trim()) || "";
+  if (dir === inputsDir) return;
+  inputsDir = dir; INPUTS = null;
+  const box = $("folderInputs");
+  if (!dir) { box.textContent = ""; refresh(); return; }
+  box.textContent = "Reading the folder…";
+  try {
+    const d = await fetch("/folder/summary", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ directory: dir, inspect: true }) }).then(r => r.json());
+    if (dir !== inputsDir) return;
+    if (d.error) { box.textContent = d.error; return; }
+    INPUTS = d.inputs || null;
+    const kinds = INPUTS ? Object.entries(INPUTS.kinds) : [];
+    const sh = INPUTS && INPUTS.shared;
+    box.innerHTML = !d.n ? "No molecule files here." : `<b>${d.n}</b> molecule${d.n > 1 ? "s" : ""}: ` +
+      kinds.map(([k, n]) => `${n} ${esc({ feather: ".feather", json: ".json", gaussian_log: "Gaussian .log", orca_out: "ORCA .out", xyz: ".xyz" }[k] || k)}`).join(", ") +
+      (sh ? ` · geometry${sh.charges.length ? ", " + esc(sh.charges.join("/")) + " charges" : ""}${sh.dipole ? ", dipole" : ""}` +
+        `${sh.polarizability ? ", polarizability" : ""}${sh.vibrations ? ", vibrations" : ""}` : "") +
+      (kinds.length > 1 ? " (what all of them have)" : "");
+    refresh();
+  } catch (_) { box.textContent = ""; }
+}
+setInterval(inspectFolder, 800);                  // shortcut: watches the field (five places fill it); hook each setter if this ever costs anything
+
+const EYE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle class="pupil" cx="12" cy="12" r="3"/></svg>`;
+
 /* one drawn item: a dashed line through its atoms with a ring on each, and a text */
 function figMark(atoms, color, text) {
   atoms = [].concat(atoms).filter(a => Number.isInteger(a) && a >= 1 && a <= nAtoms);
@@ -2014,7 +2112,7 @@ function figMark(atoms, color, text) {
 function figSession(coords, anim) {
   const d = dipoleVector();
   return { v: 1, active: 0, align: { mode: "none", atoms: "", spread: 0 }, sm: { q: "", any: true, all: true }, L: FIG,
-    style: { atomLabels: $("labelToggle").checked && !anim ? "all" : "off", labelAtoms: null },
+    style: { atomLabels: $("labelToggle").checked && !anim && !VIEW.clean ? "all" : "off", labelAtoms: null, hydrogens: VIEW.h },
     structs: [{ name: lastModelName || "molecule", key: "picker", xyz: coordsToXYZ(coords), color: "#1F2937", on: true, own: "",
       dipole: d ? [d[0], d[1], d[2], dipoleTotal()] : null, charges: null }] };
 }
@@ -2072,9 +2170,9 @@ function buildScene(coords, doZoom, mode) {
   else {
     // selection highlight: the active field's committed picks (blue) and the group being built (orange).
     // Every atom of the unfinished group is ringed, not only the last one clicked, and nothing stays orange after a commit.
-    [...new Set((state[activeField] || []).flat(Infinity))].forEach(a => figMark([a], "#3b9dff"));
+    viewRings();
     [...new Set(currentGroup)].forEach(a => figMark([a], "#ff9f0a"));
-    drawOverlays(coords);
+    if (!VIEW.clean) drawOverlays(coords);
     drawMeasureOverlay(coords);
   }
   figPost(figSession(coords, !!mode), !doZoom);
@@ -2269,7 +2367,9 @@ function drawOverlays(coords) {
  * Feature preview - draw every picked selection on the same molecule, *
  * each category independently toggleable.                             *
  * ------------------------------------------------------------------ */
-function _feat(id) { const e = $(id); return e && e.checked; }
+const FEAT_FIELD = { featCharges: "charges", featBonds: "bond_length", featDq: "charge_diff", featAngles: "bond_angle",
+  featVibr: "stretching_vibration", featRing: "ring_vibration", featDrop: "drop_atoms", featSterimol: "sterimol", featDipoleAtoms: "dipole" };
+function _feat(id) { const e = $(id); return !!(e && e.checked) && !VIEW.clean && !VIEW.hidden.has(FEAT_FIELD[id]); }
 function _featLabels() { const e = $("featLabels"); return !e || e.checked; }
 function _mid(a, b) { return [(a[0]+b[0])/2, (a[1]+b[1])/2, (a[2]+b[2])/2]; }
 function _dist(a, b) { return V.norm(V.sub(a, b)); }
@@ -3860,18 +3960,33 @@ function refresh() {
     const chips = groups.map((g, gi) =>
       `<span class="chip">${fl.size===1? g[0] : "["+g.join(",")+"]"}<span class="x" onclick="event.stopPropagation(); removeGroup('${fl.key}',${gi})">&times;</span></span>`
     ).join("");
-    const active = fl.key === activeField;
-    tr.innerHTML = `<td>${active ? "▸ " : ""}${fl.label}</td>`+
+    const active = fl.key === activeField, hidden = VIEW.hidden.has(fl.key), missing = fieldMissing(fl.key);
+    if (hidden) tr.classList.add("field-hidden");
+    if (missing) { tr.classList.add("field-off"); tr.title = "Not available: " + missing; }
+    const dot = VIEW.picks === "all" && FIELD_COLOR[fl.key] ? `<span class="field-dot" style="background:${FIELD_COLOR[fl.key]}"></span>` : "";
+    tr.innerHTML = `<td>${active ? "▸ " : ""}${dot}${fl.label}${missing ? `<span class="small" style="display:block">not in these files</span>` : ""}</td>`+
                    `<td><div class="chips">${chips||'<span class="small">-</span>'}</div></td>`+
-                   `<td class="small">${active ? "picking" : "click"}</td>`;
+                   `<td class="small" style="white-space:nowrap">${active ? "picking" : "click"} <button type="button" class="eye${hidden ? " off" : ""}"
+                      data-eye="${fl.key}" aria-pressed="${!hidden}" title="${hidden ? "Show" : "Hide"} this field on the molecule">${EYE}</button></td>`;
     tr.onclick = () => setActive(fl.key);   // whole row is clickable
     return tr;
   };
-  FIELDS.forEach(fl => tb.appendChild(rowFor(fl)));
-  const sep = document.createElement("tr");
-  sep.innerHTML = `<td colspan="3" class="small" style="padding-top:10px;color:var(--accent)">morfeus_suite atoms (only used if that package is on)</td>`;
-  tb.appendChild(sep);
-  MF_FIELDS.forEach(fl => tb.appendChild(rowFor(fl)));
+  const used = fl => fl.key === activeField || (state[fl.key] || []).length > 0;
+  const shown = list => list.filter(fl => !VIEW.compact || used(fl));
+  shown(FIELDS).forEach(fl => tb.appendChild(rowFor(fl)));
+  if (packagesEnabled["morfeus_suite"] || MF_FIELDS.some(fl => (state[fl.key] || []).length)) {
+    const sep = document.createElement("tr");
+    sep.innerHTML = `<td colspan="3" class="small" style="padding-top:10px;color:var(--accent)">morfeus_suite atoms</td>`;
+    tb.appendChild(sep);
+    shown(MF_FIELDS).forEach(fl => tb.appendChild(rowFor(fl)));
+  }
+  const left = FIELDS.length - shown(FIELDS).length;
+  if (left) {
+    const more = document.createElement("tr");
+    more.innerHTML = `<td colspan="3" class="small"><button type="button" class="micro-btn" id="viewMore">${left} more field${left > 1 ? "s" : ""}: show all</button></td>`;
+    tb.appendChild(more);
+    more.querySelector("#viewMore").onclick = (e) => { e.stopPropagation(); VIEW.compact = false; $("viewCompact").checked = false; viewSave(); refresh(); };
+  }
 
   // package checkboxes + sterimol pair options
   renderWorkflowPresets();
@@ -3986,6 +4101,20 @@ $("typedAtoms").addEventListener("keydown", e => { if (e.key === "Enter") { e.pr
 $("stretchThr").oninput = refresh;
 $("bendThr").oninput = refresh;
 $("labelToggle").onchange = () => highlight();
+$("viewH").value = VIEW.h; $("viewPicks").value = VIEW.picks; $("viewCompact").checked = VIEW.compact;
+$("viewClean").setAttribute("aria-pressed", String(VIEW.clean));
+$("viewH").onchange = () => { VIEW.h = $("viewH").value; viewSave(); highlight(); };
+$("viewPicks").onchange = () => { VIEW.picks = $("viewPicks").value; viewSave(); refresh(); };
+$("viewCompact").onchange = () => { VIEW.compact = $("viewCompact").checked; viewSave(); refresh(); };
+$("viewClean").onclick = () => { VIEW.clean = !VIEW.clean; $("viewClean").setAttribute("aria-pressed", String(VIEW.clean)); viewSave(); highlight(); };
+$("selTable").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-eye]");
+  if (!b) return;
+  e.stopPropagation();                             // not a click on the row (that makes the field the active one)
+  const k = b.dataset.eye;
+  VIEW.hidden.has(k) ? VIEW.hidden.delete(k) : VIEW.hidden.add(k);
+  viewSave(); refresh();
+}, true);
 $("useFeatherXyz").onchange = () => { activeWorkflowPreset = ""; refresh(); };
 $("basisFromPick").onclick = syncBasisInputsFromPick;
 ["basisOrigin", "basisY", "basisPlane"].forEach(id => $(id).oninput = () => { refresh(); });
@@ -4753,9 +4882,18 @@ function alRow(name) {
       ${c.sub ? `<span class="al-sub">${esc(c.sub)}</span>` : ""}</td>
     <td><span class="al-time">${time}</span></td></tr>`;
 }
+const ALGROUPS = [                               // how an atom was matched, from the Conformaty stage that found it
+  ["in the common part", "#2F7A4F", st => /mcs|ring|hydrogen/.test(st)],
+  ["by position", "#8B5CF6", st => !!st && !/mcs|ring|hydrogen/.test(st) && st !== "fill_unmapped" && st !== "reference"],
+  ["numbered last, unmatched", "#DC2626", st => st === "fill_unmapped"],
+];
+function alKeep(n) {                              // the row filter
+  const f = AL.filter || "all", c = alChip(n).cls;
+  return f === "all" || n === AL.ref || !AL.res[n] || (f === "check" ? c === "check" || c === "fail" : c === f);
+}
 function alRows() {
   const rank = n => n === AL.ref ? 0 : !AL.res[n] ? 5 : AL.res[n].error ? 1 : { check: 2, moved: 3, same: 4 }[alChip(n).cls] || 4;
-  const names = [AL.ref, ...AL.names].filter(Boolean).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+  const names = [AL.ref, ...AL.names].filter(Boolean).filter(alKeep).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   $("alRows").innerHTML = names.map(alRow).join("");
 }
 
@@ -4792,6 +4930,16 @@ async function alRun() {
       body: JSON.stringify({ directory: dir, reference: $("alRef").value, fit: $("alFit").value, sigma: +$("alSigma").value || 30,
         fit_atoms: alAtomRange($("alFitAtoms").value), workers: AL.workers, stages, match_charge: $("alCharge").checked,
         anchors: alAnchors($("alAnchors").value) }) });
+    if (r.status === 409) {                    // a run from before (another tab, or this page before a refresh) is still going
+      clearInterval(AL.timer); AL.ctl = null;
+      $("alPText").innerHTML = `A renumbering started earlier is still running. <button type="button" id="alKill">Stop it and start this one</button>`;
+      $("alKill").onclick = async () => {
+        $("alPText").textContent = "Stopping the earlier run…";
+        const k = await fetch("/align/stop", { method: "POST" }).then(x => x.json()).catch(() => ({}));
+        if (k.free) alRun(); else $("alPText").textContent = "The earlier run did not stop. Restart the server (Ctrl+C, then descripytor visual).";
+      };
+      return;
+    }
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
     const reader = r.body.getReader(), dec = new TextDecoder();
     let buf = "", end = null;
@@ -4848,7 +4996,7 @@ window.addEventListener("message", (e) => {
   if (d.type === "feature:ready") {
     AL.ready = true;
     if (AL.pending) { AL.frame.contentWindow.postMessage(AL.pending, "*"); AL.pending = null; }
-  } else if (d.type === "feature:atom" && Number.isInteger(d.i) && AL.swap) alSwapPick(d.i);
+  } else if (d.type === "feature:atom" && Number.isInteger(d.i)) AL.swap ? alSwapPick(d.i) : alAtomInfo(d.i);
 });
 function alPost(session, keepView) {
   const msg = { type: "feature:session", s: session, keepView };
@@ -4857,6 +5005,7 @@ function alPost(session, keepView) {
 
 function alSelect(name, keepView) {
   if (!window.FEATURE_EXPLORER_HTML || !name) return;
+  if (name !== AL.sel) { AL.focus = 0; $("alAtom").textContent = "Click an atom to see what it was and how it was matched."; }
   AL.sel = name;
   [...$("alRows").querySelectorAll("tr")].forEach(tr => tr.classList.toggle("sel", tr.dataset.al === name));
   const r = AL.res[name], isRef = name === AL.ref;
@@ -4867,13 +5016,25 @@ function alSelect(name, keepView) {
   const marks = [];
   const ring = (atoms, color, text) => atoms.forEach(a => marks.push({ atoms: [a], color, text: text || "", ring: true }));   // one mark each: a mark of several atoms is drawn as a line through them
   const moved = isRef ? [] : Object.entries(r.old_to_new).filter(([o, v]) => +o !== +v).map(([, v]) => +v);
-  if (moved.length && moved.length <= 8) ring(moved, "#7c3aed");          // a few moved atoms are worth pointing at; a reshuffled file is not
-  if (!isRef) ring(r.differs.filter(inRange), "#f59e0b");
-  ring((typeof flattenPickedIndices === "function" ? flattenPickedIndices() : []).filter(inRange), "#3b9dff");
+  const show = $("alShow").value, mode = $("alRing").value, keys = [];
+  if (mode === "changes" && !isRef && show !== "ref") {
+    if (moved.length && moved.length <= 8) { ring(moved, "#7c3aed"); keys.push(["#7c3aed", "renumbered"]); }   // a few moved atoms are worth pointing at; a reshuffled file is not
+    if (r.differs.length) { ring(r.differs.filter(inRange), "#f59e0b"); keys.push(["#f59e0b", "another element"]); }
+  } else if (mode === "stage" && !isRef && show !== "ref") {
+    ALGROUPS.forEach(([label, color, test]) => {
+      const atoms = r.stage.map((st, k) => test(st) ? k + 1 : 0).filter(Boolean);
+      if (atoms.length) { ring(atoms, color); keys.push([color, `${label} (${atoms.length})`]); }
+    });
+  }
+  const picked = (typeof flattenPickedIndices === "function" ? flattenPickedIndices() : []).filter(inRange);
+  if (mode !== "none" && picked.length) { ring(picked, "#3b9dff"); keys.push(["#3b9dff", "your picks"]); }
+  if (AL.focus && inRange(AL.focus)) ring([AL.focus], "#111827", String(AL.focus));
   if (AL.swap && AL.swap.length) ring(AL.swap, "#ff9f0a", "swap");
-  const structs = [{ name, key: "al", xyz, color: "#1F2937", on: true, own: "", dipole: null, charges: null }];
-  if (!isRef && $("alGhost").checked)
-    structs.push({ name: AL.ref, key: "alref", xyz: AL.refXyz, color: "#A9B4C2", on: true, own: "", dipole: null, charges: null });
+  $("alKey").innerHTML = keys.map(([c, t]) => `<span class="key"><i style="border-color:${c}"></i>${esc(t)}</span>`).join(" ");
+  const structs = [];
+  if (show !== "ref" || isRef) structs.push({ name, key: "al", xyz, color: "#1F2937", on: true, own: "", dipole: null, charges: null });
+  if (!isRef && show !== "mol")
+    structs.push({ name: AL.ref, key: "alref", xyz: AL.refXyz, color: show === "ref" ? "#1F2937" : "#A9B4C2", on: true, own: "", dipole: null, charges: null });
   alFrame();
   alPost({ v: 1, active: 0, align: { mode: "none", atoms: "", spread: 0 }, sm: { q: "", any: true, all: true },
     L: { axes: [], active: -1, dip: { on: false, origin: "", y: "", plane: "", show: {} }, sites: [], marks, arrows: [], cones: [],
@@ -4916,6 +5077,24 @@ async function alCompare(name) {
       r.xyz = f.xyz; r.rmsd = f.rmsd; r.fit = f.fit; alRows(); alSelect(name, true);
     });
   } catch (err) { box.textContent = "Not compared: " + err.message; }
+}
+
+function alAtomInfo(i) {                          // a click on the molecule: what this atom was, and how it was matched
+  const name = AL.sel, r = AL.res[name], isRef = name === AL.ref;
+  AL.focus = AL.focus === i ? 0 : i;
+  if (!name || (!isRef && (!r || r.error))) return;
+  const els = alEls(isRef || $("alShow").value === "ref" ? AL.refXyz : r.xyz), el = els[i - 1], refEl = AL.refEls[i - 1];
+  let text;
+  if (isRef || $("alShow").value === "ref") text = `Atom ${i} of ${AL.ref}: ${refEl}.`;
+  else {
+    const old = Object.keys(r.old_to_new).find(o => +r.old_to_new[o] === i);
+    const how = (ALGROUPS.find(([, , test]) => test(r.stage[i - 1])) || ["—"])[0];
+    text = `Atom ${i}: ${el}, ` + (+old === i ? "same number in the file" : `atom ${old} in the file`) + "; " +
+      (refEl === undefined ? `past ${AL.ref}'s ${AL.refEls.length} atoms` : refEl === el ? `${refEl}${i} in ${AL.ref}` : `${AL.ref} has ${refEl} here`) +
+      `; matched ${how}.`;
+  }
+  $("alAtom").textContent = AL.focus ? text : "Click an atom to see what it was and how it was matched.";
+  alSelect(name, true);
 }
 
 function alSwapPick(i) {
@@ -4976,9 +5155,17 @@ $("alHead").onclick = () => alToggle();
 $("alHead").onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); alToggle(); } };
 $("alOpenBtn").onclick = () => { alToggle(true); $("alignBar").scrollIntoView({ behavior: "smooth", block: "start" }); };
 $("alRun").onclick = alRun;
+$("alStages").onclick = (e) => {                 // the order of the list is the order sent
+  const b = e.target.closest("[data-mv]");
+  if (!b) return;
+  const li = b.closest("li"), up = +b.dataset.mv < 0, sib = up ? li.previousElementSibling : li.nextElementSibling;
+  if (sib) li.parentNode.insertBefore(up ? li : sib, up ? sib : li);
+  b.focus();
+};
 $("alStop").onclick = () => {
   if (AL.ctl) AL.ctl.abort();
-  $("alPText").textContent = "Stopped. A molecule already running finishes in the background before the next run can start.";
+  fetch("/align/stop", { method: "POST" }).catch(() => {});      // ends the molecule that is running, not after it
+  $("alPText").textContent = "Stopped.";
 };
 $("alWrite").onclick = alWrite;
 $("alUse").onclick = alUse;
@@ -4988,7 +5175,30 @@ $("alSwap").onclick = () => {
   $("alSwap").classList.toggle("al-on", !!AL.swap);
   if (AL.sel) alSelect(AL.sel, true);
 };
-["alGhost", "alLabels"].forEach(id => { $(id).onchange = () => AL.sel && alSelect(AL.sel, true); });
+["alShow", "alRing", "alLabels"].forEach(id => { $(id).onchange = () => AL.sel && alSelect(AL.sel, true); });
+document.querySelector(".al-filter").onclick = (e) => {
+  const b = e.target.closest("[data-alf]");
+  if (!b) return;
+  AL.filter = b.dataset.alf;
+  document.querySelectorAll("[data-alf]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  alRows();
+};
+function alStep(delta, onlyCheck) {               // previous / next row as listed, or the next one to check
+  const rows = [...$("alRows").querySelectorAll("tr[data-al]")].map(tr => tr.dataset.al);
+  if (!rows.length) return;
+  let k = rows.indexOf(AL.sel);
+  for (let n = 0; n < rows.length; n++) {
+    k = (k + delta + rows.length) % rows.length;
+    if (!onlyCheck || alChip(rows[k]).cls === "check" || (AL.res[rows[k]] || {}).error) break;
+  }
+  AL.swap = null; $("alSwap").classList.remove("al-on");
+  alSelect(rows[k]);
+  const tr = $("alRows").querySelector(`tr[data-al="${CSS.escape(rows[k])}"]`);
+  if (tr) tr.scrollIntoView({ block: "nearest" });
+}
+$("alPrev").onclick = () => alStep(-1);
+$("alNext").onclick = () => alStep(1);
+$("alNextCheck").onclick = () => alStep(1, true);
 $("alRows").onclick = (e) => { const tr = e.target.closest("tr[data-al]"); if (tr) { AL.swap = null; $("alSwap").classList.remove("al-on"); alSelect(tr.dataset.al); } };
 $("alRows").onkeydown = (e) => {
   const tr = e.target.closest("tr[data-al]");

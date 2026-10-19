@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Added: every structure format, and a calmer view
+
+- **Folders of Gaussian `.log`, ORCA `.out` and `.xyz` files** are read directly, beside `.feather` and structured
+  `.json` (no `logs_to_feather` first). ORCA gives geometry, energy, dipole (Debye), Mulliken/Löwdin (Hirshfeld if
+  printed) charges, polarizability and the vibrations of a frequency job; `.xyz` gives geometry only. One file per name,
+  the richest kind first; cluster job logs and config JSON are skipped. Renumbered `.xyz` stays `.xyz`.
+- The visual extractor says what the folder holds and carries ("3 Gaussian .log · geometry, cm5/hirshfeld/nbo charges,
+  dipole, polarizability, vibrations") and strikes through the descriptors its files cannot give, with the reason.
+- **The 3D view**: hydrogens all / polar only / none; rings for the field being picked, every field (by colour) or
+  none; **Clean view** (C) for the molecule alone; an eye per field in the picks table hides that field's rings and
+  drawings; *only fields with picks* shortens the table, and the morfeus rows appear only when that package is on.
+- **Align & renumber**: the look-up order is a list to reorder (▲ ▼), each step explained; Stop ends the running
+  molecule at once, and a page that finds an earlier run still going offers to stop it (it used to wait minutes,
+  holding the server); filter the list (to check, renumbered, unchanged); ◀ ▶ and *Next to check*; show the molecule on
+  its reference, alone, or the reference alone; rings for what changed or for how each atom was matched (common part,
+  by position, numbered last); a click on an atom says what it was and how it was matched.
+
 ### Added: atom renumbering with Conformaty
 
 - **`descripytor renumber FOLDER -r REFERENCE`** numbers every molecule of a folder like the reference with

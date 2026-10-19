@@ -1582,6 +1582,32 @@ def molecule_file_kind(path):
     return None
 
 
+def folder_inputs(directory):
+    """Which kinds of molecule file a folder holds and what they carry (read from the first file of each kind), and
+    what every molecule can give: a descriptor needs it in all of them."""
+    path, files = _molecules_folder_files(directory)
+    kinds = {}
+    for name, _stamp, _size in files:
+        kinds.setdefault(molecule_file_kind(os.path.join(path, name)), []).append(name)
+    carries = {}
+    for kind, names in kinds.items():
+        try:
+            params = read_molecule_file(os.path.join(path, names[0]))      # [tables, vibrations, charges, (energy)]
+            df, vib, charges = params[0], params[1], params[2]
+        except Exception as exc:
+            carries[kind] = {"error": f"{names[0]}: {exc}", "charges": [], "dipole": False, "polarizability": False,
+                             "vibrations": False}
+            continue
+        carries[kind] = {"charges": sorted(t for t, c in charges.items() if not c.dropna().empty),
+                         "dipole": not df["dipole_df"].dropna().empty,
+                         "polarizability": not df["pol_df"].dropna(how="all").empty,
+                         "vibrations": bool(vib) and not df["info_df"].dropna(how="all").empty}
+    shared = {k: bool(carries) and all(c[k] for c in carries.values()) for k in ("dipole", "polarizability", "vibrations")}
+    shared["charges"] = sorted(set.intersection(*[set(c["charges"]) for c in carries.values()])) if carries else []
+    return {"kinds": {k: len(v) for k, v in kinds.items()}, "carries": carries, "shared": shared,
+            "about": {k: MOLECULE_FILE_KINDS[k] for k in kinds}}
+
+
 def read_molecule_file(path):
     """[df_dict, vib_dict, charge_dict, ev] from any molecule file: .feather, structured .json, Gaussian .log, ORCA .out,
     or .xyz (geometry only: no charges, dipole or vibrations)."""

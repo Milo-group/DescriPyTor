@@ -91,6 +91,17 @@ def test_a_swap_exchanges_two_numbers_everywhere():
     assert got == [{"1": 3, "2": 1, "3": 2}, ["O 0 0 0", "H 2 0 0", "C 1 0 0"], ["a", "c", "b"], [1, 2, 3], True]
 
 
+def test_a_field_the_files_cannot_give_says_why():
+    got = _run(["fieldMissing"], """
+      const NEEDS = { dipole: "dipole", charges: "charges", ring_vibration: "vibrations" };
+      let INPUTS = { shared: { dipole: false, vibrations: true, charges: [] } };
+      const a = [fieldMissing("sterimol"), fieldMissing("dipole"), fieldMissing("charges"), fieldMissing("ring_vibration")];
+      INPUTS = null;
+      a.push(fieldMissing("dipole"));
+      console.log(JSON.stringify(a));""")
+    assert got == ["", "the files in this folder have no dipole", "the files in this folder have no charges", "", ""]
+
+
 def test_morfeus_sterimol_pairs_stay_with_morfeus():
     got = _run(["pickedSterimolPairs"], """
       const state = { sterimol: [[1, 4]], mf_sterimol: [[2, 7]] };

@@ -129,3 +129,25 @@ def test_the_map_route_streams_one_molecule_at_a_time(client, tmp_path):
     wrote = client.post("/align/apply", json={"directory": str(tmp_path), "reference": "basic",
                                               "molecules": {"shuffled": result["old_to_new"]}}).get_json()
     assert wrote["written"] == ["shuffled"] and Path(wrote["out"], "renumbering.json").is_file()
+
+
+def test_stop_ends_a_running_molecule(client, tmp_path):
+    """Stop (or a page that was closed) used to wait for the running molecule, minutes, holding the server's one-run lock."""
+    pytest.importorskip("conformaty")
+    import shutil
+    import threading
+    import time
+
+    for name in ("basic", "o_Cl"):                       # o_Cl takes tens of seconds
+        shutil.copy(EXAMPLE / f"{name}.feather", tmp_path)
+    events = []
+    run = threading.Thread(target=lambda: events.append(client.post("/align/map", json={
+        "directory": str(tmp_path), "reference": "basic"}).get_data(as_text=True)))
+    run.start()
+    time.sleep(4)
+    t0 = time.perf_counter()
+    assert client.post("/align/map", json={"directory": str(tmp_path)}).status_code == 409
+    stopped = client.post("/align/stop").get_json()
+    run.join(30)
+    assert stopped["free"] and time.perf_counter() - t0 < 15 and not run.is_alive()
+    assert '"event": "stopped"' in events[0]

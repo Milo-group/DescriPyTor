@@ -743,15 +743,15 @@ def browse_folder():
 
 
 def _list_feather_files(directory):
+    """The molecule files of a folder, one per name: .feather, structured .json, Gaussian .log, ORCA .out, .xyz."""
     try:
-        names = os.listdir(directory)
-    except OSError:
+        ensure_path("")
+        from data_extractor import _molecules_folder_files
+
+        path, files = _molecules_folder_files(directory)
+    except Exception:
         return []
-    out = []
-    for name in sorted(names):
-        if name.lower().endswith((".feather", ".ftr")):
-            out.append(os.path.join(directory, name))
-    return out
+    return [os.path.join(path, name) for name, _stamp, _size in files]
 
 
 def _flatten_picked_indices(picked):
@@ -803,14 +803,23 @@ def _elements_from_xyz_text(xyz):
 
 @app.route("/folder/summary", methods=["POST"])
 def folder_summary():
-    """Fast count of .feather files — used for extract progress text."""
+    """The molecules of a folder (any kind the package reads); with inspect, what their files carry, so the page offers
+    only the descriptors every molecule can give."""
     data = request.json or {}
     directory = (data.get("directory") or "").strip()
     if _is_placeholder_path(directory) or not os.path.isdir(directory):
-        return jsonify({"error": "Set a folder of .feather files first."}), 400
+        return jsonify({"error": "Set a folder of molecule files first."}), 400
     files = _list_feather_files(directory)
     names = [os.path.splitext(os.path.basename(p))[0] for p in files]
-    return jsonify({"n": len(files), "names": names})
+    payload = {"n": len(files), "names": names}
+    if data.get("inspect"):
+        try:
+            from data_extractor import folder_inputs
+
+            payload["inputs"] = folder_inputs(directory)
+        except Exception as exc:
+            payload["inputs_error"] = str(exc)
+    return jsonify(payload)
 
 
 def _iter_numbering_check(files, reference, picked, include_xyz, limit_xyz, reference_xyz=None, reference_name=""):
@@ -1264,7 +1273,8 @@ def extract():
 
 import threading
 
-_ALIGN_BUSY = threading.Lock()          # one renumbering at a time: each already takes half the cores
+_ALIGN_BUSY = threading.Lock()          # one renumbering at a time
+_ALIGN_STOP = {"event": None}           # the running one's stop, for /align/stop (a refreshed page lost its request)
 
 
 def _folder_molecules(directory):
@@ -1314,10 +1324,11 @@ def align_map():
     except (TypeError, ValueError):
         return jsonify({"error": "sigma is a number and fit_atoms a list of atom numbers."}), 400
     if not _ALIGN_BUSY.acquire(blocking=False):
-        return jsonify({"error": "A renumbering is already running. Stop it first, or wait for it."}), 409
+        return jsonify({"error": "A renumbering is still running.", "busy": True}), 409
     ref_mol = next(m for m in mols.molecules if m.molecule_name == reference)
     ref_xyz = _xyz_text_from_coords(ref_mol.xyz_df, reference)[0]
     stop = threading.Event()
+    _ALIGN_STOP["event"] = stop
     q = Queue()
 
     def progress(ev):
@@ -1354,6 +1365,21 @@ def align_map():
 
     return Response(stream_with_context(generate()), mimetype="application/x-ndjson",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.route("/align/stop", methods=["POST"])
+def align_stop():
+    """Stop the running renumbering (its molecule's process is ended); answers once the server is free again."""
+    import time
+
+    event = _ALIGN_STOP["event"]
+    if event is not None:
+        event.set()
+    for _ in range(40):
+        if not _ALIGN_BUSY.locked():
+            return jsonify({"stopped": event is not None, "free": True})
+        time.sleep(0.25)
+    return jsonify({"stopped": event is not None, "free": False}), 409
 
 
 @app.route("/align/fits", methods=["POST"])

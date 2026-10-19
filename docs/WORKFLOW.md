@@ -40,6 +40,19 @@ descripytor logs_to_feather
 
 Skip this step for the example: its `.feather` files are already made.
 
+The step is optional: a folder of Gaussian `.log`, ORCA `.out` or `.xyz` files is read as it is, by `extractor`, the
+visual extractor and `renumber` alike. What each gives:
+
+| files | geometry | charges | dipole | polarizability | vibrations |
+|---|---|---|---|---|---|
+| `.feather`, Gaussian `.log` | yes | NBO, Hirshfeld, CM5 | yes | yes | yes |
+| ORCA `.out` | yes | Mulliken, Löwdin (Hirshfeld if printed) | yes | if computed | frequency jobs |
+| structured `.json` | yes | as written | as written | as written | as written |
+| `.xyz` | yes | no | no | no | no |
+
+A descriptor the files cannot give (a charge from an `.xyz`, a vibration from a single point) is struck through in the
+visual extractor and reported beside the count by the extraction.
+
 **Step 1b: one numbering for the whole folder.** Atom numbers in the input JSON mean the same atom in every
 molecule only if the folder is numbered alike. If it is not (structures built or optimised separately), number every
 molecule like one reference with [Conformaty](https://github.com/Milo-group/Conformaty):
