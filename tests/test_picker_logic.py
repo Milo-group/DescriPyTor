@@ -74,6 +74,23 @@ def test_picks_made_on_another_molecule_are_named():
     assert got == [[4, 9], []]
 
 
+def test_align_panel_reads_its_fields():
+    got = _run(["alAtomRange", "alAnchors", "alEls", "alStalled"], """
+      console.log(JSON.stringify([
+        alAtomRange("1-4 9, 12 x"), alAnchors("m_Br: 9, 9\\nbad line\\no_F:3 4"), alEls("3\\nc\\nC 0 0 0\\nH 1 0 0\\nBr 0 1 0"),
+        alStalled({ rmsd: 6.0, rmsd_kabsch: 0.49 }), alStalled({ rmsd: 0.5, rmsd_kabsch: 0.49 }), alStalled(null),
+      ]));""")
+    assert got == [[1, 2, 3, 4, 9, 12], {"m_Br": [[9, 9]], "o_F": [[3, 4]]}, ["C", "H", "Br"], True, False, False]
+
+
+def test_a_swap_exchanges_two_numbers_everywhere():
+    got = _run(["alSwapAtoms", "alEls"], """
+      const r = { old_to_new: { 1: 2, 2: 1, 3: 3 }, xyz: "3\\nx\\nO 0 0 0\\nC 1 0 0\\nH 2 0 0", stage: ["a", "b", "c"], differs: [] };
+      alSwapAtoms(r, 2, 3, ["C", "O", "H"]);
+      console.log(JSON.stringify([r.old_to_new, r.xyz.split("\\n").slice(2), r.stage, r.differs, r.edited]));""")
+    assert got == [{"1": 3, "2": 1, "3": 2}, ["O 0 0 0", "H 2 0 0", "C 1 0 0"], ["a", "c", "b"], [1, 2, 3], True]
+
+
 def test_morfeus_sterimol_pairs_stay_with_morfeus():
     got = _run(["pickedSterimolPairs"], """
       const state = { sterimol: [[1, 4]], mf_sterimol: [[2, 7]] };

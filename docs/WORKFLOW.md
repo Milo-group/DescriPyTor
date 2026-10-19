@@ -40,6 +40,24 @@ descripytor logs_to_feather
 
 Skip this step for the example: its `.feather` files are already made.
 
+**Step 1b: one numbering for the whole folder.** Atom numbers in the input JSON mean the same atom in every
+molecule only if the folder is numbered alike. If it is not (structures built or optimised separately), number every
+molecule like one reference with [Conformaty](https://github.com/Milo-group/Conformaty):
+
+```bash
+pip install git+https://github.com/Milo-group/Conformaty     # once, with pip install -e ".[align]"
+descripytor renumber feather_files/ -r basic                  # writes feather_files/renumbered/ and renumbering.json
+```
+
+It matches the common substructure, fits each molecule onto the reference and numbers the rest by position (the two
+H of a CH2 by where they sit). The reference should be the smallest molecule (the common part); a larger one keeps its
+extra atoms after the reference's. Each line reports what moved, any reference atom that is another element in that
+molecule (a substituent site, or something to check), and the RMSD of the overlay. `--fit` chooses that overlay:
+Conformaty's losses (`rmsd`, the default; `msd`; `mixed`, its own default, which puts the most atoms in near-exact
+overlap but can stall far away; `mad`; `sig`) or `kabsch` (closed-form least squares); a fit more than 0.5 Å worse than
+Kabsch is reported as stalled. The originals are not changed: extract from `renumbered/`. In the browser this is
+**Align & renumber** at the bottom of the visual extractor (§4).
+
 **Step 2: say which atoms each descriptor reads.** An input JSON maps a descriptor name to atom
 numbers. Groups are separated by spaces and atoms within a group by commas:
 
@@ -147,6 +165,14 @@ build the selections, extract, and run the model search, all on one page. The fe
 BASSA model explorer one click away in the header. A walkthrough with screenshots is in
 [visual-guide.md](visual-guide.md); the explorer opens directly with `descripytor feature_explorer` and has its own manual with
 screenshots, [FEATURE_EXPLORER.md](FEATURE_EXPLORER.md).
+
+**Align & renumber**, at the bottom of the page (or *Align & renumber…* beside Check numbering), numbers the folder
+like one reference with Conformaty, as `descripytor renumber` does. Molecules appear as they finish, with a time bar
+each and the time left; those to check come first. A click shows the molecule renumbered and fitted onto its
+reference (drawn faint), with renumbered atoms, other elements and your picks ringed. *Swap two atoms* exchanges
+two numbers by clicking them; *Compare fits* fits that molecule with every option side by side. *Write renumbered
+folder* writes `<folder>/renumbered/` and `renumbering.json`, and *Use it for extraction* switches the page to it and
+checks the numbering of your picks there.
 
 ## 5. Metal complexes (Case Study 3 route)
 
@@ -272,6 +298,8 @@ descripytor extractor       -i input.json -o out_name [-f feather_dir]
 descripytor model           -m {regression,classification} -f features.csv [-t target.csv] [-y output]
                             [--min-features N] [--max-features N] [--top-n N] [--threshold R2]
                             [-j N] [--bool-parallel] [--leave-out NAME ...]
+descripytor renumber        FOLDER [-r REFERENCE] [-o OUT] [--fit {rmsd,msd,mixed,mad,sig,kabsch}] [--sigma S]
+                            [--fit-atoms N ...] [--anchor NAME:REF,ATOM ...] [--stages ...] [--match-charge] [--workers N]
 descripytor logs_to_feather (asks for the log folder)
 descripytor sterimol        (asks for an .xyz folder, atom pairs and radii; writes xyz_sterimol.csv)
 descripytor cube            (asks for a .cube folder and atom pairs; writes cube_sterimol.csv)

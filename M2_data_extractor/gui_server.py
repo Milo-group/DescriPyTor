@@ -928,8 +928,8 @@ def _iter_numbering_check(files, reference, picked, include_xyz, limit_xyz, refe
             if n_ok == len(molecules)
             else (
                 f"{len(molecules) - n_ok} of {len(molecules)} molecules differ "
-                f"from {ref_name} at a picked atom index. Open Conformer Viewer "
-                "to overlay them."
+                f"from {ref_name} at a picked atom index. Align & renumber (below) numbers them like it; "
+                "Conformer Viewer overlays them."
             )
         ),
     }
@@ -1260,6 +1260,157 @@ def extract():
         mimetype="application/x-ndjson",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+import threading
+
+_ALIGN_BUSY = threading.Lock()          # one renumbering at a time: each already takes half the cores
+
+
+def _folder_molecules(directory):
+    """The folder's molecules, loaded as the extraction loads them (same module, same cache)."""
+    ensure_path("")
+    from data_extractor import Molecules
+
+    mols = Molecules(directory)
+    if not mols.molecules:
+        raise ValueError("No molecules could be read in that folder.")
+    return mols
+
+
+@app.route("/align/map", methods=["POST"])
+def align_map():
+    """Number every molecule of a folder like a reference (Conformaty), streamed one molecule at a time as ndjson:
+    start (names, reference and its xyz), molecule (one per molecule, as it finishes), done or error. Closing the
+    request stops it after the molecules already running."""
+    from flask import Response, stream_with_context
+    from queue import Queue
+
+    data = request.json or {}
+    directory = (data.get("directory") or "").strip()
+    if _is_placeholder_path(directory) or not os.path.isdir(directory):
+        return jsonify({"error": "Set a folder of .feather files first."}), 400
+    try:
+        from M2_data_extractor.alignment import _conformaty, map_folder
+
+        _conformaty()
+        mols = _folder_molecules(directory)
+    except (ImportError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    sizes = {m.molecule_name: len(m.xyz_df) for m in mols.molecules}
+    reference = (data.get("reference") or "").strip() or min(sizes, key=lambda k: (sizes[k], k))
+    if reference not in sizes:
+        return jsonify({"error": f"No molecule named {reference!r} in that folder."}), 400
+    try:
+        anchors = {str(name): [(int(r), int(a)) for r, a in pairs] for name, pairs in (data.get("anchors") or {}).items()}
+        workers = int(data["workers"]) if data.get("workers") else None
+    except (TypeError, ValueError):
+        return jsonify({"error": "Anchors are {molecule: [[reference atom, atom], ...]}, workers a number."}), 400
+    stages = [x for x in (data.get("stages") or []) if x in ("complete_rings", "extend_mcs", "coords_proximity_any")]
+    fit = data.get("fit") or "rmsd"
+    try:
+        sigma = float(data.get("sigma") or 30)
+        fit_atoms = [int(a) for a in data.get("fit_atoms") or []] or None
+    except (TypeError, ValueError):
+        return jsonify({"error": "sigma is a number and fit_atoms a list of atom numbers."}), 400
+    if not _ALIGN_BUSY.acquire(blocking=False):
+        return jsonify({"error": "A renumbering is already running. Stop it first, or wait for it."}), 409
+    ref_mol = next(m for m in mols.molecules if m.molecule_name == reference)
+    ref_xyz = _xyz_text_from_coords(ref_mol.xyz_df, reference)[0]
+    stop = threading.Event()
+    q = Queue()
+
+    def progress(ev):
+        if ev.get("event") == "start":
+            ev = dict(ev, ref_xyz=ref_xyz, n_ref=sizes[reference])
+        q.put(ev)
+
+    def worker():
+        import time
+
+        t0 = time.perf_counter()
+        try:
+            map_folder(mols, reference, anchors=anchors, stages=stages or None, match_charge=bool(data.get("match_charge")),
+                       workers=workers, progress=progress, cancelled=stop.is_set, fit=fit, sigma=sigma, fit_atoms=fit_atoms,
+                       isolate=True)
+            q.put({"event": "stopped" if stop.is_set() else "done", "seconds": time.perf_counter() - t0})
+        except Exception as exc:
+            traceback.print_exc()
+            q.put({"event": "error", "error": f"{type(exc).__name__}: {exc}"})
+        finally:
+            _ALIGN_BUSY.release()
+            q.put(None)
+
+    def generate():
+        threading.Thread(target=worker, daemon=True).start()
+        try:
+            while True:
+                ev = q.get()
+                if ev is None:
+                    break
+                yield json.dumps(ev) + "\n"
+        finally:                       # the page closed the request (Stop, or left): no new molecules are started
+            stop.set()
+
+    return Response(stream_with_context(generate()), mimetype="application/x-ndjson",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.route("/align/fits", methods=["POST"])
+def align_fits():
+    """One molecule, in the numbering the page holds (as mapped, or with its swaps), fitted onto the reference every
+    way: Conformaty's five losses and Kabsch, side by side."""
+    from M2_data_extractor.alignment import compare_fits
+
+    data = request.json or {}
+    directory = (data.get("directory") or "").strip()
+    if _is_placeholder_path(directory) or not os.path.isdir(directory):
+        return jsonify({"error": "Set a folder of .feather files first."}), 400
+    try:
+        by = {m.molecule_name: m for m in _folder_molecules(directory).molecules}
+        ref, mol = by[str(data.get("reference"))], by[str(data.get("name"))]
+        old_to_new = {int(k): int(v) for k, v in (data.get("old_to_new") or {}).items()}
+        if sorted(old_to_new.values()) != list(range(1, len(mol.xyz_df) + 1)):
+            raise ValueError("the numbering does not give each atom one new number")
+        order = [o - 1 for o, _n in sorted(old_to_new.items(), key=lambda kv: kv[1])]
+        syms = [str(mol.xyz_df["atom"].iloc[i]) for i in order]
+        coords = mol.xyz_df[["x", "y", "z"]].to_numpy(float)[order]
+        refa = (ref.xyz_df["atom"].astype(str).tolist(), ref.xyz_df[["x", "y", "z"]].to_numpy(float))
+        return jsonify({"fits": compare_fits(refa, syms, coords, float(data.get("sigma") or 30))})
+    except (KeyError, ValueError, TypeError) as exc:
+        return jsonify({"error": f"Cannot compare the fits: {exc}"}), 400
+
+
+@app.route("/align/apply", methods=["POST"])
+def align_apply():
+    """Write the folder renumbered: <folder>/renumbered/<name>.feather from the page's {name: {old: new}} dicts (as
+    mapped, or edited on the page), with renumbering.json. Every dict must be a complete renumbering of its molecule;
+    the originals are never changed."""
+    from M2_data_extractor.alignment import write_renumbered
+
+    data = request.json or {}
+    directory = (data.get("directory") or "").strip()
+    if _is_placeholder_path(directory) or not os.path.isdir(directory):
+        return jsonify({"error": "Set a folder of .feather files first."}), 400
+    try:
+        mols = _folder_molecules(directory)
+        sizes = {m.molecule_name: len(m.xyz_df) for m in mols.molecules}
+        results = {}
+        for name, mapping in (data.get("molecules") or {}).items():
+            if name not in sizes:
+                raise ValueError(f"No molecule named {name!r} in that folder.")
+            old_to_new = {int(k): int(v) for k, v in mapping.items()}
+            full = set(range(1, sizes[name] + 1))
+            if set(old_to_new) != full or set(old_to_new.values()) != full:
+                raise ValueError(f"{name}: the numbering must give each of its {sizes[name]} atoms one new number.")
+            results[name] = {"old_to_new": old_to_new}
+        if not results:
+            raise ValueError("Nothing to write: number the folder first.")
+    except (ValueError, TypeError, AttributeError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    out = os.path.join(os.path.abspath(directory), "renumbered")
+    written, skipped = write_renumbered(mols, results, out, str(data.get("reference") or ""))
+    return jsonify({"out": out, "written": written, "skipped": skipped})
 
 
 def _parse_pasted_outputs(text):

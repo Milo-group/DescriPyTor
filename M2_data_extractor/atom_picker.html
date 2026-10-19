@@ -674,6 +674,76 @@ if (typeof $3Dmol === "undefined") {
   .csearch-body { display:none; padding:20px; }
   .csearch-body.open { display:grid; grid-template-columns:minmax(300px,1fr) minmax(300px,1fr) minmax(260px,.85fr); gap:18px; }
 
+  /* ── Align & renumber ── */
+  .al-body { padding:18px 20px 20px; display:grid; gap:14px; }
+  .al-body[hidden] { display:none; }
+  .al-setup { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+  .al-field { display:flex; flex-direction:column; gap:5px; font-size:10.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.07em; color:var(--muted); }
+  .al-field input, .al-field select, .al-field textarea { font:inherit; font-size:13px; font-weight:400; text-transform:none;
+    letter-spacing:0; color:var(--text); }
+  .al-field.grow { flex:1 1 260px; } .al-field.grow input { width:100%; }
+  .al-field select { min-width:170px; max-width:330px; }
+  .al-opts { font-size:12.5px; }
+  .al-opts > summary { cursor:pointer; color:var(--muted); font-weight:600; width:max-content; }
+  .al-opts-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-top:12px; }
+  .al-opts-grid .wide { grid-column:1 / -1; }
+  .al-opts-grid textarea { width:100%; min-height:44px; resize:vertical; font:12px/1.4 ui-monospace,Menlo,Consolas,monospace; }
+  .al-stages { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12.5px; text-transform:none; letter-spacing:0;
+    font-weight:400; color:var(--text); }
+  .al-check { display:flex; gap:6px; align-items:center; font-size:12.5px; text-transform:none; letter-spacing:0;
+    font-weight:400; color:var(--text); }
+  .al-progress { display:grid; gap:6px; }
+  .al-progress[hidden], .al-main[hidden], .al-foot[hidden] { display:none; }
+  .al-track { height:10px; border-radius:999px; background:rgba(0,0,0,.06); overflow:hidden; }
+  .al-fill { height:100%; width:0; border-radius:999px; background:linear-gradient(90deg,var(--blue),var(--teal));
+    transition:width .4s ease; }
+  .al-track.busy .al-fill { width:28%; animation:al-slide 1.5s ease-in-out infinite; }
+  @keyframes al-slide { from { transform:translateX(-110%); } to { transform:translateX(380%); } }
+  .al-ptext { font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .al-ptext b { color:var(--text); }
+  .al-main { display:grid; grid-template-columns:minmax(300px,1fr) minmax(320px,1.15fr); gap:18px; align-items:start; }
+  @media (max-width:900px) { .al-main { grid-template-columns:1fr; } }
+  .al-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .al-table th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
+    padding:6px 8px; border-bottom:1px solid var(--line); font-weight:700; }
+  .al-table td { padding:7px 8px; border-bottom:1px solid rgba(0,0,0,.045); vertical-align:middle; }
+  .al-table tbody tr { cursor:pointer; }
+  .al-table tbody tr:hover { background:rgba(0,122,255,.04); }
+  .al-table tbody tr.sel { background:rgba(0,122,255,.08); box-shadow:inset 3px 0 0 var(--blue); }
+  .al-table tbody tr:focus-visible { outline:2px solid var(--blue); outline-offset:-2px; }
+  .al-name { font-weight:650; }
+  .al-sub { display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+  .al-chip { display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:650; white-space:nowrap; }
+  .al-chip.same { background:rgba(40,205,65,.13); color:#136b27; }
+  .al-chip.moved { background:rgba(0,122,255,.11); color:#0050c2; }
+  .al-chip.check { background:rgba(255,159,10,.18); color:#7a4300; }
+  .al-chip.fail { background:rgba(255,59,48,.12); color:#a91d14; }
+  .al-chip.ref, .al-chip.wait { background:rgba(0,0,0,.055); color:var(--muted); }
+  .al-chip.edited { background:rgba(94,92,230,.13); color:#4240b8; margin-left:4px; }
+  .al-time { display:flex; align-items:center; gap:8px; min-width:118px; font-variant-numeric:tabular-nums; font-size:11.5px;
+    color:var(--muted); }
+  .al-tbar { flex:1; height:6px; border-radius:999px; background:rgba(0,0,0,.05); overflow:hidden; }
+  .al-tbar i { display:block; height:100%; border-radius:999px; background:var(--indigo); }
+  .al-tbar.wait i { width:28%; background:rgba(0,0,0,.14); animation:al-slide 1.7s ease-in-out infinite; }
+  @media (prefers-reduced-motion:reduce) {
+    .al-track.busy .al-fill, .al-tbar.wait i { animation:none; transform:none; width:100%; opacity:.35; }
+    .al-fill { transition:none; }
+  }
+  .al-view { display:grid; gap:8px; position:sticky; top:12px; }
+  .al-stage { height:430px; border-radius:var(--r); overflow:hidden; background:#fff; border:1px solid var(--line);
+    display:grid; place-items:center; color:var(--muted); font-size:13px; text-align:center; padding:0; }
+  .al-legend { display:flex; flex-wrap:wrap; gap:8px 14px; font-size:11.5px; color:var(--muted); align-items:center; }
+  .al-legend .key i { display:inline-block; width:9px; height:9px; border-radius:50%; border:2.5px solid; margin-right:5px;
+    vertical-align:-1px; }
+  .al-legend .al-check { font-size:11.5px; color:var(--muted); }
+  .al-legend button { margin-left:auto; }
+  .al-detail { font-size:12.5px; line-height:1.55; }
+  .al-detail code { font-size:11.5px; }
+  .al-foot { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding-top:12px; border-top:1px solid var(--line); }
+  .al-note { font-size:12px; color:var(--muted); }
+  button.al-on { background:rgba(255,159,10,.16); border-color:rgba(255,159,10,.5); }
+
   /* ── Conformer Search internals ── */
   .cs-h2 { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.10em; color:var(--muted); margin:0 0 12px; }
   .prog-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 12px; }
@@ -876,6 +946,7 @@ if (typeof $3Dmol === "undefined") {
         <span id="numberingMsg">Optional: check that picked atoms are the same element in every file. This loads the whole folder, so it only runs when you ask.</span>
         <button type="button" id="checkNumberingBtn">Check numbering</button>
         <button type="button" id="viewNumberingBtn">View in Conformer Viewer</button>
+        <button type="button" id="alOpenBtn" title="Number every molecule of the folder like one of them (Conformaty)">Align &amp; renumber&hellip;</button>
         <div class="work-progress" id="numberingProgress" hidden role="progressbar" aria-label="Numbering check progress">
           <div class="work-progress-bar" id="numberingProgressBar"></div>
         </div>
@@ -1122,6 +1193,76 @@ if (typeof $3Dmol === "undefined") {
 
   </div><!-- /#rightCol -->
 </div><!-- /.wrap -->
+
+<!-- ── Align & renumber (Conformaty) ─────────────────────────────────── -->
+<section class="cview-bar" id="alignBar" aria-labelledby="alTitle">
+  <div class="cview-head" id="alHead" role="button" tabindex="0" aria-expanded="false" aria-controls="alBody">
+    <b id="alTitle" style="font-size:14px;">Align &amp; renumber</b>
+    <span class="pill">CONFORMATY</span>
+    <span class="small" style="flex:1;color:var(--muted)">Number every molecule of the folder like one reference, check each on the molecule, write a renumbered copy</span>
+    <span id="alChevron" style="color:var(--muted);font-size:12px;">&#9660; expand</span>
+  </div>
+  <div class="al-body" id="alBody" hidden>
+    <div class="al-setup">
+      <label class="al-field grow">Folder <input id="alDir" readonly title="The feather folder of 1 · Load"></label>
+      <label class="al-field">Reference <select id="alRef"></select></label>
+      <label class="al-field">Fit <select id="alFit">
+        <option value="rmsd">rmsd: smallest overall deviation (default)</option>
+        <option value="msd">msd: mean squared deviation</option>
+        <option value="mixed">mixed: most atoms in near-exact overlap (can stall)</option>
+        <option value="mad">mad: mean absolute deviation</option>
+        <option value="sig">sig: sigmoid only (can stall far away)</option>
+        <option value="kabsch">kabsch: closed-form least squares</option>
+      </select></label>
+      <button class="primary" id="alRun" type="button">Number atoms</button>
+      <button id="alStop" type="button" hidden>Stop</button>
+    </div>
+    <details class="al-opts" id="alOpts"><summary>More options</summary>
+      <div class="al-opts-grid">
+        <div class="al-field">Stages, in this order
+          <div class="al-stages">
+            <label><input type="checkbox" data-al-stage="complete_rings" checked> complete rings</label>
+            <label><input type="checkbox" data-al-stage="extend_mcs" checked> extend the common part</label>
+            <label><input type="checkbox" data-al-stage="coords_proximity_any" checked> any element by position</label>
+          </div>
+        </div>
+        <label class="al-field">Sigma (mixed and sig) <input id="alSigma" type="number" value="30" min="1" step="1"></label>
+        <label class="al-field">Fit on reference atoms <input id="alFitAtoms" placeholder="heavy atoms (default), or 1-9 12"></label>
+        <label class="al-field">Molecules at a time <input id="alWorkers" type="number" value="1" min="1" max="32"></label>
+        <label class="al-check"><input type="checkbox" id="alCharge"> Match charges and radicals in the common part</label>
+        <label class="al-field wide">Anchors: one per line, molecule: reference atom, its atom
+          <textarea id="alAnchors" placeholder="m_Br: 9, 9"></textarea></label>
+      </div>
+    </details>
+    <div class="al-progress" id="alProgress" hidden>
+      <div class="al-track" id="alTrack" role="progressbar" aria-label="Renumbering progress" aria-valuemin="0" aria-valuemax="100"><div class="al-fill" id="alFill"></div></div>
+      <div class="al-ptext" id="alPText" aria-live="polite"></div>
+    </div>
+    <div class="al-main" id="alMain" hidden>
+      <div>
+        <table class="al-table"><thead><tr><th>Molecule</th><th>Numbering</th><th>Time</th></tr></thead><tbody id="alRows"></tbody></table>
+      </div>
+      <div class="al-view">
+        <div class="al-stage" id="alStage">Choose a molecule to see it on its reference</div>
+        <div class="al-legend">
+          <span class="key"><i style="border-color:#7c3aed"></i>renumbered</span>
+          <span class="key"><i style="border-color:#f59e0b"></i>another element</span>
+          <span class="key"><i style="border-color:#3b9dff"></i>your picks</span>
+          <label class="al-check"><input type="checkbox" id="alGhost" checked> reference, faint</label>
+          <label class="al-check"><input type="checkbox" id="alLabels" checked> numbers</label>
+          <button type="button" id="alSwap" title="Click two atoms of this molecule to exchange their numbers">Swap two atoms</button>
+        </div>
+        <div class="al-detail" id="alDetail"></div>
+      </div>
+    </div>
+    <div class="al-foot" id="alFoot" hidden>
+      <button class="primary" id="alWrite" type="button">Write renumbered folder</button>
+      <button id="alUse" type="button" hidden>Use it for extraction</button>
+      <button id="alJson" type="button">Download renumbering.json</button>
+      <span class="al-note" id="alNote">The originals are not changed: the copies go to a <code>renumbered</code> folder inside this one.</span>
+    </div>
+  </div>
+</section>
 
 <!-- ── Conformer Search (advanced) ─────────────────────────────────── -->
 <details class="advanced-box" style="margin:12px 18px 18px" id="cviewDetails">
@@ -4526,6 +4667,340 @@ document.addEventListener('drop', e=>e.preventDefault());
 
 /* The server this page talks to (the explorer frame, the BASSA hand-off, the explorer links) */
 const MODEL_SERVER = location.protocol.startsWith("http") ? location.origin : "http://127.0.0.1:7432";   // any --port, not only the default
+/* ================================================================== *
+ * Align & renumber: Conformaty numbers every molecule of the folder   *
+ * like a reference (/align/map, one molecule at a time); each one is  *
+ * checked on its own view, numbers can be swapped by hand, and        *
+ * /align/apply writes <folder>/renumbered.                            *
+ * ================================================================== */
+const AL = { open: false, res: {}, names: [], ref: "", refXyz: "", refEls: [], sel: "", ctl: null, t0: 0, timer: 0,
+  n: 0, done: 0, workers: 1, frame: null, ready: false, pending: null, swap: null, out: "" };
+
+function alDir() { return ($("featherDirInput") && $("featherDirInput").value.trim()) || ""; }
+function alEls(xyz) { return String(xyz || "").trim().split(/\r?\n/).slice(2).map(l => l.trim().split(/\s+/)[0]); }
+function alClock(sec) { sec = Math.max(0, Math.round(sec)); return sec >= 60 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}` : `${sec} s`; }
+function alAtomRange(text) {                      // "1-9 12" -> [1..9, 12]
+  return String(text || "").split(/[\s,]+/).filter(Boolean).flatMap(t => {
+    const m = t.match(/^(\d+)-(\d+)$/);
+    return m ? Array.from({ length: Math.max(0, m[2] - m[1] + 1) }, (_, k) => +m[1] + k) : [+t];
+  }).filter(n => Number.isInteger(n) && n > 0);
+}
+function alAnchors(text) {                        // "m_Br: 9, 9" lines -> {m_Br: [[9, 9]]}
+  const out = {};
+  String(text || "").split(/\r?\n/).forEach(line => {
+    const m = line.match(/^\s*([^:]+?)\s*:\s*(\d+)\s*[, ]\s*(\d+)\s*$/);
+    if (m) (out[m[1]] = out[m[1]] || []).push([+m[2], +m[3]]);
+  });
+  return out;
+}
+
+function alToggle(force) {
+  AL.open = typeof force === "boolean" ? force : !AL.open;
+  $("alBody").hidden = !AL.open;
+  $("alHead").classList.toggle("open", AL.open);
+  $("alHead").setAttribute("aria-expanded", String(AL.open));
+  $("alChevron").textContent = AL.open ? "▲ collapse" : "▼ expand";
+  if (AL.open) alPrepare();
+}
+
+async function alPrepare() {
+  const dir = alDir();
+  $("alDir").value = dir || "Set the folder in 1 · Load first";
+  if (!dir || AL.ctl) return;
+  try {
+    const r = await fetch("/folder/summary", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ directory: dir }) });
+    const d = await r.json();
+    const names = d.names || [];
+    const keep = $("alRef").value;
+    $("alRef").innerHTML = `<option value="">the smallest molecule</option>` +
+      names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+    const shown = String(lastModelName || "").replace(/\.(feather|ftr|xyz)$/i, "");
+    $("alRef").value = names.includes(keep) ? keep : names.includes(shown) ? shown : "";
+  } catch (_) { /* the run reports a missing folder */ }
+}
+
+function alChip(name) {
+  const r = AL.res[name];
+  if (name === AL.ref) return { cls: "ref", text: "reference", sub: `${AL.refEls.length} atoms` };
+  if (!r) return { cls: "wait", text: "waiting", sub: "" };
+  if (r.error) return { cls: "fail", text: "failed", sub: r.error };
+  const els = alEls(r.xyz);
+  const heavy = r.differs.filter(i => AL.refEls[i - 1] !== "H");          // a heavy atom of the reference became another element
+  const subst = r.differs.filter(i => AL.refEls[i - 1] === "H");          // an H became something: a substituent
+  const loose = r.stage.filter((st, k) => st === "fill_unmapped" && k < AL.refEls.length).length;
+  const moved = Object.entries(r.old_to_new).filter(([o, n]) => +o !== +n).length;
+  const bits = [];
+  if (subst.length) bits.push(`substituent at ${subst.join(", ")}`);
+  if (r.rmsd != null) bits.push(`RMSD ${r.rmsd.toFixed(2)} Å`);
+  if (alStalled(r)) bits.push(`the ${r.fit} fit stalled: Kabsch ${r.rmsd_kabsch.toFixed(2)} Å`);
+  if (heavy.length || loose)
+    return { cls: "check", text: heavy.length ? `check: ${heavy.map(i => `${AL.refEls[i - 1]}${i} is ${els[i - 1]}`).join(", ")}`
+      : `check: ${loose} atom${loose > 1 ? "s" : ""} unmatched`, sub: bits.join(" · ") };
+  return { cls: moved ? "moved" : "same", text: moved ? `renumbered ${moved}` : "same numbering", sub: bits.join(" · ") };
+}
+
+function alStalled(r) { return !!r && r.rmsd != null && r.rmsd_kabsch != null && r.rmsd - r.rmsd_kabsch > 0.5; }
+
+function alRow(name) {
+  const r = AL.res[name], c = alChip(name);
+  const max = Math.max(1, ...Object.values(AL.res).map(x => (x && x.seconds) || 0));
+  const time = name === AL.ref ? "" : !r ? `<span class="al-tbar wait"><i></i></span>`
+    : `<span class="al-tbar"><i style="width:${Math.max(3, 100 * (r.seconds || 0) / max)}%"></i></span>${(r.seconds || 0).toFixed(1)} s`;
+  return `<tr data-al="${esc(name)}" tabindex="0" class="${AL.sel === name ? "sel" : ""}">
+    <td><span class="al-name">${esc(name)}</span></td>
+    <td><span class="al-chip ${c.cls}">${esc(c.text)}</span>${r && r.edited ? `<span class="al-chip edited">edited</span>` : ""}
+      ${c.sub ? `<span class="al-sub">${esc(c.sub)}</span>` : ""}</td>
+    <td><span class="al-time">${time}</span></td></tr>`;
+}
+function alRows() {
+  const rank = n => n === AL.ref ? 0 : !AL.res[n] ? 5 : AL.res[n].error ? 1 : { check: 2, moved: 3, same: 4 }[alChip(n).cls] || 4;
+  const names = [AL.ref, ...AL.names].filter(Boolean).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+  $("alRows").innerHTML = names.map(alRow).join("");
+}
+
+function alProgress() {
+  const el = $("alPText"), n = AL.n, done = AL.done;
+  const elapsed = (performance.now() - AL.t0) / 1000;
+  const times = Object.values(AL.res).map(r => r && !r.error && r.seconds).filter(Boolean);
+  const each = times.length ? times.reduce((a, b) => a + b, 0) / times.length : 0;
+  const left = each ? (n - done) * each / AL.workers : 0;
+  $("alFill").style.width = n ? `${100 * done / n}%` : "0%";
+  $("alTrack").classList.toggle("busy", !!AL.ctl && done === 0);
+  $("alTrack").setAttribute("aria-valuenow", String(n ? Math.round(100 * done / n) : 0));
+  if (AL.ctl && !n) el.innerHTML = `Starting Conformaty · ${alClock(elapsed)}`;
+  else if (AL.ctl && done === n) el.innerHTML = `<b>${n} of ${n}</b> numbered · finishing · ${alClock(elapsed)}`;
+  else if (AL.ctl) el.innerHTML = `<b>${done} of ${n}</b> numbered like <b>${esc(AL.ref)}</b>` +
+    (each ? ` · ${each.toFixed(1)} s each · about ${alClock(left)} left` : " · the first one takes a while") +
+    ` · ${alClock(elapsed)}${AL.workers > 1 ? ` · ${AL.workers} at a time` : ""}`;
+}
+
+async function alRun() {
+  const dir = alDir();
+  if (!dir) { $("alPText").textContent = "Set the folder of .feather files in 1 · Load first."; $("alProgress").hidden = false; return; }
+  const stages = [...document.querySelectorAll("[data-al-stage]")].filter(b => b.checked).map(b => b.dataset.alStage);
+  if (!stages.length) { $("alPText").textContent = "Keep at least one stage on."; $("alProgress").hidden = false; return; }
+  AL.res = {}; AL.names = []; AL.sel = ""; AL.done = 0; AL.n = 0; AL.out = ""; AL.swap = null;
+  AL.ctl = new AbortController(); AL.t0 = performance.now();
+  AL.workers = Math.max(1, +$("alWorkers").value || 1);
+  $("alRun").disabled = true; $("alStop").hidden = false; $("alProgress").hidden = false; $("alFoot").hidden = true;
+  $("alUse").hidden = true; $("alMain").hidden = true;
+  $("alPText").textContent = "Reading the folder…";
+  AL.timer = setInterval(alProgress, 1000);
+  try {
+    const r = await fetch("/align/map", { method: "POST", headers: { "Content-Type": "application/json" }, signal: AL.ctl.signal,
+      body: JSON.stringify({ directory: dir, reference: $("alRef").value, fit: $("alFit").value, sigma: +$("alSigma").value || 30,
+        fit_atoms: alAtomRange($("alFitAtoms").value), workers: AL.workers, stages, match_charge: $("alCharge").checked,
+        anchors: alAnchors($("alAnchors").value) }) });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = "", end = null;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n"); buf = lines.pop();
+      for (const line of lines.filter(Boolean)) {
+        const ev = JSON.parse(line);
+        if (ev.event === "start") {
+          AL.ref = ev.reference; AL.refXyz = ev.ref_xyz; AL.refEls = alEls(ev.ref_xyz); AL.names = ev.names; AL.n = ev.n;
+          AL.workers = ev.workers; $("alMain").hidden = false; alRows(); alSelect(AL.ref);
+        } else if (ev.event === "molecule") {
+          AL.res[ev.name] = ev.result || { error: ev.error }; AL.done = ev.i;
+          if (AL.res[ev.name].old_to_new) AL.res[ev.name].orig = JSON.stringify(AL.res[ev.name]);
+          alRows();
+          if (AL.sel === AL.ref && !AL.res[ev.name].error && AL.done === 1) alSelect(ev.name);
+        } else if (ev.event === "error") throw new Error(ev.error);
+        else end = ev;
+        alProgress();
+      }
+    }
+    const bad = Object.values(AL.res).filter(x => x.error).length;
+    $("alPText").innerHTML = (end && end.event === "stopped" ? `Stopped after <b>${AL.done} of ${AL.n}</b>` : `<b>${AL.done} of ${AL.n}</b> numbered like <b>${esc(AL.ref)}</b>`) +
+      ` in ${alClock((performance.now() - AL.t0) / 1000)}` + (bad ? ` · ${bad} failed (left out when writing)` : "") +
+      ". Check the amber rows on the molecule, swap numbers if needed, then write the folder.";
+    $("alFoot").hidden = false;
+  } catch (err) {
+    if (err.name !== "AbortError") $("alPText").textContent = "Renumbering failed: " + err.message;
+    if (Object.keys(AL.res).length) $("alFoot").hidden = false;
+  } finally {
+    clearInterval(AL.timer); AL.ctl = null;
+    $("alRun").disabled = false; $("alStop").hidden = true;
+    $("alFill").style.width = AL.n ? `${100 * AL.done / AL.n}%` : "0%"; $("alTrack").classList.remove("busy");
+  }
+}
+
+/* the molecule on its own view: the feature explorer in figure mode, as the main one */
+function alFrame() {
+  if (AL.frame && AL.frame.isConnected) return AL.frame;
+  AL.ready = false;
+  AL.frame = document.createElement("iframe");
+  AL.frame.title = "Renumbered molecule on its reference";
+  AL.frame.style.cssText = "display:block;width:100%;height:100%;border:0;background:#fff";
+  AL.frame.srcdoc = window.FEATURE_EXPLORER_HTML.replace("<head>", "<head><script>window.FEATURE_EMBED = " +
+    JSON.stringify({ figure: true, theme: "light", api: MODEL_SERVER }) + ";<\/script>");
+  $("alStage").innerHTML = ""; $("alStage").appendChild(AL.frame);
+  return AL.frame;
+}
+window.addEventListener("message", (e) => {
+  if (!AL.frame || e.source !== AL.frame.contentWindow) return;
+  const d = e.data || {};
+  if (d.type === "feature:ready") {
+    AL.ready = true;
+    if (AL.pending) { AL.frame.contentWindow.postMessage(AL.pending, "*"); AL.pending = null; }
+  } else if (d.type === "feature:atom" && Number.isInteger(d.i) && AL.swap) alSwapPick(d.i);
+});
+function alPost(session, keepView) {
+  const msg = { type: "feature:session", s: session, keepView };
+  if (AL.ready) AL.frame.contentWindow.postMessage(msg, "*"); else AL.pending = msg;
+}
+
+function alSelect(name, keepView) {
+  if (!window.FEATURE_EXPLORER_HTML || !name) return;
+  AL.sel = name;
+  [...$("alRows").querySelectorAll("tr")].forEach(tr => tr.classList.toggle("sel", tr.dataset.al === name));
+  const r = AL.res[name], isRef = name === AL.ref;
+  if (r && r.error) { $("alDetail").innerHTML = `<b>${esc(name)}</b> could not be numbered: ${esc(r.error)}`; return; }
+  const xyz = isRef ? AL.refXyz : r && r.xyz;
+  if (!xyz) { $("alDetail").textContent = `${name} is still waiting.`; return; }
+  const n = alEls(xyz).length, inRange = a => a >= 1 && a <= n;
+  const marks = [];
+  const ring = (atoms, color, text) => atoms.forEach(a => marks.push({ atoms: [a], color, text: text || "", ring: true }));   // one mark each: a mark of several atoms is drawn as a line through them
+  const moved = isRef ? [] : Object.entries(r.old_to_new).filter(([o, v]) => +o !== +v).map(([, v]) => +v);
+  if (moved.length && moved.length <= 8) ring(moved, "#7c3aed");          // a few moved atoms are worth pointing at; a reshuffled file is not
+  if (!isRef) ring(r.differs.filter(inRange), "#f59e0b");
+  ring((typeof flattenPickedIndices === "function" ? flattenPickedIndices() : []).filter(inRange), "#3b9dff");
+  if (AL.swap && AL.swap.length) ring(AL.swap, "#ff9f0a", "swap");
+  const structs = [{ name, key: "al", xyz, color: "#1F2937", on: true, own: "", dipole: null, charges: null }];
+  if (!isRef && $("alGhost").checked)
+    structs.push({ name: AL.ref, key: "alref", xyz: AL.refXyz, color: "#A9B4C2", on: true, own: "", dipole: null, charges: null });
+  alFrame();
+  alPost({ v: 1, active: 0, align: { mode: "none", atoms: "", spread: 0 }, sm: { q: "", any: true, all: true },
+    L: { axes: [], active: -1, dip: { on: false, origin: "", y: "", plane: "", show: {} }, sites: [], marks, arrows: [], cones: [],
+      vburs: [], map: "", fade: "", fadeOff: false, fadeHide: false, legend: false, labShift: {} },
+    style: { atomLabels: $("alLabels").checked ? "num" : "off", labelAtoms: null, labelScale: 1.35 }, structs }, !!keepView);
+  if (isRef) { $("alDetail").innerHTML = `<b>${esc(name)}</b> is the reference: every other molecule is numbered like it.`; return; }
+  const stages = {};
+  r.stage.forEach(st => { const g = /mcs|ring|hydrogen/.test(st) ? "the common part" : st === "fill_unmapped" ? "nothing (numbered last)" : st ? "position" : "—"; stages[g] = (stages[g] || 0) + 1; });
+  $("alDetail").innerHTML = `<b>${esc(name)}</b> · ${n} atoms · fitted with <code>${esc(r.fit || "rmsd")}</code>` +
+    (r.rmsd != null ? ` · RMSD ${r.rmsd.toFixed(2)} Å${r.edited ? " (before your swaps)" : ""}` : "") +
+    (alStalled(r) ? ` · <b>this fit stalled</b>: Kabsch puts it at ${r.rmsd_kabsch.toFixed(2)} Å (Compare fits)` : "") + `<br>` +
+    (!moved.length ? "Its numbering already matches." : moved.length > 8 ? `${moved.length === n ? "All" : moved.length + " of"} its ${n} atoms renumbered (old→new in renumbering.json).`
+      : `Renumbered: ${Object.entries(r.old_to_new).filter(([o, v]) => +o !== +v).map(([o, v]) => `${o}→${v}`).join(", ")}`) + `<br>Matched by ${Object.entries(stages).map(([k, v]) => `${k} ${v}`).join(", ")}.` +
+    (AL.swap ? `<br><b>Swap:</b> click ${AL.swap.length ? "the second atom" : "the first atom"} on the molecule.` : "") +
+    `<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" id="alCompare">Compare fits</button>` +
+    (r.edited ? `<button type="button" id="alUndo">Undo my swaps</button>` : "") + `</div><div id="alFits"></div>`;
+  $("alCompare").onclick = () => alCompare(name);
+  if ($("alUndo")) $("alUndo").onclick = () => { Object.assign(r, JSON.parse(r.orig)); r.edited = false; alRows(); alSelect(name, true); };
+}
+
+async function alCompare(name) {
+  const r = AL.res[name], box = $("alFits");
+  box.innerHTML = `<span class="al-note">Fitting ${esc(name)} six ways…</span>`;
+  try {
+    const q = await fetch("/align/fits", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ directory: alDir(), reference: AL.ref, name, old_to_new: r.old_to_new, sigma: +$("alSigma").value || 30 }) });
+    const d = await q.json();
+    if (!q.ok) throw new Error(d.error || `HTTP ${q.status}`);
+    const best = Math.max(...d.fits.map(f => f.within));
+    box.innerHTML = `<table class="al-table" style="margin-top:6px"><thead><tr><th>Fit</th><th>RMSD</th><th>heavy atoms</th>
+      <th>within 0.25 Å</th><th>time</th></tr></thead><tbody>` + d.fits.map(f => `<tr data-fit="${f.fit}" tabindex="0"
+      class="${f.fit === r.fit ? "sel" : ""}"><td><code>${f.fit}</code></td><td>${f.rmsd == null ? "" : f.rmsd.toFixed(3) + " Å"}</td>
+      <td>${f.rmsd_heavy == null ? "" : f.rmsd_heavy.toFixed(3) + " Å"}</td><td>${f.within} / ${f.n}${f.within === best ? " ★" : ""}</td>
+      <td>${f.seconds.toFixed(1)} s</td></tr>`).join("") + `</tbody></table>
+      <span class="al-note">Fitted on the heavy atoms (as Conformaty's align) unless you name the atoms; RMSD over every
+      atom with the reference's element. Click a fit to show it. Kabsch has the smallest RMSD by construction; mixed puts
+      the most atoms in near-exact overlap. The fit changes the picture and the RMSD, not the numbering.</span>`;
+    box.querySelectorAll("tr[data-fit]").forEach(tr => tr.onclick = () => {
+      const f = d.fits.find(x => x.fit === tr.dataset.fit);
+      r.xyz = f.xyz; r.rmsd = f.rmsd; r.fit = f.fit; alRows(); alSelect(name, true);
+    });
+  } catch (err) { box.textContent = "Not compared: " + err.message; }
+}
+
+function alSwapPick(i) {
+  if (!AL.sel || AL.sel === AL.ref || !AL.res[AL.sel] || AL.res[AL.sel].error) return;
+  AL.swap.push(i);
+  if (AL.swap.length === 2) {
+    alSwapAtoms(AL.res[AL.sel], AL.swap[0], AL.swap[1], AL.refEls);
+    AL.swap = null; $("alSwap").classList.remove("al-on"); alRows();
+  }
+  alSelect(AL.sel, true);
+}
+function alSwapAtoms(r, a, b, refEls) {          // exchange the new numbers a and b, in the dict, the xyz and the stages
+  if (a === b) return;
+  const oldOf = {};
+  Object.entries(r.old_to_new).forEach(([o, v]) => { oldOf[v] = o; });
+  r.old_to_new[oldOf[a]] = b; r.old_to_new[oldOf[b]] = a;
+  const lines = r.xyz.split("\n"); [lines[a + 1], lines[b + 1]] = [lines[b + 1], lines[a + 1]]; r.xyz = lines.join("\n");
+  [r.stage[a - 1], r.stage[b - 1]] = [r.stage[b - 1], r.stage[a - 1]];
+  const els = alEls(r.xyz);
+  r.differs = refEls.map((e, k) => e !== els[k] ? k + 1 : 0).filter(Boolean);
+  r.edited = true;
+}
+
+async function alWrite() {
+  const molecules = {};
+  Object.entries(AL.res).forEach(([name, r]) => { if (r.old_to_new) molecules[name] = r.old_to_new; });
+  molecules[AL.ref] = Object.fromEntries(AL.refEls.map((_, k) => [k + 1, k + 1]));
+  $("alWrite").disabled = true; $("alNote").textContent = "Writing…";
+  try {
+    const r = await fetch("/align/apply", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ directory: alDir(), reference: AL.ref, molecules }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    AL.out = d.out;
+    $("alNote").innerHTML = `Wrote ${d.written.length} molecules and <code>renumbering.json</code> to <code>${esc(d.out)}</code>` +
+      (d.skipped.length ? `; left out: ${esc(d.skipped.join(", "))}` : "") + ".";
+    $("alUse").hidden = false;
+  } catch (err) { $("alNote").textContent = "Not written: " + err.message; }
+  finally { $("alWrite").disabled = false; }
+}
+function alUse() {
+  if (!AL.out) return;
+  $("featherDirInput").value = AL.out;
+  $("featherDirInput").dispatchEvent(new Event("input"));
+  $("alDir").value = AL.out;
+  $("alNote").textContent = "The renumbered folder is now the one extracted. Checking its numbering on your picks…";
+  if (typeof checkNumbering === "function") checkNumbering();
+}
+function alJson() {
+  const molecules = {};
+  Object.entries(AL.res).forEach(([k, r]) => { molecules[k] = r.error ? { error: r.error } : { old_to_new: r.old_to_new, edited: !!r.edited, rmsd: r.rmsd, fit: r.fit }; });
+  const blob = new Blob([JSON.stringify({ reference: AL.ref, folder: alDir(), molecules }, null, 1)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "renumbering.json"; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+$("alHead").onclick = () => alToggle();
+$("alHead").onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); alToggle(); } };
+$("alOpenBtn").onclick = () => { alToggle(true); $("alignBar").scrollIntoView({ behavior: "smooth", block: "start" }); };
+$("alRun").onclick = alRun;
+$("alStop").onclick = () => {
+  if (AL.ctl) AL.ctl.abort();
+  $("alPText").textContent = "Stopped. A molecule already running finishes in the background before the next run can start.";
+};
+$("alWrite").onclick = alWrite;
+$("alUse").onclick = alUse;
+$("alJson").onclick = alJson;
+$("alSwap").onclick = () => {
+  AL.swap = AL.swap ? null : [];
+  $("alSwap").classList.toggle("al-on", !!AL.swap);
+  if (AL.sel) alSelect(AL.sel, true);
+};
+["alGhost", "alLabels"].forEach(id => { $(id).onchange = () => AL.sel && alSelect(AL.sel, true); });
+$("alRows").onclick = (e) => { const tr = e.target.closest("tr[data-al]"); if (tr) { AL.swap = null; $("alSwap").classList.remove("al-on"); alSelect(tr.dataset.al); } };
+$("alRows").onkeydown = (e) => {
+  const tr = e.target.closest("tr[data-al]");
+  if (!tr) return;
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); alSelect(tr.dataset.al); }      // not the picker's Enter (commit a group)
+  else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault(); e.stopPropagation();
+    const next = e.key === "ArrowDown" ? tr.nextElementSibling : tr.previousElementSibling;
+    if (next) { next.focus(); alSelect(next.dataset.al); }
+  }
+};
+
 /* ================================================================== *
  * Boot: the last session's molecule, else the example molecule.       *
  * ================================================================== */

@@ -76,7 +76,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:      # feature_packages
 def _add_descripytor_to_path(root_dir: str) -> None:
     """Append the DescriPytor sub-packages to sys.path (idempotent)."""
     root_dir = str(root_dir)
-    for sub in ("", "M3_modeler", "M2_data_extractor", "utils", "MolAlign"):
+    for sub in ("", "M3_modeler", "M2_data_extractor", "utils"):
         p = os.path.join(root_dir, sub) if sub else root_dir
         if p not in sys.path and os.path.isdir(p):
             sys.path.append(p)

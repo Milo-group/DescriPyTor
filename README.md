@@ -55,7 +55,7 @@ Optional extras, added the same way (`pip install "descripytor[bassa]"`, or `pip
 | Extra | Unlocks |
 |---|---|
 | `bassa` | `bassa-reg`, the spike-and-slab sampler behind new tables in the BASSA model explorer |
-| `align` | `torch`, for MolAlign automatic atom renumbering |
+| `align` | `torch`, for atom renumbering with [Conformaty](https://github.com/Milo-group/Conformaty) (install it too: `pip install git+https://github.com/Milo-group/Conformaty`) |
 | `engines` | mordred, deepchem, ase: extra descriptor engines |
 | `explain` | SHAP model reports |
 | `bayes` | pymc / arviz |
@@ -418,8 +418,10 @@ Protocol format and every flag: [docs/PIPELINE.md](https://github.com/Milo-group
 
 ## More tools
 
-- **Atom renumbering** (`MolAlign/`): matches atom numbering across a series so descriptors line up. Needs `torch`
-  (`pip install -e ".[align]"`), then `python MolAlign/renumbering.py --help`.
+- **Atom renumbering** with [Conformaty](https://github.com/Milo-group/Conformaty): numbers every molecule of a
+  folder like a reference so descriptors line up. `descripytor renumber feathers/ -r basic`, or **Align & renumber**
+  at the bottom of the visual extractor. Needs `pip install -e ".[align]"` and
+  `pip install git+https://github.com/Milo-group/Conformaty`.
 - **Other descriptor engines** in one pass (RDKit, Mordred, DeepChem, morfeus, AQME/xTB), merged into one CSV:
   [descriptor_extraction_toolkit/README.md](https://github.com/Milo-group/DescriPyTor/blob/main/Getting_started_with_examples/descriptor_extraction_toolkit/README.md).
 - **Old definitions on request**: `with descripytor.compat.paper_v3(): ...` computes with the definitions of the
@@ -458,7 +460,6 @@ M2_data_extractor/              descriptor extraction: Molecules, Molecule, Meta
   feature_explorer/               the feature explorer: sources, build.py, and the gates that check it against the Python
 M3_modeler/                     model search, ridge_search, validation
   bassa_explorer/                 the BASSA model explorer: page, server, sampler set-up, a bundled example
-MolAlign/                       alignment and atom renumbering
 utils/                          shared file handling, geometry, visualization
 Getting_started_with_examples/  notebooks, example data, the multi-engine toolkit
 docs/                           manuals, images, animations

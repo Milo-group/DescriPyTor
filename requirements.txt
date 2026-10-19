@@ -3,7 +3,7 @@
 # it installs DescriPyTor in editable mode along with everything it needs.
 #
 # Optional extras, if you want them:
-#   pip install -e ".[align]"     torch, for MolAlign atom renumbering
+#   pip install -e ".[align]"     torch, for atom renumbering (also: pip install git+https://github.com/Milo-group/Conformaty)
 #   pip install -e ".[engines]"   mordred, deepchem, ase
 #   pip install -e ".[bayes]"     pymc + arviz
 #   pip install -e ".[explain]"   shap

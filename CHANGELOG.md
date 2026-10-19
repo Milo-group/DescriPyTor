@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Added: atom renumbering with Conformaty
+
+- **`descripytor renumber FOLDER -r REFERENCE`** numbers every molecule of a folder like the reference with
+  [Conformaty](https://github.com/Milo-group/Conformaty) (the lab's package, now installable:
+  `pip install git+https://github.com/Milo-group/Conformaty`). The copies and `renumbering.json` (the `{old: new}` dict
+  of every molecule) go to `<folder>/renumbered`; the originals are not changed. A progress bar with the time left, one
+  line per molecule: what moved, which reference atoms are another element there, the RMSD of the overlay.
+- **Align & renumber** at the bottom of the visual extractor does the same in the browser: molecules appear as they
+  finish, with a time bar each and those to check first; a click shows the molecule renumbered on its reference (drawn
+  faint), with renumbered atoms, other elements and the picks ringed; *Swap two atoms* edits a numbering by clicking;
+  *Compare fits* fits a molecule every way side by side; *Write renumbered folder* and *Use it for extraction* switch
+  the page to the result and check the picks' numbering there.
+- The overlay's fit is a choice: Conformaty's losses (`rmsd`, the default; `msd`; `mixed`, its own default; `mad`;
+  `sig`) or `kabsch`, on the heavy atoms as Conformaty's `align` fits. On the example set rmsd, msd and Kabsch agree on
+  all nine; mixed and mad stall about 6 Å away on five (ortho and para), sig on all, also in Conformaty's own `align`,
+  so a fit more than 0.5 Å worse than Kabsch is reported as stalled. The numbering itself keeps Conformaty's default.
+- `Molecules.get_renumbering_dict(reference)` uses it too (no xyz export, no change of directory) and returns the dicts.
+
+### Removed
+
+- `MolAlign/`, the old copy of the alignment code that Conformaty replaces.
+- A debugging `print` of the energy table in `save_to_feather`.
+
 ### Security
 
 - **The visual extractor's server answers only pages opened from this computer.** It allowed every origin, so any

@@ -201,7 +201,6 @@ def save_to_feather(
 
     # Energy
     ev_val = None
-    print(ev_df)
     if ev_df is not None and not ev_df.empty:
         try:
             ev_val = float(ev_df.iloc[0, 0])

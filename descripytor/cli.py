@@ -302,6 +302,7 @@ Batch commands:
   extractor          descriptors for a folder of .feather files, from an input file of atom choices
   model              search regression or classification models over a feature table
   pipeline           SMILES -> structures -> chained cluster stages (GOAT / UMA / xTB / ORCA / Gaussian)
+  renumber           number every molecule of a folder like a reference (Conformaty)
 
 Converters (they ask for their inputs):
   logs_to_feather    Gaussian .log files -> .feather
@@ -314,6 +315,7 @@ CLI_EPILOG = """examples:
   descripytor extractor -i input.json -o features -f feathers/
   descripytor model -m regression -f features.csv -t targets.csv --min-features 2 --max-features 3
   descripytor pipeline status protocol.json
+  descripytor renumber feathers/ -r basic
 
 `descripytor <command> --help` lists the options of one command. Older names still work:
 visual = visual_extractor, theta = feature_explorer, bassa = bassa_explorer.
@@ -393,6 +395,67 @@ def run_feature_extraction(input_file, output_file = 'features_set', molecules_d
 def load_molecules(molecules_dir_name, renumber=False):
     _load_runtime_dependencies()
     return Molecules(molecules_dir_name, renumber=renumber)
+
+
+def _bar(done, n, width=24):
+    full = round(width * done / n) if n else width
+    return "#" * full + "." * (width - full)
+
+
+def run_renumber(args):
+    """`descripytor renumber`: every molecule of a folder numbered like the reference, written to a new folder with
+    renumbering.json (the {old: new} dict per molecule). The originals are never changed."""
+    import os
+    import time
+
+    from M2_data_extractor.alignment import map_folder, write_renumbered
+    from M2_data_extractor.data_extractor import Molecules
+
+    folder = os.path.abspath(args.folder)
+    mols = Molecules(folder)
+    sizes = {m.molecule_name: len(m.xyz_df) for m in mols.molecules}
+    if not sizes:
+        raise SystemExit(f"No molecules in {folder}")
+    reference = args.reference or min(sizes, key=lambda k: (sizes[k], k))      # the common part: the smallest
+    if reference not in sizes:
+        raise SystemExit(f"No molecule named {reference!r} in {folder}. Names: {', '.join(sorted(sizes))}")
+    anchors = {}
+    for text in args.anchor or []:
+        name, _, pair = text.partition(":")
+        ref_atom, _, atom = pair.partition(",")
+        anchors.setdefault(name, []).append((int(ref_atom), int(atom)))
+    out = os.path.abspath(args.output or os.path.join(folder, "renumbered"))
+    t0 = time.perf_counter()
+
+    def progress(ev):
+        if ev["event"] == "start":
+            print(f"Numbering {ev['n']} molecules like {ev['reference']} ({sizes[ev['reference']]} atoms), "
+                  f"{ev['workers']} at a time.")
+            return
+        done, n = ev["i"], ev["n"]
+        left = (time.perf_counter() - t0) / done * (n - done)
+        if "error" in ev:
+            what = "FAILED: " + ev["error"]
+        else:
+            what = "same numbering" if not ev["moved"] else f"{ev['moved']} atoms renumbered"
+            if ev["differs"]:
+                what += f"; other element at {', '.join(map(str, ev['differs']))}"
+            what += f"; RMSD {ev['rmsd']:.2f} A" if ev["rmsd"] is not None else ""
+            if ev["rmsd"] is not None and ev.get("rmsd_kabsch") is not None and ev["rmsd"] - ev["rmsd_kabsch"] > 0.5:
+                what += f" (the {args.fit} fit stalled: Kabsch gives {ev['rmsd_kabsch']:.2f} A)"
+        eta = f"~{left / 60:.0f} min left" if left >= 90 else f"~{left:.0f} s left" if done < n else "done"
+        print(f"[{_bar(done, n)}] {done:>{len(str(n))}}/{n}  {ev['name']:<16} {ev.get('seconds', 0):5.1f} s  {what}  ({eta})",
+              flush=True)
+
+    results = map_folder(mols, reference, anchors=anchors, stages=args.stages or None,
+                         match_charge=args.match_charge, workers=args.workers, progress=progress,
+                         fit=args.fit, sigma=args.sigma, fit_atoms=args.fit_atoms)
+    written, skipped = write_renumbered(mols, results, out, reference)
+    print(f"\nWrote {len(written)} renumbered molecules and renumbering.json to {out} "
+          f"in {time.perf_counter() - t0:.0f} s.")
+    if skipped:
+        print(f"Not written (no numbering): {', '.join(skipped)}")
+    return 1 if skipped else 0
 
 
 def run_pipeline(args):
@@ -506,6 +569,30 @@ def main():
     bassa_parser.add_argument("--no-browser", action="store_true", help="Start the server without opening a browser tab")
     bassa_parser.add_argument("--host", default=None, help="Bind address (default 127.0.0.1)")
     bassa_parser.add_argument("--port", type=int, default=None, help="Port (default 8765, or BASSA_EXPLORER_PORT)")
+    renumber_parser = subparsers.add_parser(
+        "renumber", help="Number every molecule of a folder like a reference (Conformaty)", formatter_class=raw,
+        description="Number the atoms of every .feather in a folder like a reference molecule, so a descriptor picked on\n"
+                    "the reference reads the same atom in every molecule. Conformaty matches the common substructure,\n"
+                    "fits each molecule onto the reference and assigns the remaining atoms by position (the two H of a\n"
+                    "CH2 by where they sit). The renumbered copies and renumbering.json go to a new folder; the\n"
+                    "originals are not changed. Needs Conformaty: pip install git+https://github.com/Milo-group/Conformaty\n"
+                    "Example:\n  descripytor renumber feathers/ -r basic --anchor m_Br:9,9")
+    renumber_parser.add_argument("folder", help="Folder of .feather files")
+    renumber_parser.add_argument("-r", "--reference", help="Molecule to number like (its name; default: the smallest)")
+    renumber_parser.add_argument("-o", "--output", help="Output folder (default: <folder>/renumbered)")
+    renumber_parser.add_argument("--anchor", action="append", metavar="NAME:REF,ATOM",
+                                 help="Atom ATOM of molecule NAME must be reference atom REF (1-based); repeatable")
+    renumber_parser.add_argument("--stages", nargs="+", choices=["complete_rings", "extend_mcs", "coords_proximity_any"],
+                                 help="Conformaty's middle stages, in order (default: all three)")
+    renumber_parser.add_argument("--match-charge", action="store_true", help="Match formal charges and radicals in the MCS")
+    renumber_parser.add_argument("--fit", default="rmsd", choices=["rmsd", "msd", "mixed", "mad", "sig", "kabsch"],
+                                 help="Rigid-body fit of the reported overlay and RMSD (not the numbering): Conformaty's "
+                                      "losses (mixed, its own default, favours atoms in near-exact overlap but can stall "
+                                      "far away) or kabsch (closed-form least squares). Default rmsd")
+    renumber_parser.add_argument("--sigma", type=float, default=30, help="Sigma of the mixed and sig losses (default 30)")
+    renumber_parser.add_argument("--fit-atoms", type=int, nargs="+", metavar="ATOM",
+                                 help="Reference atoms (1-based) the reported fit uses (default: the heavy atoms with the same element)")
+    renumber_parser.add_argument("--workers", type=int, help="Molecules at a time in separate processes (default 1)")
     pipeline_parser = subparsers.add_parser(
         "pipeline", help="SMILES -> structures -> chained cluster stages (GOAT/UMA/xTB/ORCA/Gaussian)", formatter_class=raw,
         description="Run a protocol on the cluster, one action at a time:\n"
@@ -552,6 +639,8 @@ def main():
                                   open_browser=not args.no_browser, bassa_python=args.bassa_python)
     if args.command == "pipeline":
         return run_pipeline(args)
+    if args.command == "renumber":
+        return run_renumber(args)
     if args.command in ("feature_explorer", "theta"):
         run_visual_app(host=args.host, port=args.port, open_browser=not args.no_browser,
                        page=feature_explorer_page(args.mol, args.preset))

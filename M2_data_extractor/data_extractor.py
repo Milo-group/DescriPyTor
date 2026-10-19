@@ -16,14 +16,9 @@ import numpy.typing as npt
 # Add the parent directory to the sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-# NOTE: MolAlign.renumbering (needs torch) and utils.visualize (needs
-# dash/ipywidgets) are NOT imported here - they're only used by
-# get_renumbering_dict() and the visualize_*/get_dipole_gaussian_df_single
-# methods respectively, both opt-in features most callers (including the
-# webapp's basic "load a feather set" path) never touch. Importing them
-# eagerly meant torch/dash/ipywidgets were hard requirements just to open
-# a feather file. They're imported lazily inside those specific methods
-# instead - see _import_batch_renumbering() and _import_visualize() below.
+# NOTE: the renumbering (Conformaty, needs torch) and utils.visualize (needs dash/ipywidgets) are NOT imported here:
+# only get_renumbering_dict() and the visualize_*/get_dipole_gaussian_df_single methods use them, and importing them
+# eagerly made torch/dash/ipywidgets hard requirements just to open a feather file. See _import_visualize() below.
 from gaussian_handler import feather_file_handler, save_to_feather
 from utils.help_functions import *
 from utils.help_functions import json_file_handler  # structured-JSON loader
@@ -31,16 +26,6 @@ from extractor_utils.sterimol_utils import *
 from extractor_utils.bond_angle_length_utils import *
 from extractor_utils.dipole_utils import *
 from extractor_utils.vibrations_utils import *
-
-
-def _import_batch_renumbering():
-    """
-    Lazy import of MolAlign.renumbering.batch_renumbering - only needed by
-    get_renumbering_dict(). Isolated here so the rest of data_extractor.py
-    (feather loading, descriptor extraction, etc.) never needs torch.
-    """
-    from MolAlign.renumbering import batch_renumbering
-    return batch_renumbering
 
 
 def _import_visualize():
@@ -2449,28 +2434,26 @@ class Molecules():
         return res_df
 
 
-    def get_renumbering_dict(self):
-        
-        self.export_all_xyz()
-        os.chdir('xyz_files')
-        batch_renumbering = _import_batch_renumbering()
-        self.renumbering_list, target_idx = batch_renumbering(os.getcwd())
-      
-        # self.renumbering_list = [
-        # {
-        #     mol_name: {
-        #         **inner, 
-        #         **{v: k for k, v in inner.items() if v != k}
-        #     }
-        #     for mol_name, inner in d.items()
-        # }
-        # for d in renumbering_list
-    # ]
-    
-        self.renumber_all_molecules(self.renumbering_list, target_idx)
-        os.chdir('../')
+    def get_renumbering_dict(self, reference=None, anchors=None, stages=None, workers=None):
+        """Number every molecule like `reference` (a molecule name; default the smallest) with Conformaty and apply
+        it to the loaded molecules; no file is written (M2_data_extractor.alignment.write_renumbered, or
+        `descripytor renumber`, writes them). anchors: {name: [(reference atom, atom)]}, 1-based.
 
-        
+        Returns {name: {old: new}} (1-based). Molecules that could not be mapped keep their numbering and are listed,
+        with the reason, in self.renumbering_failed.
+        """
+        from M2_data_extractor.alignment import map_folder
+
+        sizes = {m.molecule_name: len(m.xyz_df) for m in self.molecules}
+        reference = reference or min(sizes, key=lambda k: (sizes[k], k))
+        results = map_folder(self, reference, anchors=anchors, stages=stages, workers=workers)
+        self.renumbering_failed = {k: v["error"] for k, v in results.items() if "error" in v}
+        self.renumbering_dict = {k: v["old_to_new"] for k, v in results.items() if "old_to_new" in v}
+        for mol in self.molecules:
+            if mol.molecule_name in self.renumbering_dict and mol.molecule_name != reference:
+                mol.renumber_atoms(self.renumbering_dict[mol.molecule_name], save_feather=False, verbose=False)
+        return self.renumbering_dict
+
     def extract_all_dfs(self):
         os.chdir(self.molecules_path)
         for molecule in self.molecules:

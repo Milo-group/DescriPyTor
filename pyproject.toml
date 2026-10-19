@@ -48,7 +48,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["build>=1.2", "pytest>=7", "ruff>=0.5", "twine>=5"]
-# MolAlign atom renumbering
+# Atom renumbering (descripytor renumber, Molecules.get_renumbering_dict, the visual extractor's Align & renumber)
+# also needs Conformaty, which is not on PyPI yet: pip install git+https://github.com/Milo-group/Conformaty
 align = ["torch"]
 # Extra descriptor engines in the extraction toolkit
 engines = ["mordred", "deepchem", "ase"]
@@ -80,7 +81,6 @@ include = [
     "M1_pre_calculations*",
     "M2_data_extractor*",
     "M3_modeler*",
-    "MolAlign*",
     "utils*",
 ]
 exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*", "tests*"]
