@@ -751,6 +751,27 @@ if (typeof $3Dmol === "undefined") {
     .al-fill { transition:none; }
   }
   .al-view { display:grid; gap:8px; position:sticky; top:12px; }
+  .al-gridbox { grid-column:1 / -1; }
+  .al-gridbox summary { cursor:pointer; font-size:13px; font-weight:600; }
+  .al-gridbar { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; margin:8px 0; font-size:12px; color:var(--muted); }
+  .al-gridbar i { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; margin-right:4px; }
+  .al-gridwrap { overflow:auto; max-height:420px; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--panel); }
+  .al-grid { border-collapse:separate; border-spacing:0; font-size:11.5px; font-variant-numeric:tabular-nums; }
+  .al-grid th, .al-grid td { padding:4px 7px; text-align:center; white-space:nowrap; border-bottom:1px solid rgba(0,0,0,.05); }
+  .al-grid thead th { position:sticky; top:0; z-index:1; background:var(--panel); color:var(--muted); font-weight:600; }
+  .al-grid thead th small { display:block; font-weight:400; font-size:10px; }
+  .al-grid th.flag { color:#7a4300; box-shadow:inset 0 -2px 0 rgba(255,159,10,.7); }
+  .al-grid th.pick { color:var(--blue); }
+  .al-grid .nm { position:sticky; left:0; z-index:1; background:var(--panel); text-align:left; font-weight:500; padding-right:12px; }
+  .al-grid thead .nm { z-index:2; }
+  .al-grid td { font-family:"IBM Plex Mono", ui-monospace, Consolas, monospace; cursor:pointer; }
+  .al-grid tbody tr:hover td { background-color:rgba(0,122,255,.04); }
+  .al-grid tr.ref td { color:var(--muted); cursor:default; }
+  .al-grid tr.sel .nm { color:var(--blue); }
+  .al-grid td.p { color:#8B5CF6; }
+  .al-grid td.u { color:#DC2626; }
+  .al-grid td.d { background:rgba(255,159,10,.22); color:#7a4300; font-weight:600; }
+  .al-grid td.f { outline:2px solid #111827; outline-offset:-2px; }
   .al-viewbar, .al-filter { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; }
   .al-viewbar button, .al-filter button { min-height:28px; padding:2px 10px; font-size:12px; }
   .al-filter { margin-bottom:8px; }
@@ -1311,6 +1332,13 @@ if (typeof $3Dmol === "undefined") {
         <div class="al-note" id="alAtom" aria-live="polite">Click an atom to see what it was and how it was matched.</div>
         <div class="al-detail" id="alDetail"></div>
       </div>
+      <details class="al-gridbox" id="alGridBox" open><summary>Folder grid: the element each molecule has at each reference number</summary>
+        <div class="al-gridbar"><span><i style="background:rgba(255,159,10,.45)"></i>another element than the reference</span>
+          <span><i style="background:#8B5CF6"></i>matched by position</span><span><i style="background:#DC2626"></i>numbered last</span>
+          <span style="color:var(--blue)">blue number: your picks</span>
+          <label class="al-check"><input type="checkbox" id="alGridDiff"> only numbers where something differs</label></div>
+        <div class="al-gridwrap"><table class="al-grid" id="alGrid"></table></div>
+      </details>
     </div>
     <div class="al-foot" id="alFoot" hidden>
       <button class="primary" id="alWrite" type="button">Write renumbered folder</button>
@@ -4920,6 +4948,25 @@ function alRows() {
   const rank = n => n === AL.ref ? 0 : !AL.res[n] ? 5 : AL.res[n].error ? 1 : { check: 2, moved: 3, same: 4 }[alChip(n).cls] || 4;
   const names = [AL.ref, ...AL.names].filter(Boolean).filter(alKeep).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   $("alRows").innerHTML = names.map(alRow).join("");
+  alGrid(names);
+}
+function alGrid(names) {                          // molecules x reference numbers: which element got each number, and how
+  if (!$("alGridBox").open || !AL.ref) return;
+  const n = AL.refEls.length, picks = new Set((typeof flattenPickedIndices === "function" ? flattenPickedIndices() : []).map(Number));
+  const rows = names.filter(m => m !== AL.ref && AL.res[m] && AL.res[m].xyz).map(m => [m, AL.res[m], alEls(AL.res[m].xyz)]);
+  const differs = k => rows.some(([, , els]) => els[k - 1] !== AL.refEls[k - 1]);
+  let cols = Array.from({ length: n }, (_, k) => k + 1).filter(k => AL.refEls[k - 1] !== "H" || picks.has(k) || differs(k));
+  if ($("alGridDiff").checked) cols = cols.filter(k => differs(k));
+  const cell = (m, r, els, k) => {
+    const el = els[k - 1], st = r.stage[k - 1];
+    const cls = [el !== AL.refEls[k - 1] ? "d" : "", st === "fill_unmapped" ? "u" : ALGROUPS[1][2](st) ? "p" : "",
+      m === AL.sel && k === AL.focus ? "f" : ""].filter(Boolean).join(" ");
+    return `<td class="${cls}" data-m="${esc(m)}" data-k="${k}" title="${esc(m)}: ${el || "no atom"} ${k}">${el || "·"}</td>`;
+  };
+  $("alGrid").innerHTML = !cols.length ? `<tbody><tr><td class="nm">Every molecule has the reference's element at every number.</td></tr></tbody>` :
+    `<thead><tr><th class="nm">Molecule</th>` + cols.map(k => `<th class="${differs(k) ? "flag" : ""} ${picks.has(k) ? "pick" : ""}">${k}<small>${AL.refEls[k - 1]}</small></th>`).join("") +
+    `</tr></thead><tbody><tr class="ref"><td class="nm">${esc(AL.ref)}</td>` + cols.map(k => `<td>${AL.refEls[k - 1]}</td>`).join("") + `</tr>` +
+    rows.map(([m, r, els]) => `<tr class="${m === AL.sel ? "sel" : ""}"><td class="nm" data-m="${esc(m)}">${esc(m)}</td>` + cols.map(k => cell(m, r, els, k)).join("") + `</tr>`).join("") + `</tbody>`;
 }
 
 function alProgress() {
@@ -5205,6 +5252,15 @@ async function alGuide(file) {                    // the pictures of how each st
   if (lit) lit.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 $("alGuideBtn").onclick = () => alGuide();
+$("alGrid").onclick = (e) => {                     // a cell opens that molecule with the atom ringed
+  const c = e.target.closest("[data-m]");
+  if (!c) return;
+  alSelect(c.dataset.m);
+  if (c.dataset.k) { AL.focus = 0; alAtomInfo(+c.dataset.k); }
+  alRows();
+};
+$("alGridBox").ontoggle = () => alRows();
+$("alGridDiff").onchange = () => alRows();
 $("alExample").onclick = alExample;
 $("alStages").onclick = (e) => {                 // the order of the list is the order sent
   const pic = e.target.closest("[data-pic]");

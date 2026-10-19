@@ -57,6 +57,10 @@
   ~17 s), same numbering.
 - *Try Conformaty's example* runs it straight away; it only loaded the files before, which looked like nothing
   happened.
+- **Folder grid** under Align & renumber: one row per molecule, one column per reference number (its heavy atoms,
+  your picks, and every number where some molecule has another element), each cell the element that got that
+  number; amber where it is not the reference's element, violet matched by position, red numbered last. A click opens
+  the molecule with that atom ringed; *only numbers where something differs* keeps large molecules readable.
 - `Molecules.get_renumbering_dict(reference)` uses it too (no xyz export, no change of directory) and returns the dicts.
 
 ### Removed
