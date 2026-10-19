@@ -18,6 +18,9 @@
   holding the server); filter the list (to check, renumbered, unchanged); ◀ ▶ and *Next to check*; show the molecule on
   its reference, alone, or the reference alone; rings for what changed or for how each atom was matched (common part,
   by position, numbered last); a click on an atom says what it was and how it was matched.
+- **How it works** in Align & renumber shows a picture of each look-up step (the common part, complete rings,
+  extend the common part, any element by position, equivalent atoms, the fit); *picture* next to a step opens its
+  own. The pictures are drawn by `static/align_guide/make_guide.py` from real Conformaty runs.
 
 ### Added: atom renumbering with Conformaty
 

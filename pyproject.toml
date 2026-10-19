@@ -86,7 +86,7 @@ include = [
 exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*", "tests*"]
 
 [tool.setuptools.package-data]
-"M2_data_extractor" = ["*.html", "static/*"]
+"M2_data_extractor" = ["*.html", "static/*", "static/align_guide/*.svg", "static/align_guide/guide.json"]
 # the feature explorer (Sterimol / theta / cone / %Vbur / dipoles / charges), `descripytor feature_explorer`
 "M2_data_extractor.feature_explorer" = ["*.js", "*.html", "*.json", "fixtures/*", "rdkit/*"]
 # the folder name before the rename: forwarding modules and a copy of the built page

@@ -1,0 +1,32 @@
+[
+  {
+    "file": "01_common_part.svg",
+    "title": "The common part",
+    "caption": "Conformaty first finds the largest common substructure, the biggest set of bonded atoms both molecules share (green), and gives those atoms the reference's numbers. The F, outside it, takes number 17, the number of the H it replaces."
+  },
+  {
+    "file": "02_complete_rings.svg",
+    "title": "Complete rings",
+    "caption": "Once part of a ring matches, the rest of the ring is matched too, whatever the element: the ring O (amber) takes reference atom 6, so the two rings correspond atom for atom."
+  },
+  {
+    "file": "03_extend_mcs.svg",
+    "title": "Extend the common part",
+    "caption": "The common part grows outward one bonded atom at a time, element for element: the methyl carbon, bonded to atom 1 as reference carbon 6 is, takes number 6 (amber), and the ring O, left over, goes to the end (19)."
+  },
+  {
+    "file": "04_coords_proximity_any.svg",
+    "title": "Any element by position",
+    "caption": "After the fit, an atom lying within 0.2 \u00c5 of a reference atom takes its number, whatever its element: the ring O sits on reference carbon 6, so it takes 6 (amber), the same answer as complete rings for a different reason."
+  },
+  {
+    "file": "05_equivalent_atoms.svg",
+    "title": "Equivalent atoms by position",
+    "caption": "The two H on a CH2 are the same by bonding, so after the fit each one takes the number of the reference H nearest to it (blue); swapping them would look the same on paper and be wrong in 3D. The OH oxygen takes the number of the H it replaces (10); the reference is a boat and the query a chair, so only carbon 4 and its H sit apart."
+  },
+  {
+    "file": "06_the_fit.svg",
+    "title": "The fit",
+    "caption": "To overlay the query on the reference (light grey), Conformaty moves it as a rigid body. With the rmsd loss, the default here, p-F lands on the parent at 0.49 \u00c5; with Conformaty's mixed loss the same fit stops 6.0 \u00c5 away and never finds the overlay."
+  }
+]

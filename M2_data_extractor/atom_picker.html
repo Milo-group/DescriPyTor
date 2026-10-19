@@ -703,6 +703,14 @@ if (typeof $3Dmol === "undefined") {
   .al-stages li { display:flex; align-items:center; gap:6px; }
   .al-stages li label { flex:1; }
   .al-mv { padding:0 7px; min-height:22px; font-size:10px; line-height:1; }
+  .al-pic { padding:0 8px; min-height:22px; font-size:11px; }
+  .al-guide { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+  .al-guide[hidden] { display:none; }
+  .al-guide figure { margin:0; border:1px solid var(--line); border-radius:var(--r-sm); background:#fff; padding:10px; }
+  .al-guide figure.lit { box-shadow:0 0 0 3px rgba(0,122,255,.35); }
+  .al-guide img { width:100%; height:auto; display:block; }
+  .al-guide figcaption { font-size:12px; line-height:1.45; margin-top:6px; color:var(--text); }
+  .al-guide figcaption b { display:block; margin-bottom:2px; }
   .al-check { display:flex; gap:6px; align-items:center; font-size:12.5px; text-transform:none; letter-spacing:0;
     font-weight:400; color:var(--text); }
   .al-progress { display:grid; gap:6px; }
@@ -1237,20 +1245,25 @@ if (typeof $3Dmol === "undefined") {
         <option value="kabsch">kabsch: closed-form least squares</option>
       </select></label>
       <button class="primary" id="alRun" type="button">Number atoms</button>
+      <button id="alGuideBtn" type="button" aria-expanded="false" aria-controls="alGuide">How it works</button>
       <button id="alStop" type="button" hidden>Stop</button>
     </div>
+    <div class="al-guide" id="alGuide" hidden></div>
     <details class="al-opts" id="alOpts"><summary>More options</summary>
       <div class="al-opts-grid">
         <div class="al-field wide">Look-up order, after the common part (first to last; ▲ ▼ to move, untick to skip)
           <ol class="al-stages" id="alStages">
             <li><label title="Ring atoms of the common part are matched around the ring, even when the element differs">
               <input type="checkbox" data-al-stage="complete_rings" checked> complete the rings</label>
+              <button type="button" class="al-pic" data-pic="02_complete_rings.svg">picture</button>
               <button type="button" class="al-mv" data-mv="-1" aria-label="Move up">▲</button><button type="button" class="al-mv" data-mv="1" aria-label="Move down">▼</button></li>
             <li><label title="The common part grows bond by bond into what the two molecules share">
               <input type="checkbox" data-al-stage="extend_mcs" checked> extend the common part</label>
+              <button type="button" class="al-pic" data-pic="03_extend_mcs.svg">picture</button>
               <button type="button" class="al-mv" data-mv="-1" aria-label="Move up">▲</button><button type="button" class="al-mv" data-mv="1" aria-label="Move down">▼</button></li>
             <li><label title="Atoms still unmatched take the number of the reference atom they overlap, whatever the element">
               <input type="checkbox" data-al-stage="coords_proximity_any" checked> any element by position</label>
+              <button type="button" class="al-pic" data-pic="04_coords_proximity_any.svg">picture</button>
               <button type="button" class="al-mv" data-mv="-1" aria-label="Move up">▲</button><button type="button" class="al-mv" data-mv="1" aria-label="Move down">▼</button></li>
           </ol>
         </div>
@@ -5155,7 +5168,27 @@ $("alHead").onclick = () => alToggle();
 $("alHead").onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); alToggle(); } };
 $("alOpenBtn").onclick = () => { alToggle(true); $("alignBar").scrollIntoView({ behavior: "smooth", block: "start" }); };
 $("alRun").onclick = alRun;
+async function alGuide(file) {                    // the pictures of how each step numbers atoms (static/align_guide)
+  const box = $("alGuide");
+  if (!box.childElementCount) {
+    try {
+      const items = await fetch("/static/align_guide/guide.json").then(r => r.json());
+      box.innerHTML = items.map(it => `<figure data-file="${esc(it.file)}"><img src="/static/align_guide/${encodeURIComponent(it.file)}"
+        alt="${esc(it.title)}"><figcaption><b>${esc(it.title)}</b>${esc(it.caption)}</figcaption></figure>`).join("");
+    } catch (_) { box.textContent = "The pictures are not installed with this copy (M2_data_extractor/static/align_guide)."; }
+  }
+  const open = file ? true : box.hidden;
+  box.hidden = !open;
+  $("alGuideBtn").setAttribute("aria-expanded", String(open));
+  $("alGuideBtn").textContent = open ? "Hide the pictures" : "How it works";
+  box.querySelectorAll("figure").forEach(f => f.classList.toggle("lit", f.dataset.file === file));
+  const lit = file && box.querySelector(`figure[data-file="${CSS.escape(file)}"]`);
+  if (lit) lit.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+$("alGuideBtn").onclick = () => alGuide();
 $("alStages").onclick = (e) => {                 // the order of the list is the order sent
+  const pic = e.target.closest("[data-pic]");
+  if (pic) { alGuide(pic.dataset.pic); return; }
   const b = e.target.closest("[data-mv]");
   if (!b) return;
   const li = b.closest("li"), up = +b.dataset.mv < 0, sib = up ? li.previousElementSibling : li.nextElementSibling;
