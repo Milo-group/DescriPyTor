@@ -1,5 +1,46 @@
 # Changelog
 
+## Unreleased
+
+### Security
+
+- **The visual extractor's server answers only pages opened from this computer.** It allowed every origin, so any
+  website open in the browser could read the first lines of a text file on the machine (`/model/dataset`) or write a
+  CSV anywhere (`/model/merge-outputs`). Pages on other sites (and `file://` or sandboxed pages, Origin `null`), a Host
+  name that is not this computer's (DNS rebinding) and cross-site `<img>`/`<form>` requests now get 403; this computer's
+  pages on any port still work. Started with `--host 0.0.0.0`, it answers only at 127.0.0.1/localhost: give the
+  machine's own address to open it from another computer.
+- A request can no longer name the folder put first on `sys.path` (`root`, `root_dir`).
+- File names, SDF titles, xyz comment lines and the conformer-search folder are shown as text, not inserted as HTML.
+
+### Fixed (visual extractor)
+
+- **A descriptor that fails is reported.** A pick that failed on some or all molecules (Sterimol on an atom they do not
+  have, say) left its columns out and the page said only "10 molecules × 6 features". The count is now followed, in
+  amber, by each failure and on how many molecules it happened.
+- **Two Ring vibration picks are two rings.** They left the page as `[13, 20]`, which the package reads as one ring
+  through both atoms; they now leave as `[[13], [20]]`.
+- **Groups are checked when committed.** A 1- or 5-atom bond angle, a 3-atom Sterimol axis and the like are refused
+  with the reason; several atoms committed on a one-atom field (Charges) are several picks, not the first one only.
+  Typed atoms read `1,4 4,1` as two groups (commas inside a group, spaces between groups, as in `WORKFLOW.md` §8.1);
+  without a comma they are clicks, as before. An atom number the molecule does not have adds nothing.
+- **Buried volume no longer falls back to atom 1.** With the engine on and no centre atom chosen, Extract says so.
+- **Picks made on another molecule are named** when a molecule is loaded: the atoms past its end or of another element.
+  **Check numbering** compares the folder with the molecule the picks were made on, not with `basic.feather` or the
+  folder's first file.
+- The Sterimol preview leaves out the **Drop atoms**, as the extraction does.
+- **morfeus Sterimol pairs** stay with the morfeus suite; they were also sent to the DescriPyTor Sterimol engines.
+- **outcomes.csv saved by Excel** ("CSV UTF-8", with a byte-order mark) joined no row; it is read now. A file in another
+  encoding is reported instead of losing the extracted table, and one that matches no molecule is said to.
+- The page is revalidated on every load (`Cache-Control: no-cache`): after an update the browser kept the old page.
+
+### Removed
+
+- The modeling panel's leftovers: about 190 lines of its JavaScript (its elements were gone), the routes only it called
+  (`/model/dataset`, `/model/merge-outputs`, the `features_csv` form of `/model/run`) and the `/theta/check` alias.
+- The layout cycler (its button was hidden), the `__XYZ_DATA__`/`__MOL_DATA__` placeholders nothing filled, unused CSS
+  and helpers, and the in-process Tk fallback of the folder dialog, which hangs on a server thread.
+
 ## 0.3.4 — 2026-10-13
 
 ### BASSA model explorer

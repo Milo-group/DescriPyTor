@@ -145,7 +145,7 @@ def _read_outcomes_csv(path):
     rows = []
     if not path or not os.path.isfile(path):
         return {"rows": [], "y_column": "output", "name_column": "name", "path": path or ""}
-    with open(path, newline="", encoding="utf-8") as handle:
+    with open(path, newline="", encoding="utf-8-sig") as handle:      # Excel's "CSV UTF-8" starts with a BOM
         reader = csv.DictReader(handle)
         for row in reader:
             name = (row.get("name") or "").strip()
@@ -379,7 +379,9 @@ def _ensure_3dmol_js(folder):
 def visual_gui():
     """Serve the combined atom-picker, extraction, and modeling workflow."""
     path = atom_picker_html()
-    return send_file(path, mimetype="text/html")
+    response = send_file(path, mimetype="text/html")
+    response.headers["Cache-Control"] = "no-cache"       # revalidate: after an update the browser kept showing the old page
+    return response
 
 
 @app.route("/static/<path:filename>")
@@ -811,11 +813,16 @@ def folder_summary():
     return jsonify({"n": len(files), "names": names})
 
 
-def _iter_numbering_check(files, reference, picked, include_xyz, limit_xyz):
-    """Yield start/progress/done events while comparing feathers to the reference."""
-    ref_xyz, ref_name, ref_n = _molecule_xyz_from_path(
-        reference, os.path.splitext(os.path.basename(reference))[0]
-    )
+def _iter_numbering_check(files, reference, picked, include_xyz, limit_xyz, reference_xyz=None, reference_name=""):
+    """Yield start/progress/done events while comparing feathers to the reference: the xyz the picks were made on
+    when the page sends it, else a reference file."""
+    if reference_xyz:
+        ref_xyz, ref_name = reference_xyz, reference_name or "the picked molecule"
+        ref_n = len(_elements_from_xyz_text(ref_xyz))
+    else:
+        ref_xyz, ref_name, ref_n = _molecule_xyz_from_path(
+            reference, os.path.splitext(os.path.basename(reference))[0]
+        )
     ref_elements = _elements_from_xyz_text(ref_xyz)
     n_files = len(files)
     yield {"event": "start", "n": n_files, "reference": ref_name, "i": 0}
@@ -955,6 +962,8 @@ def numbering_check():
             preferred = os.path.join(directory, "unsub.feather")
         reference = preferred if os.path.isfile(preferred) else files[0]
     picked = _flatten_picked_indices(data.get("picked") or data.get("atoms") or [])
+    ref_args = dict(reference_xyz=(data.get("reference_xyz") or "").strip() or None,
+                    reference_name=str(data.get("reference_name") or ""))
     include_xyz = bool(data.get("include_xyz"))
     try:
         limit_xyz = max(1, min(int(data.get("limit_xyz") or 8), 18))
@@ -965,7 +974,7 @@ def numbering_check():
     if not stream:
         try:
             payload = None
-            for ev in _iter_numbering_check(files, reference, picked, include_xyz, limit_xyz):
+            for ev in _iter_numbering_check(files, reference, picked, include_xyz, limit_xyz, **ref_args):
                 if ev.get("event") == "done":
                     payload = {k: v for k, v in ev.items() if k != "event"}
             return jsonify(payload or {"error": "Numbering check produced no result."})
@@ -975,7 +984,7 @@ def numbering_check():
 
     def generate():
         try:
-            for ev in _iter_numbering_check(files, reference, picked, include_xyz, limit_xyz):
+            for ev in _iter_numbering_check(files, reference, picked, include_xyz, limit_xyz, **ref_args):
                 yield json.dumps(ev) + "\n"
         except Exception as exc:
             traceback.print_exc()
@@ -1084,11 +1093,38 @@ def _extract_empty_message(log_text):
     )
 
 
+def _failed_descriptors(log_text, names):
+    """A descriptor that fails on a molecule is printed by the package and its column left out of the table, which the
+    page then reported as a plain success. One line per message, the molecule names folded into a count."""
+    import re
+
+    names = sorted({str(n) for n in names if n}, key=len, reverse=True)
+    name_re = re.compile(r"(?<![\w-])(" + "|".join(map(re.escape, names)) + r")(?![\w-])") if names else None
+    counts = {}
+    for line in str(log_text or "").splitlines():
+        line = line.strip()
+        if not line.startswith("Error"):
+            continue
+        key = " ".join(name_re.sub("", line).split()) if name_re else line
+        counts[key] = counts.get(key, 0) + 1
+    return [f"{k} ({c} of {len(names)} molecules)" if name_re and c > 1 else k for k, c in counts.items()]
+
+
 def _extract_success_payload(df, cfg, log_text):
     feather_dir = (cfg or {}).get("feather_dir") or ""
+    names = [os.path.splitext(os.path.basename(f))[0] for f in _list_feather_files(feather_dir)] if feather_dir else []
+    warnings = _failed_descriptors(log_text, names)
     local_outcomes = os.path.join(feather_dir, "outcomes.csv") if feather_dir else ""
-    rows = _read_outcomes_csv(local_outcomes).get("rows") or [] if local_outcomes and os.path.isfile(local_outcomes) else []
+    rows = []
+    if local_outcomes and os.path.isfile(local_outcomes):
+        try:
+            rows = _read_outcomes_csv(local_outcomes).get("rows") or []
+        except Exception as exc:          # a cp1252 file used to lose the finished table to a 500
+            warnings.append(f"outcomes.csv was not read ({exc}); save it as CSV UTF-8 with the columns name,output")
     df, n_outcomes = _join_outcomes_into_df(df, rows)      # only this folder's own outcomes.csv
+    if os.path.isfile(local_outcomes or "") and not n_outcomes and not any("outcomes.csv" in w for w in warnings):
+        warnings.append("outcomes.csv in this folder matched no molecule: it needs the columns name,output, "
+                        "one row per .feather name")
     engine_errors = [ln.strip() for ln in str(log_text or "").splitlines() if ln.strip().startswith("[error]")]
     return {
         "n_mols": int(df.shape[0]),
@@ -1097,6 +1133,7 @@ def _extract_success_payload(df, cfg, log_text):
         "n_outcomes": int(n_outcomes),
         "y_column": "output" if n_outcomes else "",
         "engine_errors": engine_errors,       # an engine that failed gave no columns: the page says so beside the count
+        "warnings": warnings,                 # descriptors that failed on some molecules, an unread outcomes.csv
         "columns": [str(c) for c in df.columns],
         "index": [str(i) for i in df.index],
         "csv": df.to_csv(),

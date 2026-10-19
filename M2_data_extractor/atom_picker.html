@@ -916,7 +916,7 @@ if (typeof $3Dmol === "undefined") {
         <label for="typedAtoms">Or type atom numbers</label>
         <input type="text" id="typedAtoms" placeholder="e.g. 3,5 or 12 14 16" style="width:160px" autocomplete="off" />
         <button type="button" id="addTypedAtomsBtn" title="Add these atom indices to the current field, same as clicking them in 3D">Add</button>
-        <span class="small" id="typedAtomsHint">1-indexed, comma or space separated. Alt+Right / Alt+Left cycles the active field.</span>
+        <span class="small" id="typedAtomsHint">1-indexed. One group: 1,4 · several: 1,4 4,1. Alt+Right / Alt+Left cycles the active field.</span>
       </div>
       </details>
     </div>
@@ -1886,7 +1886,11 @@ function initViewer(xyz, filename, opts) {
   }
   currentGroup = []; measurePicks = [];
   lastModelXYZ = xyz;
+  const before = elements.slice();
   parseXYZ(xyz);
+  const changed = picksThatChanged([...new Set(allFields().flatMap(f => (state[f.key] || []).flat()))], before, elements);
+  if (changed.length) pickHint("Your picks were made on another molecule: atom" + (changed.length > 1 ? "s " : " ") + changed.join(", ")      // the loaders set the extract status after this
+    + (changed.length > 1 ? " are" : " is") + " missing or another element here. Check them, or Clear picks, before extracting.");
   const lines = xyz.trim().split(/\r?\n/);
   const molComment = (lines[1] || '').trim();
   const molName = filename
@@ -2085,7 +2089,8 @@ function drawOverlays(coords) {
   $("vizSterReadout").textContent = "";
   if (pair && pair.length >= 2 && baseCoords[pair[0] - 1] && baseCoords[pair[1] - 1]) {
     const showAng = !$("vizSterAngle") || $("vizSterAngle").checked;
-    FIG.axes.push({ a: pair[0], b: pair[1], color: "#1d4ed8", tag: "",
+    const drops = singlesFlat("drop_atoms");
+    FIG.axes.push({ a: pair[0], b: pair[1], color: "#1d4ed8", tag: "", dropAtoms: drops.length ? drops : null,
       show: { axis: true, L: true, b1: true, b5: true, loc: true, drop: true, plane: showAng, theta: showAng, inset: false, profile: false } });
     FIG.active = 0;
     $("vizSterReadout").textContent = "B1, B5, L, loc B5" + (showAng ? " and θ" : "") + " are written on the figure, as the package computes them.";
@@ -2402,6 +2407,10 @@ function buildModeOptions() {
  * ------------------------------------------------------------------ */
 function allFields() { return [...FIELDS, ...MF_FIELDS]; }
 function fieldOf(key) { return allFields().find(x => x.key === key); }
+function picksThatChanged(picked, before, after) {   // picked atoms past the end of the new molecule, or another element in it
+  if (!before.length) return [];
+  return picked.filter(i => i > after.length || before[i - 1] !== after[i - 1]).sort((a, b) => a - b);
+}
 
 function onAtomClick(idx) {
   if (measureMode) { onMeasurePick(idx); return; }
@@ -2430,25 +2439,25 @@ function addTypedAtoms() {
   const raw = input.value.trim();
   if (!raw) return;
   const nAtoms = (baseCoords && baseCoords.length) || (elements && elements.length) || null;
-  const tokens = raw.split(/[\s,]+/).filter(Boolean);
-  const hint = $("typedAtomsHint");
-  const bad = [];
-  const good = [];
-  tokens.forEach(t => {
-    const n = parseInt(t, 10);
-    if (!Number.isFinite(n) || String(n) !== t.trim().replace(/^\+/, "") || n < 1 || (nAtoms && n > nAtoms)) {
-      bad.push(t);
-    } else {
-      good.push(n);
-    }
-  });
-  if (bad.length) {
-    if (hint) hint.textContent = "Ignored invalid/out-of-range: " + bad.join(", ") + (nAtoms ? (" (1-" + nAtoms + ")") : "");
-  } else if (hint) {
-    hint.textContent = "1-indexed, comma or space separated.";
+  const groups = typedGroups(raw);
+  const bad = groups.flat().filter(t => !/^\+?\d+$/.test(t) || +t < 1 || (nAtoms && +t > nAtoms));
+  if (bad.length) {                          // the whole entry waits: a group missing one atom is another group
+    pickHint("Not an atom of this molecule: " + bad.join(", ") + (nAtoms ? " (1-" + nAtoms + ")" : "") + ". Nothing was added.");
+    return;
   }
-  good.forEach(idx => onAtomClick(idx));
+  pickHint("Atoms of one group joined by commas, groups separated by spaces: 1,4 4,1.");
+  if (!raw.includes(",")) groups.flat().forEach(t => onAtomClick(+t));
+  else for (const g of groups) {
+    currentGroup = g.map(Number);
+    commitGroup();
+    if (currentGroup.length) break;          // refused: it stays in the box with the reason beside it
+  }
   input.value = "";
+  refresh();
+}
+function typedGroups(raw) {                  // "1,4  4, 1" -> [["1","4"], ["4","1"]]; "1 4 7" -> [["1","4","7"]]
+  const parts = raw.trim().replace(/\s*,\s*/g, ",").split(/\s+/).filter(Boolean);
+  return raw.includes(",") ? parts.map(p => p.split(",").filter(Boolean)) : [parts];
 }
 
 /* ── Measurement mode ── */
@@ -2506,10 +2515,24 @@ function drawMeasureOverlay(coords) {
   figMark(p, "#ff6b35", text);
 }
 
+function groupProblem(f, g) {                 // why a group cannot be stored for field f, or ""
+  if (f.size === 0) return g.length === 3 || g.length === 4 ? "" : `A bond angle takes 3 atoms and a dihedral 4, not ${g.length}.`;
+  if (g.length === f.size) return "";
+  return `${f.label.split("[")[0].trim()} takes ${f.size} atom${f.size > 1 ? "s" : ""} per group, not ${g.length}.`;
+}
+function pickHint(msg) {
+  if ($("typedAtomsHint")) $("typedAtomsHint").textContent = msg;
+  if (typeof announce === "function") announce(msg);
+}
+
 function commitGroup() {
   if (currentGroup.length === 0) return;
-  const committed = currentGroup.slice();
-  state[activeField].push(committed);
+  const f = fieldOf(activeField);
+  const groups = f.size === 1 ? currentGroup.map(a => [a]) : [currentGroup.slice()];   // three clicks on Charges are three charges
+  const problem = groupProblem(f, groups[0]);
+  if (problem) { pickHint(problem + " Add or remove atoms, then commit again."); refresh(); return; }
+  groups.forEach(g => state[activeField].push(g));
+  const committed = groups[groups.length - 1];
   if (activeField === "dipole" && committed.length === 3) {
     $("basisOrigin").value = committed[0];
     $("basisY").value = committed[1];
@@ -2541,12 +2564,12 @@ function removeGroup(fkey, gi) { state[fkey].splice(gi, 1); refresh(); if (typeo
 function singlesFlat(fkey) {                 // 1-atom fields -> flat list
   return state[fkey].map(g => g[0]);
 }
+function exportGroups(f, groups) {            // one-atom fields leave as a flat list, except rings: [13, 20] is read as one ring
+  return f.size === 1 && f.key !== "ring_vibration" ? groups.map(g => g[0]) : groups.map(g => g.slice());
+}
 function compactAtoms() {
   const a = {};
-  FIELDS.forEach(f => {
-    if (f.size === 1) a[f.key] = singlesFlat(f.key);
-    else              a[f.key] = state[f.key].map(g => g.slice());
-  });
+  FIELDS.forEach(f => { a[f.key] = exportGroups(f, state[f.key]); });
   // the basis boxes hold one frame (a pick, or typed by hand with several atoms per group); every other picked frame
   // is exported too. The table showed [1,2,3] [4,5,6] while only one of them left the page.
   const dipoleBasis = dipoleBasisForExport();
@@ -2631,7 +2654,6 @@ function morfeusConfig() {
 function pickedSterimolPairs() {
   const out = [];
   (state["sterimol"] || []).forEach(g => { if (g.length >= 2) out.push([g[0], g[1]]); });
-  (state["mf_sterimol"] || []).forEach(g => { if (g.length >= 2) out.push([g[0], g[1]]); });
   return out;
 }
 function pickedBondLengths() { return (state["bond_length"] || []).filter(g => g.length >= 2).map(g => g.slice(0, 2)); }
@@ -2653,7 +2675,7 @@ function runConfigObject() {
     descripytor_steric: { enabled: packagesEnabled["descripytor_steric"], pairs: sterPairs, prefix: "steric_" },
     xyz_sterimol:       { enabled: packagesEnabled["xyz_sterimol"], pairs: sterPairs, radii: "CPK", prefix: "xyz_" },
     xyz_geometry:       { enabled: packagesEnabled["xyz_geometry"], angles: pickedAngles(), bond_lengths: pickedBondLengths(), prefix: "geom_" },
-    xyz_buried_volume:  { enabled: packagesEnabled["xyz_buried_volume"], metal_index: buriedAnchor() || 1, radius: buriedRadius(), prefix: "bv_" },
+    xyz_buried_volume:  { enabled: packagesEnabled["xyz_buried_volume"], metal_index: buriedAnchor(), radius: buriedRadius(), prefix: "bv_" },
     morfeus_sterimol:   { enabled: packagesEnabled["morfeus_sterimol"], pairs: sterPairs, prefix: "" },
     qm:                 { enabled: packagesEnabled["qm"], log_dir: "C:\\path\\to\\your\\gaussian_logs", prefix: "qm_" },
     // External packages
@@ -2686,7 +2708,7 @@ function setExtractStatus(msg, kind) {
   const el = $("extractStatus");
   if (!el) return;
   el.textContent = msg || "";
-  el.style.color = kind === "bad" ? "var(--red)" : (kind === "ok" ? "var(--green, #1CB04A)" : "var(--muted)");
+  el.style.color = kind === "bad" ? "var(--red)" : kind === "ok" ? "var(--green, #1CB04A)" : kind === "alert" ? "#b45309" : "var(--muted)";
   if (msg && typeof announce === "function") announce(msg);
 }
 
@@ -2972,6 +2994,12 @@ async function extractFeatures() {
   const btn = $("extractBtn");
   const dl = $("downloadCsvBtn");
   const cfg = runConfigObject();
+  const bv = cfg.engines.xyz_buried_volume;
+  if (bv.enabled && !bv.metal_index) {
+    setExtractStatus("Buried volume is on but has no centre atom: choose one in the %Vbur view (Visualizations) or pick a "
+      + "morfeus Buried volume atom, or turn the engine off.", "bad");
+    return;
+  }
   const dir = ($("featherDirInput") && $("featherDirInput").value.trim()) || "";
   if (dir) cfg.feather_dir = dir;
   cfg.output_csv = null;
@@ -3062,14 +3090,15 @@ async function extractFeatures() {
     fillExampleOutputs();
     if (typeof saveSession === "function") saveSession();
     setWorkProgress("extractProgress", 1);
+    const problems = (data.engine_errors || []).map(e => "an engine failed and gave no columns: " + e).concat(data.warnings || []);
     setExtractStatus(
       (data.n_mols || "?") + " molecules × " + (data.n_features || "?") +
       " features — table below." +
       (data.n_outcomes
         ? (" Added the measured output of " + data.n_outcomes + " molecules from this folder's outcomes.csv.")
         : " Open the Model tab to add the experimental output column.") +
-      ((data.engine_errors || []).length ? " BUT " + data.engine_errors.length + " engine(s) failed and gave no columns: " + data.engine_errors.join(" | ").slice(0, 400) : ""),
-      (data.engine_errors || []).length ? "warn" : "ok"
+      (problems.length ? " BUT " + problems.join(" | ").slice(0, 700) : ""),
+      problems.length ? "alert" : "ok"
     );
     if (typeof tourNotify === "function") tourNotify("extract");
     setTimeout(() => hideWorkProgress("extractProgress"), 500);
@@ -3347,6 +3376,8 @@ async function checkNumbering(opts) {
       body: JSON.stringify({
         directory: dir,
         reference: useBundledRef ? (window._exampleBasicFeather || "") : "",
+        reference_xyz: lastModelXYZ || "",            // the molecule the picks were made on, whatever its source
+        reference_name: lastModelName || "",
         picked,
         include_xyz: includeXyz,
         limit_xyz: 8,

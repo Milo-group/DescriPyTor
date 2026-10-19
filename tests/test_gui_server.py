@@ -167,6 +167,7 @@ def test_fast_feather_xyz_reads_basic():
 def test_visual_serves_atom_picker(client):
     response = client.get("/visual")
     assert response.status_code == 200
+    assert response.headers.get("Cache-Control") == "no-cache"     # an updated page is not hidden by the browser's cache
     body = response.get_data(as_text=True)
     assert "3Dmol" in body
     assert "DescriPyTor" in body
@@ -808,3 +809,72 @@ def test_outcomes_come_only_from_the_folder_they_sit_in():
     payload = gs._extract_success_payload(table, {"feather_dir": str(ROOT / "descripytor" / "examples" / "feather_example")}, "[error] engine 'x' failed: boom")
     assert payload["n_outcomes"] == 0 and "output" not in payload["columns"]
     assert payload["engine_errors"] == ["[error] engine 'x' failed: boom"]
+
+
+def _extract(client, directory, atoms):
+    r = client.post("/extract", json={"config": {"feather_dir": str(directory),
+                                                 "engines": {"descripytor_full": {"enabled": True, "atoms": atoms}}}})
+    assert r.status_code == 200, r.get_json()
+    return r.get_json()
+
+
+def test_a_descriptor_that_fails_is_reported_not_dropped(client):
+    """Sterimol on an atom the molecules do not have failed on all ten and its columns were silently missing."""
+    from M2_data_extractor.gui_server import example_feather_dir, _failed_descriptors
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    got = _extract(client, directory, {"sterimol": [[1, 99]], "charges": [1]})
+    assert not any(c.startswith("B1_") for c in got["columns"])
+    n = len(list(Path(directory).glob("*.feather")))
+    assert any("sterimol" in w and f"({n} of {n} molecules)" in w for w in got["warnings"]), got["warnings"]
+    assert _extract(client, directory, {"charges": [1]})["warnings"] == []
+    # names are folded whole: m_Br's message is not split by m, and a message naming no molecule is kept as it is
+    log = "Error: m_Br sterimol could not be processed: 0\nError: m sterimol could not be processed: 0\nError processing x: y"
+    assert _failed_descriptors(log, ["m", "m_Br"]) == ["Error: sterimol could not be processed: 0 (2 of 2 molecules)",
+                                                       "Error processing x: y"]
+
+
+def test_ring_picks_extract_one_ring_each(client):
+    """The page now sends [[9], [10]]; the old flat [9, 10] was read as one ring through both atoms."""
+    from M2_data_extractor.gui_server import example_feather_dir
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    cols = _extract(client, directory, {"ring_vibration": [[9], [10]]})["columns"]
+    assert {"para_9_0", "para_10_0"} <= set(cols) and "para_9-10_0" not in cols
+
+
+def test_outcomes_csv_saved_by_excel_or_in_cp1252(client, tmp_path):
+    """Excel's CSV UTF-8 starts with a BOM: the header read '\ufeffname' and no row joined. A cp1252 file raised after
+    the extraction had finished and lost the table."""
+    import shutil
+    from M2_data_extractor.gui_server import example_feather_dir
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    for name in ("basic", "m_Br"):
+        shutil.copy(Path(directory) / f"{name}.feather", tmp_path)
+    (tmp_path / "outcomes.csv").write_text("name,output\nbasic,0.5\nm_Br,1.5\n", encoding="utf-8-sig")
+    got = _extract(client, tmp_path, {"charges": [1]})
+    assert got["n_outcomes"] == 2 and got["warnings"] == []
+    (tmp_path / "outcomes.csv").write_bytes("name,output\nbasic,0.5\nm_Br,1.5\nr\xe9f,2\n".encode("cp1252"))
+    got = _extract(client, tmp_path, {"charges": [1]})
+    assert got["n_mols"] == 2 and got["n_outcomes"] == 0 and "outcomes.csv was not read" in got["warnings"][0]
+
+
+def test_numbering_check_compares_with_the_picked_molecule(client):
+    """The page sends the molecule the picks were made on; the check used basic.feather or the first file instead."""
+    from M2_data_extractor.gui_server import example_feather_dir
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    sent = "2\npicked here\nXe 0 0 0\nXe 0 0 1.5\n"           # no example molecule has xenon at atom 1
+    got = client.post("/numbering/check", json={"directory": directory, "picked": [1],
+                                                "reference_xyz": sent, "reference_name": "mine"}).get_json()
+    assert got["reference"] == "mine" and got["reference_n_atoms"] == 2
+    assert all(not m["ok"] for m in got["molecules"])
