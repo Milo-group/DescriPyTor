@@ -25,7 +25,28 @@ except ImportError:
     sys.exit(1)
 
 app = Flask(__name__, static_folder=None)
-CORS(app)
+# Every route reads or writes files on this machine, so only pages served from this machine may call it. Other ports here
+# are fine (the feature explorer can be served by a plain http.server and call this one); any other site is refused.
+_LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+CORS(app, origins=[r"^https?://(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$"])
+
+
+@app.before_request
+def _local_pages_only():
+    """CORS only stops a foreign page reading the answer; this stops the request. A Host that is not this machine's
+    name is DNS rebinding; an Origin from elsewhere is another site's script (Origin "null" too: sandboxed or file://);
+    a cross-site request without Origin is an <img> or <form> (opening a page by a link is still allowed)."""
+    from urllib.parse import urlsplit
+
+    origin = request.headers.get("Origin")
+    refused = (
+        urlsplit("//" + request.host).hostname not in _LOCAL_HOSTS
+        or (origin is not None and urlsplit(origin).hostname not in _LOCAL_HOSTS)
+        or (origin is None and request.headers.get("Sec-Fetch-Site") == "cross-site"
+            and request.headers.get("Sec-Fetch-Mode") != "navigate")
+    )
+    if refused:
+        return jsonify({"error": "This server only answers pages opened from this computer."}), 403
 
 PORT = int(os.environ.get("GUI_PORT", "7432"))
 
@@ -61,27 +82,6 @@ def benzene_example_dir():
         os.path.join(root, "Getting_started_with_examples", "feather_example"),
     ):
         if os.path.isdir(candidate) and os.path.isfile(os.path.join(candidate, "basic.feather")):
-            return candidate
-    return ""
-
-
-def baptiste_example_dir():
-    """Bundled Baptiste product set, if present."""
-    try:
-        from descripytor.examples import baptiste_example_dir as _baptiste_dir
-
-        path = _baptiste_dir()
-        if path.is_dir():
-            return str(path)
-    except Exception:
-        pass
-    here = os.path.dirname(os.path.abspath(__file__))
-    root = os.path.dirname(here)
-    for candidate in (
-        os.path.join(root, "descripytor", "examples", "baptiste_products"),
-        os.path.join(root, "Getting_started_with_examples", "baptiste_products"),
-    ):
-        if os.path.isdir(candidate) and os.path.isfile(os.path.join(candidate, "unsub.feather")):
             return candidate
     return ""
 
@@ -408,12 +408,6 @@ def _xyz_text_from_coords(df, name):
     return "\n".join(lines), str(label), int(len(df))
 
 
-def _xyz_from_feather_fast(path, display_name="molecule"):
-    """Read only atom coordinates from a .feather — no full Molecule() load."""
-    xyz, name, n_atoms, _overlay = _viewer_payload_from_feather(path, display_name)
-    return xyz, name, n_atoms
-
-
 def _dipole_from_feather_df(data):
     """Gaussian dipole from named columns or the legacy 4–7 positional block."""
     import math
@@ -659,7 +653,7 @@ def xyz_from_feather():
             path = data.get("filepath")
             if path:
                 display_name = data.get("name") or os.path.splitext(os.path.basename(path))[0]
-                ensure_path(data.get("root", ""))
+                ensure_path("")
         if not path:
             return jsonify({"error": "Upload a .feather file or pass filepath"}), 400
         if not os.path.isfile(path):
@@ -721,42 +715,13 @@ def ask_folder_dialog(initial=""):
     if initial and os.path.isdir(initial):
         args.append(initial)
     try:
-        completed = subprocess.run(
-            args,
-            capture_output=True,
-            timeout=600,
-            check=False,
-        )
-    except Exception:
-        return _ask_folder_dialog_inline(initial)
+        completed = subprocess.run(args, capture_output=True, timeout=600, check=False)
+    except subprocess.TimeoutExpired:
+        return ""
     if completed.returncode not in (0, None):
         err = (completed.stderr or b"").decode("utf-8", errors="replace").strip()
-        if err:
-            raise RuntimeError(err)
-        return _ask_folder_dialog_inline(initial)
+        raise RuntimeError(err or f"the dialog helper exited with code {completed.returncode}")
     return (completed.stdout or b"").decode("utf-8", errors="replace").strip()
-
-
-def _ask_folder_dialog_inline(initial=""):
-    """Last-resort in-process Tk dialog (works if this is the main thread)."""
-    import tkinter as tk
-    from tkinter import filedialog
-
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        root.wm_attributes("-topmost", True)
-    except tk.TclError:
-        pass
-    kwargs = {"title": "Choose a folder of .feather files"}
-    if initial:
-        kwargs["initialdir"] = initial
-    path = filedialog.askdirectory(**kwargs)
-    try:
-        root.destroy()
-    except tk.TclError:
-        pass
-    return path or ""
 
 
 @app.route("/browse/folder", methods=["POST"])
@@ -1038,14 +1003,13 @@ def feature_explorer():
     return assemble(), 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
-@app.route("/theta/check", methods=["POST"])
 @app.route("/feature_explorer/check", methods=["POST"])
 def theta_check():
     """The Python Sterimol on the explorer's coordinates and axis, so the page
     can confirm its in-browser port against the package on every pick."""
     data = request.json or {}
     try:
-        ensure_path(data.get("root", ""))
+        ensure_path("")
         import io
         import pandas as pd
         from data_extractor import extract_connectivity, get_sterimol_df
@@ -1090,270 +1054,6 @@ def figure_load():
 def _module_available(name: str) -> bool:
     import importlib.util
     return importlib.util.find_spec(name) is not None
-
-
-def _json_value(value):
-    """Convert pandas/NumPy values into strict JSON-compatible values."""
-    import numpy as np
-    import pandas as pd
-
-    if value is None or value is pd.NA:
-        return None
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating, float)):
-        return float(value) if math.isfinite(float(value)) else None
-    if isinstance(value, (np.bool_, bool)):
-        return bool(value)
-    if isinstance(value, (list, tuple, set, np.ndarray)):
-        return [_json_value(item) for item in value]
-    if isinstance(value, dict):
-        return {str(key): _json_value(item) for key, item in value.items()}
-    return str(value) if not isinstance(value, (str, int)) else value
-
-
-def _frame_records(frame, limit: int = 100):
-    if frame is None:
-        return []
-    return [
-        {str(key): _json_value(value) for key, value in row.items()}
-        for row in frame.head(limit).to_dict(orient="records")
-    ]
-
-
-@app.route("/model/merge-outputs", methods=["POST"])
-def model_merge_outputs():
-    """Merge pasted target values into a descriptor CSV and save a new CSV."""
-    import re
-    import pandas as pd
-
-    data = request.json or {}
-    source = str(data.get("features_csv", "")).strip()
-    target = str(data.get("target", "output")).strip() or "output"
-    raw = str(data.get("outputs", "")).strip()
-    mode = str(data.get("mode", "row_order")).strip()
-    name_column = str(data.get("name_column", "")).strip()
-
-    if not source or not os.path.isfile(source):
-        return jsonify({"error": f"CSV file not found: {source!r}"}), 400
-    if not raw:
-        return jsonify({"error": "Paste at least one output value."}), 400
-
-    frame = pd.read_csv(source)
-    try:
-        if mode == "name_value":
-            if not name_column or name_column not in frame.columns:
-                return jsonify({"error": f"Name column {name_column!r} was not found."}), 400
-            mapping = {}
-            for line_number, line in enumerate(raw.splitlines(), start=1):
-                if not line.strip():
-                    continue
-                parts = [item.strip() for item in re.split(r"[\t,;]", line, maxsplit=1)]
-                if len(parts) != 2 or not parts[0]:
-                    return jsonify({"error": f"Line {line_number} must be: name,value"}), 400
-                mapping[parts[0]] = float(parts[1])
-            names = frame[name_column].astype(str)
-            missing = names[~names.isin(mapping)].tolist()
-            if missing:
-                return jsonify({
-                    "error": f"No output supplied for {len(missing)} rows.",
-                    "missing_names": missing[:20],
-                }), 400
-            frame[target] = names.map(mapping).astype(float)
-        else:
-            tokens = [item for item in re.split(r"[\s,;]+", raw) if item]
-            values = [float(item) for item in tokens]
-            if len(values) != len(frame):
-                return jsonify({
-                    "error": f"Received {len(values)} outputs for {len(frame)} CSV rows."
-                }), 400
-            frame[target] = values
-    except ValueError as exc:
-        return jsonify({"error": f"Outputs must be numeric: {exc}"}), 400
-
-    requested_output = str(data.get("output_csv", "")).strip()
-    if requested_output:
-        output = os.path.abspath(requested_output)
-    else:
-        stem, extension = os.path.splitext(os.path.abspath(source))
-        output = f"{stem}_with_{target}{extension or '.csv'}"
-    os.makedirs(os.path.dirname(output), exist_ok=True)
-    frame.to_csv(output, index=False)
-    return jsonify({
-        "ok": True,
-        "output_csv": output,
-        "rows": len(frame),
-        "target": target,
-        "preview": _frame_records(frame[[target]], 5),
-    })
-
-
-@app.route("/model/dataset", methods=["POST"])
-def model_dataset():
-    """Inspect a modeling CSV before starting an expensive search."""
-    import pandas as pd
-
-    data = request.json or {}
-    path = data.get("features_csv", "")
-    target = data.get("target", "")
-    if not path or not os.path.isfile(path):
-        return jsonify({"error": f"CSV file not found: {path!r}"}), 400
-
-    try:
-        frame = pd.read_csv(path)
-        numeric = frame.select_dtypes(include="number").columns.tolist()
-        candidate_features = [column for column in numeric if column != target]
-        target_found = bool(target and target in frame.columns)
-        target_numeric = bool(target_found and target in numeric)
-        target_missing = int(frame[target].isna().sum()) if target_found else None
-        duplicate_columns = frame.columns[frame.columns.duplicated()].tolist()
-        ready = target_found and target_numeric and bool(candidate_features) and not duplicate_columns
-        return jsonify({
-            "rows": len(frame),
-            "columns": frame.columns.tolist(),
-            "numeric_columns": numeric,
-            "feature_count": len(candidate_features),
-            "target": target,
-            "target_found": target_found,
-            "target_numeric": target_numeric,
-            "target_missing": target_missing,
-            "duplicate_columns": duplicate_columns,
-            "ready": ready,
-            "preview": _frame_records(frame, 5),
-        })
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 400
-
-
-def _model_run_files(data):
-    """/model/run for the forms GUI: M3 model search or BASSA on a features CSV on disk."""
-    engine = str(data.get("engine", "m3")).lower()
-    features_csv = data.get("features_csv", "")
-    target_csv = data.get("target_csv") or ""
-    target = str(data.get("target", "output")).strip()
-
-    if not features_csv or not os.path.isfile(features_csv):
-        return jsonify({"error": f"CSV file not found: {features_csv!r}"}), 400
-    if not target:
-        return jsonify({"error": "A target column is required."}), 400
-
-    try:
-        ensure_path(data.get("root", ""))
-        if engine == "bassa":
-            return _run_bassa(data, features_csv, target)
-        return _run_m3(data, features_csv, target_csv, target)
-    except Exception as exc:
-        traceback.print_exc()
-        return jsonify({"error": str(exc)}), 500
-
-
-def _run_m3(data, features_csv: str, target_csv: str, target: str):
-    try:
-        from M3_modeler.modeling import ClassificationModel, LinearRegressionModel
-    except ImportError:
-        from MolFeatures.M3_modeler.modeling import ClassificationModel, LinearRegressionModel
-
-    task = str(data.get("task", "regression")).lower()
-    process_method = "two csvs" if target_csv else "one csv"
-    paths = {
-        "features_csv_filepath": features_csv,
-        "target_csv_filepath": target_csv or None,
-    }
-    common = dict(
-        csv_filepaths=paths,
-        process_method=process_method,
-        y_value=target,
-        names_column=data.get("names_column") or None,
-        leave_out=data.get("leave_out") or None,
-        min_features_num=int(data.get("min_features", 1)),
-        max_features_num=int(data.get("max_features", 3)),
-        n_splits=int(data.get("n_splits", 5)),
-        db_path=data.get("db_path") or "results",
-    )
-    if task == "classification":
-        model = ClassificationModel(
-            **common,
-            ordinal=bool(data.get("ordinal", False)),
-        )
-    else:
-        model = LinearRegressionModel(
-            **common,
-            model_type=data.get("regression_type", "linear"),
-            alpha=float(data.get("alpha", 1.0)),
-            scale=bool(data.get("scale", True)),
-            seed=int(data.get("seed", 42)),
-        )
-
-    results = model.search_models(
-        top_n=int(data.get("top_n", 20)),
-        n_jobs=int(data.get("n_jobs", 1)),
-        threshold=float(data.get("threshold", 0.7)),
-        bool_parallel=bool(data.get("parallel", False)),
-        required_features=data.get("required_features") or None,
-    )
-    return jsonify({
-        "engine": "m3",
-        "task": task,
-        "rows": len(results),
-        "columns": list(results.columns),
-        "results": _frame_records(results),
-        "run_directory": str(model.paths.root),
-    })
-
-
-def _run_bassa(data, features_csv: str, target: str):
-    if not _module_available("bassa_reg"):
-        return jsonify({
-            "error": "BASSA is not installed in this Python environment. Run: pip install bassa-reg"
-        }), 400
-
-    import pandas as pd
-    from bassa_reg import Bassa
-    from bassa_reg.spike_and_slab.spike_and_slab import (
-        SpikeAndSlabConfigurations,
-        SpikeAndSlabRegression,
-    )
-    from bassa_reg.spike_and_slab.spike_and_slab_util_models import SpikeAndSlabPriors
-
-    frame = pd.read_csv(features_csv)
-    if target not in frame.columns:
-        return jsonify({"error": f"Target column {target!r} was not found."}), 400
-
-    excluded = {target, data.get("names_column") or ""}
-    requested = data.get("feature_columns") or []
-    if requested:
-        feature_columns = [column for column in requested if column in frame.columns]
-    else:
-        feature_columns = [
-            column for column in frame.select_dtypes(include="number").columns
-            if column not in excluded
-        ]
-    if not feature_columns:
-        return jsonify({"error": "No numeric feature columns were found."}), 400
-
-    clean = frame[feature_columns + [target]].dropna()
-    project_path = os.path.abspath(data.get("project_path") or "bassa_runs")
-    os.makedirs(project_path, exist_ok=True)
-    config = SpikeAndSlabConfigurations(
-        sampler_iterations=int(data.get("sampler_iterations", 5000))
-    )
-    regression = SpikeAndSlabRegression(
-        x=clean[feature_columns],
-        y=clean[target],
-        priors=SpikeAndSlabPriors(),
-        config=config,
-        project_path=project_path,
-        experiment_name=data.get("experiment_name") or "molfeatures_gui",
-    )
-    regression.run()
-    Bassa(model=regression).run()
-    return jsonify({
-        "engine": "bassa",
-        "rows": len(clean),
-        "features": feature_columns,
-        "project_path": project_path,
-        "message": "BASSA completed. Plots and summary files were written to the project path.",
-    })
 
 
 def _extract_empty_message(log_text):
@@ -1437,7 +1137,7 @@ def extract():
         return jsonify({"error": f"feather folder not found: {feather_dir}"}), 400
 
     cfg["feather_dir"] = os.path.abspath(feather_dir)
-    cfg["root_dir"] = cfg.get("root_dir") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cfg["root_dir"] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))      # never a folder the request names: it goes first on sys.path
     cfg["output_csv"] = None
     engines = cfg.get("engines")
     if isinstance(engines, dict) and isinstance(engines.get("descripytor_full"), dict):
@@ -1775,8 +1475,6 @@ def model_run():
     import pandas as pd
 
     data = request.json or {}
-    if data.get("features_csv"):          # the forms GUI sends a path, the 3D picker the CSV text
-        return _model_run_files(data)
     try:
         df, y_name = _table_with_target(data)
     except ValueError as exc:
@@ -1845,7 +1543,7 @@ def model_run():
 # Raised whenever the pages need a route an older server does not have. A server still running from before then answers
 # /status with a lower number, and a new start tells the user to stop it instead of reusing it (its pages are read from
 # disk, so they would be new while its routes are old: the links to /feature_explorer and /bassa_explorer gave Not Found).
-GUI_API = 3
+GUI_API = 4      # 4: pages from other sites refused, the removed modeling panel's routes gone
 
 
 def _tcp_port_open(port):
@@ -1959,6 +1657,11 @@ def serve(host=None, port=None, open_browser=True, page="/visual"):
 
     host = host or os.environ.get("GUI_HOST", "127.0.0.1")
     port = int(port or os.environ.get("GUI_PORT", str(PORT)))
+    if host in ("0.0.0.0", "::", ""):
+        print("  Listening on every interface, but pages are answered only at 127.0.0.1 / localhost. To open it from "
+              "another computer, start with --host <this computer's address>.")
+    else:
+        _LOCAL_HOSTS.add(host.strip("[]"))
     os.environ["GUI_PORT"] = str(port)                        # a BASSA explorer started from a page links back to this port
     existing = _reuse_or_refuse_existing_gui(host, port, open_browser, page)
     if existing is True:

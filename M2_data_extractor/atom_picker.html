@@ -215,11 +215,6 @@ if (typeof $3Dmol === "undefined") {
     grid-template-columns:minmax(300px,1.15fr) minmax(290px,1fr);
     gap:16px; padding:20px 20px 8px; align-items:start;
   }
-  /* Manual layout modes (cycled via the "Layout" button in the header) */
-  .wrap.layout-wide-viewer { grid-template-columns:minmax(300px,1.8fr) minmax(260px,.8fr); }
-  .wrap.layout-wide-panel  { grid-template-columns:minmax(260px,.8fr) minmax(300px,1.6fr); }
-  .wrap.layout-stack       { grid-template-columns:1fr; }
-  .wrap.layout-stack #rightCol { max-height:none; overflow-y:visible; padding-right:0; }
   #leftCol  { display:flex; flex-direction:column; gap:10px; }
   #rightCol { display:flex; flex-direction:column; gap:14px; max-height:calc(100vh - 74px); overflow-y:auto; padding-right:4px; }
   #rightCol::-webkit-scrollbar { width:4px; }
@@ -413,7 +408,6 @@ if (typeof $3Dmol === "undefined") {
   .advanced-box > summary::-webkit-details-marker { display:none; }
   .advanced-box > summary::before { content:"▸ "; }
   .advanced-box[open] > summary::before { content:"▾ "; }
-  #layoutToggleBtn { display:none; }
   button.primary-save { font-size:14px; font-weight:650; padding:8px 16px; }
 
   /* ── Vizbar header ── */
@@ -421,10 +415,6 @@ if (typeof $3Dmol === "undefined") {
     display:flex; align-items:center; gap:8px;
     padding-bottom:9px; margin-bottom:4px;
     border-bottom:1px solid rgba(0,0,0,.06);
-  }
-  .vizbar-title {
-    font-size:10.5px; font-weight:700; text-transform:uppercase;
-    letter-spacing:.09em; color:var(--muted); flex:1;
   }
   /* ── sec-num glow when section is open ── */
   .sec-head.collapsible:not(.closed) .sec-num {
@@ -462,8 +452,6 @@ if (typeof $3Dmol === "undefined") {
   .vizrow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:12.5px; }
   .vizrow input[type=checkbox] { accent-color:var(--blue); width:14px; height:14px; cursor:pointer; }
   .vizrow button { padding:4px 12px; }
-  .polar { flex-basis:100%; margin-top:4px; }
-  .polar svg { background:#f8fafe; border:1px solid rgba(0,0,0,.05); border-radius:10px; box-shadow:var(--shadow-xs); }
   .dipole-basis input { text-align:center; }
 
   /* ── Typography helpers ── */
@@ -529,12 +517,6 @@ if (typeof $3Dmol === "undefined") {
     letter-spacing:.02em;
     background:rgba(0,122,255,.09); border:1px solid rgba(0,122,255,.18);
     color:#0057C8; border-radius:999px; padding:2px 9px;
-  }
-  .current {
-    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;
-    background:rgba(0,122,255,.05); border:1.5px dashed rgba(0,122,255,.28);
-    border-radius:var(--r-sm); padding:6px 10px;
-    min-width:120px; min-height:30px; display:inline-flex; align-items:center; color:var(--text);
   }
 
   .extract-table-wrap {
@@ -789,12 +771,7 @@ if (typeof $3Dmol === "undefined") {
     height:100%; gap:8px; font-size:13px; color:var(--muted); text-align:center; line-height:1.5;
   }
   @media (max-width:900px) { .cview-main { grid-template-columns:1fr; } .cv-viewer { min-height:320px; } }
-  /* Combined extraction -> modeling workflow */
-  .model-bar { margin:14px 20px 0; background:var(--surface-hi); border:1px solid rgba(0,0,0,.07); border-radius:var(--r-lg); box-shadow:var(--shadow); overflow:hidden; }
-  .model-head { display:flex; align-items:center; gap:10px; padding:13px 17px; cursor:pointer; user-select:none; background:rgba(255,255,255,.72); }
-  .model-head:hover { background:rgba(0,122,255,.035); }
-  .model-body { display:none; padding:16px 17px 18px; border-top:1px solid var(--line); }
-  .model-body.open { display:block; }
+  /* The Model tab */
   .model-grid { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:12px; }
   .model-field { display:flex; flex-direction:column; gap:5px; min-width:0; }
   .model-field.wide { grid-column:span 2; }
@@ -807,9 +784,6 @@ if (typeof $3Dmol === "undefined") {
   .model-status.ok { background:rgba(40,205,65,.07); border-color:rgba(40,205,65,.28); }
   .model-status.bad { background:rgba(255,59,48,.06); border-color:rgba(255,59,48,.25); }
   .model-status.warn { background:rgba(255,159,10,.07); border-color:rgba(255,159,10,.28); }
-  .model-command { display:none; margin-top:12px; padding:11px 13px; border-radius:var(--r-sm); background:#f5f7fb; border:1px solid rgba(0,0,0,.08); color:#24344d; font:11.5px/1.55 ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
-  .model-command.visible { display:block; }
-  .model-check { display:flex; align-items:center; gap:7px; min-height:34px; font-size:12px; color:#415165; }
   @media (max-width:1050px) { .model-grid { grid-template-columns:repeat(2,minmax(150px,1fr)); } }
   @media (max-width:620px) {
     body { overflow-x:hidden; }
@@ -819,11 +793,11 @@ if (typeof $3Dmol === "undefined") {
     .wrap { padding:10px; }
     #viewer-card { min-height:390px; height:62vh; border-radius:16px; }
     .panel, .vizbar { border-radius:14px; padding:14px; }
-    .model-bar, .csearch-bar, .cview-bar { margin:10px 10px 14px; border-radius:14px; }
-    .model-head, .csearch-head, .cview-head { padding:12px 14px; flex-wrap:wrap; gap:7px; }
-    .model-head .small, .csearch-head .small, .cview-head .small { display:none; }
-    .model-head > span:last-child, .csearch-head > span:last-child, .cview-head > span:last-child { margin-left:auto; }
-    .model-body, .csearch-body { padding:14px; }
+    .csearch-bar, .cview-bar { margin:10px 10px 14px; border-radius:14px; }
+    .csearch-head, .cview-head { padding:12px 14px; flex-wrap:wrap; gap:7px; }
+    .csearch-head .small, .cview-head .small { display:none; }
+    .csearch-head > span:last-child, .cview-head > span:last-child { margin-left:auto; }
+    .csearch-body { padding:14px; }
     .model-grid { grid-template-columns:1fr; }
     .model-field.wide { grid-column:span 1; }
     .model-actions button { flex:1 1 135px; }
@@ -841,7 +815,6 @@ if (typeof $3Dmol === "undefined") {
   <a class="micro-btn" href="/feature_explorer" title="Draw any descriptor on a molecule, with every control">Feature explorer</a>
   <a class="micro-btn" href="/bassa_explorer" title="The models a BASSA run visited, beside the molecule (starts its server if needed)">BASSA explorer</a>
   <button type="button" class="tour-start-btn" id="startTourBtn" title="Guided walkthrough (5 steps). Shift-click for the full atom-picking tour.">Tutorial</button>
-  <button class="micro-btn" type="button" id="layoutToggleBtn" title="Cycle how the 3D view and the selection panel share the page" onclick="cycleLayout()">Layout: Balanced</button>
 </header>
 <div id="a11yStatus" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
@@ -1604,7 +1577,7 @@ const state = {};
 [...FIELDS, ...MF_FIELDS].forEach(f => state[f.key] = []);   // each -> list of groups
 let activeField = FIELDS[0].key;
 let currentGroup = [];
-let viewer = null, lastModelXYZ = null, nAtoms = 0, lastClicked = null, lastModelName = null;
+let viewer = null, lastModelXYZ = null, nAtoms = 0, lastModelName = null;
 let measureMode = false, measurePicks = [];
 let animating = false, animTimer = null, animPhase = 0, animLastFrame = 0;
 
@@ -1764,7 +1737,7 @@ function updateMolInfoBadge(name, atomCount) {
   const badge = document.getElementById('molInfoBadge');
   if (!badge) return;
   badge.style.display = 'flex';
-  badge.innerHTML = `<span class="mol-dot"></span><span>${name || 'molecule'}</span><span class="mol-count">${atomCount} atoms</span>`;
+  badge.innerHTML = `<span class="mol-dot"></span><span>${esc(name || 'molecule')}</span><span class="mol-count">${atomCount} atoms</span>`;
 }
 
 /* --- default demo molecule (caffeine) so the picker works on open --- */
@@ -1803,7 +1776,6 @@ H  2.3760   1.5090   0.8910`;
  * ------------------------------------------------------------------ */
 let elements = [], baseCoords = [];
 let MOL_DATA = { dipole: null, modes: [] };
-try { const _d = `__MOL_DATA__`; if (_d.indexOf("__MOL") !== 0) MOL_DATA = JSON.parse(_d); } catch (e) {}
 
 
 /* ------------------------------------------------------------------ *
@@ -1912,7 +1884,7 @@ function initViewer(xyz, filename, opts) {
     if (animTimer) { cancelAnimationFrame(animTimer); animTimer = null; }
     if ($("vizPlay")) $("vizPlay").textContent = "Play";
   }
-  currentGroup = []; lastClicked = null; measurePicks = [];
+  currentGroup = []; measurePicks = [];
   lastModelXYZ = xyz;
   parseXYZ(xyz);
   const lines = xyz.trim().split(/\r?\n/);
@@ -1932,8 +1904,6 @@ function initViewer(xyz, filename, opts) {
   if (!silent && filename && !/demo/i.test(String(filename)) && typeof tourNotify === "function") tourNotify("file");
   if (typeof saveSession === "function") saveSession();
 }
-
-function fitPickerViewer() {}                 // the figure fills its frame by itself
 
 function recenterViewer() {
   if (viewer && baseCoords && !animating) buildScene(baseCoords, true);
@@ -2356,7 +2326,6 @@ function stopAnim() {
   animating = false;
   if (animTimer) {
     cancelAnimationFrame(animTimer);
-    clearInterval(animTimer);
     animTimer = null;
   }
   $("vizPlay").textContent = "Play";
@@ -2436,7 +2405,6 @@ function fieldOf(key) { return allFields().find(x => x.key === key); }
 
 function onAtomClick(idx) {
   if (measureMode) { onMeasurePick(idx); return; }
-  lastClicked = idx;
   if (currentGroup.includes(idx)) {            // a second click on an atom of the unfinished group takes it out again;
     currentGroup = currentGroup.filter(a => a !== idx);   // the same atom twice in a group ([4, 4, 6]) is never what was meant
     refresh();
@@ -2515,7 +2483,7 @@ function updateMeasureReadout() {
   if (!measureMode && measurePicks.length === 0) { el.classList.remove("visible"); return; }
   el.classList.add("visible");
   if (measurePicks.length === 0) { txt.innerHTML = '<span class="msr-chip">Click an atom to start measuring</span>'; return; }
-  const labels = measurePicks.map(i => `<span class="msr-chip">#${i} ${elements && elements[i-1] ? elements[i-1] : ''}</span>`).join(' → ');
+  const labels = measurePicks.map(i => `<span class="msr-chip">#${i} ${esc(elements && elements[i-1] ? elements[i-1] : '')}</span>`).join(' → ');
   let result = '';
   if (measurePicks.length >= 2 && baseCoords) {
     const p = baseCoords[measurePicks[0]-1], q = baseCoords[measurePicks[1]-1];
@@ -2560,7 +2528,6 @@ function clearAllPicks() {
   const fields = typeof allFields === "function" ? allFields() : [...FIELDS, ...MF_FIELDS];
   fields.forEach(f => { if (f && f.key) state[f.key] = []; });
   currentGroup = [];
-  lastClicked = null;
   refresh();
   if (typeof saveSession === "function") saveSession();
   if (typeof setExtractStatus === "function") setExtractStatus("Cleared all atom picks.", "ok");
@@ -3244,10 +3211,6 @@ function applyExamplePresets() {
   });
 }
 
-function normMolName(s) {
-  return String(s || "").replace(/\.feather$/i, "").trim().toLowerCase().replace(/_/g, "-");
-}
-
 function fillDefaultOutcomes() {
   const ta = $("lrOutputs");
   if (!ta || ta.value.trim()) return;
@@ -3862,7 +3825,7 @@ $("resetBtn").onclick = () => {
   activeWorkflowPreset = "feather";
   if ($("useFeatherXyz")) $("useFeatherXyz").checked = false;
   ["basisOrigin", "basisY", "basisPlane"].forEach(id => $(id).value = "");
-  currentGroup = []; lastClicked = null; refresh();
+  currentGroup = []; refresh();
   if (typeof clearSession === "function") clearSession();
 };
 $("fileInput").onchange = e => {
@@ -3960,32 +3923,6 @@ async function browseFeatherFolder() {
 }
 
 $("measureBtn").onclick = () => toggleMeasureMode();
-
-/* ------------------------------------------------------------------ *
- * Layout toggle: cycle how leftCol (3D view) and rightCol (controls) *
- * share the page - useful when the embedding iframe is narrow.       *
- * ------------------------------------------------------------------ */
-const LAYOUT_MODES = [
-  { cls: "", label: "Layout: Balanced" },
-  { cls: "layout-wide-viewer", label: "Layout: Wide 3D view" },
-  { cls: "layout-wide-panel", label: "Layout: Wide controls" },
-  { cls: "layout-stack", label: "Layout: Stacked" },
-];
-let layoutModeIdx = 0;
-function applyLayoutMode() {
-  const wrap = $("mainWrap");
-  const btn = $("layoutToggleBtn");
-  if (!wrap) return;
-  LAYOUT_MODES.forEach(m => { if (m.cls) wrap.classList.remove(m.cls); });
-  const mode = LAYOUT_MODES[layoutModeIdx];
-  if (mode.cls) wrap.classList.add(mode.cls);
-  if (btn) btn.textContent = mode.label;
-}
-function cycleLayout() {
-  layoutModeIdx = (layoutModeIdx + 1) % LAYOUT_MODES.length;
-  applyLayoutMode();
-}
-applyLayoutMode();
 
 $("screenshotBtn").onclick = () => {
   if (!viewer) return;
@@ -4121,7 +4058,7 @@ function csRefresh() {
   if (csSrc === 'paste' && pasteCount) {
     note = `<b>${pasteCount} molecules</b> ready. Download <code>smiles.csv</code>, fill its path above, then copy the command.<br>`;
   }
-  note += `After the run: click <b>Use as xyz_dir → config</b> to wire <code>${outDir}</code> into the exported run_config, ` +
+  note += `After the run: click <b>Use as xyz_dir → config</b> to wire <code>${esc(outDir)}</code> into the exported run_config, ` +
     `then enable <b>rdkit_fp</b>, <b>mordred</b>, <b>rafbl</b>, or any other xyz engine in the Feature packages panel.`;
   $('csNote').innerHTML = note;
 }
@@ -4139,7 +4076,7 @@ function csApplyOut() {
   RUN_PATHS.xyz_dir = outDir;
   if ($('useFeatherXyz')) $('useFeatherXyz').checked = false;
   refresh();
-  $('csNote').innerHTML = `<b>Done.</b> <code>${outDir}</code> is now the <code>xyz_dir</code> in your run_config. ` +
+  $('csNote').innerHTML = `<b>Done.</b> <code>${esc(outDir)}</code> is now the <code>xyz_dir</code> in your run_config. ` +
     `Enable the xyz engines in the Feature packages panel and export the config.`;
 }
 
@@ -4379,7 +4316,7 @@ function cvUpdateList() {
     div.innerHTML=`
       <div class="cv-dot" style="background:${c.color}"></div>
       <div class="cv-info">
-        <div class="cv-name" title="${c.src} frame ${c.frame}">${c.name}</div>
+        <div class="cv-name" title="${esc(c.src)} frame ${c.frame}">${esc(c.name)}</div>
         <div class="cv-meta">${c.atoms.length} atoms${eStr?' &middot; E='+eStr:''}</div>
       </div>
       ${rmsdStr}`;
@@ -4499,11 +4436,11 @@ function cvRenderStack() {
         const {aligned,rmsd}=kabschAlign(c.atoms, refAtoms, indices);
         c.rmsd=rmsd;
         displayAtoms=aligned.map(a=>[a[0],a[1]-cx,a[2]-cy,a[3]-cz]);
-        statsLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${c.name}</b>: RMSD ${rmsd.toFixed(4)}&thinsp;Å (${indices.length} align atoms)`);
+        statsLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: RMSD ${rmsd.toFixed(4)}&thinsp;Å (${indices.length} align atoms)`);
       } else {
         c.rmsd=null;
         displayAtoms=c.atoms.map(a=>[a[0],a[1]-cx,a[2]-cy,a[3]-cz]);
-        statsLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${c.name}</b>: not aligned (atom count or element mismatch)`);
+        statsLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: not aligned (atom count or element mismatch)`);
       }
     }
 
@@ -4556,218 +4493,15 @@ function cvRenderStack() {
 document.addEventListener('dragover', e=>e.preventDefault());
 document.addEventListener('drop', e=>e.preventDefault());
 
-/* ================================================================== *
- * Modeling: validates the descriptor CSV through gui_server.py and   *
- * prepares the same M3 settings for command-line or direct execution. *
- * ================================================================== */
+/* The server this page talks to (the explorer frame, the BASSA hand-off, the explorer links) */
 const MODEL_SERVER = location.protocol.startsWith("http") ? location.origin : "http://127.0.0.1:7432";   // any --port, not only the default
-let mdlReady = false;
-let mdlFeatureCount = 0;
-let mdlServerOnline = false;
-
-function toggleModelPanel() {
-  const open = $("modelBody").classList.toggle("open");
-  $("modelChevron").textContent = open ? "▲ collapse" : "▼ expand";
-  if (open && !$("mdlCsv").value.trim()) mdlUseExtractionOutput();
-}
-
-function mdlStatus(message, kind="warn") {
-  const box = $("mdlStatus");
-  box.textContent = message;
-  box.className = `model-status visible ${kind}`;
-}
-
-function mdlInvalidate() {
-  mdlReady = false;
-  $("mdlStatus").className = "model-status";
-}
-
-function mdlSync() {
-  const bassa = $("mdlEngine").value === "bassa";
-  document.querySelectorAll(".m3-only").forEach(el => el.style.display = bassa ? "none" : "");
-  document.querySelectorAll(".bassa-only").forEach(el => el.style.display = bassa ? "" : "none");
-  $("mdlTaskField").style.display = bassa ? "none" : "";
-  $("mdlRunBtn").textContent = bassa ? "Run BASSA via server" : "Run M3 via server";
-  $("mdlCommand").className = "model-command";
-}
-
-function mdlSyncMerge() {
-  $("mdlNameColumnField").style.display = $("mdlMergeMode").value === "name_value" ? "" : "none";
-}
-
-function mdlUseExtractionOutput() {
-  const output = runConfigObject().output_csv || "merged_features.csv";
-  $("mdlCsv").value = output;
-  mdlInvalidate();
-  mdlStatus(`Using extraction output: ${output}`, "warn");
-}
-
-function mdlChoose(n, k) {
-  if (k < 0 || k > n) return 0;
-  k = Math.min(k, n-k);
-  let value = 1;
-  for (let i=1; i<=k; i++) value = value * (n-k+i) / i;
-  return Math.round(value);
-}
-
-function mdlComboCount() {
-  const lo = Math.max(1, parseInt($("mdlMin").value,10) || 1);
-  const hi = Math.min(mdlFeatureCount, parseInt($("mdlMax").value,10) || lo);
-  let total = 0;
-  for (let k=lo; k<=hi; k++) total += mdlChoose(mdlFeatureCount,k);
-  return total;
-}
-
-function mdlEstimate() {
-  if (!mdlFeatureCount || $("mdlEngine").value !== "m3") return;
-  const count = mdlComboCount();
-  const kind = count > 100000 ? "warn" : "ok";
-  mdlStatus(`${count.toLocaleString()} M3 feature combinations from ${mdlFeatureCount} numeric descriptors. ${count > 100000 ? "Reduce maximum features before a long run." : "Search size is reasonable."}`, kind);
-}
-
-async function mdlValidate() {
-  const csv = $("mdlCsv").value.trim();
-  const target = $("mdlTarget").value.trim() || "output";
-  if (!csv) { mdlStatus("Choose a feature CSV or use the extraction output first.","bad"); return false; }
-  mdlStatus("Checking CSV and target column...","warn");
-  try {
-    const response = await fetch(`${MODEL_SERVER}/model/dataset`, {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({features_csv:csv,target})
-    });
-    const data = await response.json();
-    if (!response.ok || data.error) throw new Error(data.error || "CSV validation failed");
-    mdlReady = !!data.ready;
-    mdlFeatureCount = data.feature_count || 0;
-    if (!data.target_found) mdlStatus(`CSV loaded (${data.rows} rows), but target column '${target}' is missing.`,"bad");
-    else if (!data.target_numeric) mdlStatus(`Target column '${target}' exists but is not numeric.`,"bad");
-    else if (!data.ready) mdlStatus("CSV needs attention: add numeric descriptors and remove duplicate columns.","bad");
-    else {
-      const missing = data.target_missing ? `, ${data.target_missing} missing target values` : "";
-      mdlStatus(`CSV ready: ${data.rows} rows, ${data.feature_count} numeric descriptors, target '${target}'${missing}.`,"ok");
-      mdlEstimate();
-    }
-    return mdlReady;
-  } catch (error) {
-    mdlReady = false;
-    mdlStatus(`Could not verify CSV: ${error.message}. Start M2_data_extractor\\gui_server.py.`,"bad");
-    return false;
-  }
-}
-
-async function mdlMergeOutputs() {
-  if (!mdlServerOnline) {
-    mdlStatus("Start gui_server.py before merging output values.","bad");
-    return;
-  }
-  const source = $("mdlCsv").value.trim();
-  const outputs = $("mdlOutputs").value.trim();
-  if (!source || !outputs) {
-    mdlStatus("Choose the descriptor CSV and paste output values first.","bad");
-    return;
-  }
-  mdlStatus("Merging outputs into a new modeling CSV...","warn");
-  try {
-    const response = await fetch(`${MODEL_SERVER}/model/merge-outputs`, {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        features_csv:source,
-        outputs,
-        target:$("mdlTarget").value.trim() || "output",
-        mode:$("mdlMergeMode").value,
-        name_column:$("mdlNameColumn").value.trim(),
-        output_csv:$("mdlMergedPath").value.trim()
-      })
-    });
-    const data = await response.json();
-    if (!response.ok || data.error) {
-      const detail = data.missing_names?.length ? ` Missing: ${data.missing_names.join(", ")}` : "";
-      throw new Error((data.error || "Merge failed") + detail);
-    }
-    $("mdlCsv").value = data.output_csv;
-    $("mdlMergedPath").value = data.output_csv;
-    mdlReady = false;
-    mdlStatus(`Merged ${data.rows} output values into '${data.target}'. Saved: ${data.output_csv}`,"ok");
-    await mdlValidate();
-  } catch (error) { mdlStatus(`Could not merge outputs: ${error.message}`,"bad"); }
-}
-
-function mdlQuote(value) { return `'${String(value).replace(/'/g,"''")}'`; }
-function mdlList(id) { return $(id).value.split(",").map(v=>v.trim()).filter(Boolean); }
-
-function mdlPayload() {
-  return {
-    engine:$("mdlEngine").value, task:$("mdlTask").value,
-    features_csv:$("mdlCsv").value.trim(), target:$("mdlTarget").value.trim() || "output",
-    min_features:Number($("mdlMin").value), max_features:Number($("mdlMax").value),
-    top_n:Number($("mdlTop").value), threshold:Number($("mdlThreshold").value),
-    n_jobs:Number($("mdlJobs").value), parallel:$("mdlParallel").checked,
-    leave_out:mdlList("mdlLeave"), sampler_iterations:Number($("mdlIterations").value),
-    experiment_name:$("mdlExperiment").value.trim(), project_path:$("mdlBassaOut").value.trim()
-  };
-}
-
-function mdlGenerateCommand() {
-  const p = mdlPayload();
-  if (!p.features_csv) { mdlStatus("Choose a feature CSV first.","bad"); return; }
-  if (p.engine === "bassa") {
-    $("mdlCommand").textContent = "BASSA is run through the modeling server with the settings above. Install it with: pip install bassa-reg";
-  } else {
-    const root = pathVal(RUN_PATHS.root_dir,"..\\..");
-    const script = root.replace(/[\\/]$/,"") + "\\__main__.py";
-    const parts = ["python",mdlQuote(script),"model","--mode",p.task,"--features_csv",mdlQuote(p.features_csv),"--y_value",mdlQuote(p.target),"--min-features",p.min_features,"--max-features",p.max_features,"--top-n",p.top_n,"--threshold",p.threshold,"--n_jobs",p.n_jobs];
-    if (p.parallel || p.n_jobs > 1) parts.push("--bool-parallel");
-    if (p.leave_out.length) parts.push("--leave-out",...p.leave_out.map(mdlQuote));
-    $("mdlCommand").textContent = parts.join(" ");
-  }
-  $("mdlCommand").className = "model-command visible";
-}
-
-async function mdlCopyCommand() {
-  if (!$("mdlCommand").textContent.trim()) mdlGenerateCommand();
-  await navigator.clipboard.writeText($("mdlCommand").textContent);
-  mdlStatus("Modeling command copied.","ok");
-}
-
-async function mdlRun() {
-  if (!mdlServerOnline) { mdlStatus("Start gui_server.py before running a model.","bad"); return; }
-  if (!mdlReady && !await mdlValidate()) return;
-  const p = mdlPayload();
-  const count = p.engine === "m3" ? mdlComboCount() : 0;
-  if (count > 100000 && !confirm(`Evaluate ${count.toLocaleString()} feature combinations?`)) return;
-  $("mdlRunBtn").disabled = true;
-  mdlStatus(p.engine === "bassa" ? "BASSA is sampling models..." : "M3 is evaluating feature combinations...","warn");
-  try {
-    const response = await fetch(`${MODEL_SERVER}/model/run`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)});
-    const data = await response.json();
-    if (!response.ok || data.error) throw new Error(data.error || "Modeling failed");
-    mdlStatus(data.message || `Modeling complete. Output: ${data.run_directory || data.project_path || "run directory"}`,"ok");
-  } catch (error) { mdlStatus(`Modeling failed: ${error.message}`,"bad"); }
-  finally { $("mdlRunBtn").disabled = false; }
-}
-
-async function mdlPingServer() {
-  try {
-    const response = await fetch(`${MODEL_SERVER}/status`,{signal:AbortSignal.timeout(1800)});
-    const data = await response.json();
-    mdlServerOnline = !!data.ok;
-    $("mdlServerState").textContent = mdlServerOnline ? `Server connected · ${data.cpu_count || 1} CPU cores${data.bassa_available ? " · BASSA ready" : ""}` : "Modeling server unavailable";
-    $("mdlJobs").max = data.cpu_count || 1;
-  } catch (_) { mdlServerOnline=false; $("mdlServerState").textContent="Server offline · commands still available"; }
-}
-
 /* ================================================================== *
- * Boot.  __XYZ_DATA__ is replaced by the Python helper when it embeds  *
- * a real molecule; otherwise the demo molecule is used.               *
+ * Boot: the last session's molecule, else the example molecule.       *
  * ================================================================== */
-const EMBEDDED_XYZ = `__XYZ_DATA__`;
 buildFieldSelect();
-const _isDemo = EMBEDDED_XYZ.indexOf("__XYZ" + "_DATA__") === 0;
 if (!window.FEATURE_EXPLORER_HTML) {
   const el = $("pickerStage");
   if (el) el.innerHTML = "<p style='padding:24px;color:#415165'>The feature explorer is not embedded in this page: run M2_data_extractor/feature_explorer/build.py --inject on it.</p>";
-} else if (!_isDemo) {
-  initViewer(EMBEDDED_XYZ, null);
 } else {
   const el = $("pickerStage");
   if (el) el.innerHTML = "<p style='padding:24px;color:#415165'>Loading the example molecule…</p>";
@@ -4776,7 +4510,7 @@ if (typeof applyWorkflowPreset === "function") applyWorkflowPreset("feather");
 refresh();
 const _restoredSession = typeof restoreSession === "function" && restoreSession();
 const _sessionMol = window._sessionXyz && window._sessionXyz.xyz;
-if (window.FEATURE_EXPLORER_HTML && _sessionMol && _isDemo) {
+if (window.FEATURE_EXPLORER_HTML && _sessionMol) {
   if (typeof showMolecule === "function") {
     showMolecule(window._sessionXyz.xyz, window._sessionXyz.name || "molecule", window._sessionXyz.molData, { silent: true });
   } else {
@@ -4796,12 +4530,6 @@ if (window.FEATURE_EXPLORER_HTML && _sessionMol && _isDemo) {
     });
   }
 }
-window.addEventListener("resize", () => {
-  if (typeof fitPickerViewer === "function") fitPickerViewer();
-});
-  // Modeling panel was removed (see the "Modeling" section above) - its former
-  // boot calls (mdlSync/mdlSyncMerge/mdlPingServer) targeted elements that no
-  // longer exist, so they're intentionally not called here anymore.
 
 /* ================================================================== *
  * Guided tutorial: circle + arrow on Load → Pick → Extract → Model   *
@@ -5070,20 +4798,6 @@ function tourIsOpen() {
   let idx = 0;
   let open = false;
   let layoutTimer = 0;
-
-  function tourFillDemoOutputs() {
-    if (typeof fillExampleOutputs === "function") {
-      fillExampleOutputs();
-      return;
-    }
-    const ta = $("lrOutputs");
-    if (!ta) return;
-    const table = $("extractTable");
-    const n = table ? table.querySelectorAll("tbody tr").length : 0;
-    if (!n) return;
-    ta.value = Array.from({ length: n }, (_, i) => (1.50 + i * 0.07).toFixed(2)).join("\n");
-    if ($("lrThr")) $("lrThr").value = "0";
-  }
 
   function ensureDom() {
     if ($(ROOT_ID)) return;

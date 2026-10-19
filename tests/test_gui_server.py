@@ -57,6 +57,25 @@ def test_status(client):
         assert any(row.get("name") == "unsub" and float(row.get("output")) == 0.1461 for row in outcomes)
 
 
+def test_only_pages_on_this_computer_are_answered(client):
+    """Every route reads or writes files here: another site's script, a rebinding Host name or a cross-site <img> or
+    <form> is refused; this computer's pages on any port, and opening a page by a link, are answered."""
+    assert client.get("/status").status_code == 200
+    local = client.get("/status", headers={"Origin": "http://127.0.0.1:8742"})       # the explorer served by http.server
+    assert local.status_code == 200
+    if importlib.util.find_spec("flask_cors") is not None:
+        assert local.headers.get("Access-Control-Allow-Origin") == "http://127.0.0.1:8742"
+    body = {"directory": str(ROOT)}
+    for headers in ({"Origin": "https://evil.example"}, {"Origin": "null"},
+                    {"Sec-Fetch-Site": "cross-site", "Sec-Fetch-Mode": "no-cors"}):
+        r = client.post("/folder/summary", json=body, headers=headers)
+        assert r.status_code == 403 and "Access-Control-Allow-Origin" not in r.headers, headers
+    assert client.post("/folder/summary", json=body, base_url="http://evil.example:7432").status_code == 403
+    assert client.get("/visual", headers={"Sec-Fetch-Site": "cross-site", "Sec-Fetch-Mode": "navigate"}).status_code == 200
+    for gone in ("/model/dataset", "/model/merge-outputs", "/theta/check"):      # read any CSV / wrote one anywhere
+        assert client.post(gone, json={}).status_code == 404
+
+
 def test_example_xyz_loads_basic(client):
     from M2_data_extractor.gui_server import example_reference_feather
 
@@ -130,7 +149,7 @@ def test_dipole_from_named_and_positional_feather_columns():
 
 
 def test_fast_feather_xyz_reads_basic():
-    from M2_data_extractor.gui_server import example_reference_feather, _xyz_from_feather_fast
+    from M2_data_extractor.gui_server import example_reference_feather, _viewer_payload_from_feather
 
     path = example_reference_feather()
     if not path:
@@ -139,7 +158,7 @@ def test_fast_feather_xyz_reads_basic():
         import pyarrow  # noqa: F401
     except ImportError:
         pytest.skip("pyarrow is not installed")
-    xyz, name, n_atoms = _xyz_from_feather_fast(path, "basic")
+    xyz, name, n_atoms, _overlay = _viewer_payload_from_feather(path, "basic")
     assert name == "basic"
     assert n_atoms >= 6
     assert xyz.splitlines()[0].strip() == str(n_atoms)
@@ -700,8 +719,6 @@ def test_the_old_theta_address_redirects_with_its_query():
     client = _load_app().test_client()
     r = client.get("/theta?mol=FL_lig_13&preset=2")
     assert r.status_code == 302 and r.headers["Location"].endswith("/feature_explorer?mol=FL_lig_13&preset=2")
-    old, new = client.post("/theta/check", json={}), client.post("/feature_explorer/check", json={})
-    assert old.status_code == new.status_code != 404 and old.get_json() == new.get_json()
 
 
 def test_feature_explorer_command_builds_the_explorer_address():
