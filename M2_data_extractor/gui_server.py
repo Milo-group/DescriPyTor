@@ -1403,7 +1403,7 @@ def align_example():
     return jsonify({"directory": dest, "reference": "stage_order_ref",
                     "about": "Conformaty's test case 03: a methyl-oxane numbered onto cyclohexane. With the default steps the "
                              "ring O takes the reference's carbon 6; with only 'extend the common part' the methyl carbon "
-                             "takes 6 and the O is numbered last. Press Number atoms (about a minute), then reorder the "
+                             "takes 6 and the O is numbered last. Press Number atoms (under a minute), then reorder the "
                              "steps under More options and run it again."})
 
 

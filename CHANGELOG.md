@@ -44,9 +44,13 @@
   *Compare fits* fits a molecule every way side by side; *Write renumbered folder* and *Use it for extraction* switch
   the page to the result and check the picks' numbering there.
 - The overlay's fit is a choice: Conformaty's losses (`rmsd`, the default; `msd`; `mixed`, its own default; `mad`;
-  `sig`) or `kabsch`, on the heavy atoms as Conformaty's `align` fits. On the example set rmsd, msd and Kabsch agree on
-  all nine; mixed and mad stall about 6 Å away on five (ortho and para), sig on all, also in Conformaty's own `align`,
-  so a fit more than 0.5 Å worse than Kabsch is reported as stalled. The numbering itself keeps Conformaty's default.
+  `sig`) or `kabsch`, on the heavy atoms as Conformaty's `align` fits. A fit more than 0.5 Å worse than Kabsch is
+  reported as stalled. The numbering itself keeps Conformaty's default.
+- Renumbering needs Conformaty with its fits started at the Kabsch pose (branch `package-v1.1`, d74f074): its
+  principal-axis start could begin flipped, so mixed and mad stalled about 6 Å away on five of the nine examples, and
+  where the fit stalled two equivalent H could swap numbers. Now no fit stalls on the examples (mixed and sig settle up
+  to 0.5 Å off Kabsch on o_Br/o_Cl), the nine take about 4x less time (313 s to 81 s on a busy laptop), and the
+  numbering is unchanged wherever the old fit converged.
 - `Molecules.get_renumbering_dict(reference)` uses it too (no xyz export, no change of directory) and returns the dicts.
 
 ### Removed

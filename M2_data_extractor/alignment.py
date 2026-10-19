@@ -33,8 +33,9 @@ def _worker_threads(n):
     torch.set_num_threads(n)          # the cores shared out: each process's torch would otherwise take them all
 
 
-# Conformaty's losses and Kabsch. rmsd is the default here: on the example set it converged on 9 of 9, as msd and Kabsch;
-# mixed (Conformaty's own default) and mad stalled about 6 A away on 5 of 9 from its principal-axis seed, sig on 9.
+# Conformaty's losses and Kabsch. rmsd is the default here. Since Conformaty starts its fits at the Kabsch pose (d74f074)
+# none stalls on the example set; mixed and sig settle up to 0.5 A off Kabsch on o_Br/o_Cl, where their own losses prefer
+# to be. Before, from its principal-axis seed, mixed and mad stalled about 6 A away on 5 of 9.
 FITS = ("rmsd", "msd", "mixed", "mad", "sig", "kabsch")
 
 
@@ -50,8 +51,7 @@ def kabsch(moving, fixed, rows):
 
 def fit_onto(ref, symbols, coords, fit="rmsd", sigma=30, rows=None):
     """The molecule (symbols, coords in the reference's numbering) fitted onto the reference (symbols, coords) over
-    `rows` (0-based; default the heavy atoms holding the reference's element, as Conformaty's own align fits: with the
-    hydrogens in, its principal-axis seed can start upside down, and mixed, mad and sig then stall about 6 A away).
+    `rows` (0-based; default the heavy atoms holding the reference's element, as Conformaty's own align fits).
     fit: one of FITS, Conformaty's rigid-body optimiser with that loss, or kabsch. Returns the fitted (n, 3) array, or
     the coordinates unmoved if fewer than three rows match."""
     import numpy as np

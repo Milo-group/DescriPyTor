@@ -67,8 +67,8 @@ H of a CH2 by where they sit). The reference should be the smallest molecule (th
 extra atoms after the reference's. Each line reports what moved, any reference atom that is another element in that
 molecule (a substituent site, or something to check), and the RMSD of the overlay. `--fit` chooses that overlay:
 Conformaty's losses (`rmsd`, the default; `msd`; `mixed`, its own default, which puts the most atoms in near-exact
-overlap but can stall far away; `mad`; `sig`) or `kabsch` (closed-form least squares); a fit more than 0.5 Å worse than
-Kabsch is reported as stalled. The originals are not changed: extract from `renumbered/`. In the browser this is
+overlap; `mad`; `sig`) or `kabsch` (closed-form least squares). Conformaty starts every fit at the Kabsch pose, so none
+should stall; a fit more than 0.5 Å worse than Kabsch is still reported as stalled. The originals are not changed: extract from `renumbered/`. In the browser this is
 **Align & renumber** at the bottom of the visual extractor (§4).
 
 **Step 2: say which atoms each descriptor reads.** An input JSON maps a descriptor name to atom

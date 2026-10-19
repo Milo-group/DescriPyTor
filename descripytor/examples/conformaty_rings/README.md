@@ -12,6 +12,6 @@ More than one numbering is defensible, and the order of the look-up steps decide
 | complete rings only | 6 | 8 |
 | extend the common part only | 19 (numbered last) | 6 |
 
-Checked against Conformaty's own `pair` (default order: same heavy-atom numbering, 2026-10-19). Each run takes about a
+Checked against Conformaty's own `pair` (default order: same heavy-atom numbering, 2026-10-19). Each run takes under a
 minute on a laptop. In the visual extractor, *Align & renumber* > *Try Conformaty's example* runs it on a copy of this
 folder; reorder the steps under *More options* and run it again to see the numbering change.
