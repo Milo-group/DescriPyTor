@@ -478,7 +478,7 @@
     // ---- the structures, far to near, all in one depth order ----
     const items = [], hits = [], lab = new Placer(W, H, K, L.labShift || {}, sty.leaders !== false), pick = opt.pick || {};
     structs.forEach((t) => {
-      const op = t.primary ? 1 : sty.overlayOpacity, opa = op < 1 ? ` opacity="${f1(op * 100) / 100}"` : '';
+      const op = t.primary ? (sty.primaryOpacity ?? 1) : sty.overlayOpacity, opa = op < 1 ? ` opacity="${f1(op * 100) / 100}"` : '';
       const tint = !t.primary && sty.overlay === 'tint';
       const baseCol = (i) => (t.primary ? (qmap ? divergent(qmap[i], qmax, sty.qRamp) : elCol(t.el[i])) : tint ? t.color : elCol(t.el[i]));
       const colOf = (i) => fogged(baseCol(i), t.P[i][2]);
@@ -944,13 +944,15 @@
       // style.labelStacked: the stacked structures numbered too, smaller, grey and just below each atom; 'differ' leaves
       // out an atom that sits within 0.5 A of the active structure's atom of the same number (one number says both)
       const X0 = structs[0].X, same = (t, i) => sty.labelStacked === 'differ' && X0[i] && Math.hypot(X0[i][0] - t.X[i][0], X0[i][1] - t.X[i][1], X0[i][2] - t.X[i][2]) < 0.5;
+      // style.atomLabelScale sizes the atom numbers alone; labelColor / labelColorStacked / labelBold make them stand out
+      const AK = K * (sty.atomLabelScale || 1), AS = FS.alab * AK, aw = sty.labelBold ? ' font-weight="700"' : '';
       if (sty.labelStacked && !asQ) structs.forEach((t) => { if (t.primary) return;
         t.el.forEach((e, i) => { if (t.hidden.has(i) || (sty.atomLabels === 'heavy' && e === 'H') || same(t, i)) return;
-          alabs.push(`<text class="alab alab-st" x="${f1(t.P[i][0])}" y="${f1(t.P[i][1] + 3 * K + FS.alab * K)}" text-anchor="middle" font-size="${f1(FS.alab * K * 0.85)}" fill="#7C8796">${sty.atomLabels === 'num' ? i + 1 : e + (i + 1)}</text>`); }); });
+          alabs.push(`<text class="alab alab-st" x="${f1(t.P[i][0])}" y="${f1(t.P[i][1] + 3 * AK + AS)}" text-anchor="middle" font-size="${f1(AS * 0.85)}"${aw} fill="${sty.labelColorStacked || '#7C8796'}">${sty.atomLabels === 'num' ? i + 1 : e + (i + 1)}</text>`); }); });
       el.forEach((e, i) => {
         if (fade.has(i) || hidden.has(i) || (sty.atomLabels === 'heavy' && e === 'H') || (only && !only.has(i + 1)) || (asQ && !qmap)) return;
         const t = asQ ? (+qmap[i].toFixed(2) === 0 ? '' : qmap[i] < 0 ? '&#8722;' : '+') + Math.abs(qmap[i]).toFixed(2) : sty.atomLabels === 'num' ? i + 1 : e + (i + 1);
-        alabs.push(`<text class="alab" x="${f1(P[i][0])}" y="${f1(P[i][1] + 3 * K)}" text-anchor="middle" font-size="${f1(FS.alab * K)}" fill="${asQ ? '#4B5563' : '#1F2937'}">${t}</text>`);
+        alabs.push(`<text class="alab" x="${f1(P[i][0])}" y="${f1(P[i][1] + 3 * AK)}" text-anchor="middle" font-size="${f1(AS)}"${aw} fill="${asQ ? '#4B5563' : sty.labelColor || '#1F2937'}">${t}</text>`);
       });
     }
 

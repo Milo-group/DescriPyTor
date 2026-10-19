@@ -61,6 +61,12 @@
   your picks, and every number where some molecule has another element), each cell the element that got that
   number; amber where it is not the reference's element, violet matched by position, red numbered last. A click opens
   the molecule with that atom ringed; *only numbers where something differs* keeps large molecules readable.
+- Align & renumber's viewer: number size, molecule and reference opacity, number colours (blue / orange by default,
+  the molecule's and the reference's), bold, hydrogens (all, polar, none) and "12" or "C12" labels, kept in the
+  browser. The feature explorer takes them as `style.atomLabelScale`, `labelColor`, `labelColorStacked`, `labelBold`
+  and `primaryOpacity` (defaults unchanged).
+- *Compare fits* keeps its table on the molecule: choosing a fit redrew the panel and lost it, so it had to be
+  computed again. A swap clears it (the fits were made in the order before).
 - `Molecules.get_renumbering_dict(reference)` uses it too (no xyz export, no change of directory) and returns the dicts.
 
 ### Removed
