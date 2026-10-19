@@ -1768,8 +1768,11 @@ def json_file_handler(json_file: Union[str, Any]) -> List[Any]:
     ev_df:        single-row DataFrame with column 'energy'
     """
     with open(json_file, 'r', encoding='utf-8') as fh:
-        payload = json.load(fh)
+        return json_payload_handler(json.load(fh))
 
+
+def json_payload_handler(payload: dict) -> List[Any]:
+    """json_file_handler on an already-read payload (an ORCA output read by M2_data_extractor.orca_reader)."""
     props = payload.get('properties') or {}
 
     # --- XYZ / standard orientation ------------------------------------------
@@ -1826,11 +1829,8 @@ def json_file_handler(json_file: Union[str, Any]) -> List[Any]:
 
     # --- Charges --------------------------------------------------------------
     charges = payload.get('charges') or {}
-    charge_dict = {
-        'nbo': _json_charge_df(charges.get('nbo')),
-        'hirshfeld': _json_charge_df(charges.get('hirshfeld')),
-        'cm5': _json_charge_df(charges.get('cm5')),
-    }
+    charge_dict = {key: _json_charge_df(charges.get(key)) for key in ('nbo', 'hirshfeld', 'cm5')}
+    charge_dict.update({key: _json_charge_df(v) for key, v in charges.items() if key not in charge_dict})   # ORCA: mulliken, loewdin
 
     # --- Energy (prefer Hartree to match feather convention) ------------------
     energies = props.get('energies') or {}

@@ -21,7 +21,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # eagerly made torch/dash/ipywidgets hard requirements just to open a feather file. See _import_visualize() below.
 from gaussian_handler import feather_file_handler, save_to_feather
 from utils.help_functions import *
-from utils.help_functions import json_file_handler  # structured-JSON loader
+from utils.help_functions import json_file_handler, json_payload_handler  # structured-JSON loaders
 from extractor_utils.sterimol_utils import *
 from extractor_utils.bond_angle_length_utils import *
 from extractor_utils.dipole_utils import *
@@ -323,10 +323,7 @@ class Molecule:
             path = filename
             if not os.path.isabs(path):
                 path = os.path.join(self.molecule_path, filename)
-            if str(path).lower().endswith('.json'):
-                self.parameter_list = json_file_handler(path)
-            else:
-                self.parameter_list = feather_file_handler(path)
+            self.parameter_list = read_molecule_file(path)
         else:
             self.parameter_list = parameter_list
 
@@ -1548,6 +1545,66 @@ _NON_MOLECULE_JSON_NAMES = frozenset({
 })
 
 
+# What each input carries. A folder of one kind gets the descriptors its files can give (the page disables the rest).
+MOLECULE_FILE_KINDS = {
+    "feather": "Gaussian, converted (.feather): geometry, NBO/Hirshfeld/CM5 charges, dipole, polarizability, vibrations",
+    "json": "structured JSON: what the converter wrote",
+    "gaussian_log": "Gaussian output (.log): geometry, NBO/Hirshfeld/CM5 charges, dipole, polarizability, vibrations",
+    "orca_out": "ORCA output (.out): geometry, Mulliken/Loewdin (Hirshfeld if printed) charges, dipole, vibrations of a frequency job",
+    "xyz": "coordinates (.xyz): geometry only (Sterimol, lengths, angles, %Vbur)",
+}
+_KIND_ORDER = ("feather", "json", "gaussian_log", "orca_out", "xyz")      # one file per name: the richest kind wins
+
+
+def _head(path, n=20000):
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            return fh.read(n)
+    except OSError:
+        return ""
+
+
+def molecule_file_kind(path):
+    """feather, json, gaussian_log, orca_out or xyz; None for anything else (a cluster job log, a config JSON)."""
+    lower = os.path.basename(path).lower()
+    if lower.endswith((".feather", ".ftr")):
+        return "feather"
+    if lower.endswith(".json"):
+        return "json" if lower not in _NON_MOLECULE_JSON_NAMES and _json_looks_like_molecule(path) else None
+    if lower.endswith(".xyz"):
+        return "xyz"
+    if lower.endswith((".log", ".out")):
+        head = _head(path)
+        if "Gaussian, Inc." in head or "Entering Gaussian System" in head:
+            return "gaussian_log"
+        if "O   R   C   A" in head:
+            return "orca_out"
+    return None
+
+
+def read_molecule_file(path):
+    """[df_dict, vib_dict, charge_dict, ev] from any molecule file: .feather, structured .json, Gaussian .log, ORCA .out,
+    or .xyz (geometry only: no charges, dipole or vibrations)."""
+    kind = molecule_file_kind(path)
+    if kind == "json":
+        return json_file_handler(path)
+    if kind == "orca_out":
+        from orca_reader import read_orca
+        return json_payload_handler(read_orca(path))
+    if kind == "gaussian_log":
+        from feather_extractor import gauss_file_handler
+        table, _report = gauss_file_handler(path)
+        table["atom"] = table["atom"].astype(str)
+        return feather_file_handler(table)
+    if kind == "xyz":
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()
+        rows = [ln.split()[:4] for ln in lines[2:2 + int(lines[0].split()[0])]]      # the first frame (GOAT: the lowest)
+        return json_payload_handler({"molecule": {"atoms": [
+            {"atom": a, "x": float(x), "y": float(y), "z": float(z)} for a, x, y, z in rows]}})
+    return feather_file_handler(path)
+
+
 def _json_looks_like_molecule(path):
     """True when the file is structured converter JSON (molecule.atoms), not a config."""
     try:
@@ -1559,14 +1616,7 @@ def _json_looks_like_molecule(path):
 
 
 def _is_molecule_folder_file(name, directory):
-    lower = os.path.basename(name).lower()
-    if lower.endswith((".feather", ".ftr")):
-        return True
-    if not lower.endswith(".json"):
-        return False
-    if lower in _NON_MOLECULE_JSON_NAMES:
-        return False
-    return _json_looks_like_molecule(os.path.join(directory, name))
+    return molecule_file_kind(os.path.join(directory, name)) is not None
 
 
 def _molecules_folder_files(path, file_limit=None):
@@ -1575,10 +1625,15 @@ def _molecules_folder_files(path, file_limit=None):
         names = os.listdir(path)
     except OSError:
         return path, []
+    kinds = {name: molecule_file_kind(os.path.join(path, name)) for name in names}
+    best = {}                                  # name.log beside name.feather: the feather is read, once
+    for name, kind in kinds.items():
+        if kind is not None:
+            stem = os.path.splitext(name)[0]
+            if stem not in best or _KIND_ORDER.index(kind) < _KIND_ORDER.index(kinds[best[stem]]):
+                best[stem] = name
     files = []
-    for name in names:
-        if not _is_molecule_folder_file(name, path):
-            continue
+    for name in sorted(best.values()):
         fp = os.path.join(path, name)
         try:
             st = os.stat(fp)
@@ -1773,8 +1828,8 @@ class Molecules():
             if not os.path.isdir(dir_path):
                 print(f"[skip] source '{label}': directory not found -> {dir_path}")
                 continue
-            for data_file in os.listdir(dir_path):
-                if data_file.endswith('.feather') or data_file.endswith('.json'):
+            for data_file, _stamp, _size in _molecules_folder_files(dir_path)[1]:
+                if True:
                     full_path = os.path.join(dir_path, data_file)
                     try:
                         mol = Molecule(full_path, threshold=threshold)

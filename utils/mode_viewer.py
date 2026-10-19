@@ -38,7 +38,14 @@ THREEDMOL = DATASET / "vendor" / "3Dmol-min.js"
 if str(DATASET) not in sys.path:
     sys.path.insert(0, str(DATASET))
 
-from vibration_tokenizer import HessData, parse_hess  # noqa: E402
+try:                       # the .hess reader lives with the validation data set, which the package does not ship
+    from vibration_tokenizer import HessData, parse_hess  # noqa: E402
+except ImportError:
+    HessData = None
+
+    def parse_hess(path):
+        raise ImportError("Reading ORCA .hess files needs vibration_tokenizer (utils/orca_compare/.../dataset); "
+                          ".out files are read without it.")
 
 WINDOWS = {
     "TSRC": (-110.0, -25.0),

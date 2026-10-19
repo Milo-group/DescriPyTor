@@ -43,7 +43,8 @@ def feather_file_handler(feather_file: str) -> List[Any]:
         'nbo_hirshfeld', 'hirshfeld_charge', 'cm5_charge', 'Frequency', 'IR'
     ]
     try:
-        data = pd.read_feather(feather_file)
+        # a table already in memory (a Gaussian log parsed by gauss_file_handler) is read the same way
+        data = feather_file.copy() if isinstance(feather_file, pd.DataFrame) else pd.read_feather(feather_file)
         # Optionally, fix column names in case they are not matching exactly
         data.columns = [c.strip() for c in data.columns]
 
