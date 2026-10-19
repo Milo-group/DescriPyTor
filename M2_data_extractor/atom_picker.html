@@ -4876,7 +4876,7 @@ async function alPrepare() {
 function alChip(name) {
   const r = AL.res[name];
   if (name === AL.ref) return { cls: "ref", text: "reference", sub: `${AL.refEls.length} atoms` };
-  if (!r) return { cls: "wait", text: "waiting", sub: "" };
+  if (!r) return AL.ctl ? { cls: "wait", text: "waiting", sub: "" } : { cls: "wait", text: "not run", sub: "stopped before it" };
   if (r.error) return { cls: "fail", text: "failed", sub: r.error };
   const els = alEls(r.xyz);
   const heavy = r.differs.filter(i => AL.refEls[i - 1] !== "H");          // a heavy atom of the reference became another element
@@ -4898,7 +4898,7 @@ function alStalled(r) { return !!r && r.rmsd != null && r.rmsd_kabsch != null &&
 function alRow(name) {
   const r = AL.res[name], c = alChip(name);
   const max = Math.max(1, ...Object.values(AL.res).map(x => (x && x.seconds) || 0));
-  const time = name === AL.ref ? "" : !r ? `<span class="al-tbar wait"><i></i></span>`
+  const time = name === AL.ref ? "" : !r ? (AL.ctl ? `<span class="al-tbar wait"><i></i></span>` : "")   // the moving bar only while it runs
     : `<span class="al-tbar"><i style="width:${Math.max(3, 100 * (r.seconds || 0) / max)}%"></i></span>${(r.seconds || 0).toFixed(1)} s`;
   return `<tr data-al="${esc(name)}" tabindex="0" class="${AL.sel === name ? "sel" : ""}">
     <td><span class="al-name">${esc(name)}</span></td>
@@ -4996,7 +4996,7 @@ async function alRun() {
     if (err.name !== "AbortError") $("alPText").textContent = "Renumbering failed: " + err.message;
     if (Object.keys(AL.res).length) $("alFoot").hidden = false;
   } finally {
-    clearInterval(AL.timer); AL.ctl = null;
+    clearInterval(AL.timer); AL.ctl = null; alRows();
     $("alRun").disabled = false; $("alStop").hidden = true;
     $("alFill").style.width = AL.n ? `${100 * AL.done / AL.n}%` : "0%"; $("alTrack").classList.remove("busy");
   }
@@ -5216,7 +5216,8 @@ $("alStages").onclick = (e) => {                 // the order of the list is the
 $("alStop").onclick = () => {
   if (AL.ctl) AL.ctl.abort();
   fetch("/align/stop", { method: "POST" }).catch(() => {});      // ends the molecule that is running, not after it
-  $("alPText").textContent = "Stopped.";
+  $("alPText").textContent = `Stopped after ${AL.done} of ${AL.n || "?"}; the others were not run.`;
+  if (Object.keys(AL.res).length) $("alFoot").hidden = false;
 };
 $("alWrite").onclick = alWrite;
 $("alUse").onclick = alUse;
