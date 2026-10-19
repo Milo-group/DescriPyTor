@@ -50,6 +50,11 @@ def baptiste_example_dir() -> Path:
     )
 
 
+def conformaty_rings_dir() -> Path:
+    """Conformaty's test case 03: a methyl-oxane (.xyz) to number onto cyclohexane, ``stage_order_ref.xyz``."""
+    return _first_existing(_HERE / "conformaty_rings", marker="stage_order_ref.xyz")
+
+
 def input_example_json() -> Path:
     """Extractor input JSON that ships with the package."""
     for candidate in (

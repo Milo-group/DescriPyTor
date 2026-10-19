@@ -1382,6 +1382,31 @@ def align_stop():
     return jsonify({"stopped": event is not None, "free": False}), 409
 
 
+@app.route("/align/example", methods=["POST"])
+def align_example():
+    """Conformaty's test case 03 (a methyl-oxane numbered onto cyclohexane) copied to a fresh temporary folder, so the
+    renumbered copies are written there and never into the package."""
+    import shutil
+    import tempfile
+
+    if _ALIGN_BUSY.locked():
+        return jsonify({"error": "A renumbering is still running.", "busy": True}), 409
+    try:
+        from descripytor.examples import conformaty_rings_dir
+
+        source = conformaty_rings_dir()
+    except (ImportError, FileNotFoundError) as exc:
+        return jsonify({"error": f"The example is not installed with this copy: {exc}"}), 404
+    dest = os.path.join(tempfile.gettempdir(), "descripytor_conformaty_rings")
+    shutil.rmtree(dest, ignore_errors=True)
+    shutil.copytree(source, dest)
+    return jsonify({"directory": dest, "reference": "stage_order_ref",
+                    "about": "Conformaty's test case 03: a methyl-oxane numbered onto cyclohexane. With the default steps the "
+                             "ring O takes the reference's carbon 6; with only 'extend the common part' the methyl carbon "
+                             "takes 6 and the O is numbered last. Press Number atoms (about a minute), then reorder the "
+                             "steps under More options and run it again."})
+
+
 @app.route("/align/fits", methods=["POST"])
 def align_fits():
     """One molecule, in the numbering the page holds (as mapped, or with its swaps), fitted onto the reference every

@@ -114,6 +114,15 @@ def test_apply_refuses_an_incomplete_numbering(client, tmp_path):
     assert r.status_code == 400 and not (tmp_path / "renumbered").exists()
 
 
+def test_the_example_is_a_fresh_copy_of_conformatys_ring_case(client):
+    first = client.post("/align/example").get_json()
+    folder = Path(first["directory"])
+    (folder / "renumbered").mkdir()
+    again = client.post("/align/example").get_json()
+    assert again["reference"] == "stage_order_ref" and not (folder / "renumbered").exists()
+    assert sorted(p.name for p in folder.glob("*.xyz")) == ["stage_order_query.xyz", "stage_order_ref.xyz"]
+
+
 def test_the_map_route_streams_one_molecule_at_a_time(client, tmp_path):
     pytest.importorskip("conformaty")
     _shuffle(tmp_path)

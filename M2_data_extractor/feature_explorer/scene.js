@@ -925,6 +925,12 @@
         [cx + 40, cy - 26, 'start'], [cx - 40, cy - 26, 'end'], [cx + 40, cy + 34, 'start'], [cx - 40, cy + 34, 'end'], [cx, cy - 54, 'middle'], [cx, cy + 62, 'middle']], esc(m.text), 'lab mk', fill(colr), [cx, cy])]);
     });
 
+    // L.links {onStruct, pairs [[i, j]] 0-based, color}: a faint dotted line from atom i of the active structure to atom j
+    // of a stacked one, under the atoms, so a pair that superposes shows nothing and one that does not shows its line
+    const lk = L.links, lt = lk && structs.find((s) => s.id === lk.onStruct);
+    if (lt) lk.pairs.forEach(([i, j]) => { if (P[i] && lt.P[j] && !hidden.has(i) && !lt.hidden.has(j))
+      under.push(`<line class="lk-line" x1="${f1(P[i][0])}" y1="${f1(P[i][1])}" x2="${f1(lt.P[j][0])}" y2="${f1(lt.P[j][1])}" stroke="${lk.color || '#8A94A3'}"/>`); });
+
     // ---- pass 2: labels, most important first, now that every line is known ----
     // featureLabels off: the constructions are drawn, nothing is written over the molecule
     const dropLab = (sty.dropLabels || []).map((s) => new RegExp(s));   // style.dropLabels: patterns of labels not to write
@@ -935,6 +941,12 @@
     if (sty.atomLabels && sty.atomLabels !== 'off') {
       // 'q': the mapped charge written on the atom; style.labelAtoms (1-based) keeps the labels to those atoms
       const only = sty.labelAtoms && new Set(sty.labelAtoms), asQ = sty.atomLabels === 'q';
+      // style.labelStacked: the stacked structures numbered too, smaller, grey and just below each atom; 'differ' leaves
+      // out an atom that sits within 0.5 A of the active structure's atom of the same number (one number says both)
+      const X0 = structs[0].X, same = (t, i) => sty.labelStacked === 'differ' && X0[i] && Math.hypot(X0[i][0] - t.X[i][0], X0[i][1] - t.X[i][1], X0[i][2] - t.X[i][2]) < 0.5;
+      if (sty.labelStacked && !asQ) structs.forEach((t) => { if (t.primary) return;
+        t.el.forEach((e, i) => { if (t.hidden.has(i) || (sty.atomLabels === 'heavy' && e === 'H') || same(t, i)) return;
+          alabs.push(`<text class="alab alab-st" x="${f1(t.P[i][0])}" y="${f1(t.P[i][1] + 3 * K + FS.alab * K)}" text-anchor="middle" font-size="${f1(FS.alab * K * 0.85)}" fill="#7C8796">${sty.atomLabels === 'num' ? i + 1 : e + (i + 1)}</text>`); }); });
       el.forEach((e, i) => {
         if (fade.has(i) || hidden.has(i) || (sty.atomLabels === 'heavy' && e === 'H') || (only && !only.has(i + 1)) || (asQ && !qmap)) return;
         const t = asQ ? (+qmap[i].toFixed(2) === 0 ? '' : qmap[i] < 0 ? '&#8722;' : '+') + Math.abs(qmap[i]).toFixed(2) : sty.atomLabels === 'num' ? i + 1 : e + (i + 1);
@@ -1035,6 +1047,8 @@
 .scene .sx-ring{fill:none;stroke-width:1.3}
 .scene .sx-touch{fill:none;stroke-width:1.1}
 .scene .mk-line{fill:none;stroke-width:2;stroke-dasharray:5 4;stroke-linecap:round}
+.scene .lk-line{fill:none;stroke-width:1;stroke-dasharray:0.5 3.5;stroke-linecap:round;opacity:.75}
+.scene text.alab-st{stroke-width:2px}
 .scene .dp-ax{stroke-width:2.4;stroke-linecap:round}
 .scene .dp-mu{stroke-width:3.6;stroke-linecap:round}
 .scene .dp-raw{stroke-width:2.4;stroke-dasharray:6 4;opacity:.8;stroke-linecap:round}

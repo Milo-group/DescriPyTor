@@ -21,6 +21,15 @@
 - **How it works** in Align & renumber shows a picture of each look-up step (the common part, complete rings,
   extend the common part, any element by position, equivalent atoms, the fit); *picture* next to a step opens its
   own. The pictures are drawn by `static/align_guide/make_guide.py` from real Conformaty runs.
+- **Try Conformaty's example** in Align & renumber runs Conformaty's test case 03 (a methyl-oxane numbered onto
+  cyclohexane, where the order of the look-up steps decides the numbering) on a copy in a temporary folder; the files
+  ship in `descripytor/examples/conformaty_rings` (`conformaty_rings_dir()`). Same heavy-atom numbering as
+  Conformaty's own `pair`.
+- Align & renumber shows the reference's numbers too: by default only where the reference atom is not under the
+  molecule's atom of the same number (grey), or every one; and a faint dotted line from each atom to the reference
+  atom of its number, under the atoms, so only pairs that do not superpose show one. The feature explorer takes
+  both for any stacked structure (`style.labelStacked`, `L.links`).
+- The dipole arrow in the visual extractor is drawn only when *Dipole* is ticked; a Dipole pick no longer ticks it.
 
 ### Added: atom renumbering with Conformaty
 

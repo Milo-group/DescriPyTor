@@ -742,7 +742,10 @@ function layerInputs() {                    // the gated computations, done once
   const marks = (L.marks || []).map((m) => { const named = m.on ? st.structs.find((s) => s.id === m.on || s.name === m.on) : null, own = named === st.structs[st.active] ? null : named, n = (own ? own.mol : mol).el.length;
     return (m.on && !named) || !(m.atoms || []).length || m.atoms.some((a) => !(a >= 1 && a <= n)) ? null : { atoms: m.atoms.map((a) => a - 1), text: String(m.text || ''), color: m.color || '#1F2937', ring: !!m.ring, onStruct: own ? own.id : '' }; }).filter(Boolean);
   // L.arrows: {from, to, color}: arrows between points given in the active structure's coordinates (a vibration's displacements)
-  return { axes, dipole, dipole2, dipoles, sites, marks, arrows: L.arrows || [], map: L.map && mol.charges && mol.charges[L.map] ? { type: L.map } : null, fade, legend: L.legend, fadeHide: L.fadeHide,
+  // L.links {to, pairs [[i, j]] 1-based, color}: dotted lines from the active structure's atom i to atom j of the structure `to` (key or name)
+  const lto = L.links && st.structs.find((s) => s.key === L.links.to || s.name === L.links.to);
+  const links = lto && lto !== st.structs[st.active] ? { onStruct: lto.id, color: L.links.color, pairs: (L.links.pairs || []).map(([i, j]) => [i - 1, j - 1]) } : null;
+  return { axes, dipole, dipole2, dipoles, sites, marks, links, arrows: L.arrows || [], map: L.map && mol.charges && mol.charges[L.map] ? { type: L.map } : null, fade, legend: L.legend, fadeHide: L.fadeHide,
     labShift: L.labShift || {}, cones: L.cones || [], vburs: L.vburs || [], errs };
 }
 

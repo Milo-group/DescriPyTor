@@ -106,4 +106,6 @@ exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*", "tests*"
     "baptiste_products/*.csv",
     "baptiste_products/*.json",
     "baptiste_products/README.md",
+    "conformaty_rings/*.xyz",
+    "conformaty_rings/README.md",
 ]
