@@ -51,6 +51,12 @@
   where the fit stalled two equivalent H could swap numbers. Now no fit stalls on the examples (mixed and sig settle up
   to 0.5 Å off Kabsch on o_Br/o_Cl), the nine take about 4x less time (313 s to 81 s on a busy laptop), and the
   numbering is unchanged wherever the old fit converged.
+- Renumbering keeps its worker process between runs (it is started when the panel opens), and gives it one torch
+  thread: starting a process and importing torch cost ~5 s on every run, and more threads only slow fits of a few
+  dozen atoms. Conformaty's ring example: 36 s to 7 s from click to result (the first run after opening the panel
+  ~17 s), same numbering.
+- *Try Conformaty's example* runs it straight away; it only loaded the files before, which looked like nothing
+  happened.
 - `Molecules.get_renumbering_dict(reference)` uses it too (no xyz export, no change of directory) and returns the dicts.
 
 ### Removed

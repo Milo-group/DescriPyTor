@@ -147,13 +147,14 @@ def test_stop_ends_a_running_molecule(client, tmp_path):
     import threading
     import time
 
-    for name in ("basic", "o_Cl"):                       # o_Cl takes tens of seconds
-        shutil.copy(EXAMPLE / f"{name}.feather", tmp_path)
+    shutil.copy(EXAMPLE / "basic.feather", tmp_path)
+    for k in range(10):                                 # a run that is still going after 2 s, however fast the fit
+        shutil.copy(EXAMPLE / "o_Cl.feather", tmp_path / f"o_Cl_{k}.feather")
     events = []
     run = threading.Thread(target=lambda: events.append(client.post("/align/map", json={
         "directory": str(tmp_path), "reference": "basic"}).get_data(as_text=True)))
     run.start()
-    time.sleep(4)
+    time.sleep(2)
     t0 = time.perf_counter()
     assert client.post("/align/map", json={"directory": str(tmp_path)}).status_code == 409
     stopped = client.post("/align/stop").get_json()

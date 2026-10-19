@@ -4823,12 +4823,12 @@ async function alExample() {                       // a copy of Conformaty's tes
   try {
     const r = await fetch("/align/example", { method: "POST" }), d = await r.json();
     if (!r.ok) throw new Error(d.error || r.status);
-    AL.example = d.directory;
+    AL.example = d.directory; AL.about = d.about;
     await alPrepare();
     $("alRef").value = d.reference;
-    $("alPText").textContent = d.about;
-  } catch (err) { $("alPText").textContent = "The example did not load: " + err.message; }
-  $("alProgress").hidden = false;
+    $("alProgress").hidden = false;
+    alRun();                                       // the button runs it: loading files and waiting for Number atoms looked like nothing happened
+  } catch (err) { $("alPText").textContent = "The example did not load: " + err.message; $("alProgress").hidden = false; }
 }
 function alEls(xyz) { return String(xyz || "").trim().split(/\r?\n/).slice(2).map(l => l.trim().split(/\s+/)[0]); }
 function alClock(sec) { sec = Math.max(0, Math.round(sec)); return sec >= 60 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}` : `${sec} s`; }
@@ -4857,6 +4857,7 @@ function alToggle(force) {
 }
 
 async function alPrepare() {
+  fetch("/align/warm", { method: "POST" }).catch(() => {});   // the worker starts while the user chooses
   const dir = alDir();
   $("alDir").value = dir || "Set the folder in 1 · Load first, or try Conformaty's example";
   if (!dir || AL.ctl) return;
@@ -4990,7 +4991,8 @@ async function alRun() {
     const bad = Object.values(AL.res).filter(x => x.error).length;
     $("alPText").innerHTML = (end && end.event === "stopped" ? `Stopped after <b>${AL.done} of ${AL.n}</b>` : `<b>${AL.done} of ${AL.n}</b> numbered like <b>${esc(AL.ref)}</b>`) +
       ` in ${alClock((performance.now() - AL.t0) / 1000)}` + (bad ? ` · ${bad} failed (left out when writing)` : "") +
-      ". Check the amber rows on the molecule, swap numbers if needed, then write the folder.";
+      ". Check the amber rows on the molecule, swap numbers if needed, then write the folder." +
+      (AL.example && dir === AL.example && AL.about ? `<br>${esc(AL.about)}` : "");
     $("alFoot").hidden = false;
   } catch (err) {
     if (err.name !== "AbortError") $("alPText").textContent = "Renumbering failed: " + err.message;

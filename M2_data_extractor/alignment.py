@@ -30,7 +30,21 @@ def _conformaty():
 def _worker_threads(n):
     import torch
 
-    torch.set_num_threads(n)          # the cores shared out: each process's torch would otherwise take them all
+    torch.set_num_threads(n)          # one: the fits are a few dozen atoms, where more threads only add overhead
+    _conformaty()                     # import torch and Conformaty once per process, not on every molecule
+
+
+_POOL = {"pool": None, "n": 0}        # the worker processes, kept between runs: starting one and importing costs ~5 s
+
+
+def _pool(workers):
+    pool = _POOL["pool"]
+    if pool is None or _POOL["n"] != workers or getattr(pool, "_broken", False):
+        if pool is not None:
+            pool.shutdown(wait=False, cancel_futures=True)
+        pool = ProcessPoolExecutor(workers, initializer=_worker_threads, initargs=(1,))
+        _POOL.update(pool=pool, n=workers)
+    return pool
 
 
 # Conformaty's losses and Kabsch. rmsd is the default here. Since Conformaty starts its fits at the Kabsch pose (d74f074)
@@ -193,25 +207,26 @@ def map_folder(mols, reference, anchors=None, stages=None, match_charge=False, w
         return results
     import threading
 
-    with ProcessPoolExecutor(workers, initializer=_worker_threads,
-                             initargs=(max(1, (os.cpu_count() or 2) // workers),)) as pool:
-        jobs = {pool.submit(map_atoms, *args[name]): name for name in todo}
+    pool = _pool(workers)
+    # the pool outlives the run, so the next one starts warm; Stop ends its processes and the next run starts new ones
+    jobs = {pool.submit(map_atoms, *args[name]): name for name in todo}
 
-        def watch():                       # one molecule can take minutes: Stop ends its process instead of waiting
-            while not all(j.done() for j in jobs):
-                if cancelled():
-                    for other in jobs:
-                        other.cancel()
-                    for proc in list(getattr(pool, "_processes", {}).values()):
-                        proc.terminate()
-                    return
-                time.sleep(0.3)
-
-        threading.Thread(target=watch, daemon=True).start()
-        for i, job in enumerate(as_completed(jobs), 1):
+    def watch():                       # one molecule can take minutes: Stop ends its process instead of waiting
+        while not all(j.done() for j in jobs):
             if cancelled():
-                break
-            done(i, jobs[job], job.result)
+                for other in jobs:
+                    other.cancel()
+                for proc in list(getattr(pool, "_processes", {}).values()):
+                    proc.terminate()
+                _POOL["pool"] = None
+                return
+            time.sleep(0.3)
+
+    threading.Thread(target=watch, daemon=True).start()
+    for i, job in enumerate(as_completed(jobs), 1):
+        if cancelled():
+            break
+        done(i, jobs[job], job.result)
     return results
 
 
