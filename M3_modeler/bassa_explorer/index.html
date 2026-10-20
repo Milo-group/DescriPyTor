@@ -344,6 +344,24 @@
   @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
   .stage .none.loading { background: linear-gradient(90deg, #f6f8fb 25%, #eaeef4 50%, #f6f8fb 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; color: var(--faint); font-size: 12px; letter-spacing: .02em; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+  .modeseg { order: 2; position: relative; display: inline-flex; background: #e9ecf1; border-radius: 9px; padding: 2px; margin-left: 4px; }
+  .modeseg button { position: relative; z-index: 1; border: 0; background: none; box-shadow: none; padding: 4px 16px; min-height: 0; font: 600 12.5px/1.4 inherit; color: var(--mute); border-radius: 7px; cursor: pointer; transition: color .2s var(--ease); }
+  .modeseg button[aria-selected="true"] { color: var(--ink); } .modeseg:not(.measured) button[aria-selected="true"] { background: #fff; box-shadow: 0 1px 3px rgba(20,30,45,.16); }   /* until the thumb is measured */
+  body:not(.adv) #design { display: none !important; }   /* the design sliders are Advanced; Design is the mode */ .modeseg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .modeseg .thumb { position: absolute; top: 2px; bottom: 2px; left: 0; width: 0; border-radius: 7px; background: #fff; box-shadow: 0 1px 3px rgba(20,30,45,.16), 0 0 0 .5px rgba(20,30,45,.06); transition: transform .3s var(--ease), width .3s var(--ease); }
+  body.mdesign main > section:first-child > :not(#drive):not(#topmodels) { display: none !important; }
+  body:not(.mdesign) #topmodels { display: none; }
+  body.mdesign #drive { margin: 4px 2px 18px; } body.mdesign #drive .dh b { font-size: 15px; } body.mdesign #drive .dsay { font-size: 14px; line-height: 1.5; margin: 6px 0 10px; } body.mdesign #drive .dbar { min-height: 34px; }
+  #topmodels .tmh { font-size: 12px; font-weight: 600; color: var(--mute); margin: 0 2px 8px; display: flex; align-items: baseline; gap: 8px; } #topmodels .tmh .lab { font-weight: 400; }
+  #topmodels .tml { display: grid; gap: 8px; }
+  .tmc { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 4px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; transition: border-color .2s var(--ease), box-shadow .2s var(--ease), transform .2s var(--ease); }
+  .tmc:hover { border-color: #c9d6ec; box-shadow: 0 2px 10px rgba(31,95,208,.08); transform: translateY(-1px); } .tmc:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .tmc.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 4px 14px rgba(31,95,208,.12); }
+  .tmc .sh { font-size: 18px; font-weight: 650; letter-spacing: -.01em; font-variant-numeric: tabular-nums; } .tmc .sh small { font-size: 11px; color: var(--mute); font-weight: 500; }
+  .tmc .ds { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; } .tmc .ds span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .tmc .qv { font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; } .tmc .qv b { color: var(--ink); font-weight: 600; }
+  .tmc .bar2 { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: #eef1f5; overflow: hidden; } .tmc .bar2 i { display: block; height: 100%; background: var(--accent); opacity: .55; border-radius: 2px; }
+  main.swap > section { animation: mswap .28s var(--ease); } @keyframes mswap { from { opacity: 0; transform: translateY(5px); } }
 </style>
 <style id="colhov"></style><style id="famhov"></style>
 </head>
@@ -352,6 +370,7 @@
 <header>
   <h1>BASSA model explorer</h1>
   <select id="case" aria-label="data set"></select>
+  <div class="modeseg" id="mode" role="tablist" aria-label="what the page is for"><span class="thumb" aria-hidden="true"></span><button role="tab" data-md="design" title="What makes a better compound: the drivers, the compounds, how to improve one">Design</button><button role="tab" data-md="models" title="The models BASSA visited: the table of models and descriptors">Models</button></div>
   <span class="sub" id="sub"></span><span class="pill" id="casewarn" hidden style="background:#b45309;cursor:help"></span><span id="evid" class="evid"></span>
   <script>addEventListener('DOMContentLoaded', () => { if (!location.protocol.startsWith('http')) document.getElementById('apps').hidden = true; });</script>
   <div class="tools">
@@ -397,6 +416,7 @@
       <span class="key advonly" title="on each frequency bar"><svg width="22" height="12"><line x1="1" y1="4" x2="21" y2="4" stroke="#18212b" stroke-width="3"/><line x1="1" y1="9" x2="21" y2="9" stroke="#1f5fd0" stroke-width="3"/></svg>between chains / leaving one compound out</span>
     </div>
     <div id="drive"></div>
+    <div id="topmodels"></div>
     <div class="lab" id="peek"></div>
     <div class="scroll" id="scroll"><table id="grid"></table><div id="recipes" hidden></div><div id="build" hidden></div><svg id="net" hidden viewBox="0 0 860 560"></svg><svg id="map" hidden></svg><svg id="infl" hidden></svg></div>
   </section>
@@ -1006,7 +1026,7 @@ function fitGrid(n) { if (!n) return; const root = document.documentElement.styl
 function fitRows() { const g = $('grid'), tb = g.tBodies[0]; if (!tb || g.hidden) return; const rows = [...tb.rows], data = rows.filter((r) => !r.classList.contains('gap')).length, avail = $('scroll').clientHeight - g.tHead.offsetHeight - (rows.length - data) * 9 - 8;
   document.documentElement.style.setProperty('--rh', Math.max(21, Math.min(34, Math.floor(avail / Math.max(1, data)))) + 'px'); }
 const DRIVE = $('drive'), DRIVE_HOME = DRIVE.parentNode;      // kept: the block moves into the table's corner and back
-function grid() { DRIVE.innerHTML = driveHtml();
+function grid() { DRIVE.innerHTML = driveHtml(); if (MODE === 'design') topModels();
   const { cols, total } = columns(), anchor = st.rows.length ? st.rows[st.rows.length - 1] : -1, isSel = (c) => c.members.includes(st.model), V = st.view;
   $('grid').hidden = V !== 'models'; $('recipes').hidden = V !== 'recipes'; $('build').hidden = V !== 'build'; $('tbar').hidden = V === 'build'; $('net').toggleAttribute('hidden', V !== 'network'); $('map').toggleAttribute('hidden', V !== 'map'); $('infl').toggleAttribute('hidden', V !== 'influence');
   $('rowbar').hidden = $('colmode').hidden = V !== 'models'; $('mergelab').hidden = true; $('vsgrp').hidden = $('onlylab').hidden = V === 'recipes';      // merge: the View menu sets the same thing
@@ -1079,7 +1099,7 @@ function grid() { DRIVE.innerHTML = driveHtml();
       t += cell(c, k, r, on ? ' on' : alt ? ' alt' : '', `<i style="${on ? 'background:' + (byFam ? fc : KCOL[kOf(C.models[sm])]) : alt && byFam ? `border-color:color-mix(in srgb, ${fc} 60%, #fff)` : ''}"></i>`, alt ? ` data-pick="${variant(c.members, sm, i)}" title="in another model of this group: click to switch to it"` : ''); });
     return t + '</tr>';
   });
-  fitGrid(cols.length); DRIVE_HOME.insertBefore(DRIVE, $('peek')); $('grid').innerHTML = h + trs.map((t, k) => t.replace('<!--arcs-->', k ? '' : `<td class="arcs" rowspan="${trs.length}"></td>`)).join('') + '</tbody>'; { const cnr = $('grid').querySelector('th.cnr'); if (cnr && st.view === 'models') { cnr.prepend(DRIVE); cnr.classList.add('hasdrive'); } } $('scroll').scrollLeft = keep; fitRows(); arcs();
+  fitGrid(cols.length); DRIVE_HOME.insertBefore(DRIVE, $('topmodels')); $('grid').innerHTML = h + trs.map((t, k) => t.replace('<!--arcs-->', k ? '' : `<td class="arcs" rowspan="${trs.length}"></td>`)).join('') + '</tbody>'; { const cnr = $('grid').querySelector('th.cnr'); if (cnr && st.view === 'models' && MODE === 'models') { cnr.prepend(DRIVE); cnr.classList.add('hasdrive'); } } $('scroll').scrollLeft = keep; fitRows(); arcs();
 }
 
 // arcs beside the names join descriptors that share models (green) or stand in for one another (red, dashed)
@@ -1660,7 +1680,7 @@ function writeHash() {
   (step ? history.pushState : history.replaceState).call(history, null, '', '#' + hashParams());
 }
 // the view as link parameters (the browser may ignore a burst of address changes, so tests read this, not the address)
-const hashParams = () => new URLSearchParams({ case: C.case, rows: st.rows.join('.'), model: st.model, ms: st.msort, rs: st.rsort, view: st.view, links: st.links, adv: +st.adv, ar: +st.allrows, dx: st.dipx, shut: [...st.shut].join('.'), open: [...st.open].join('.'), sz: [...st.sizes].join(''), q: st.minq, r: st.minr, only: +st.only, merge: +st.merge, vs: st.minshare, mol: st.mol, mol2: st.mol2, pins: st.pins.map((a) => a.join('.')).join('_'), stk: +st.stack, sd: +st.showD, more: st.more.map((n) => everyone().indexOf(n)).join('.'), nm: st.names, ex: Object.keys(st.extra).filter((k) => st.extra[k]).join('.'), th: st.thr ? [st.thrI, st.thrJ, st.thrY, st.thrD].join('~') : '', uf: +st.uf, mp: +st.mplot, fb: st.famBy, fr: st.famR, en: +st.ens, out: [...st.out].join('.'), why: +st.whyOn, dz: +st.design, pk: +!!st.rank, cb: st.colorBy ?? -1, sd2: st.sideTab || '', ma: (st.maOpen ? '+' : '') + (st.maTab || '') });
+const hashParams = () => new URLSearchParams({ md: MODE, case: C.case, rows: st.rows.join('.'), model: st.model, ms: st.msort, rs: st.rsort, view: st.view, links: st.links, adv: +st.adv, ar: +st.allrows, dx: st.dipx, shut: [...st.shut].join('.'), open: [...st.open].join('.'), sz: [...st.sizes].join(''), q: st.minq, r: st.minr, only: +st.only, merge: +st.merge, vs: st.minshare, mol: st.mol, mol2: st.mol2, pins: st.pins.map((a) => a.join('.')).join('_'), stk: +st.stack, sd: +st.showD, more: st.more.map((n) => everyone().indexOf(n)).join('.'), nm: st.names, ex: Object.keys(st.extra).filter((k) => st.extra[k]).join('.'), th: st.thr ? [st.thrI, st.thrJ, st.thrY, st.thrD].join('~') : '', uf: +st.uf, mp: +st.mplot, fb: st.famBy, fr: st.famR, en: +st.ens, out: [...st.out].join('.'), why: +st.whyOn, dz: +st.design, pk: +!!st.rank, cb: st.colorBy ?? -1, sd2: st.sideTab || '', ma: (st.maOpen ? '+' : '') + (st.maTab || '') });
 const refresh = () => { grid(); draw(); peek(st.model); };
 // every control is set from the state: when a case opens, and when "advanced" is switched
 // the design evidence of the case (attach_evidence.py): the two pre-registered tests, the drop-one refits, the rank among the paper's cases
@@ -1977,9 +1997,31 @@ async function takeHandoff(id) {
   catch (err) { $('newstatus').textContent = 'Could not take the table: ' + err.message; } }
 function start() { const hand = new URLSearchParams(location.hash.slice(1)).get('handoff'); window.addEventListener('hashchange', fromHash); fromHash(); if (hand) return takeHandoff(hand); if (new URLSearchParams(location.search).has('selftest')) return selfTest();
   $('coach').hidden = true; }      // the steps are in the ? guide: the page opens without a paragraph over the table      // a first visit gets three steps above the table; the ? button holds the rest
+// two ways into a case: Design (the ensemble model's drivers, a few top models, the compounds) and Models (the full table)
+let MODE = (() => { const q = new URLSearchParams(location.hash.slice(1)).get('md'); if (q === 'design' || q === 'models') return q;
+  try { return localStorage.getItem('bassa-explorer-mode') === 'models' ? 'models' : 'design'; } catch (e) { return 'design'; } })();
+function modeThumb() { const b = $('mode').querySelector(`[data-md="${MODE}"]`), t = $('mode').querySelector('.thumb'); if (!b) return;
+  if (!b.offsetWidth) return; t.style.width = b.offsetWidth + 'px'; t.style.transform = `translateX(${b.offsetLeft}px)`; $('mode').classList.add('measured'); }
+function setMode(m, quiet) { MODE = m; document.body.classList.toggle('mdesign', m === 'design');
+  $('mode').querySelectorAll('[data-md]').forEach((b) => b.setAttribute('aria-selected', b.dataset.md === m)); requestAnimationFrame(modeThumb);
+  try { localStorage.setItem('bassa-explorer-mode', m); } catch (e) {}
+  if (m === 'design' && st && st.view !== 'models') st.view = 'models';      // Design reads the models view's drivers
+  if (!quiet && C) { const mn = document.querySelector('main'); mn.classList.remove('swap'); void mn.offsetWidth; mn.classList.add('swap'); refresh(); } }
+$('mode').addEventListener('click', (e) => { const b = e.target.closest('[data-md]'); if (b && b.dataset.md !== MODE) setMode(b.dataset.md); });
+window.addEventListener('resize', () => requestAnimationFrame(modeThumb));
+// the top models as cards: how often BASSA visited each, its descriptors by family, its Q²; a click plots it, the ensemble model is one click back
+function topModels() { const { cols } = columns(), top = cols.slice(0, 5), tot = Math.max(...top.map((c) => c.share), 1e-9);
+  $('topmodels').innerHTML = !top.length ? '' : `<div class="tmh">Top models <span class="lab">share of sampled models · Q² as a fixed model</span></div><div class="tml">` + top.map((c) => {
+    const M = C.models[c.m], k = kfold(M.cols, 5), on = !st.ens && st.mplot && c.members.includes(st.model);
+    return `<button class="tmc${on ? ' on' : ''}" data-tm="${c.m}" title="${esc(M.cols.map((i) => C.label[i]).join('  +  '))}${c.members.length > 1 ? `\n${c.members.length} models that differ only inside a family` : ''}">` +
+      `<span class="sh">${(100 * c.share).toFixed(c.share < 0.1 ? 1 : 0)}<small> %</small></span><span class="ds">${M.cols.map((i) => `<span>${idb(fam[i], true)}${esc(C.label[i])}</span>`).join('')}</span>` +
+      `<span class="qv">Q² <b>${k ? k.q2.toFixed(2) : '–'}</b></span><span class="bar2"><i style="width:${(100 * c.share / tot).toFixed(1)}%"></i></span></button>`; }).join('') + '</div>'; }
+$('topmodels').addEventListener('click', (e) => { const b = e.target.closest('[data-tm]'); if (!b) return; const m = +b.dataset.tm;
+  if (!st.ens && st.mplot && st.model === m) { st.ens = true; st.mplot = false; } else { st.model = m; st.ens = false; st.mplot = hasEns(); } refresh(); });
+setMode(MODE, true); addEventListener('load', modeThumb); if (document.fonts) document.fonts.ready.then(modeThumb);
 // the cases list, from those loaded so far (the others arrive in the background)
 function casePicker() { const order = [...(window.CASE_FILES || []).filter((k) => CASES[k]), ...Object.keys(CASES).filter((k) => !(window.CASE_FILES || []).includes(k))];
-  $('case').innerHTML = order.map((k) => `<option value="${esc(k)}">${esc(CASES[k].title || k)}</option>`).join(''); $('case').value = order.find((k) => CASES[k] === C); $('overview').hidden = order.length < 2; }
+  $('case').innerHTML = order.map((k) => `<option value="${esc(k)}">${esc(CASES[k].title || k)}</option>`).join(''); $('case').value = order.find((k) => CASES[k] === C); $('overview').hidden = order.length < 2; modeThumb(); }
 // a case file is loaded when it is needed: the one opened first, then the others in the background (all 14 at once took seconds)
 const files = ALONE ? [] : (window.CASE_FILES || []), loaded = {};
 const load = (f) => loaded[f] ||= new Promise((res) => { const s = document.createElement('script'); s.src = f + '.js'; s.onload = s.onerror = () => res(); document.head.appendChild(s); });
@@ -2062,6 +2104,8 @@ async function selfTest() {
       const nx = document.querySelector('.rec.sel .step button:last-child'); if (nx) { const want = +nx.dataset.pick; nx.click(); need(st.model === want && count('.rec.sel') === 1, 'stepping through the models of a recipe'); } st.view = 'models';
       const di = C.draw.findIndex((d) => d && /^dipole/.test(d.kind)); if (di >= 0 && C.mols[st.mol] && C.mols[st.mol].dipole) { st.model = -1; st.rows = [di]; const own = (C.style || {}).muPerD || 0, base = own || Math.min(0.6, 2.6 / (Math.hypot(...C.mols[st.mol].dipole.slice(0, 3)) || 1)); st.dipx = 2; const two = session(st.mol).s.style.muPerD; st.dipx = 1; draw();
         need(Math.abs(two - 2 * base) < 1e-9 && session(st.mol).s.style.muPerD === own && !$('dipgrp').hidden, 'the dipole arrow twice as long, and the slider shown with a dipole descriptor'); st.rows = []; }
+      { const m0 = MODE; setMode('models'); need(!document.body.classList.contains('mdesign') && (st.view !== 'models' || !!document.querySelector('th.cnr #drive')), 'Models: the table with the drivers in its corner');
+        setMode('design'); need(document.body.classList.contains('mdesign') && (!columns().cols.length || count('#topmodels .tmc') > 0) && !document.querySelector('th.cnr #drive'), 'Design: the drivers and the top models'); setMode(m0); }
       if (st.adv) $('adv').click(); $('adv').click(); need(st.adv && document.body.classList.contains('adv'), 'advanced on'); st.view = 'map'; st.rsort = 'freq'; $('adv').click(); need(!st.adv && st.view === 'models' && st.rsort === 'fam' && getComputedStyle($('filt')).display === 'none', 'advanced off puts the hidden settings back (Filters is Advanced only)');
       // from here on, the page as it was before the plain one: every row, one column per model, no size limit
       Object.assign(st, { adv: true, allrows: true, rsort: 'freq', links: 'top', merge: false, minshare: 0, sizes: new Set([1, 2, 3, 4, 5]), shut: new Set(), rows: [], view: 'models' }); st.model = columns().cols[0]?.m ?? -1; syncUI(); refresh();
