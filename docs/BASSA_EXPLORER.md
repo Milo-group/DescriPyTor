@@ -73,9 +73,10 @@ with the sampler rerun in every fold; the fit numbers of single models (R², Q²
 **advanced**, because a model picked from the table was chosen on all compounds and those numbers flatter it. The **advanced** box
 adds the rest (listed at the end of this section). A link made before the plain page existed opens in advanced.
 
-- **Overview and Models** (the switch in the header; the address keeps `md=design` for Overview). Overview: the drivers,
-  the top models and the compound card (*Why this prediction*, *How to make it better*) on the left; the metrics, the plot
-  and the molecule on the right. A top-model card plots that model; "← ensemble model" returns. Models: the full table.
+- **Overview and Models** (the switch in the header; the address keeps `md=design` for Overview). Overview: the drivers
+  and the top models on the left; the metrics, the plot, the molecule and the compound card (*Why this prediction*, *How to
+  make it better*) on the right. A top-model card plots that model; "← ensemble model" or the Show switch returns. Models:
+  the full table.
 - **The metrics card** over the plot: for the ensemble model, Q² on 5 folds (the number to quote), Q² leave-one-out, R² of
   the fit, the MAE on unseen compounds and, when there are external compounds, their R²; for a selected model, the same
   numbers with the model kept fixed, plus its share of sampled models, marked as flattering it.

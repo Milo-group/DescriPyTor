@@ -361,9 +361,7 @@
   .modeseg button[aria-selected="true"] { color: var(--ink); } .modeseg:not(.measured) button[aria-selected="true"] { background: #fff; box-shadow: 0 1px 3px rgba(20,30,45,.16); }   /* until the thumb is measured */
   body:not(.adv) #design { display: none !important; }   /* the design sliders are Advanced; Design is the mode */ .modeseg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .modeseg .thumb { position: absolute; top: 2px; bottom: 2px; left: 0; width: 0; border-radius: 7px; background: #fff; box-shadow: 0 1px 3px rgba(20,30,45,.16), 0 0 0 .5px rgba(20,30,45,.06); transition: transform .3s var(--ease), width .3s var(--ease); }
-  body.mdesign main > section:first-child > :not(#drive):not(#topmodels):not(#side) { display: none !important; }
-  body.mdesign .lcol > .molrow { grid-template-columns: minmax(0, 1fr); } body.mdesign #side { margin-top: 20px; }
-  body.mdesign .predsw > .lab:first-child, body.mdesign .predsw > .seg { display: none; }
+  body.mdesign main > section:first-child > :not(#drive):not(#topmodels) { display: none !important; }
   body.mdesign:not(.adv) .idb { font-size: 0; width: 9px; height: 9px; min-width: 0; padding: 0; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
   body:not(.mdesign) #topmodels { display: none; }
   body.mdesign #drive { margin: 4px 2px 18px; } body.mdesign #drive .dh b { font-size: 15px; } body.mdesign #drive .dsay { font-size: 14px; line-height: 1.5; margin: 6px 0 10px; } body.mdesign #drive .dbar { min-height: 34px; }
@@ -2037,8 +2035,7 @@ let MODE = (() => { const q = new URLSearchParams(location.hash.slice(1)).get('m
   try { return localStorage.getItem('bassa-explorer-mode') === 'models' ? 'models' : 'design'; } catch (e) { return 'design'; } })();
 function modeThumb() { const b = $('mode').querySelector(`[data-md="${MODE}"]`), t = $('mode').querySelector('.thumb'); if (!b) return;
   if (!b.offsetWidth) return; t.style.width = b.offsetWidth + 'px'; t.style.transform = `translateX(${b.offsetLeft}px)`; $('mode').classList.add('measured'); }
-const SIDE = $('side'), SIDE_HOME = SIDE.parentNode;      // kept: the compound card moves to the left column in Overview and back
-function setMode(m, quiet) { MODE = m; document.body.classList.toggle('mdesign', m === 'design'); if (m === 'design') $('topmodels').after(SIDE); else SIDE_HOME.appendChild(SIDE);
+function setMode(m, quiet) { MODE = m; document.body.classList.toggle('mdesign', m === 'design');
   $('mode').querySelectorAll('[data-md]').forEach((b) => b.setAttribute('aria-selected', b.dataset.md === m)); requestAnimationFrame(modeThumb);
   try { localStorage.setItem('bassa-explorer-mode', m); } catch (e) {}
   if (m === 'design' && st && st.view !== 'models') st.view = 'models';      // Design reads the models view's drivers
