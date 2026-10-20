@@ -63,10 +63,46 @@ PI_SAY.update(x_stretch="The frequency of the vibration in which atoms %d and %d
               x_cross_angle="The angle the extractor reports for the cross ring mode of the ring that contains atom %d.", x_para_angle="The angle the extractor reports for the para ring mode of the ring that contains atom %d.")
 LABELS.update(iso="isotropic polarizability", aniso="polarizability anisotropy", energy="energy")
 
+# The Denmark CPA columns (zenodo_archive/scripts/cpa: extract_pool, extract_vbur, extract_ortho): name -> (drawing, label, hover note).
+# Roles per catalyst (cpa_roles): P, the aryl O (O) and their centroid (Oc), C2 (bears O), C1 (biaryl bond), C3 (bears the 3-substituent),
+# C1p (its first atom), oxo, OH, H, and per Sterimol key the ortho atom that gave the arm's max/min (oB1max ...) with its substituent atom (xB1max ...).
+# A role ending in ~ is the other arm's atom. Sterimol axes are walked with the featurizer's blocks (each structure's `block`, keyed by the start role).
+CPA_AX = {"sub": ("C3", "C1p", "on C3→C1′ (the 3,3′ substituent)"), "fromP": ("P", "C3", "from P to C3 (C3 and its substituent)"), "arm": ("O", "C2", "on O→C2 (the binaphthyl, P blocked)")}
+CPA = {f"{p}_{k}": (dict(kind="sterimol", ra=a, rb=b, flag=SHOW[k], arms="sym"), f"{k.replace('loc_B5', 'loc B5').replace('theta', 'θ').replace('phi', 'φ')} {say} · mean of the two arms",
+                                  f"Sterimol {k.replace('_', ' ')} {say}, with the featurizer's blocked atoms; the mean of the two arms. Both arms are drawn.")
+       for p, (a, b, say) in CPA_AX.items() for k in ("B1", "B5", "L", "loc_B5", "theta", "phi")}
+CPA.update({f"ortho_{k}_{f}": (dict(kind="sterimol", ra=f"o{k}{f}", rb=f"x{k}{f}", flag=SHOW[k], arms="sym"), f"{k} of the 3,3′ aryl's {'wider' if f == 'max' else 'narrower'} ortho group · mean of the two arms",
+            f"Sterimol {k} on the axis from each ortho atom of the 3,3′ aryl to its substituent (the ring blocked); per arm the {f}imum of the two ortho positions, then the mean of the two arms; 0 for a catalyst without a 3,3′ aryl. The drawn axis is the ortho position that gave the {f}imum.")
+            for k in ("B1", "B5", "L") for f in ("max", "min")})
+DIP = " The table is in atomic units (xtb); the molecule shows debye."
+CPA.update(dip_total=(dict(kind="dipole_total", ro="P", ry="oxo", rp="OH"), "dipole magnitude", "The magnitude of the GFN2 dipole." + DIP),
+           dip_acid_absx=(dict(kind="dipole", comp="v", ro="Oc", ry="P", rp="O"), "|dipole| in-plane ⟂ O,O centre→P", "The size of the dipole component perpendicular to the axis from the centre of the two aryl O to P, in the plane of the first aryl O." + DIP),
+           dip_acid_absz=(dict(kind="dipole", comp="w", ro="Oc", ry="P", rp="O"), "|dipole| out-of-plane ⟂ O,O centre→P", "The size of the dipole component out of the plane of the two aryl O and P." + DIP),
+           dip_sub_absz=(dict(kind="dipole", comp="w", ro="C3", ry="C1p", rp="C2"), "|dipole| out of the C2, C3, C1′ plane · mean of the arms", "The size of the dipole component out of the C2, C3, C1′ plane, per arm then averaged; the frame of the first arm is drawn." + DIP),
+           dip_on_PO=(dict(kind="dipole", comp="u", ro="P", ry="oxo", rp="OH"), "dipole along P→O (oxo)", "The dipole projected on the P=O bond." + DIP),
+           dip_on_POH=(dict(kind="dipole", comp="u", ro="P", ry="OH", rp="oxo"), "dipole along P→OH", "The dipole projected on the P–OH bond." + DIP),
+           HOMO=(None, "HOMO energy", "GFN2 HOMO energy (eV); nothing is drawn for it."), LUMO=(None, "LUMO energy", "GFN2 LUMO energy (eV); nothing is drawn for it."),
+           q_sub=(None, "summed charge of the 3,3′ substituent · mean of the arms", "GFN2 Mulliken charges summed over the 3,3′ substituent (C1′ and what it carries), mean of the two arms; not drawn."),
+           is_aryl=(None, "3,3′ substituent is an aryl", "1 when the 3,3′ groups are aryl, else 0 (Zahrt et al.'s grouping); nothing is drawn for it."),
+           vbur_pocket_5=(None, "%Vbur in the pocket, 5 Å", "Buried volume of a 5 Å sphere 2 Å beyond P, away from the aryl O; not drawn (the sphere's centre is not an atom)."),
+           vbur_pocket_7=(None, "%Vbur in the pocket, 7 Å", "Buried volume of a 7 Å sphere 2 Å beyond P, away from the aryl O; not drawn (the sphere's centre is not an atom)."))
+for r in (5, 7):
+    CPA[f"vbur_P_{r}"] = (dict(kind="vbur", ro="P", radius=float(r)), f"%Vbur at P, {r} Å", f"The share of a {r} Å sphere around P that the catalyst fills (Bondi radii x 1.17, H included).")
+    for c in ("P", "pocket"): CPA[f"vbur_sub_{c}_{r}"] = (None, f"%Vbur of the 3,3′ substituents only, {'at P' if c == 'P' else 'in the pocket'}, {r} Å", f"Buried volume counting only the 3,3′ substituents' atoms; not drawn (the explorer's sphere counts every atom).")
+for c, roles, say in (("q_P", ["P"], "P"), ("q_OAr", ["O"], "the two aryl O, mean"), ("q_oxo", ["oxo"], "the P=O oxygen"), ("q_OH", ["OH"], "the P–OH oxygen"), ("q_H", ["H"], "the acidic H"),
+                      ("q_C2", ["C2"], "C2 (bears the aryl O), mean of the arms"), ("q_C3", ["C3"], "C3 (bears the 3-substituent), mean of the arms"), ("q_C1p", ["C1p"], "C1′ (first atom of the 3-substituent), mean of the arms")):
+    CPA[c] = (dict(kind="charge", type="mulliken", roles=roles), "Mulliken charge, " + say, "The GFN2 Mulliken charge on " + say + ".")
+for c, roles, say in (("d_P_oxo", ["P", "oxo"], "P=O length"), ("d_P_OH", ["P", "OH"], "P–OH length"), ("d_O_H", ["OH", "H"], "O–H length"), ("d_P_OAr", ["P", "O"], "P–O(aryl) length, mean of the arms"),
+                      ("d_OAr_C2", ["O", "C2"], "O–C2 length, mean of the arms"), ("d_C3_C1p", ["C3", "C1p"], "C3–C1′ length, mean of the arms"), ("d_biaryl", ["C1", "C1~"], "biaryl C1–C1′ bond length"),
+                      ("d_C1p_C1p", ["C1p", "C1p~"], "distance between the two C1′ (across the pocket)"), ("ang_OAr_P_OAr", ["O", "P", "O~"], "angle O–P–O (aryl O)"), ("ang_oxo_P_OH", ["oxo", "P", "OH"], "angle O=P–OH"),
+                      ("dih_biaryl_abs", ["C2", "C1", "C1~", "C2~"], "biaryl dihedral C2–C1–C1–C2, absolute")):
+    CPA[c] = (dict(kind="atoms", roles=roles, measure=True), say, "The " + say + " (Å or degrees), drawn per arm on the atoms it is measured on.")
+
 
 def drawing(c):
     """what the explorer should draw for a column name; None when the name is not one it can place.
     Platform names carry atom numbers. Metal-complex names carry roles (metal, donor, stereocentre, substituent) that each compound resolves itself."""
+    if c in CPA: return CPA[c][0]
     m = re.fullmatch(r"ster_(\w+)\[[A-Za-z]*(\d+)->[A-Za-z]*(\d+)\]", c) or re.fullmatch(r"(B1|B5|L|loc_B5|loc_B1|B1_tangent_atoms|B1_B5_angle|B1_B5_azimuth|B1_B5_acute)_(\d+)-(\d+)", c)
     if m and m.group(1) in SHOW: return dict(kind="sterimol", a=int(m.group(2)), b=int(m.group(3)), flag=SHOW[m.group(1)])
     m = re.fullmatch(r"(%s)_(theta|phi|B1|B5|L|loc_B5)_(sym|asym)" % "|".join(PAIRS), c)
@@ -119,6 +155,7 @@ ARMED = {"a_R_Cstereo_N": "angle R–C*–D", "q_donor": "charge on the donor at
 def label(c, w):
     """a readable name for the table; `describe` gives the sentence for the hover note"""
     if c in LABELS: return LABELS[c]
+    if c in CPA: return CPA[c][1]
     q = lambda s: s.replace("loc_B5", "loc B5").replace("loc_B1", "loc B1").replace("B1_tangent_atoms", "atoms touching the B1 plane,").replace("B1_B5_angle", "B1–B5 angle").replace("B1_B5_azimuth", "B1–B5 azimuth").replace("B1_B5_acute", "B1–B5 acute angle").replace("theta", "θ").replace("phi", "φ")
     if c in PLAIN: return PLAIN[c]
     m = re.fullmatch(r"(%s)_(sym|asym)" % "|".join(ARMED), c)
@@ -150,6 +187,7 @@ STER = {"B1": "smallest width (Sterimol B1)", "B5": "largest width (Sterimol B5)
 def describe(c, w):
     """one or two sentences for the hover note of a descriptor: what is measured, on which atoms; the column name last"""
     t = label(c, w); col = " Column: %s." % c
+    if c in CPA: return CPA[c][2] + col
     if w and w["kind"] == "sterimol":
         k = next((v for n, v in sorted(STER.items(), key=lambda x: -len(x[0])) if n in c), "Sterimol value")
         if "ra" in w: return "The %s, measured along the axis from %s to %s, over what lies beyond the second atom%s. %s%s" % (k, ROLE[w["ra"]], ROLE[w["rb"]], "" if w["arms"] == "one" else ARMS[w["arms"]].replace(" · ", "; the "), WORDS if w["arms"] != "one" else "", col)
@@ -252,6 +290,29 @@ def chelate(f, SA):
     return dict(xyz=txt, dipole=None, charges=None, roles=roles, view=SA.view(txt, roles["Cs"][0], roles["R"][0]))
 
 
+CPA_GEOM = (V5 / "notes/cpa_pass1/out", V5 / "notes/analysis/capped_bassa/cpa_246_vi_gfn2")      # the GFN2 structures with their Mulliken .q and .props (dipole x y z in a.u., HOMO, LUMO)
+
+
+def cpa_roles(xyz, aryl):
+    """the atoms the Denmark CPA columns are measured on, found by the featurizer's own rules (extract_pass1.roles, extract_ortho); 1-based, one per arm.
+    block: per start role, the atoms each arm's Sterimol walk may not pass. core: the atoms two catalysts are superposed on."""
+    sys.path.insert(0, str(V5 / "zenodo_archive/scripts/cpa")); import extract_pass1 as ex, extract_ortho as eo
+    rows = xyz.strip().splitlines()[2:]; sym = [l.split()[0] for l in rows]; X = np.array([[float(v) for v in l.split()[1:4]] for l in rows])
+    adj = ex.adjacency(sym, X); p, arms = ex.roles(sym, adj); rad = [ex.PKG_CPK.get(t, 1.92) for t in ex.nob_types(sym, adj)]
+    free = [o for o in adj[p] if sym[o] == "O" and o not in [a[0] for a in arms]]; (oh,) = [o for o in free if any(sym[h] == "H" for h in adj[o])]; (oxo,) = [o for o in free if o != oh]
+    R = {k: [a[j] + 1 for a in arms] for j, k in enumerate(("O", "C2", "C1", "C3", "C1p"))}
+    R.update(P=[p + 1] * 2, oxo=[oxo + 1] * 2, OH=[oh + 1] * 2, H=[next(h for h in adj[oh] if sym[h] == "H") + 1] * 2, Oc=["%d, %d" % tuple(R["O"])] * 2)   # Oc: the centroid of the aryl O, as the explorer takes a dipole origin
+    block = dict(C3=[[x + 1 for x in adj[a[3]] if x != a[4]] for a in arms], O=[[p + 1]] * 2); block["P"] = block["C3"]
+    for a in arms if aryl else []:                                              # extract_ortho: per arm the ortho position that gave each max / min (the first on a tie, as max() takes it)
+        c3, c1p = a[3], a[4]; ortho = [x for x in adj[c1p] if x != c3]; ring = [c1p] + eo.path(adj, ortho[0], ortho[1], c1p); got = []
+        for o in ortho:
+            (x,) = [y for y in adj[o] if y not in ring]; bl = [r + 1 for r in ring if r != o]; got.append((o + 1, x + 1, bl, ex.sterimol(sym, X, o + 1, x + 1, rad, block=tuple(bl))))
+        for k in ("B1", "B5", "L"):
+            for f, pick in (("max", max), ("min", min)):
+                o, x, bl, _ = pick(got, key=lambda g: g[3][k]); R.setdefault(f"o{k}{f}", []).append(o); R.setdefault(f"x{k}{f}", []).append(x); block.setdefault(f"o{k}{f}", []).append(bl)
+    return dict(roles=R, block=block, core=[R["P"][0], *R["O"], *R["C2"], *R["C1"], *R["C3"]])
+
+
 def torsion(X, a, b, c, d):
     b0, b1, b2 = X[a] - X[b], X[c] - X[b], X[d] - X[c]; b1 = b1 / np.linalg.norm(b1); v, w = b0 - (b0 @ b1) * b1, b2 - (b2 @ b1) * b1
     return float(np.degrees(np.arctan2(np.cross(b1, v) @ w, v @ w)))
@@ -347,6 +408,20 @@ if __name__ == "__main__":
         assert (drawing(c) or {}).get("kind") == w, c
     assert drawing("CsR_B1_sym")["ra"] == "Cs" and label("sub_theta_asym", drawing("sub_theta_asym")) == "θ on C*→R · difference between the arms" and label("RRp_loc_B5_sym", drawing("RRp_loc_B5_sym")) == "loc B5 on R→R′ · mean of the two arms" and "tf_" not in label("tf_chi3v", None)
     sys.path.insert(0, str(BASSA))
+    if sys.argv[1] == "cpa":                                                    # build_case.py cpa [case]: atom roles, Sterimol blocks, Mulliken charges and the dipole (debye) for the Denmark CPA case; no number of the run changes
+        case = sys.argv[2] if len(sys.argv) > 2 else "denmark_cpa"; f = C / f"{case}.js"; t = f.read_text(encoding="utf-8"); d = json.loads(t[t.index("] = ") + 4:].rstrip().rstrip(";")); got = {}
+        aryl = dict(zip(d["ligands"], d["X"]["is_aryl"]))
+        for n, m in d["mols"].items():
+            cat = n.split("__")[0]
+            if cat not in got:
+                g = next(p for p in CPA_GEOM if (p / f"{cat}.xyz").exists()); a, b = [[l.split() for l in s.strip().splitlines()[2:]] for s in (m["xyz"], (g / f"{cat}.xyz").read_text())]
+                assert [r[0] for r in a] == [r[0] for r in b] and np.allclose(np.array([r[1:4] for r in a], float), np.array([r[1:4] for r in b], float), atol=1e-6), cat   # the charges and the dipole belong to this structure, in this orientation
+                q = [float(v) for v in (g / f"{cat}.q").read_text().split()]; mu = 2.541746 * np.array([float(v) for v in (g / f"{cat}.props").read_text().split()[1:4]]); assert len(q) == len(a), cat
+                got[cat] = dict(cpa_roles(m["xyz"], aryl[n] == 1), charges=dict(mulliken=q), dipole=[*mu.tolist(), float(np.linalg.norm(mu))], xyz=m["xyz"])
+            assert m["xyz"] == got[cat]["xyz"] and (aryl[n] == 1) == ("oB1max" in got[cat]["roles"]), n; m.update(got[cat])
+        d["draw"] = [drawing(c) for c in d["names"]]; d["label"] = [label(c, w) for c, w in zip(d["names"], d["draw"])]; d["desc"] = [describe(c, w) for c, w in zip(d["names"], d["draw"])]
+        f.write_text("(window.CASES = window.CASES || {})[%s] = %s;\n" % (json.dumps(case), json.dumps(d)), encoding="utf-8")
+        print(case, len(got), "catalysts;", sum(w is None for w in d["draw"]), "of", len(d["names"]), "columns not drawn:", [c for c, w in zip(d["names"], d["draw"]) if w is None]); sys.exit()
     if sys.argv[1] == "relabel":                                                # build_case.py relabel: names, hover notes, drawings, R′ and the reaction scheme again for every kept case, from its column names; no run is repeated
         for case in json.loads((C / "manifest.js").read_text(encoding="utf-8").split("=", 1)[1].rstrip(";\n ")):
             f = case_file(case); t = f.read_text(encoding="utf-8")

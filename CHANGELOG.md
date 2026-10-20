@@ -98,6 +98,10 @@
   (`~/.descripytor/bassa_python`), so new tables can run. Its page says so when its server is not running.
 - BASSA explorer: families by the sampler are the default; the selected model says its share of the sampled models
   over the plot, and its weights table gives each descriptor's share of models.
+- BASSA explorer: the Denmark CPA case draws its descriptors (`build_case.py cpa`): per-catalyst atom roles from the
+  featurizer's own rules, Sterimol axes walked with its blocked atoms, Mulliken charges on role atoms, per-arm lengths,
+  angles and dihedrals, the dipole frames and the %Vbur sphere at P. A structure can name its own `core` atoms for
+  superposing.
 - `Molecules.get_renumbering_dict(reference)` uses it too (no xyz export, no change of directory) and returns the dicts.
 
 ### Removed

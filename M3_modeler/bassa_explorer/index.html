@@ -1156,7 +1156,7 @@ function influence() {
 
 // ---------- the session the explorer shows: one compound, the active descriptors drawn on it ----------
 // the atoms two compounds are superposed on when nothing drawn gives three: the chelate (metal, donors, stereocentres), or the atoms the most used descriptors name
-function coreAtoms(name) { const R = C.mols[name].roles; if (R && R.M && R.D && R.Cs) return [...new Set([R.M[0], ...R.D, ...R.Cs])]; if (R) return [...new Set(Object.values(R).flat())];
+function coreAtoms(name) { const R = C.mols[name].roles; if (C.mols[name].core) return C.mols[name].core; if (R && R.M && R.D && R.Cs) return [...new Set([R.M[0], ...R.D, ...R.Cs])]; if (R) return [...new Set(Object.values(R).flat())];
   const a = new Set(); for (const i of range(N).sort((x, y) => C.freq[y] - C.freq[x]).slice(0, 15)) { const d = C.draw[i]; if (!d || d.ra || d.roles || d.ro) continue; if (d.kind === 'sterimol') a.add(d.a).add(d.b); else if (d.kind === 'charge') a.add(d.i); else if (d.atoms) d.atoms.forEach((v) => a.add(v)); else if (d.kind === 'dipole') { if (+d.origin) a.add(d.origin); a.add(d.y); } }
   return [...a]; }
 const STACKCOL = ['#1f5fd0', '#b45309', '#0f766e', '#be185d', '#6D28D9', '#65a30d'];
@@ -1164,24 +1164,33 @@ const STACKCOL = ['#1f5fd0', '#b45309', '#0f766e', '#be185d', '#6D28D9', '#65a30
 // `on` names a stacked compound: its axes are then measured on it by the explorer, in the frame it was superposed into.
 const XYZ = new WeakMap(), xyzOf = (n) => { const m = C.mols[n]; if (!XYZ.has(m)) XYZ.set(m, m.xyz.trim().split('\n').slice(2).map((l) => l.trim().split(/\s+/))); return XYZ.get(m); };      // per structure: a table uploaded again with other structures under the same names
 const angleOf = (n, [a, b, c]) => { const X = xyzOf(n).map((r) => r.slice(1, 4).map(Number)), u = X[a - 1].map((v, k) => v - X[b - 1][k]), w = X[c - 1].map((v, k) => v - X[b - 1][k]); return Math.acos(u.reduce((s, v, k) => s + v * w[k], 0) / Math.hypot(...u) / Math.hypot(...w)) * 180 / Math.PI; };
+// a length, angle or absolute dihedral on 2, 3 or 4 atoms of one structure, as the text of its mark
+const geomText = (n, t) => { const X = xyzOf(n).map((r) => r.slice(1, 4).map(Number)), P = t.map((a) => X[a - 1]), d = (p, q) => p.map((v, k) => v - q[k]), cr = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]], dt = (p, q) => p.reduce((s, v, k) => s + v * q[k], 0);
+  if (t.length === 2) return 'd ' + Math.hypot(...d(P[0], P[1])).toFixed(3) + ' Å'; if (t.length === 3) return '∠ ' + angleOf(n, t).toFixed(1) + '°';
+  const b1 = d(P[2], P[1]), n1 = cr(d(P[0], P[1]), b1), n2 = cr(b1, d(P[3], P[2])); return '|τ| ' + Math.abs(Math.atan2(dt(cr(n1, n2), b1) / Math.hypot(...b1), dt(n1, n2)) * 180 / Math.PI).toFixed(1) + '°'; };
 // a family looked at on the molecule: its most used descriptors that can be drawn, FAMCAP of them
 const famShown = () => [...members[st.famView]].sort((a, b) => C.freq[b] - C.freq[a]).filter((i) => C.draw[i]).slice(0, FAMCAP);
 function layersOf(name, on) {
-  const mol = C.mols[name], flags = ['axis', 'L', 'b1', 'plane', 'loc', 'b5', 'theta', 'drop', 'inset', 'profile'], axes = [], sites = [], label = new Set(), skipped = [], marks = [];
+  const mol = C.mols[name], flags = ['axis', 'L', 'b1', 'plane', 'loc', 'b5', 'theta', 'drop', 'inset', 'profile'], axes = [], sites = [], label = new Set(), skipped = [], marks = [], vburs = [];
   let total = false, dip = { on: false, origin: '', y: '', plane: '', show: { frame: true, mu: true, u: true, v: false, w: false } };
-  const axis = (a, b, flag, col, cx) => { let ax = axes.find((x) => x.a === a && x.b === b); if (!ax) { ax = Object.assign({ a, b, color: col, tag: '', show: Object.fromEntries(flags.map((f) => [f, f === 'axis' || f === 'drop'])) }, on ? { on } : {}, cx ? { dropAtoms: [a] } : {}); axes.push(ax); }      // cx: a metal-complex axis, measured as metal_complex.fragment does, without its start atom (else an H arm reads the start atom's radius)
+  const axis = (a, b, flag, col, cx, block) => { let ax = axes.find((x) => x.a === a && x.b === b); if (!ax) { ax = Object.assign({ a, b, color: col, tag: '', show: Object.fromEntries(flags.map((f) => [f, f === 'axis' || f === 'drop'])) }, on ? { on } : {}, cx ? { dropAtoms: [a] } : {}, block ? { block } : {}); axes.push(ax); }      // cx: a metal-complex axis, measured as metal_complex.fragment does, without its start atom (else an H arm reads the start atom's radius)
     ax.show[flag] = true; if (flag === 'theta') ax.show.b1 = true; const E = st.extra;
     if (E.plane) ax.show.b1 = ax.show.plane = true; if (E.theta) ax.show.b1 = ax.show.theta = true; if (E.full) ax.show.L = ax.show.b1 = ax.show.b5 = ax.show.loc = true; if (E.inset && !on) ax.show.inset = true; label.add(a).add(b); };
   const shownW = st.whyOn ? whyCols(st.mol) : null;
   for (const i of (shownW || (st.famView >= 0 ? famShown() : active()))) { const d = C.draw[i], col = shownW ? ideaCol[fam[i]] : st.famView >= 0 ? ideaCol[st.famView] : colourOf(i), R = mol.roles;
     if (!d || ((d.ra || d.roles || d.ro) && !R)) { skipped.push(C.label[i]); continue; }
     if (d.kind === 'sterimol' && d.ra) { if (!R[d.ra] || !R[d.rb] || !R[d.ra].some((a, k) => a && R[d.rb][k])) { skipped.push(C.label[i] + ' (this structure has no such atoms)'); continue; }
-      R[d.ra].forEach((_, k) => { if (R[d.ra][k] && R[d.rb][k]) axis(R[d.ra][k], R[d.rb][k], d.flag, col, true); }); }   // a metal complex: the same axis on every arm that has it
+      R[d.ra].forEach((_, k) => { if (R[d.ra][k] && R[d.rb][k]) axis(R[d.ra][k], R[d.rb][k], d.flag, col, true, mol.block && mol.block[d.ra] && mol.block[d.ra][k]); }); }   // a metal complex: the same axis on every arm that has it; `block` (per start role, per arm) stops the walk where the featurizer did
     else if (d.kind === 'sterimol') axis(d.a, d.b, d.flag, col);
+    else if (d.kind === 'atoms' && d.measure) { const seen = new Set();          // per arm, on the structure's own atoms; a role ending in ~ is the other arm's atom, so a cross-arm measure is drawn once
+      R[d.roles[0].replace('~', '')].forEach((_, k) => { const t = d.roles.map((r) => r.endsWith('~') ? R[r.slice(0, -1)][1 - k] : R[r][k]), key = [...t].sort().join();
+        if (t.every(Boolean) && !seen.has(key)) { seen.add(key); t.forEach((a) => label.add(a)); marks.push({ atoms: t, color: col, on, text: geomText(name, t) }); } }); }
+    else if (d.kind === 'vbur') { if (!on) vburs.push({ atom: R[d.ro][0], radius: d.radius, color: col }); label.add(R[d.ro][0]); }      // the explorer draws the sphere on the first structure only
     else if (d.kind === 'atoms') { d.roles.forEach((r) => (R[r] || []).forEach((a) => a && label.add(a)));
       if (d.angle) R.R.forEach((_, k) => { const t = d.roles.map((r) => R[r][k]); if (t.every(Boolean)) marks.push({ atoms: t, color: col, on, text: '∠ ' + angleOf(name, t).toFixed(1) + '°' }); }); }
     else if (d.kind === 'charge_diff') [d.i, d.j].forEach((a) => { if (mol.charges && mol.charges[d.type]) sites.push({ i: a, type: d.type, color: col }); label.add(a); });
-    else if (d.kind === 'charge') { if (mol.charges && mol.charges[d.type]) sites.push({ i: d.i, type: d.type, color: col }); else skipped.push(C.label[i] + ' (no charges with this structure; the atom is numbered)'); label.add(d.i); }
+    else if (d.kind === 'charge') { const at = d.roles ? [...new Set(d.roles.flatMap((r) => R[r] || []))] : [d.i];        // roles: the charge on each atom that plays them (the column is their mean)
+      at.forEach((a) => { if (mol.charges && mol.charges[d.type]) sites.push({ i: a, type: d.type, color: col }); label.add(a); }); if (!(mol.charges && mol.charges[d.type])) skipped.push(C.label[i] + ' (no charges with this structure; the atom is numbered)'); }
     else if (d.kind === 'dipole' || d.kind === 'dipole_total') {
       if (!mol.dipole) { skipped.push(C.label[i] + ' (no dipole with this structure)'); continue; }
       const o = String(d.ro ? R[d.ro][0] : d.origin ?? 1), fy = String(d.ro ? R[d.ry][0] : d.y ?? 2), pl = String(d.ro ? R[d.rp][0] : d.plane ?? 6);
@@ -1192,7 +1201,7 @@ function layersOf(name, on) {
     else { d.atoms.forEach((a) => label.add(a));                     // lengths, angles, dihedrals: the table's value, written along the atoms it is measured on 
       marks.push({ atoms: d.atoms, color: col, on, ring: d.atoms.length === 1, text: d.kind === 'mark' ? d.prefix + xOf(i, name).toFixed(d.dec) + d.unit : (d.kind === 'bond_length' ? 'd ' : d.kind === 'angle' ? '∠ ' : 'τ ') + xOf(i, name).toFixed(d.kind === 'bond_length' ? 3 : 1) + (d.kind === 'bond_length' ? ' Å' : '°') }); }
   }
-  return { axes, sites, dip, label: [...label], skipped, marks, total };
+  return { axes, sites, dip, label: [...label], skipped, marks, total, vburs };
 }
 // the length of the dipole arrow, in Å per debye: the case's own, else the explorer's automatic one (0), times the slider. It is always sent, because the explorer keeps a length it was given before
 const arrowPerD = (mol) => { const own = (C.style || {}).muPerD > 0 ? C.style.muPerD : 0; return st.dipx === 1 || !mol.dipole ? own : st.dipx * (own || Math.min(0.6, 2.6 / (Math.hypot(...mol.dipole.slice(0, 3)) || 1))); };
@@ -1211,7 +1220,7 @@ function session(name, also = []) {
   if (!st.showD) { const off = { on: false, origin: '', y: '', plane: '', show: { frame: true, mu: true, u: true, v: false, w: false } };          // structures alone; the superposition above already used the descriptors' atoms
     return { s: { v: 1, active: 0, align, sm: { q: '', any: true, all: true }, L: { axes: [], active: -1, dip: off, sites: [], map: '', fade: '', fadeOff: false, fadeHide: false, legend: false, labShift: {} },
       style: { ...C.style, labelAtoms: [], atomLabels: 'off' }, view: { R: mol.view || undefined, zoom: 1, perA: 30 }, structs }, skipped: [], limits: [] }; }
-  const L = Object.assign({ axes, active: P.axes.length ? 0 : -1, dip: P.dip, sites, dips, marks: P.marks, map: '', fade: '', fadeOff: !!(st.extra.frag && axes.length), fadeHide: false, legend: false, labShift: {} });
+  const L = Object.assign({ axes, active: P.axes.length ? 0 : -1, dip: P.dip, sites, dips, marks: P.marks, vburs: P.vburs, map: '', fade: '', fadeOff: !!(st.extra.frag && axes.length), fadeHide: false, legend: false, labShift: {} });
   return { limits, s: { v: 1, active: 0, align, sm: { q: '', any: true, all: true }, L, style: { ...C.style, labelScale: 0.75 * ((C.style || {}).labelScale || 1), muPerD: arrowPerD(mol), touch: true, labelAtoms: P.label, dropLabels: ['[uvw]&#770;'].concat(P.total ? [] : ['&#956; -?[0-9.]+ D']) },
     view: { R: mol.view || undefined, zoom: 1, perA: 30 }, structs }, skipped };   // without a stored view the explorer turns the molecule onto its principal axes
 }
