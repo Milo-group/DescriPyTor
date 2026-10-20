@@ -77,10 +77,12 @@ adds the rest (listed at the end of this section). A link made before the plain 
   and the top models on the left; the metrics, the plot, the molecule and the compound card (*Why this prediction*, *How to
   make it better*) on the right. A top-model card plots that model; "← ensemble model" or the Show switch returns. Models:
   the full table.
-- **The metrics card** over the plot: for the ensemble model, Q² on 5 folds (the number to quote), Q² leave-one-out, R² of
+- **The metrics card** over the plot: for the ensemble model, Q² leave-one-out with the BASSA search rerun without each compound (the headline: honest, and the convention in the
+  field), Q² on 5 folds (stricter: a fifth hidden at a time), R² of
   the fit, the MAE on unseen compounds and, when there are external compounds, their R²; for a selected model, the same
-  numbers with the model kept fixed, plus its share of sampled models, marked as flattering it.
-- **The verdict** (the coloured chip in the header): ✓ predicts new compounds well (ensemble Q² ≥ 0.7) or fairly
+  numbers with the model kept fixed, plus its share of sampled models, marked as flattering it. **90 % intervals** (beside Colour) draws every compound's
+  predictive interval: the sampled models' spread together with their noise.
+- **The verdict** (the coloured chip in the header): ✓ predicts new compounds well (the headline Q², leave-one-out when there is one, ≥ 0.7) or fairly
   (≥ 0.4), ! only weakly (Q² < 0.4, or fewer than 90 % of the deals beat every shuffle), ✗ no better than chance (chance
   line p ≥ 0.05, or Q² ≤ 0). On ✗ the plain page greys the drivers and the top models and gives no suggestions under
   *How to make it better* (Advanced still shows them). The top-model cards show the share of sampled models only; their
