@@ -65,7 +65,10 @@ def gui(page):
 
 
 def table(q):
-    t = pd.read_csv(io.StringIO(q["csv"])); t.columns = [str(c).strip() for c in t.columns]      # "name, a, y": the page trims the names it offers
+    t = pd.read_csv(io.StringIO(q["csv"]), keep_default_na=False, na_values=[""]); t.columns = [str(c).strip() for c in t.columns]      # "name, a, y": the page trims the names it offers; a compound named NA stays NA
+    a, b = (t.iloc[:, 0].astype(str).str.strip(), t.iloc[:, 1].astype(str).str.strip()) if t.shape[1] > 2 else (None, None)
+    if a is not None and a.duplicated().any() and pd.to_numeric(t.iloc[:, 1], errors="coerce").isna().all() and not (a + "-" + b).duplicated().any():
+        t = t.drop(columns=t.columns[:2]); t.insert(0, "name", a + "-" + b)      # two name columns (acid, amine): the pair is the compound, "Ac13-N1"
     t = t.set_index(t.columns[0]); t.index = t.index.astype(str).str.strip()
     if t.index.duplicated().any(): raise ValueError("compound names repeat: " + ", ".join(t.index[t.index.duplicated()][:5]))
     if q["response"] not in t.columns: raise ValueError("no column named " + q["response"])

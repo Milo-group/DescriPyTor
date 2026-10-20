@@ -188,6 +188,9 @@ def test_names_and_tables_from_the_review():
         "                  'd': [i * 5 % 11 for i in range(8)], 'e': [1.0, 2, 3, np.inf, 5, 6, 7, 8], ' y ': [i % 4 + 0.5 * i for i in range(8)]})\n"
         "X, y, bad, skipped = S.table(dict(csv=t.to_csv(index=False), response='y'))\n"
         "assert list(X.columns) == ['a', 'b', 'c', 'd'] and bad == ['e'] and np.isfinite(X.to_numpy()).all()\n"
+        "p = pd.DataFrame({'acid': ['A1', 'A1', 'A2', 'A2', 'A3', 'A3', 'A4', 'A4'], 'amine': ['N1', 'NA'] * 4, 'y': range(8), 'a': [1, 3, 2, 5, 4, 7, 6, 9], 'b': [i % 3 for i in range(8)], 'c': [i * 7 % 5 for i in range(8)], 'd': [i * i for i in range(8)]})\n"
+        "X, y, bad, skipped = S.table(dict(csv=p.to_csv(index=False), response='y'))\n"
+        "assert list(X.index[:2]) == ['A1-N1', 'A1-NA'] and list(X.columns) == ['a', 'b', 'c', 'd']      # two name columns: the pair, and NA is a name\n"
     )
     r = subprocess.run([sys.executable, "-c", code], cwd=str(TOOL), capture_output=True, text=True)
     assert r.returncode == 0, r.stderr[-800:]
