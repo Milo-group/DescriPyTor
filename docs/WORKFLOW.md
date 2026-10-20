@@ -187,6 +187,17 @@ two numbers by clicking them; *Compare fits* fits that molecule with every optio
 folder* writes `<folder>/renumbered/` and `renumbering.json`, and *Use it for extraction* switches the page to it and
 checks the numbering of your picks there.
 
+- A new structure folder is shown at once (its first molecule), and **View** with ◀ ▶ steps through its molecules.
+- A clicked atom of a renumbered molecule can be **anchored** to a reference atom, **swapped** with a given number, put in
+  or out of the **fit**, and the molecule **renumbered again** alone with the options as they are.
+- **Compare fits** says for each fit how many atoms end closer to or farther from their reference atom than with rmsd;
+  choosing a fit rings them on the molecule (green closer, red farther). The table stays with the molecule.
+- The **folder grid** gives, for every molecule, the element at each reference number (amber: not the reference's
+  element; violet: matched by position; red: numbered last); a cell opens that molecule with the atom ringed.
+- Number size, molecule and reference opacity, number colours (molecule / reference), bold, hydrogens and "12" or "C12"
+  labels are set in the row under the viewer and kept in the browser. *Try Conformaty's example* runs Conformaty's ring
+  test case. **Stop** ends a renumbering at once; **Extract CSV** has its own Stop.
+
 ## 5. Metal complexes (Case Study 3 route)
 
 For metal–ligand complexes from xTB or GOAT, `MetalComplex` finds the donors, the metal and the

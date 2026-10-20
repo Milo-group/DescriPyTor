@@ -15,8 +15,8 @@ The molecule view is the package's [feature explorer](FEATURE_EXPLORER.md), fram
 
 | option | |
 |---|---|
-| `--cases DIR` | the folder where kept cases live; default `./bassa_cases`. Nothing is written inside the package |
-| `--bassa-python PYTHON` | the Python that has `bassa_reg` (`pip install -U "bassa-reg>=0.1.16"`; an older one is reported by the page and left unused), for running new tables. Default: the Python that runs the command, or the environment variable `DESCRIPYTOR_BASSA_PYTHON` |
+| `--cases DIR` | the folder where kept cases live; default `./bassa_cases` if it exists, else the folder last given with `--cases` (remembered in `~/.descripytor/bassa_cases`). Nothing is written inside the package |
+| `--bassa-python PYTHON` | the Python that has `bassa_reg` (`pip install -U "bassa-reg>=0.1.16"`; an older one is reported by the page and left unused), for running new tables. Default: the Python last given here (remembered in `~/.descripytor/bassa_python`), else the environment variable `DESCRIPYTOR_BASSA_PYTHON`, else the Python that runs the command |
 | `--port`, `--host`, `--no-browser` | as for the other pages; the default port is 8765 |
 
 Without `bassa_reg` the page still opens the example and every kept case; **New case…** then says what is missing.
@@ -41,6 +41,11 @@ the cases folder:
 In `descripytor visual_extractor`, after **Extract CSV**, open the **Model** tab, choose the target column or paste the
 measured values, and press **Model in BASSA explorer**. The table, the target and the feather folder are handed over,
 this page opens in a new tab and the run starts.
+
+The **BASSA explorer** link in the extractor's header starts this server if it is not running, with the cases folder and
+the Python remembered from the last `--cases` / `--bassa-python` (so `start_explorer.bat` once is enough). The server runs
+on its own: restarting or closing the extractor does not stop it. If the server is gone, the page says so on the next
+action instead of failing silently.
 
 ![The visual extractor's Model tab with the button Model in BASSA explorer](images/readme/handoff.png)
 
@@ -130,14 +135,18 @@ adds the rest (listed at the end of this section). A link made before the plain 
   single model. A family counts as often as a model draws on it. The number under a column is its place. **?** in the header opens
   with **How this case is split**: which models are shown, the order, how the folds are dealt, and every family with
   the reason each member is in it.
-- **Families**: descriptors that stand in for one another. A descriptor joins the most used descriptor for which its
-  column is correlated at 0.7 or more, or at 0.5 or more when the sampler clearly takes one or the other; it never joins
-  one the sampler uses it together with more than chance. The sampler's evidence is the 2x2 table of the two
+- **Families**: descriptors that stand in for one another. By default the sampler decides: a descriptor joins the most
+  used descriptor when the sampler clearly takes one or the other and their columns are correlated at 0.3 or more. By
+  correlation (the other setting) it joins when its column is correlated at 0.7 or more, or at 0.5 or more when the
+  sampler clearly takes one or the other. Either way it never joins one the sampler uses it together with more than
+  chance. The sampler's inputs are BASSA's own: how often each descriptor, and each pair, is in a sampled model; the
+  page adds only the grouping rule. Families change how the table groups descriptors, not the averaged model. The sampler's evidence is the 2x2 table of the two
   descriptors over the kept steps (log odds ratio, a tenth of the steps counted as independent, judged against the
   unrelated pairs of the same run). The "?" at the end of a row gives the reason with its numbers. **Families by** (beside
-  "Fold families") switches the rule: **correlation** (the rule above, with the threshold |r| set between 0.6 and 0.8; the
-  sampler clause then applies from 0.2 below it) or **sampler** (a descriptor joins when the sampler takes one or the
-  other and the columns are correlated at 0.3 or more; never when the sampler uses the two together).
+  "Fold families") switches the rule: **sampler** (the default) or **correlation** (threshold |r| set between 0.6 and
+  0.8; the sampler clause then applies from 0.2 below it).
+- **The selected model** says over the plot how often BASSA visited it ("This model, in 13 % of the sampled models"),
+  and its weights table gives each descriptor's share of all sampled models (**in models**).
 - **Ideas**: every family, and every descriptor on its own, has a letter and a colour (A is the most used). A family is
   a coloured block named after the descriptor the model in hand takes from it. It opens when that model uses it, shows
   its four most used descriptors, and keeps the rest behind **more**. **Fold families** leaves one row per idea.
