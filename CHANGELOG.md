@@ -67,6 +67,9 @@
   and `primaryOpacity` (defaults unchanged).
 - *Compare fits* keeps its table on the molecule: choosing a fit redrew the panel and lost it, so it had to be
   computed again. A swap clears it (the fits were made in the order before).
+- BASSA explorer: the tabs work from the keyboard (arrow keys, Home and End move between them; the arrows used to
+  switch the model, and choosing a tab dropped the focus). Its self-test no longer fails on a case whose columns are
+  drawn on no atom (denmark_cpa).
 - `Molecules.get_renumbering_dict(reference)` uses it too (no xyz export, no change of directory) and returns the dicts.
 
 ### Removed
