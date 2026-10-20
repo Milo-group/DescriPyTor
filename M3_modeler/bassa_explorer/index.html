@@ -221,10 +221,10 @@
   .stage { border-radius: 10px; box-shadow: inset 0 0 0 1px rgba(20,30,45,.02); } .stage .tag { backdrop-filter: blur(4px); background: rgba(255,255,255,.78); box-shadow: 0 1px 3px rgba(20,30,45,.08); }
   .ensb { background: linear-gradient(180deg, #f6f9ff, #eef3fd); border-color: #b9cdf3; box-shadow: 0 1px 2px rgba(31,95,208,.08); border-radius: 10px; }
   #parity .pt { transition: opacity .15s, stroke-width .12s; } #parity .pt:hover { stroke: var(--ink); stroke-width: 2px; }
-  .ewt.wf td:nth-child(2) { width: 166px; padding: 1px 8px; } .ewt.wf td.r { width: 3.6em; } .ewt.wf .wfs { display: block; overflow: visible; } .ewt.wf tr:not(.tot):hover td { background: var(--hover); }
-  .wfc { stroke: #c3cad3; stroke-dasharray: 2 2; } .wfb { stroke: var(--mute); stroke-width: 2; } .wfp { fill: var(--ink); } .wfm { fill: none; stroke: var(--ink); stroke-width: 1.3; } .wfl { fill: none; stroke: var(--mute); stroke-width: 1.2; }
-  #why .wh { display: flex; align-items: baseline; gap: 8px; } #why .wh .wfon { margin-left: auto; color: var(--accent); }
-  #whybox #why, #pairbox #pair { background: #fafbfd; border: 1px solid var(--line); border-radius: 9px; padding: 6px 8px; } #whybox #why:hover { background: var(--hover); }
+  #whybox .ewt.wf td:first-child { width: 36%; } #whybox .ewt.wf td:nth-child(2) { width: auto; padding: 1px 12px; } #whybox .ewt.wf td:nth-child(3) { width: 4.2em; } .ewt.wf tr:not(.tot):not(.ax):hover td { background: var(--hover); } .ewt.wf tr.ax td { border: 0; padding-top: 0; }
+  .wft { position: relative; height: 14px; } .wft > * { position: absolute; } .wfc { top: 0; bottom: 0; border-left: 1px dashed #c3cad3; } .wfb { top: 1px; bottom: 1px; border-left: 2px solid var(--mute); } .wfr { top: 3px; height: 8px; border-radius: 2px; } .wfr.up { background: var(--up); } .wfr.dn { background: var(--down); } .wfp, .wfm { top: 0; transform: translateX(-50%); font-size: 11px; line-height: 14px; } .wfm { color: var(--mute); } .wfax { position: relative; height: 13px; border-top: 1px solid var(--line); font-size: 10px; color: var(--faint); font-variant-numeric: tabular-nums; } .wfax span { position: absolute; top: 1px; transform: translateX(-50%); }
+  #why .wh { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; } #why .wh .wfon { margin-left: auto; font-size: 11px; color: var(--accent); cursor: pointer; } #why .wh .wfon:hover { text-decoration: underline; }
+  #whybox #why, #pairbox #pair { background: #fff; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; cursor: default; } #whybox #why.on { border-color: var(--accent); }
   #pair { margin: 2px 0 0; } #pair .wh { font-size: 12.5px; margin-bottom: 2px; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; } #pairbox:empty { display: none; }
   .okc { color: var(--up); font-weight: 600; } .badc { color: var(--down); font-weight: 600; }
   .evid { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; } .evid:empty { display: none; }
@@ -801,22 +801,25 @@ function whyCols(name) { const cols = active(), F = st.ens && hasEns() ? ensFit(
   if (!onEns && !F) return []; const d = whyData(name, onEns ? null : F, onEns ? [] : cols), z = (i) => (xOf(i, name) - MS[i][0]) / MS[i][1];
   return d.parts.sort((a, b) => Math.abs(b.c) - Math.abs(a.c)).slice(0, 6).map((q) => q.i !== undefined ? q.i : members[q.f].filter((i) => ensW(i)).sort((a, b) => Math.abs(ensW(b) * z(b)) - Math.abs(ensW(a) * z(a)))[0]).filter((i) => i !== undefined && C.draw[i]); }
 // the prediction taken apart as a waterfall: from an average compound, each family's bar steps to this compound's prediction;
-// one axis for every row, the measured value and the left-out prediction marked on the last
+// bars and markers are placed in % of the cell, so the chart takes the panel's width; one axis under the rows
 function whyHtml(name, F, cols) { const d = whyData(name, F, cols), parts = d.parts.sort((a, b) => Math.abs(b.c) - Math.abs(a.c)), nTop = st.adv ? 6 : 4, top = parts.slice(0, nTop), rest = parts.slice(nTop), fitted = d.base + parts.reduce((s, q) => s + q.c, 0);
   const r = C.ligands.indexOf(name), u = C.unit ? ' ' + esc(C.unit) : '', meas = yOf(name), lo = r >= 0 && d.ens && C.cv && C.cv.pred5 ? C.cv.pred5[r] : null, f2 = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2), n2 = (v) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(2);
   const steps = top.map((q) => ({ q, c: q.c })); if (rest.length) steps.push({ rest: rest.length, c: rest.reduce((s, q) => s + q.c, 0) });
   let run = d.base; steps.forEach((t) => { t.a = run; run += t.c; t.b = run; });
-  const vs = [d.base, fitted, meas, ...steps.map((t) => t.b)].concat(lo != null ? [lo] : []), lo0 = Math.min(...vs), hi0 = Math.max(...vs), pad = (hi0 - lo0) * 0.06 || 0.1, W = 150, H = 14;
-  const X = (v) => (2 + (W - 4) * (v - lo0 + pad) / (hi0 - lo0 + 2 * pad)).toFixed(1), S = SGN();
-  const svg = (inner) => `<svg class="wfs" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${inner}</svg>`;
-  const step = (t) => { const x0 = +X(Math.min(t.a, t.b)), x1 = +X(Math.max(t.a, t.b)); return svg(`<line x1="${X(t.a)}" y1="0" x2="${X(t.a)}" y2="${H}" class="wfc"/><rect x="${x0}" y="2.5" width="${Math.max(x1 - x0, 1.2).toFixed(1)}" height="9" rx="2" fill="${t.c * S < 0 ? 'var(--down)' : 'var(--up)'}"/>`); };
+  const vs = [d.base, fitted, meas, ...steps.map((t) => t.b)], lo0 = Math.min(...vs), hi0 = Math.max(...vs), pad = (hi0 - lo0) * 0.04 || 0.1, span = hi0 - lo0 + 2 * pad, S = SGN();
+  const P = (v) => (100 * (v - lo0 + pad) / span).toFixed(2) + '%', cell = (h) => `<div class="wft">${h}</div>`;
+  const step = (t) => cell(`<i class="wfc" style="left:${P(t.a)}"></i><i class="wfr ${t.c * S < 0 ? 'dn' : 'up'}" style="left:${P(Math.min(t.a, t.b))};width:${Math.max(100 * Math.abs(t.c) / span, 0.5).toFixed(2)}%"></i>`);
   const lab = (t) => t.rest ? `the other ${t.rest}` : t.q.i !== undefined ? `<span class="sw" style="background:${colourOf(t.q.i)}"></span>${esc(C.label[t.q.i])}` : `${idb(t.q.f, true)}${esc(famName(t.q.f, -1))}`;
-  const tipOf = (t) => t.rest ? `${t.rest} smaller ${d.ens ? 'families' : 'descriptors'} together` : `${t.q.i !== undefined ? C.label[t.q.i] : famName(t.q.f, -1)}: ${f2(t.c)}${u} for this compound${t.c * S < 0 ? ', towards the worse end' : ', towards the better end'}`;
-  return `<div id="why" class="${st.whyOn ? 'on' : ''}" role="button" tabindex="0" aria-label="${st.whyOn ? 'back to the model on the molecule' : 'draw these on the molecule'}"><div class="wh"><b>${esc(name)}: ${n2(fitted)}${u}</b> <span class="lab">measured ${n2(meas)}</span>${hq(T.why)}<span class="wfon lab">${st.whyOn ? '● on the molecule' : ''}</span></div>` +
-    `<table class="ewt wf"><tr class="z"><td>an average compound</td><td>${svg(`<line x1="${X(d.base)}" y1="1" x2="${X(d.base)}" y2="${H - 1}" class="wfb"/>`)}</td><td class="r">${n2(d.base)}</td></tr>` +
+  const tipOf = (t) => t.rest ? `${t.rest} smaller ${d.ens ? 'families' : 'descriptors'} together` : `${t.q.i !== undefined ? C.label[t.q.i] : famName(t.q.f, -1)}: ${f2(t.c)}${u} for this compound, towards the ${t.c * S < 0 ? 'worse' : 'better'} end`;
+  const st0 = Math.pow(10, Math.floor(Math.log10(span / 3))), stp = [1, 2, 5, 10].map((m) => m * st0).find((x) => span / x <= 5), ticks = [];
+  for (let v = Math.ceil((lo0 - pad) / stp) * stp; v <= hi0 + pad + 1e-9; v += stp) ticks.push(v);
+  return `<div id="why" class="${st.whyOn ? 'on' : ''}" role="button" tabindex="0" aria-label="${st.whyOn ? 'back to the model on the molecule' : 'draw these on the molecule'}"><div class="wh"><b>${esc(name)}</b>` +
+    `<span data-tip="${esc(lo != null ? `With ${name} left out, as on the plot: ${n2(lo)}${u}.` : r < 0 ? 'An external compound: never fitted.' : '')}">predicted <b>${n2(fitted)}</b>${u}</span><span class="lab">measured ${n2(meas)}</span>${hq(T.why)}` +
+    `<span class="wfon">${st.whyOn ? '● on the molecule' : 'draw on the molecule'}</span></div>` +
+    `<table class="ewt wf"><tr class="z"><td>an average compound</td><td>${cell(`<i class="wfb" style="left:${P(d.base)}"></i>`)}</td><td class="r">${n2(d.base)}</td></tr>` +
     steps.map((t) => `<tr${t.rest ? ' class="z"' : ''} data-tip="${esc(tipOf(t))}"><td>${lab(t)}</td><td>${step(t)}</td><td class="r">${f2(t.c)}</td></tr>`).join('') +
-    `<tr class="tot" data-tip="${esc(`${d.ens ? 'The ensemble model' : 'This model'}, fitted to every compound: ${n2(fitted)}${u}. Measured (◆): ${n2(meas)}.` + (lo != null ? ` Predicted with this compound left out (○, the value on the plot): ${n2(lo)}.` : r < 0 ? ' Never fitted: an external compound.' : ''))}"><td>prediction</td><td>${svg(`<line x1="${X(fitted)}" y1="0" x2="${X(fitted)}" y2="${H}" class="wfc"/>` +
-      (lo != null ? `<circle cx="${X(lo)}" cy="7" r="3.2" class="wfl"/>` : '') + `<path d="M${X(meas)} 2.5l4.5 4.5-4.5 4.5-4.5-4.5z" class="wfm"/><path d="M${(+X(fitted) - 5).toFixed(1)} 2h10l-5 9z" class="wfp"/>`)}</td><td class="r"><b>${n2(fitted)}</b></td></tr></table></div>`; }
+    `<tr class="tot"><td>prediction <span class="lab">▼ · measured ◇</span></td><td>${cell(`<i class="wfc" style="left:${P(fitted)}"></i><span class="wfm" style="left:${P(meas)}">◇</span><span class="wfp" style="left:${P(fitted)}">▼</span>`)}</td><td class="r"><b>${n2(fitted)}</b></td></tr>` +
+    `<tr class="ax"><td></td><td><div class="wfax">${ticks.map((v) => `<span style="left:${P(v)}">${n2(+v.toFixed(6)).replace(/\.?0+$/, '') || '0'}</span>`).join('')}</div></td><td class="r lab">${esc(C.unit || '')}</td></tr></table></div>`; }
 // two compounds side by side: what each family (ensemble model) or descriptor (one model) changes from the first to the second,
 // against the measured change and the change predicted with both left out. Green: towards the better end of the response.
 function pairHtml(a, b, F, cols) { const da = whyData(a, F, cols), db = whyData(b, F, cols), key = (q) => q.i !== undefined ? 'i' + q.i : 'f' + q.f, A = {};
