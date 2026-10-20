@@ -752,6 +752,10 @@ if (typeof $3Dmol === "undefined") {
   }
   .al-view { display:grid; gap:8px; position:sticky; top:12px; }
   .al-gridbox { grid-column:1 / -1; }
+  .al-acts { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; font-size:12px; margin-top:4px; }
+  .al-acts[hidden] { display:none; }
+  .al-acts input[type=number] { width:56px; }
+  .al-acts button { min-height:26px; padding:2px 10px; font-size:12px; }
   .al-lookbar { font-size:12px; color:var(--muted); }
   .al-lookbar input[type=range] { width:84px; vertical-align:middle; }
   .al-lookbar output { display:inline-block; min-width:2.6em; font-variant-numeric:tabular-nums; color:var(--text); }
@@ -995,6 +999,12 @@ if (typeof $3Dmol === "undefined") {
       </div>
       <div class="small" id="featherDirHint">Extraction runs on every molecule file in this folder: <code>.feather</code>, structured <code>.json</code>, Gaussian <code>.log</code>, ORCA <code>.out</code> or <code>.xyz</code>. The 3D view is only for picking atoms.</div>
       <div class="small" id="folderInputs" aria-live="polite"></div>
+      <div class="row" id="folderMolRow" style="margin-top:4px;align-items:center;" hidden>
+        <label for="folderMol">View</label>
+        <select id="folderMol" style="max-width:260px" title="Show another molecule of this folder in the 3D view"></select>
+        <button type="button" id="folderMolPrev" aria-label="Previous molecule of the folder">◀</button>
+        <button type="button" id="folderMolNext" aria-label="Next molecule of the folder">▶</button>
+      </div>
       <div id="numberingBanner" class="numbering-banner idle">
         <span id="numberingMsg">Optional: check that picked atoms are the same element in every file. This loads the whole folder, so it only runs when you ask.</span>
         <button type="button" id="checkNumberingBtn">Check numbering</button>
@@ -1344,6 +1354,7 @@ if (typeof $3Dmol === "undefined") {
           <button type="button" id="alSwap" title="Click two atoms of this molecule to exchange their numbers">Swap two atoms</button>
         </div>
         <div class="al-note" id="alAtom" aria-live="polite">Click an atom to see what it was and how it was matched.</div>
+        <div class="al-acts" id="alActs" hidden></div>
         <div class="al-detail" id="alDetail"></div>
       </div>
       <details class="al-gridbox" id="alGridBox" open><summary>Folder grid: the element each molecule has at each reference number</summary>
@@ -2147,7 +2158,11 @@ async function inspectFolder() {
     const d = await fetch("/folder/summary", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ directory: dir, inspect: true }) }).then(r => r.json());
     if (dir !== inputsDir) return;
-    if (d.error) { box.textContent = d.error; return; }
+    if (d.error) { box.textContent = d.error; FOLDER = { names: [], files: [] }; folderMolFill(); return; }
+    FOLDER = { names: d.names || [], files: d.files || [] };
+    folderMolFill();
+    const shown = String(lastModelName || "").replace(/\.(feather|ftr|xyz|json|log|out)$/i, "");
+    if (FOLDER.names.length && !FOLDER.names.includes(shown)) showFolderMolecule(FOLDER.names[0]);   // a new set is shown at once
     INPUTS = d.inputs || null;
     const kinds = INPUTS ? Object.entries(INPUTS.kinds) : [];
     const sh = INPUTS && INPUTS.shared;
@@ -2159,6 +2174,28 @@ async function inspectFolder() {
     refresh();
   } catch (_) { box.textContent = ""; }
 }
+let FOLDER = { names: [], files: [] };           // the molecules of the structure folder, for the View list
+function folderMolFill() {
+  const sel = $("folderMol"), shown = String(lastModelName || "").replace(/\.(feather|ftr|xyz|json|log|out)$/i, "");
+  $("folderMolRow").hidden = FOLDER.names.length < 1;
+  sel.innerHTML = FOLDER.names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  sel.value = FOLDER.names.includes(shown) ? shown : "";
+}
+async function showFolderMolecule(name) {         // a molecule of the folder in the 3D view, by its path on the server
+  const k = FOLDER.names.indexOf(name);
+  if (k < 0) return;
+  try {
+    const r = await fetch("/xyz_from_feather", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filepath: FOLDER.files[k], name }) });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || r.status);
+    showMolecule(d.xyz, d.name || name, d.mol_data);
+    $("folderMol").value = name;
+  } catch (err) { if (typeof setExtractStatus === "function") setExtractStatus(`Could not show ${name}: ${err.message}`, "bad"); }
+}
+$("folderMol").onchange = () => showFolderMolecule($("folderMol").value);
+$("folderMolPrev").onclick = () => { const k = FOLDER.names.indexOf($("folderMol").value); if (FOLDER.names.length) showFolderMolecule(FOLDER.names[(k - 1 + FOLDER.names.length) % FOLDER.names.length]); };
+$("folderMolNext").onclick = () => { const k = FOLDER.names.indexOf($("folderMol").value); if (FOLDER.names.length) showFolderMolecule(FOLDER.names[(k + 1) % FOLDER.names.length]); };
 setInterval(inspectFolder, 800);                  // shortcut: watches the field (five places fill it); hook each setter if this ever costs anything
 
 const EYE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle class="pupil" cx="12" cy="12" r="3"/></svg>`;
@@ -4864,6 +4901,14 @@ function alDir() { return AL.example || ($("featherDirInput") && $("featherDirIn
 async function alExample() {                       // a copy of Conformaty's test 03 in a temporary folder; 1 · Load is not changed
   try {
     const r = await fetch("/align/example", { method: "POST" }), d = await r.json();
+    if (r.status === 409) {                        // a run from before a refresh still holds the server: offer to end it
+      $("alProgress").hidden = false;
+      $("alPText").innerHTML = `A renumbering started earlier is still running. <button type="button" id="alKillEx">Stop it and run the example</button>`;
+      $("alKillEx").onclick = async () => { $("alPText").textContent = "Stopping the earlier run…";
+        const k = await fetch("/align/stop", { method: "POST" }).then(x => x.json()).catch(() => ({}));
+        if (k.free) alExample(); else $("alPText").textContent = "The earlier run did not stop. Restart the server (Ctrl+C, then descripytor visual)."; };
+      return;
+    }
     if (!r.ok) throw new Error(d.error || r.status);
     AL.example = d.directory; AL.about = d.about;
     await alPrepare();
@@ -4879,6 +4924,11 @@ function alAtomRange(text) {                      // "1-9 12" -> [1..9, 12]
     const m = t.match(/^(\d+)-(\d+)$/);
     return m ? Array.from({ length: Math.max(0, m[2] - m[1] + 1) }, (_, k) => +m[1] + k) : [+t];
   }).filter(n => Number.isInteger(n) && n > 0);
+}
+function alBody(dir, reference, stages) {          // what a run sends: the folder, its reference and the options as set now
+  return { directory: dir, reference, fit: $("alFit").value, sigma: +$("alSigma").value || 30,
+    fit_atoms: alAtomRange($("alFitAtoms").value), workers: AL.workers || 1, stages, match_charge: $("alCharge").checked,
+    anchors: alAnchors($("alAnchors").value) };
 }
 function alAnchors(text) {                        // "m_Br: 9, 9" lines -> {m_Br: [[9, 9]]}
   const out = {};
@@ -5013,9 +5063,7 @@ async function alRun() {
   AL.timer = setInterval(alProgress, 1000);
   try {
     const r = await fetch("/align/map", { method: "POST", headers: { "Content-Type": "application/json" }, signal: AL.ctl.signal,
-      body: JSON.stringify({ directory: dir, reference: $("alRef").value, fit: $("alFit").value, sigma: +$("alSigma").value || 30,
-        fit_atoms: alAtomRange($("alFitAtoms").value), workers: AL.workers, stages, match_charge: $("alCharge").checked,
-        anchors: alAnchors($("alAnchors").value) }) });
+      body: JSON.stringify(alBody(dir, $("alRef").value, stages)) });
     if (r.status === 409) {                    // a run from before (another tab, or this page before a refresh) is still going
       clearInterval(AL.timer); AL.ctl = null;
       $("alPText").innerHTML = `A renumbering started earlier is still running. <button type="button" id="alKill">Stop it and start this one</button>`;
@@ -5092,7 +5140,7 @@ function alPost(session, keepView) {
 
 function alSelect(name, keepView) {
   if (!window.FEATURE_EXPLORER_HTML || !name) return;
-  if (name !== AL.sel) { AL.focus = 0; $("alAtom").textContent = "Click an atom to see what it was and how it was matched."; }
+  if (name !== AL.sel) { AL.focus = 0; $("alAtom").textContent = "Click an atom to see what it was and how it was matched."; $("alActs").hidden = true; }
   AL.sel = name;
   [...$("alRows").querySelectorAll("tr")].forEach(tr => tr.classList.toggle("sel", tr.dataset.al === name));
   const r = AL.res[name], isRef = name === AL.ref;
@@ -5115,6 +5163,12 @@ function alSelect(name, keepView) {
   }
   const picked = (typeof flattenPickedIndices === "function" ? flattenPickedIndices() : []).filter(inRange);
   if (mode !== "none" && picked.length) { ring(picked, "#3b9dff"); keys.push(["#3b9dff", "your picks"]); }
+  if (!isRef && r && r.fits && r.fit && r.fit !== "rmsd" && show !== "ref") {   // what the chosen fit changes against rmsd
+    const base = r.fits.find(f => f.fit === "rmsd"), cur = r.fits.find(f => f.fit === r.fit);
+    if (base && cur) { const s = alShiftSummary(alFitShift(cur, base));
+      if (s.closer.length) { ring(s.closer.filter(inRange), "#16A34A"); keys.push(["#16A34A", `closer than with rmsd (${s.closer.length})`]); }
+      if (s.farther.length) { ring(s.farther.filter(inRange), "#DC2626"); keys.push(["#DC2626", `farther than with rmsd (${s.farther.length})`]); } }
+  }
   if (AL.focus && inRange(AL.focus)) ring([AL.focus], "#111827", String(AL.focus));
   if (AL.swap && AL.swap.length) ring(AL.swap, "#ff9f0a", "swap");
   if (!isRef && show === "both" && /differ|both/.test($("alLabels").value)) keys.push([AL_COLORS[AL.look.colors][1],
@@ -5164,17 +5218,31 @@ async function alCompare(name) {
     alFitsShow(name);
   } catch (err) { box.textContent = "Not compared: " + err.message; }
 }
+function alXyz(xyz) { return String(xyz || "").trim().split(/\r?\n/).slice(2).map(l => l.trim().split(/\s+/).slice(1, 4).map(Number)); }
+function alFitShift(f, base) {                     // per atom: how much nearer (-) or farther (+) from its reference atom than with base
+  const R = alXyz(AL.refXyz), A = alXyz(f.xyz), B = alXyz(base.xyz), els = alEls(f.xyz);
+  const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+  return R.map((p, k) => k < A.length && k < B.length && els[k] === AL.refEls[k] ? dist(A[k], p) - dist(B[k], p) : null);
+}
+function alShiftSummary(sh) {
+  const real = sh.map((v, k) => [v, k + 1]).filter(([v]) => v !== null && Math.abs(v) > 0.1);
+  const big = real.reduce((m, x) => Math.abs(x[0]) > Math.abs(m[0]) ? x : m, [0, 0]);
+  return { closer: real.filter(([v]) => v < 0).map(([, k]) => k), farther: real.filter(([v]) => v > 0).map(([, k]) => k), big };
+}
 function alFitsShow(name) {
   const r = AL.res[name], box = $("alFits"), d = { fits: r.fits };
-  const best = Math.max(...d.fits.map(f => f.within));
+  const best = Math.max(...d.fits.map(f => f.within)), base = d.fits.find(f => f.fit === "rmsd") || d.fits[0];
+  const vs = f => { if (f === base) return "—"; const s = alShiftSummary(alFitShift(f, base));
+    return !s.closer.length && !s.farther.length ? "the same" : `<span style="color:#16A34A">${s.closer.length} closer</span> · <span style="color:#DC2626">${s.farther.length} farther</span> · max ${Math.abs(s.big[0]).toFixed(2)} Å (atom ${s.big[1]})`; };
   box.innerHTML = `<table class="al-table" style="margin-top:6px"><thead><tr><th>Fit</th><th>RMSD</th><th>heavy atoms</th>
-    <th>within 0.25 Å</th><th>time</th></tr></thead><tbody>` + d.fits.map(f => `<tr data-fit="${f.fit}" tabindex="0"
+    <th>within 0.25 Å</th><th title="Atoms more than 0.1 Å closer to or farther from their reference atom than with rmsd">vs rmsd</th><th>time</th></tr></thead><tbody>` + d.fits.map(f => `<tr data-fit="${f.fit}" tabindex="0"
     class="${f.fit === r.fit ? "sel" : ""}"><td><code>${f.fit}</code></td><td>${f.rmsd == null ? "" : f.rmsd.toFixed(3) + " Å"}</td>
-    <td>${f.rmsd_heavy == null ? "" : f.rmsd_heavy.toFixed(3) + " Å"}</td><td>${f.within} / ${f.n}${f.within === best ? " ★" : ""}</td>
+    <td>${f.rmsd_heavy == null ? "" : f.rmsd_heavy.toFixed(3) + " Å"}</td><td>${f.within} / ${f.n}${f.within === best ? " ★" : ""}</td><td>${vs(f)}</td>
     <td>${f.seconds.toFixed(1)} s</td></tr>`).join("") + `</tbody></table>
     <span class="al-note">Fitted on the heavy atoms (as Conformaty's align) unless you name the atoms; RMSD over every
     atom with the reference's element. Click a fit to show it. Kabsch has the smallest RMSD by construction; mixed puts
-    the most atoms in near-exact overlap. The fit changes the picture and the RMSD, not the numbering.</span>`;
+    the most atoms in near-exact overlap. The fit changes the picture and the RMSD, not the numbering. A chosen fit rings the
+    atoms it brings closer to their reference atom (green) or moves away (red) compared with rmsd.</span>`;
   box.querySelectorAll("tr[data-fit]").forEach(tr => tr.onclick = () => {
     const f = d.fits.find(x => x.fit === tr.dataset.fit);
     r.xyz = f.xyz; r.rmsd = f.rmsd; r.fit = f.fit; alRows(); alSelect(name, true);
@@ -5196,7 +5264,70 @@ function alAtomInfo(i) {                          // a click on the molecule: wh
       `; matched ${how}.`;
   }
   $("alAtom").textContent = AL.focus ? text : "Click an atom to see what it was and how it was matched.";
+  alActsShow(name, i, isRef || $("alShow").value === "ref");
   alSelect(name, true);
+}
+function alActsShow(name, i, onRef) {              // what can be done with the atom just clicked
+  const box = $("alActs"), r = AL.res[name];
+  box.hidden = !AL.focus || onRef || !r || !r.old_to_new;
+  if (box.hidden) return;
+  const old = +Object.keys(r.old_to_new).find(o => +r.old_to_new[o] === i), n = alEls(r.xyz).length;
+  const anchored = (alAnchors($("alAnchors").value)[name] || []).find(([, q]) => q === old);
+  const inFit = alAtomRange($("alFitAtoms").value).includes(i);
+  box.innerHTML = `<label title="Conformaty keeps this atom on that reference atom (an anchor), whatever else it finds">Anchor to reference atom
+      <input type="number" id="alActRef" min="1" max="${AL.refEls.length}" value="${anchored ? anchored[0] : Math.min(i, AL.refEls.length)}"></label>
+    <button type="button" id="alActAnchor">${anchored ? "Change the anchor" : "Anchor"}</button>
+    ${anchored ? `<button type="button" id="alActUnanchor">Remove the anchor</button>` : ""}
+    <label>Swap with <input type="number" id="alActSwapTo" min="1" max="${n}" value="${i === 1 ? 2 : i - 1}"></label>
+    <button type="button" id="alActSwap">Swap</button>
+    ${i <= AL.refEls.length ? `<button type="button" id="alActFit" title="The fit uses the heavy atoms unless atoms are named">${inFit ? "Leave out of the fit" : "Use in the fit"}</button>` : ""}
+    <button type="button" id="alActAgain" class="primary" title="Only this molecule, with the anchors and options as they are now">Renumber this molecule again</button>`;
+  const anchorLines = () => $("alAnchors").value.split(/\r?\n/).filter(l => {
+    const m = alAnchors(l)[name]; return !(m && m[0][1] === old); }).filter(l => l.trim());
+  $("alActAnchor").onclick = () => {
+    const ref = Math.max(1, Math.min(AL.refEls.length, +$("alActRef").value || i));
+    $("alAnchors").value = [...anchorLines(), `${name}: ${ref}, ${old}`].join("\n");
+    $("alAtom").textContent = `Anchored: atom ${old} of the file stays on ${AL.ref}'s atom ${ref}. Renumber this molecule again to apply it.`;
+    alActsShow(name, i, false);
+  };
+  if ($("alActUnanchor")) $("alActUnanchor").onclick = () => { $("alAnchors").value = anchorLines().join("\n"); alActsShow(name, i, false); };
+  $("alActSwap").onclick = () => {
+    const j = +$("alActSwapTo").value;
+    if (!(j >= 1 && j <= n) || j === i) return;
+    alSwapAtoms(r, i, j, AL.refEls); AL.focus = j; alRows(); alSelect(name, true);
+    $("alAtom").textContent = `Swapped ${i} and ${j}. Undo my swaps puts them back.`; alActsShow(name, j, false);
+  };
+  if ($("alActFit")) $("alActFit").onclick = () => {
+    const now = alAtomRange($("alFitAtoms").value), next = inFit ? now.filter(a => a !== i) : [...now, i].sort((a, b) => a - b);
+    $("alFitAtoms").value = next.join(" "); alActsShow(name, i, false);
+    $("alAtom").textContent = next.length ? `The fit now uses reference atoms ${next.join(" ")}. Renumber again or Compare fits to see it.` : "The fit uses the heavy atoms again.";
+  };
+  $("alActAgain").onclick = () => alRunOne(name);
+}
+async function alRunOne(name) {                    // one molecule again, with the anchors and options as they are now
+  if (AL.ctl) { $("alAtom").textContent = "A renumbering is running; stop it or wait for it first."; return; }
+  const stages = [...document.querySelectorAll("[data-al-stage]")].filter(b => b.checked).map(b => b.dataset.alStage);
+  $("alActAgain").disabled = true; $("alAtom").textContent = `Renumbering ${name} again…`;
+  try {
+    const q = await fetch("/align/map", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...alBody(alDir(), AL.ref, stages), only: [name] }) });
+    if (q.status === 409) throw new Error("another renumbering is still running");
+    if (!q.ok) throw new Error((await q.json().catch(() => ({}))).error || `HTTP ${q.status}`);
+    let got = null;
+    for (const line of (await q.text()).split("\n").filter(Boolean)) {
+      const ev = JSON.parse(line);
+      if (ev.event === "error") throw new Error(ev.error);
+      if (ev.event === "molecule") got = ev.result || { error: ev.error };
+    }
+    if (!got) throw new Error("no result came back");
+    if (got.old_to_new) got.orig = JSON.stringify(got);
+    const before = AL.res[name] && AL.res[name].old_to_new, moved = before && got.old_to_new ?
+      Object.keys(got.old_to_new).filter(o => +got.old_to_new[o] !== +before[o]).length : 0;
+    AL.res[name] = got; AL.focus = 0; alRows(); alSelect(name, true);
+    $("alAtom").textContent = got.error ? `${name} failed: ${got.error}` :
+      `${name} renumbered again: ${moved ? `${moved} atom${moved > 1 ? "s" : ""} changed number` : "the same numbering"}; RMSD ${got.rmsd.toFixed(2)} Å.`;
+  } catch (err) { $("alAtom").textContent = "Not renumbered again: " + err.message; }
+  finally { if ($("alActAgain")) $("alActAgain").disabled = false; }
 }
 
 function alSwapPick(i) {

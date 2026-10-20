@@ -164,7 +164,7 @@ def _atoms(mol):
 
 
 def map_folder(mols, reference, anchors=None, stages=None, match_charge=False, workers=None, progress=None,
-               cancelled=lambda: False, fit="rmsd", sigma=30, fit_atoms=None, isolate=False):
+               cancelled=lambda: False, fit="rmsd", sigma=30, fit_atoms=None, isolate=False, only=None):
     """Number every molecule of a Molecules like `reference` (one of its names). anchors: {name: [(ref atom, atom)]}.
 
     workers > 1 runs that many molecules at once in separate processes, the cores shared between them; 1 (the default)
@@ -181,7 +181,7 @@ def map_folder(mols, reference, anchors=None, stages=None, match_charge=False, w
     n = len(ref[0])
     results = {reference: {"old_to_new": {i: i for i in range(1, n + 1)}, "stage": ["reference"] * n, "differs": [],
                            "rmsd": 0.0, "seconds": 0.0, "xyz": None, "reference": True}}
-    todo = [name for name in by if name != reference]
+    todo = [name for name in by if name != reference and (only is None or name in only)]   # only: these names, again
     workers = max(1, min(len(todo), workers or 1))
     if progress:
         progress({"event": "start", "n": len(todo), "names": todo, "reference": reference, "workers": workers})

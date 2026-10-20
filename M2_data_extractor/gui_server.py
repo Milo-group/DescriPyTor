@@ -811,7 +811,7 @@ def folder_summary():
         return jsonify({"error": "Set a folder of molecule files first."}), 400
     files = _list_feather_files(directory)
     names = [os.path.splitext(os.path.basename(p))[0] for p in files]
-    payload = {"n": len(files), "names": names}
+    payload = {"n": len(files), "names": names, "files": files}   # files: the 3D view loads one by its path
     if data.get("inspect"):
         try:
             from data_extractor import folder_inputs
@@ -1343,7 +1343,7 @@ def align_map():
         try:
             map_folder(mols, reference, anchors=anchors, stages=stages or None, match_charge=bool(data.get("match_charge")),
                        workers=workers, progress=progress, cancelled=stop.is_set, fit=fit, sigma=sigma, fit_atoms=fit_atoms,
-                       isolate=True)
+                       isolate=True, only=[str(n) for n in data["only"]] if data.get("only") else None)
             q.put({"event": "stopped" if stop.is_set() else "done", "seconds": time.perf_counter() - t0})
         except Exception as exc:
             traceback.print_exc()

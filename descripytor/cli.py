@@ -339,6 +339,13 @@ def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bass
     env.setdefault("BASSA_EXPLORER_READER", sys.executable)
     if cases:
         env["BASSA_EXPLORER_CASES"] = str(Path(cases).resolve())
+        try:                                                 # remembered for starts without --cases (the visual extractor's link)
+            _ensure_project_on_path()
+            from M3_modeler.bassa_explorer.settings import REMEMBERED
+            REMEMBERED.parent.mkdir(parents=True, exist_ok=True)
+            REMEMBERED.write_text(env["BASSA_EXPLORER_CASES"], encoding="utf-8")
+        except (OSError, ImportError):
+            pass
     host, port = host or "127.0.0.1", int(port or os.environ.get("BASSA_EXPLORER_PORT", 8765))
     env["BASSA_EXPLORER_PORT"] = str(port)                   # so the other pages' links find this server
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '') else host}:{port}/"

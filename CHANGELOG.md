@@ -70,6 +70,15 @@
 - BASSA explorer: the tabs work from the keyboard (arrow keys, Home and End move between them; the arrows used to
   switch the model, and choosing a tab dropped the focus). Its self-test no longer fails on a case whose columns are
   drawn on no atom (denmark_cpa).
+- The visual extractor shows a new structure folder at once (its first molecule, unless the one on screen is in it)
+  and lists the folder's molecules under *View* with ◀ ▶.
+- The *BASSA explorer* link of the visual extractor opened only the example: the explorer started without `--cases`
+  looked in `./bassa_cases`. It now remembers the folder last given with `--cases` (`~/.descripytor/bassa_cases`).
+- Align & renumber: a clicked atom can be anchored to a reference atom, swapped with a given number, added to or
+  removed from the fit atoms, and the molecule renumbered again alone with the options as they are (`/align/map`
+  takes `only`). *Compare fits* says for each fit how many atoms end closer to or farther from their reference atom
+  than with rmsd, and rings them on the molecule when that fit is chosen. *Try Conformaty's example* offers to stop
+  a run left from before a refresh instead of only saying one is running.
 - `Molecules.get_renumbering_dict(reference)` uses it too (no xyz export, no change of directory) and returns the dicts.
 
 ### Removed
