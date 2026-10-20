@@ -1169,14 +1169,14 @@ const famShown = () => [...members[st.famView]].sort((a, b) => C.freq[b] - C.fre
 function layersOf(name, on) {
   const mol = C.mols[name], flags = ['axis', 'L', 'b1', 'plane', 'loc', 'b5', 'theta', 'drop', 'inset', 'profile'], axes = [], sites = [], label = new Set(), skipped = [], marks = [];
   let total = false, dip = { on: false, origin: '', y: '', plane: '', show: { frame: true, mu: true, u: true, v: false, w: false } };
-  const axis = (a, b, flag, col) => { let ax = axes.find((x) => x.a === a && x.b === b); if (!ax) { ax = Object.assign({ a, b, color: col, tag: '', show: Object.fromEntries(flags.map((f) => [f, f === 'axis' || f === 'drop'])) }, on ? { on } : {}); axes.push(ax); }
+  const axis = (a, b, flag, col, cx) => { let ax = axes.find((x) => x.a === a && x.b === b); if (!ax) { ax = Object.assign({ a, b, color: col, tag: '', show: Object.fromEntries(flags.map((f) => [f, f === 'axis' || f === 'drop'])) }, on ? { on } : {}, cx ? { dropAtoms: [a] } : {}); axes.push(ax); }      // cx: a metal-complex axis, measured as metal_complex.fragment does, without its start atom (else an H arm reads the start atom's radius)
     ax.show[flag] = true; if (flag === 'theta') ax.show.b1 = true; const E = st.extra;
     if (E.plane) ax.show.b1 = ax.show.plane = true; if (E.theta) ax.show.b1 = ax.show.theta = true; if (E.full) ax.show.L = ax.show.b1 = ax.show.b5 = ax.show.loc = true; if (E.inset && !on) ax.show.inset = true; label.add(a).add(b); };
   const shownW = st.whyOn ? whyCols(st.mol) : null;
   for (const i of (shownW || (st.famView >= 0 ? famShown() : active()))) { const d = C.draw[i], col = shownW ? ideaCol[fam[i]] : st.famView >= 0 ? ideaCol[st.famView] : colourOf(i), R = mol.roles;
     if (!d || ((d.ra || d.roles || d.ro) && !R)) { skipped.push(C.label[i]); continue; }
     if (d.kind === 'sterimol' && d.ra) { if (!R[d.ra] || !R[d.rb] || !R[d.ra].some((a, k) => a && R[d.rb][k])) { skipped.push(C.label[i] + ' (this structure has no such atoms)'); continue; }
-      R[d.ra].forEach((_, k) => { if (R[d.ra][k] && R[d.rb][k]) axis(R[d.ra][k], R[d.rb][k], d.flag, col); }); }   // a metal complex: the same axis on every arm that has it
+      R[d.ra].forEach((_, k) => { if (R[d.ra][k] && R[d.rb][k]) axis(R[d.ra][k], R[d.rb][k], d.flag, col, true); }); }   // a metal complex: the same axis on every arm that has it
     else if (d.kind === 'sterimol') axis(d.a, d.b, d.flag, col);
     else if (d.kind === 'atoms') { d.roles.forEach((r) => (R[r] || []).forEach((a) => a && label.add(a)));
       if (d.angle) R.R.forEach((_, k) => { const t = d.roles.map((r) => R[r][k]); if (t.every(Boolean)) marks.push({ atoms: t, color: col, on, text: '∠ ' + angleOf(name, t).toFixed(1) + '°' }); }); }
@@ -1366,8 +1366,13 @@ function recolour() { const k = st.colorHover >= 0 ? st.colorHover : st.colorBy,
 // the panels beside the molecule are tabs: why it is predicted so, what would make it better, or the comparison
 function sideTabs() { const has = { why: !!$('whybox').innerHTML, better: !!$('advbox').innerHTML, pair: !!$('pairbox').innerHTML }; if (has.pair && !st._pair) st.sideTab = 'pair'; st._pair = has.pair; const L = { why: 'Why this prediction', better: 'How to make it better', pair: 'The two compared' };
   const on = Object.keys(has).filter((k) => has[k]); if (!on.includes(st.sideTab)) st.sideTab = has.pair ? 'pair' : on[0] || 'why'; $('side').dataset.tab = st.sideTab;
-  $('stabs').innerHTML = on.length > 1 ? on.map((k) => `<button role="tab" data-st="${k}" aria-selected="${k === st.sideTab}">${L[k]}</button>`).join('') : ''; }
-$('stabs').addEventListener('click', (e) => { const b = e.target.closest('[data-st]'); if (!b) return; st.sideTab = b.dataset.st; sideTabs(); writeHash(); });
+  const now = [...$('stabs').children].map((x) => x.dataset.st);
+  if (on.length > 1 && now.join() === on.join())   // the same tabs: update them in place, so a focused tab keeps the focus
+    return $('stabs').querySelectorAll('[data-st]').forEach((x) => { const sel = x.dataset.st === st.sideTab; x.setAttribute('aria-selected', sel); x.tabIndex = sel ? 0 : -1; });
+  $('stabs').innerHTML = on.length > 1 ? on.map((k) => `<button role="tab" data-st="${k}" aria-selected="${k === st.sideTab}" tabindex="${k === st.sideTab ? 0 : -1}">${L[k]}</button>`).join('') : ''; }
+function refocusTab(a, v) {                    // a tab row is redrawn when a tab is chosen: keep the keyboard on the chosen tab
+  const f = document.querySelector(`[role=tab][data-${a}="${v}"]`); if (f && f !== document.activeElement) f.focus({ preventScroll: true }); }
+$('stabs').addEventListener('click', (e) => { const b = e.target.closest('[data-st]'); if (!b) return; st.sideTab = b.dataset.st; sideTabs(); writeHash(); refocusTab('st', st.sideTab); });
 
 // ================= box selection in the plot =================
 let BOXSEL = null;
@@ -1551,7 +1556,7 @@ function draw() { RKEY = '';
   if (hasEns()) h = candHtml() + h; if (st.fd && FP && FP.ens) h = fdHtml() + h;
   { const W = h.indexOf('<details class="eqd" id="ensw"'), wt = W < 0 ? '' : h.slice(W, h.indexOf('</details>', h.indexOf('<table class="ewt"', W)) + 10); if (wt) h = h.replace(wt, '');      // the weights move into the tabs below
     st.resOpen = !!st.maOpen && st.maTab === 'res'; const rh = resHtml(), tabs = [wt && ['w', 'Every weight of the averaged model'], rh && ['res', 'What is left over'], dealt() && ['how', 'How the averaged model is checked']].filter(Boolean); if (!tabs.length) { st.maTab = ''; } else { if (!tabs.some(([k]) => k === st.maTab)) st.maTab = tabs[0][0];
-    h += `<details class="mab" id="mab" data-t="${st.maTab}"${st.maOpen ? ' open' : ''}><summary>More about this model</summary><div class="stabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" data-ma="${k}" aria-selected="${k === st.maTab}">${l}</button>`).join('')}</div>` +
+    h += `<details class="mab" id="mab" data-t="${st.maTab}"${st.maOpen ? ' open' : ''}><summary>More about this model</summary><div class="stabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" data-ma="${k}" aria-selected="${k === st.maTab}" tabindex="${k === st.maTab ? 0 : -1}">${l}</button>`).join('')}</div>` +
       `<div class="map" data-map="w">${wt}</div><div class="map" data-map="res">${rh}</div>${dealt() ? `<div class="map" data-map="how"><div class="howtab">${HOWPIC || ''}</div></div>` : ''}</details>`; } }
   $('more').innerHTML = h; fdUpdate(); if (st.design && F && !F.ens) designText(F, cols); if (st.thr) thrDraw(); writeHash();
 }
@@ -1696,6 +1701,14 @@ $('grid').addEventListener('mouseleave', () => { if (hov !== -1) { hov = -1; arc
 function peek(m) { const M = C.models[m]; $('peek').innerHTML = M ? `<b>${M.cols.map((i) => esc(C.label[i])).join('  +  ')}</b>${st.adv ? ` · R² ${M.r2.toFixed(2)} · 5-fold Q² ${(kfold(M.cols, 5) || M).q2.toFixed(2)}` : ''} · ${(100 * M.share).toFixed(1)} % of sampled models` : st.view === 'models' ? (st.merge ? 'A column is one combination of families; a shaded heading is a family. Click a column to draw its model, a hollow dot to swap that descriptor in.' : 'Point at a model to read it; click to draw it on the molecule.')
   : st.view === 'build' ? 'Pick a descriptor: the page lists what looks like it. Group the ones you think measure the same thing.' : st.view === 'recipes' ? 'A card is one combination of families. Inside a slot the descriptors replace each other: click one to draw the model with it.' : ''; }
 document.addEventListener('keydown', (e) => { const typing = /INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
+  const tl = e.target.closest && e.target.closest('[role=tablist]');      // on a tab the arrows move between tabs, not models
+  if (tl && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+    const t = [...tl.querySelectorAll('[role=tab]')], i = t.indexOf(e.target), n = t.length;
+    const b = t[e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + n) % n];
+    e.preventDefault(); if (!b) return;
+    const [a, v] = b.dataset.st !== undefined ? ['st', b.dataset.st] : ['ma', b.dataset.ma];
+    b.click(); return refocusTab(a, v);
+  }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); return palOpen(); }
   if (e.key === '/' && !typing) { e.preventDefault(); return $('find').focus(); }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && st.view === 'build' && !typing) { e.preventDefault(); return undoOwn(); }
@@ -1888,7 +1901,7 @@ $('more').addEventListener('click', (e) => { if (e.target.id === 'fdreset') { st
 $('more').addEventListener('change', (e) => { if (e.target.id === 'candstrfile' && e.target.files.length) { candFile(e.target.files).catch(() => {}); e.target.value = ''; } });
 $('more').addEventListener('change', (e) => { if (e.target.id !== 'candfile' || !e.target.files[0]) return; const f = e.target.files[0]; f.text().then((t) => candCsv(t, f.name)); });
 $('more').addEventListener('toggle', (e) => { if (e.target.id === 'mab') { if (st.maOpen !== e.target.open) { st.maOpen = e.target.open; if (st.maOpen && st.maTab === 'res') draw(); else writeHash(); } return; } if (e.target.id !== 'resd' || st.resOpen === e.target.open) return; st.resOpen = e.target.open; if (st.resOpen) draw(); }, true);
-$('more').addEventListener('click', (e) => { const b = e.target.closest('[data-ma]'); if (!b) return; st.maTab = b.dataset.ma; if (st.maTab === 'res' && !st.resOpen) return draw(); writeHash(); $('mab').dataset.t = st.maTab; $('mab').querySelectorAll('[data-ma]').forEach((x) => x.setAttribute('aria-selected', x === b)); });
+$('more').addEventListener('click', (e) => { const b = e.target.closest('[data-ma]'); if (!b) return; st.maTab = b.dataset.ma; if (st.maTab === 'res' && !st.resOpen) { draw(); return refocusTab('ma', 'res'); } writeHash(); $('mab').dataset.t = st.maTab; $('mab').querySelectorAll('[data-ma]').forEach((x) => { x.setAttribute('aria-selected', x === b); x.tabIndex = x === b ? 0 : -1; }); });
 $('ensbox').addEventListener('toggle', (e) => { if (e.target.id === 'ensd') st.ensOpen = e.target.open; }, true);
 $('pstats').addEventListener('click', (e) => { const b = e.target.closest('[data-pk]'); if (!b) return; st.rank = b.dataset.pk === '1'; draw(); });
 $('pstats').addEventListener('change', (e) => { if (e.target.id === 'colby') { st.colorBy = +e.target.value; draw(); } });
@@ -1977,7 +1990,9 @@ async function selfTest() {
       if (C.cv) { st.rank = true; draw(); need(count('#parity circle.pt[data-n]') === Y.length && $('parity').textContent.includes('best are in it') && $('pstats').textContent.includes('best measured'), 'the plot ranked by the prediction, with its key'); st.rank = false; draw(); }
       { $('coachmore').click(); need($('coach').classList.contains('open'), 'the three steps open from one line'); $('coachmore').click(); }
       { st.colorBy = 1; st.sideTab = 'why'; st.maOpen = true; st.maTab = 'how'; draw(); const q = hashParams(); need(q.get('cb') === '1' && q.get('sd2') === (st.sideTab || '') && q.get('ma') === '+' + st.maTab, 'a link keeps the colour, the tab and the panel'); st.colorBy = -1; st.maOpen = false; draw(); }
-      if ($('whybox').innerHTML && $('advbox').innerHTML) { need(count('#stabs [data-st]') >= 2 && $('side').dataset.tab === 'why', 'the panels beside the molecule are tabs'); $('stabs').querySelector('[data-st="better"]').click(); need($('side').dataset.tab === 'better' && getComputedStyle($('whybox')).display === 'none', 'a tab shows its panel only'); $('stabs').querySelector('[data-st="why"]').click(); }
+      if ($('whybox').innerHTML && $('advbox').innerHTML) { need(count('#stabs [data-st]') >= 2 && $('side').dataset.tab === 'why', 'the panels beside the molecule are tabs'); $('stabs').querySelector('[data-st="better"]').click(); need($('side').dataset.tab === 'better' && getComputedStyle($('whybox')).display === 'none', 'a tab shows its panel only');
+        { const m0 = st.model, t = $('stabs').querySelector('[data-st="better"]'); t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+          const f = document.activeElement; need(st.sideTab === 'why' && st.model === m0 && f && f.dataset.st === 'why' && f.tabIndex === 0 && t.tabIndex === -1, 'the arrow keys move between the tabs, not the models'); } $('stabs').querySelector('[data-st="why"]').click(); }
       { const m0 = st.model, r0 = st.rows.join(); palOpen(); $('palq').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); need($('pal').hidden && st.model === m0 && st.rows.join() === r0, 'Esc closes the jump box and keeps the model'); }
       if (C.ligands.length > 3) { const o0 = new Set(st.out); st.out = new Set([0]); st.sel = [C.ligands[1]]; draw(); $('selhost').querySelector('[data-sa="out"]').click(); need(st.out.has(0) && st.out.has(1), 'holding out a box adds to what is held out'); st.out = o0; st.sel = []; refresh(); }
       { const pt = document.querySelector('#parity .pt[data-n]'); if (pt) { pt.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); need(!$('pcard').hidden && $('pcard').textContent.includes('measured') && !document.querySelector('#parity .pt title'), 'the card under the pointer in the plot'); $('pcard').hidden = true; } }
@@ -2013,7 +2028,8 @@ async function selfTest() {
       const all0 = columns().total; $('keymodels').click(); need(st.merge && columns().total > 0 && columns().total <= all0, 'key models'); $('allmodels').click(); need(!st.merge && st.minshare === 0, 'key models off');
       st.merge = true; refresh(); need(count('th.m') > 0, 'merge'); st.merge = false; st.out.add(0); st.model = columns().cols[0].m; refresh(); need(fit(active()) && count('.chip.out') === 1 && $('pstats').textContent.includes('held out by you (1)') && $('pstats').textContent.includes('MAE'), 'holding a compound out');
       const f0 = fit(active()), r0 = Y[0] - predictAt(f0, active(), (i) => C.X[C.names[i]][0]); need(Math.abs(f0.loo[0] - (Y[0] - r0)) < 1e-9, 'the held-out compound is predicted by the model fitted without it'); st.out.clear(); refresh();
-      if (C.mols[C.ligands[0]] && C.mols[C.ligands[2]]) { const s3 = session(C.ligands[0], [C.ligands[1], C.ligands[2]]).s, own = s3.L.axes.filter((a) => !a.on).length;
+      const stackable = C.mols[C.ligands[0]] && coreAtoms(C.ligands[0]).length >= 3;   // a case whose columns are drawn on no atom has nothing to superpose on
+      if (stackable && C.mols[C.ligands[2]]) { const s3 = session(C.ligands[0], [C.ligands[1], C.ligands[2]]).s, own = s3.L.axes.filter((a) => !a.on).length;
         st.showD = false; const bare3 = session(C.ligands[0], [C.ligands[1], C.ligands[2]]).s; st.showD = true; need(bare3.structs.length === 3 && !bare3.L.axes.length && !bare3.L.sites.length && !bare3.L.dip.on && bare3.align.mode === s3.align.mode, 'descriptors switched off');
         const gi = C.draw.findIndex((d) => d && d.atoms && !d.roles); if (gi >= 0) { const keep = [st.rows, st.model]; st.rows = [gi]; st.model = -1; const mk = session(C.ligands[0]).s.L.marks; const mk2 = session(C.ligands[0], [C.ligands[1]]).s.L.marks; [st.rows, st.model] = keep;
           const dg = C.draw[gi], dec = dg.kind === 'mark' ? dg.dec : dg.kind === 'bond_length' ? 3 : 1;          // a bond length is written to three decimals, an angle to one
@@ -2023,7 +2039,7 @@ async function selfTest() {
         const q1 = s3.L.sites.filter((q) => !q.on).length; need(s3.L.sites.length === 3 * q1 && s3.L.sites.filter((q) => q.on === C.ligands[2]).length === q1 && s3.L.dips.length === (s3.L.dip.on ? 2 : 0), 'charge sites and dipole on each stacked compound');
         if (C.case === 'cs1') { const i = C.draw.findIndex((d) => d && d.kind === 'charge'), keep = st.rows.slice(), m0 = st.model; st.model = -1; st.rows = [i]; const sq = session(C.ligands[0], [C.ligands[1], C.ligands[2]]).s; st.rows = keep; st.model = m0;
           need(i >= 0 && sq.L.sites.length === 3 && new Set(sq.L.sites.map((q) => q.on || '')).size === 3, 'CS1: a charge site on each of three stacked compounds'); } }
-      if (C.mols[C.ligands[0]] && C.mols[C.ligands[1]]) { const sx = session(C.ligands[0], [C.ligands[1]]).s; need(sx.structs.length === 2 && sx.align.mode === 'atoms' && sx.align.atoms.split(',').length >= 3 && sx.structs[1].own.split(',').length === sx.align.atoms.split(',').length, 'stacking two compounds'); }
+      if (stackable && C.mols[C.ligands[1]]) { const sx = session(C.ligands[0], [C.ligands[1]]).s; need(sx.structs.length === 2 && sx.align.mode === 'atoms' && sx.align.atoms.split(',').length >= 3 && sx.structs[1].own.split(',').length === sx.align.atoms.split(',').length, 'stacking two compounds'); }
       if (C.ext) { document.querySelector('#parity path.pt').dispatchEvent(new MouseEvent('click', { bubbles: true })); need(C.ext.names.includes(st.mol) && $('t0').textContent.includes('external'), 'picking an external compound'); st.mol = C.ligands[0]; }
       $('pin').click(); need(st.pins.length === 1 && count('.chip.pin') === 1, 'pin'); $('clear').click(); need(!st.pins.length && !st.rows.length && st.model < 0, 'clear'); st.model = columns().cols[0].m; refresh();
       if (FF) need(count('.infl svg') === active().length && count('.fbar em.fold') === N, 'influence strips and fold ranges'); const n0 = count('td.arcs path'); st.links = 'all'; refresh(); need(count('td.arcs path') >= n0, 'links'); st.links = 'top'; peek(st.model); need($('peek').textContent.includes('R²'), 'the model line');
