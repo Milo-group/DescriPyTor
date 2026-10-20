@@ -34,7 +34,7 @@ the cases folder:
     python M3_modeler/bassa_explorer/build_case.py export [cases]      writes explorer_standalone.html in the cases folder
     python M3_modeler/bassa_explorer/test_page.py                      the page's click-through test, in headless Chrome
     (set BASSA_EXPLORER_CASES to the cases folder you use: without it the test sees only the bundled example case, and
-     checks that need a validated case with an averaged model never run)
+     checks that need a validated case with an ensemble model never run)
 
 ## From the visual extractor, in one click
 
@@ -68,7 +68,7 @@ to the menu.
 
 A case opens on the plain page: the views **Models**, **Recipes** and **Your families**, one column per combination of
 families, the rows grouped by family, and only models of up to one descriptor per five compounds (rounded down);
-**Filters** changes the sizes and the least share of visits. The plain page leads with BASSA's averaged model, validated
+**Filters** changes the sizes and the least share of visits. The plain page leads with BASSA's ensemble model, validated
 with the sampler rerun in every fold; the fit numbers of single models (R², Q², MAE) and their checks are under
 **advanced**, because a model picked from the table was chosen on all compounds and those numbers flatter it. The **advanced** box
 adds the rest (listed at the end of this section). A link made before the plain page existed opens in advanced.
@@ -86,7 +86,7 @@ adds the rest (listed at the end of this section). A link made before the plain 
   *How to make it better* (Advanced still shows them). The top-model cards show the share of sampled models only; their
   Q² as a fixed model is in the hover text, marked optimistic.
 - **How far to trust the case** (badges in the header, when the case file carries `evidence`): its rank among the paper's
-  cases, whether the averaged model finds the best quarter of the compounds while they are left out, whether a model fitted
+  cases, whether the ensemble model finds the best quarter of the compounds while they are left out, whether a model fitted
   without them still points to them (both pre-registered), and whether one compound carries the leading term (drop-one
   refits; "no term leads" when no descriptor is in half of the sampled models). Point at a badge for the numbers.
   `bassa_cases/attach_evidence.py` writes them from the design-test and drop-one results.
@@ -97,30 +97,30 @@ adds the rest (listed at the end of this section). A link made before the plain 
   which direction, and the three family parts that move it most. **All cases** also lists each case's design evidence
   (rank, finds the best, points past what it saw, drop-one, the better end).
 - **Predictions as CSV** (Export): one row per compound (external ones marked): measured, predicted while left out
-  (the averaged model's 5-fold, or the model in hand), the 90 % interval, the fitted value, and each family's part of it,
+  (the ensemble model's 5-fold, or the model in hand), the 90 % interval, the fitted value, and each family's part of it,
   the families that move the predictions most first; the parts add up to the fitted value.
 - **Which end is better** can be turned round with the badge in the header (kept in this browser, per case): for a
   table of your own, set it once.
-- **Copy link** now holds the whole view, also the averaged-model switch, the compounds you held out, design and the
+- **Copy link** now holds the whole view, also the ensemble-model switch, the compounds you held out, design and the
   "why" drawing, and the family rule. **Keys**: / finds a descriptor; Esc closes a menu, then a comparison, then the
   selection; Ctrl+Z undoes a change to your families (also the Undo button there).
-- **Print this case** (More): one page with the case's evidence, the averaged model, the plot, the compound in hand and
+- **Print this case** (More): one page with the case's evidence, the ensemble model, the plot, the compound in hand and
   what would make it better, to print or save as PDF. In the plot, points glide to their new places when the model changes.
 - **Two compounds compared**: pick a **second compound** (or shift-click a second point). Under the molecule, the table
-  "A → B: what changes" gives each family's part of the change (averaged model) or each descriptor's (the model in hand),
+  "A → B: what changes" gives each family's part of the change (ensemble model) or each descriptor's (the model in hand),
   the fitted change, the change predicted with both left out, and the measured change, with a mark when the left-out
   prediction moves the measured way. In the plot, a dashed arrow runs from the first compound to the second.
 - **What would make a compound better** (one compound shown): the three families (or descriptors of the model in hand)
   whose part of its prediction could gain most if they took the best value any compound of the set has, that compound
   (click it), a strip of every compound's part (blue: this one, green: the best, better to the right), and how the
   family's lead descriptor differs between the two. A direction inside the measured range; the gains do not add up.
-- **Design with the averaged model** (Design, when the plot shows the averaged model): start from a compound and move a
+- **Design with the ensemble model** (the Design button, when the plot shows the ensemble model): start from a compound and move a
   slider per family (those with at least 2 % of the spread, five at most). A slider moves the family's lead descriptor;
   its look-alikes follow by their correlation with it. Beside it: the predicted value, the change from the starting
   compound with the typical miss, a bar from worse to better with every measured compound, the closest measured compound
   in these families, and a warning outside the measured range. The plot draws the prediction as a line.
 - **Your candidates** (under the designer; Keep as candidate there, or Add from CSV: the name first, then columns named
-  as in the case, a missing column set to the set's mean): each candidate priced by the averaged model, with a 90 % range
+  as in the case, a missing column set to the set's mean): each candidate priced by the ensemble model, with a 90 % range
   (split-conformal, from the measured compounds' 5-fold errors), the gap to the best measured compound, the nearest one,
   and where it sits: among the measured, at the edge, a new combination (further from every measured compound, in what
   the model weighs, than the measured ones are from each other), past the measured range (a descriptor with ≥ 2 % of the
@@ -152,7 +152,7 @@ adds the rest (listed at the end of this section). A link made before the plain 
   correlation (the other setting) it joins when its column is correlated at 0.7 or more, or at 0.5 or more when the
   sampler clearly takes one or the other. Either way it never joins one the sampler uses it together with more than
   chance. The sampler's inputs are BASSA's own: how often each descriptor, and each pair, is in a sampled model; the
-  page adds only the grouping rule. Families change how the table groups descriptors, not the averaged model. The sampler's evidence is the 2x2 table of the two
+  page adds only the grouping rule. Families change how the table groups descriptors, not the ensemble model. The sampler's evidence is the 2x2 table of the two
   descriptors over the kept steps (log odds ratio, a tenth of the steps counted as independent, judged against the
   unrelated pairs of the same run). The "?" at the end of a row gives the reason with its numbers. **Families by** (beside
   "Fold families") switches the rule: **sampler** (the default) or **correlation** (threshold |r| set between 0.6 and
@@ -194,23 +194,23 @@ adds the rest (listed at the end of this section). A link made before the plain 
   used together by the sampler (two ideas for BASSA) or hardly correlate. **Every pair** maps |r| for all pairs, with
   a red dot where the sampler takes one or the other and a green dot where it uses both, and frames your families.
   **Use my families in the table** makes the table, the recipes and the letters follow them; the validation numbers do
-  not change, because the averaged model does not depend on the grouping. Your families are kept in this browser per
+  not change, because the ensemble model does not depend on the grouping. Your families are kept in this browser per
   case; **Save as CSV** writes them out.
 - **Weights and equation**: under the plot, a bar per descriptor (its weight per standard deviation, ▲ raises and ▼
   lowers the response). **as an equation** unfolds the model on normalized descriptors, and in their own units.
 - **Checks**: three chips for the counted checks (fit against test, a scale and not a switch, holds without one
   compound); hover one for its drawing, **all checks** for the list.
-- **The plot shows: the averaged model / the model you clicked** (the switch over the plot, beside the blue box): the column you clicked instead of the averaged model: its fit (R², 5-fold Q², MAE, with its
+- **The plot shows: the ensemble model / the model you clicked** (the switch over the plot, beside the blue box): the column you clicked instead of the ensemble model: its fit (R², 5-fold Q², MAE, with its
   descriptors kept fixed, so they flatter it), its predictions in the plot, and its equation unfolded under the weights.
-  It stays on while you click other columns. **Every weight of the averaged model** (folded under the model) lists the
+  It stays on while you click other columns. **Every weight of the ensemble model** (folded under the model) lists the
   intercept and every coefficient, per standard deviation and per unit, with each descriptor's share of models; **save as CSV**.
-- **One switch, Show the averaged model / the model you clicked**, sets what the plot, the molecule and the weight list
-  show, together. A case opens on the averaged model; clicking a column shows that model everywhere (its numbers were
-  chosen on all compounds, so they flatter it), and the line over the plot keeps the averaged model's Q², the number
+- **One switch, Show the ensemble model / the model you clicked**, sets what the plot, the molecule and the weight list
+  show, together. A case opens on the ensemble model; clicking a column shows that model everywhere (its numbers were
+  chosen on all compounds, so they flatter it), and the line over the plot keeps the ensemble model's Q², the number
   to quote. At a wide window the molecule sits beside the plot, the weights under the plot and the tabs under the
   molecule.
-- **What drives the predictions** (a bar over the table, cases with an averaged model): one segment per family, as long
-  as its share of how the averaged model's predictions differ from compound to compound (each family on its own; the
+- **What drives the predictions** (a bar over the table, cases with an ensemble model): one segment per family, as long
+  as its share of how the ensemble model's predictions differ from compound to compound (each family on its own; the
   families under 3 % share a grey end), named as in the table, with an arrow for whether a higher value of its most
   used descriptor predicts better (▲) or worse (▼). Point at a segment to mark its rows in the table; click it to draw
   the family on the molecule (click again to go back).
@@ -222,22 +222,24 @@ adds the rest (listed at the end of this section). A link made before the plain 
 - **New here?** A first visit gets one line over the table; it opens the three steps.
 - **Print this case** keeps the drive bar, opens the design tests, leaves out the controls and closed panels, and
   prints the colours as on screen; the right panel no longer jumps to a second page. A second compound opens the
-  comparison tab; going back to the averaged model puts held-out compounds back (it is never refitted); a family is
+  comparison tab; going back to the ensemble model puts held-out compounds back (it is never refitted); a family is
   named by its most used descriptor everywhere; the ranked plot counts the best quarter rounded up, as the design
   test does; an uploaded table keeps its own families, candidates and better end even under a prepared case's name.
 - **One model at a time**: every way of picking a column (a click on its head, the arrow keys, a hollow dot, a recipe,
   the jump box, Your families) shows that column in the plot, on the molecule and under the plot; holding a compound
-  out on the averaged model moves to the column in hand first and says so, since only a fixed model can be refitted.
+  out on the ensemble model moves to the column in hand first and says so, since only a fixed model can be refitted.
   Links also keep the colour, the tab beside the molecule and "More about this model".
 - **Words for the chemist (18 Oct)**: the drive bar opens with one sentence, "The model expects better compounds
   with a higher X (share) and a lower Y (share)", with a caveat when Q² is under 0.4; the prediction line reads "How
   well it predicts new compounds: Q² (good ≥ 0.7, fair ≥ 0.4, weak) · off by ±MAE on average · better than chance";
   the switch reads "all models, averaged / the column you clicked"; the tabs "Why this prediction / How to make it
-  better"; the plot "predicted vs measured / ranking". On the averaged model a family is named by its most used
-  descriptor everywhere (table, bar, sentence). The Visual extractor and Feature explorer links are in More.
+  better"; the plot "predicted vs measured / ranking". On the ensemble model a family is named by its most used
+  descriptor everywhere (table, bar, sentence). The Visual extractor and Feature explorer links are in More. Since
+  20 Oct the sentence reads "Better: higher X, lower Y.", the prediction line is the metrics card and the switch reads
+  "ensemble model / the selected model".
 - **Simpler plain page (18 Oct)**: the header shows the case's rank, one "✓ n of n checks" pill that opens the design
   checks, and the better end; the table's head key is one short line (visits, Q², R²) with the rest under its ?;
-  the line naming the column in hand and the order of the columns are advanced details; on the averaged model the
+  the line naming the column in hand and the order of the columns are advanced details; on the ensemble model the
   weight list under the plot gives way to the bar over the table (every weight is one click away); what cannot be
   drawn on the molecule is one short line that opens; **More about this model** at the bottom holds Every weight,
   What is left over and How the number is made as tabs. The ranked plot carries its own key and one line on how to
@@ -260,7 +262,7 @@ adds the rest (listed at the end of this section). A link made before the plain 
   "the model you clicked" on the plot, the same per descriptor of that model.
 - **Averaged model**: the average over every sampled model, on the molecule and as its five largest weights (`ens` in the
   case file). **Design**: a slider per descriptor
-  (not on the averaged model). **Export**: the picture as SVG, or the model as text.
+  (not on the ensemble model). **Export**: the picture as SVG, or the model as text.
 - **Recipes**: every model reduced to its families. A card leads with its share of sampled models, its letters and its
   5-fold Q² (coloured), with a small fit of its own (measured across, the card's models' 5-fold predictions up); click a descriptor to draw the model of that card that contains it,
   the arrows step through the card's models, and "together" is the card's models averaged by visits.
@@ -282,7 +284,7 @@ What **advanced** adds:
 - Over each column, the model's 5-fold Q² (with R² as the grey bar behind), as a fixed model; sorting the models by
   strength (that 5-fold Q²), Q² or R², and filters on Q² and R² (these use the leave-one-out Q², not the 5-fold one).
   Do not rank by Q²: that brings up large models the sampler hardly visited.
-- Over the plot, the model in hand kept fixed (R², 5-fold Q², MAE), also while the averaged model is plotted; **Compare models** keeps one model as hollow marks beside a second; the checks on the model under the plot.
+- Over the plot, the model in hand kept fixed (R², 5-fold Q², MAE), also while the ensemble model is plotted; **Compare models** keeps one model as hollow marks beside a second; the checks on the model under the plot.
 - Rows by frequency or by what goes with a selection; the links as arcs; pins; the count of merged models.
 - Beside each descriptor, the leave-one-out reruns (top three, range); in family headings, the partner ideas and
   **on molecule**, which draws a family's descriptors together.
@@ -293,7 +295,7 @@ What **advanced** adds:
 - A column the page cannot place on the molecule: click its name under the plot and say what it measures.
 - The browser's Back button undoes the last selection.
 - **All cases** (top right) is one table of every case, the ones validated over all the deals first, best Q² first:
-  Q² of the averaged model with its range and typical miss, a strip of the deals against the shuffles, the chance verdict
+  Q² of the ensemble model with its range and typical miss, a strip of the deals against the shuffles, the chance verdict
   (above, weak, not above), the 90 % interval and the leading descriptor.
 - The grey band around the chance line is how far the line could move with other shuffles. With 100 shuffles it is wide;
   `../bassa/null1000.py` computes it from 1,000 for a prepared case.
