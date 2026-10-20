@@ -8,7 +8,7 @@ shown first. Nothing is deleted: every current tool stays reachable through the 
 
 ## Decisions (Eden, 20 Oct)
 
-- Two simple modes behind one switch in the top bar: **Design** (a chemist choosing what to make) and **Models** (a modeller
+- Two simple modes behind one switch in the top bar: **Overview** (named Design until 20 Oct; a chemist choosing what to make) and **Models** (a modeller
   checking the models).
 - The table of visited models becomes a **compact strip of the top models** (share of sampled models, Q²) under the drivers;
   the full table is Advanced.
