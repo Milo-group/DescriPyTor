@@ -1128,6 +1128,7 @@ if (typeof $3Dmol === "undefined") {
     <div class="sec-body">
       <div class="row" style="margin-top:2px;">
         <button class="primary primary-save" type="button" id="extractBtn">Extract CSV</button>
+        <button type="button" id="extractStopBtn" hidden>Stop</button>
         <button type="button" id="downloadCsvBtn" disabled>Download CSV</button>
         <a class="dl" id="dlLink"><button type="button">Save picks</button></a>
         <button class="ok" type="button" id="copyBtn">Copy</button>
@@ -1484,7 +1485,7 @@ if (typeof $3Dmol === "undefined") {
         &#8659; Drop XYZ / SDF files or click to load
       </div>
       <input type="file" id="cvFileIn" multiple style="display:none"
-             onchange="cvLoadFileList(this.files)" />
+             onchange="cvLoadFileList(Array.from(this.files)); this.value=''" />
       <button onclick="cvLoadCurrent()" title="Load the molecule currently shown in the main picker as a conformer">Load current mol</button>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Style
         <select id="cvStyle" onchange="cvRenderStack()">
@@ -1503,7 +1504,7 @@ if (typeof $3Dmol === "undefined") {
       </label>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Spread
         <input type="range" id="cvSpread" min="0" max="5" step="0.25" value="0"
-               oninput="$('cvSpreadVal').textContent=parseFloat(this.value).toFixed(2);cvRenderStack()"
+               oninput="$('cvSpreadVal').textContent=parseFloat(this.value).toFixed(2);cvRenderSoon()"
                style="vertical-align:middle;width:80px">
         <span id="cvSpreadVal">0.00</span>&thinsp;&#8491;
       </label>
@@ -1960,6 +1961,8 @@ function isXyzName(name) {
 
 async function loadStructureFile(file) {
   if (!file) return;
+  window._userLoads = (window._userLoads || 0) + 1;    // the boot example, if still loading, does not replace this one
+  if (window._exampleMolAbort) try { window._exampleMolAbort.abort(); } catch (_) {}
   if (!isFeatherName(file.name) && !isXyzName(file.name)) {
     alert("Please choose a .xyz, .feather, .json, Gaussian .log or ORCA .out file.");
     return;
@@ -2101,6 +2104,7 @@ function figEnsure() {
     JSON.stringify({ figure: true, theme: "light", api: MODEL_SERVER }) + ";<\/script>");
   el.innerHTML = "";
   el.appendChild(figFrame);
+  figFrame.addEventListener("load", () => { try { figFrame.contentWindow.postMessage({ type: "feature:hello" }, "*"); } catch (_) {} });   // answered by ready
   return figFrame;
 }
 function figPost(session, keepView) {
@@ -2181,19 +2185,23 @@ function folderMolFill() {
   sel.innerHTML = FOLDER.names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
   sel.value = FOLDER.names.includes(shown) ? shown : "";
 }
+let folderMolSeq = 0;
 async function showFolderMolecule(name) {         // a molecule of the folder in the 3D view, by its path on the server
-  const k = FOLDER.names.indexOf(name);
+  const k = FOLDER.names.indexOf(name), seq = ++folderMolSeq;
   if (k < 0) return;
+  window._userLoads = (window._userLoads || 0) + 1;
   try {
     const r = await fetch("/xyz_from_feather", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ filepath: FOLDER.files[k], name }) });
     const d = await r.json();
     if (!r.ok || d.error) throw new Error(d.error || r.status);
+    if (seq !== folderMolSeq) return;              // a later choice is on its way
     showMolecule(d.xyz, d.name || name, d.mol_data);
     $("folderMol").value = name;
   } catch (err) { if (typeof setExtractStatus === "function") setExtractStatus(`Could not show ${name}: ${err.message}`, "bad"); }
 }
 $("folderMol").onchange = () => showFolderMolecule($("folderMol").value);
+$("extractStopBtn").onclick = () => { if (window._extractCtl) window._extractCtl.abort(); };   // the server ends at the next molecule
 $("folderMolPrev").onclick = () => { const k = FOLDER.names.indexOf($("folderMol").value); if (FOLDER.names.length) showFolderMolecule(FOLDER.names[(k - 1 + FOLDER.names.length) % FOLDER.names.length]); };
 $("folderMolNext").onclick = () => { const k = FOLDER.names.indexOf($("folderMol").value); if (FOLDER.names.length) showFolderMolecule(FOLDER.names[(k + 1) % FOLDER.names.length]); };
 setInterval(inspectFolder, 800);                  // shortcut: watches the field (five places fill it); hook each setter if this ever costs anything
@@ -3358,10 +3366,12 @@ async function extractFeatures() {
       "warn"
     );
     setWorkProgress("extractProgress", 0, { indeterminate: !nMolGuess });
+    window._extractCtl = new AbortController(); $("extractStopBtn").hidden = false;
     const response = await fetch("/extract", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ config: cfg, stream: true }),
+      signal: window._extractCtl.signal,
     });
     const ctype = (response.headers.get("content-type") || "").toLowerCase();
     let data = null;
@@ -3436,11 +3446,13 @@ async function extractFeatures() {
     setTimeout(() => hideWorkProgress("extractProgress"), 500);
   } catch (err) {
     hideWorkProgress("extractProgress");
-    setExtractStatus("Extraction failed: " + err.message, "bad");
+    if (err.name === "AbortError") setExtractStatus("Extraction stopped.", "");
+    else setExtractStatus("Extraction failed: " + err.message, "bad");
     if (typeof tourNotify === "function") tourNotify("extract-fail");
   } finally {
     if (btn) btn.disabled = false;
     if (dl) dl.disabled = !lastExtractCsv;
+    window._extractCtl = null; $("extractStopBtn").hidden = true;
   }
 }
 
@@ -3690,7 +3702,8 @@ async function checkNumbering(opts) {
     }
     return null;
   }
-  if (window._numberingBusy) return null;
+  if (window._numberingBusy) { await window._numberingRun; return checkNumbering(opts); }   // waits for the running one, then checks
+  let runDone; window._numberingRun = new Promise(res => { runDone = res; });
   const picked = flattenPickedIndices();
   window._numberingPicked = picked;
   const useBundledRef = sameFolderPath(dir, window._exampleFeatherDir);
@@ -3746,8 +3759,11 @@ async function checkNumbering(opts) {
       }
     });
     if (!data) throw new Error("Numbering check produced no result.");
+    const nowDir = ($("featherDirInput") && $("featherDirInput").value.trim()) || window._exampleFeatherDir || "";
+    if (nowDir !== dir) { hideWorkProgress("numberingProgress"); return null; }   // the folder changed while it ran
     window._numberingN = data.n_mols;
     window._numberingOverlay = data.overlay || [];
+    window._numberingKey = [dir, lastModelName, picked.join(",")].join("|");
     setWorkProgress("numberingProgress", 1);
     if (banner && msg) {
       banner.hidden = false;
@@ -3770,6 +3786,7 @@ async function checkNumbering(opts) {
     return null;
   } finally {
     setNumberingBusy(false);
+    runDone();
   }
 }
 
@@ -3781,7 +3798,9 @@ function openCviewPanel() {
 
 async function viewNumberingOverlay() {
   openCviewPanel();
-  let overlay = window._numberingOverlay;
+  const dirNow = ($("featherDirInput") && $("featherDirInput").value.trim()) || window._exampleFeatherDir || "";
+  const key = [dirNow, lastModelName, flattenPickedIndices().join(",")].join("|");
+  let overlay = window._numberingKey === key ? window._numberingOverlay : null;
   if (!overlay || !overlay.length) {
     const data = await checkNumbering({ includeXyz: true });
     overlay = (data && data.overlay) || [];
@@ -3872,6 +3891,7 @@ async function loadExampleMolecule(opts) {
   const ac = typeof AbortController === "function" ? new AbortController() : null;
   window._exampleMolAbort = ac;
   window._exampleMolLoading = true;
+  const loads0 = window._userLoads || 0, mine = () => (window._userLoads || 0) === loads0;   // false once the user opened something
   const refName = window._exampleReferenceName || "basic";
   const setMsg = (text, kind) => {
     if (typeof setExtractStatus === "function") setExtractStatus(text, kind || "");
@@ -3888,7 +3908,7 @@ async function loadExampleMolecule(opts) {
     const statusPromise = loadExampleFeatherDir();
     let response = await xyzPromise;
     let data = await response.json().catch(() => ({}));
-    if (response.ok && data.xyz) {
+    if (response.ok && data.xyz && mine()) {
       if (typeof showMolecule === "function") showMolecule(data.xyz, refName + ".feather", data.mol_data, { silent });
       else if (typeof initViewer === "function") initViewer(data.xyz, refName + ".feather", { silent });
       setMsg("Loaded " + refName + ".feather into the 3D view.", "ok");
@@ -3909,6 +3929,7 @@ async function loadExampleMolecule(opts) {
       setMsg(data.error || ("Could not load " + loadedName + ".feather from the example set."), "bad");
       return;
     }
+    if (!mine()) return;
     if (lastModelName !== loadedName + ".feather" && typeof showMolecule === "function") {
       showMolecule(data.xyz, loadedName + ".feather", data.mol_data, { silent });
     } else if (lastModelName !== loadedName + ".feather" && typeof initViewer === "function") {
@@ -4533,7 +4554,14 @@ function cvBondGraph(atoms, scale) {
   return g;
 }
 
+const CV_RING = new WeakMap();                    // atoms -> its benzene ring: searched once, not per conformer and redraw
 function cvFindBenzene(atoms) {
+  if (CV_RING.has(atoms)) return CV_RING.get(atoms);
+  const ring = cvFindBenzeneRaw(atoms);
+  CV_RING.set(atoms, ring);
+  return ring;
+}
+function cvFindBenzeneRaw(atoms) {
   const g = cvBondGraph(atoms, 1.25);
   const cycles = new Set();
   function dfs(start, cur, path, depth) {
@@ -4692,6 +4720,7 @@ function toggleCview() {
   $('cviewBody').classList.toggle('open', cvOpen);
   $('cviewHead').classList.toggle('open', cvOpen);
   $('cviewChevron').textContent = cvOpen ? '▲ collapse' : '▼ expand';
+  if (cvOpen && cvViewer3d) requestAnimationFrame(() => { try { cvViewer3d.resize(); cvViewer3d.render(); } catch (e) {} });   // sized 0x0 while closed
 }
 
 function cvUpdateList() {
@@ -4720,8 +4749,9 @@ function cvUpdateList() {
 
 function cvClearAll() {
   cvConformers=[];
-  if (cvViewer3d) { try { cvViewer3d.clear(); cvViewer3d.render(); } catch(e){} cvViewer3d=null; }
-  $('cvViewer3d').innerHTML='<div class="cv-empty">Viewer appears here after loading conformers and clicking Render.</div>';
+  if (cvViewer3d) { try { cvViewer3d.clear(); cvViewer3d.render(); } catch(e){} }   // kept: each new viewer is a new WebGL context
+  else $('cvViewer3d').innerHTML='<div class="cv-empty">Viewer appears here after loading conformers and clicking Render.</div>';
+  $('cvStats').className='cv-stats';
   cvUpdateList();
 }
 
@@ -4768,23 +4798,34 @@ function parseSdf(text, srcName) {
 }
 
 function cvLoadFileList(files) {
+  files = Array.from(files);
+  const read = new Array(files.length), bad = [];
   let pending = files.length;
-  Array.from(files).forEach(file => {
+  files.forEach((file, idx) => {
     const r = new FileReader();
     r.onload = ev => {
       const isSdf = /\.sdf$/i.test(file.name) || /\.mol$/i.test(file.name);
       const baseName = file.name.replace(/\.(xyz|sdf|mol)$/i, '');
-      const frames = isSdf
-        ? parseSdf(ev.target.result, baseName)
-        : parseMultiXyz(ev.target.result, baseName);
-      frames.forEach(f => {
-        cvConformers.push({...f, color: CV_COLORS[cvConformers.length % CV_COLORS.length], on: true, rmsd: null});
-      });
-      pending--;
-      if (!pending) { cvUpdateList(); cvRenderStack(); }
+      try { read[idx] = isSdf ? parseSdf(ev.target.result, baseName) : parseMultiXyz(ev.target.result, baseName); }
+      if (read[idx] && !read[idx].length) bad.push(file.name);   // read, but no structure in it
+      catch (e) { bad.push(file.name); }
+    };
+    r.onerror = () => bad.push(file.name);
+    r.onloadend = () => {                          // after a load or an error: one bad file does not hold the others
+      if (--pending) return;
+      read.forEach(frames => (frames || []).forEach(f =>   // in the order the files were given, so the first is the reference
+        cvConformers.push({...f, color: CV_COLORS[cvConformers.length % CV_COLORS.length], on: true, rmsd: null})));
+      cvUpdateList(); cvRenderStack();
+      if (bad.length && typeof setExtractStatus === "function") setExtractStatus("Could not read: " + bad.join(", "), "bad");
     };
     r.readAsText(file);
   });
+}
+let cvRenderQueued = false;
+function cvRenderSoon() {                         // the spread slider: one redraw per frame, not one per tick
+  if (cvRenderQueued) return;
+  cvRenderQueued = true;
+  requestAnimationFrame(() => { cvRenderQueued = false; cvRenderStack(); });
 }
 
 /* ── Render ─────────────────────────────────────────────────────── */
@@ -4859,7 +4900,7 @@ function cvRenderStack() {
     if (showLab) {
       spreadAtoms.forEach((a, ai) => {
         const idx = ai + 1;
-        if (mi !== 0 && picked.length && !picked.includes(idx)) return;
+        if (mi !== 0 && !picked.includes(idx)) return;   // the others only at the picks: every atom of every conformer froze the view
         cvViewer3d.addLabel(`${a[0]}${idx}`, {
           position: { x: a[1], y: a[2], z: a[3] },
           fontSize: 10, fontColor: col, backgroundColor: "rgba(255,255,255,0.85)",
@@ -5054,7 +5095,7 @@ async function alRun() {
   if (!dir) { $("alPText").textContent = "Set the folder of .feather files in 1 · Load first."; $("alProgress").hidden = false; return; }
   const stages = [...document.querySelectorAll("[data-al-stage]")].filter(b => b.checked).map(b => b.dataset.alStage);
   if (!stages.length) { $("alPText").textContent = "Keep at least one stage on."; $("alProgress").hidden = false; return; }
-  AL.res = {}; AL.names = []; AL.sel = ""; AL.done = 0; AL.n = 0; AL.out = ""; AL.swap = null;
+  AL.res = {}; AL.names = []; AL.sel = ""; AL.done = 0; AL.n = 0; AL.out = ""; AL.swap = null; AL.dir = dir;
   AL.ctl = new AbortController(); AL.t0 = performance.now();
   AL.workers = Math.max(1, +$("alWorkers").value || 1);
   $("alRun").disabled = true; $("alStop").hidden = false; $("alProgress").hidden = false; $("alFoot").hidden = true;
@@ -5123,6 +5164,7 @@ function alFrame() {
   AL.frame.srcdoc = window.FEATURE_EXPLORER_HTML.replace("<head>", "<head><script>window.FEATURE_EMBED = " +
     JSON.stringify({ figure: true, theme: "light", api: MODEL_SERVER }) + ";<\/script>");
   $("alStage").innerHTML = ""; $("alStage").appendChild(AL.frame);
+  AL.frame.addEventListener("load", () => { try { AL.frame.contentWindow.postMessage({ type: "feature:hello" }, "*"); } catch (_) {} });
   return AL.frame;
 }
 window.addEventListener("message", (e) => {
@@ -5211,7 +5253,7 @@ async function alCompare(name) {
   box.innerHTML = `<span class="al-note">Fitting ${esc(name)} six ways…</span>`;
   try {
     const q = await fetch("/align/fits", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ directory: alDir(), reference: AL.ref, name, old_to_new: r.old_to_new, sigma: +$("alSigma").value || 30 }) });
+      body: JSON.stringify({ directory: AL.dir || alDir(), reference: AL.ref, name, old_to_new: r.old_to_new, sigma: +$("alSigma").value || 30 }) });
     const d = await q.json();
     if (!q.ok) throw new Error(d.error || `HTTP ${q.status}`);
     r.fits = d.fits;                               // kept on the molecule: choosing a fit redraws the panel, the table stays
@@ -5308,9 +5350,10 @@ async function alRunOne(name) {                    // one molecule again, with t
   if (AL.ctl) { $("alAtom").textContent = "A renumbering is running; stop it or wait for it first."; return; }
   const stages = [...document.querySelectorAll("[data-al-stage]")].filter(b => b.checked).map(b => b.dataset.alStage);
   $("alActAgain").disabled = true; $("alAtom").textContent = `Renumbering ${name} again…`;
+  AL.ctl = new AbortController(); $("alRun").disabled = true; $("alStop").hidden = false;
   try {
     const q = await fetch("/align/map", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...alBody(alDir(), AL.ref, stages), only: [name] }) });
+      body: JSON.stringify({ ...alBody(AL.dir || alDir(), AL.ref, stages), only: [name] }), signal: AL.ctl.signal });
     if (q.status === 409) throw new Error("another renumbering is still running");
     if (!q.ok) throw new Error((await q.json().catch(() => ({}))).error || `HTTP ${q.status}`);
     let got = null;
@@ -5326,8 +5369,8 @@ async function alRunOne(name) {                    // one molecule again, with t
     AL.res[name] = got; AL.focus = 0; alRows(); alSelect(name, true);
     $("alAtom").textContent = got.error ? `${name} failed: ${got.error}` :
       `${name} renumbered again: ${moved ? `${moved} atom${moved > 1 ? "s" : ""} changed number` : "the same numbering"}; RMSD ${got.rmsd.toFixed(2)} Å.`;
-  } catch (err) { $("alAtom").textContent = "Not renumbered again: " + err.message; }
-  finally { if ($("alActAgain")) $("alActAgain").disabled = false; }
+  } catch (err) { $("alAtom").textContent = err.name === "AbortError" ? "Stopped." : "Not renumbered again: " + err.message; }
+  finally { AL.ctl = null; $("alRun").disabled = false; $("alStop").hidden = true; if ($("alActAgain")) $("alActAgain").disabled = false; }
 }
 
 function alSwapPick(i) {
@@ -5359,7 +5402,7 @@ async function alWrite() {
   $("alWrite").disabled = true; $("alNote").textContent = "Writing…";
   try {
     const r = await fetch("/align/apply", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ directory: alDir(), reference: AL.ref, molecules }) });
+      body: JSON.stringify({ directory: AL.dir || alDir(), reference: AL.ref, molecules }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     AL.out = d.out;
@@ -5380,7 +5423,7 @@ function alUse() {
 function alJson() {
   const molecules = {};
   Object.entries(AL.res).forEach(([k, r]) => { molecules[k] = r.error ? { error: r.error } : { old_to_new: r.old_to_new, edited: !!r.edited, rmsd: r.rmsd, fit: r.fit }; });
-  const blob = new Blob([JSON.stringify({ reference: AL.ref, folder: alDir(), molecules }, null, 1)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify({ reference: AL.ref, folder: AL.dir || alDir(), molecules }, null, 1)], { type: "application/json" });
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "renumbering.json"; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }

@@ -1222,8 +1222,11 @@ def extract():
 
     def generate():
         q = Queue()
+        stop = threading.Event()
 
         def progress(ev):
+            if stop.is_set():                      # the page left or pressed Stop: end at the next molecule
+                raise RuntimeError("stopped")
             if ev:
                 q.put(ev)
 
@@ -1258,11 +1261,14 @@ def extract():
 
         q.put({"event": "start", "n": n_files, "phase": "load", "i": 0})
         threading.Thread(target=worker, daemon=True).start()
-        while True:
-            ev = q.get()
-            if ev is None:
-                break
-            yield json.dumps(ev) + "\n"
+        try:
+            while True:
+                ev = q.get()
+                if ev is None:
+                    break
+                yield json.dumps(ev) + "\n"
+        finally:                                    # the request closed: a reload or Stop does not leave it extracting
+            stop.set()
 
     return Response(
         stream_with_context(generate()),
@@ -1323,10 +1329,10 @@ def align_map():
         fit_atoms = [int(a) for a in data.get("fit_atoms") or []] or None
     except (TypeError, ValueError):
         return jsonify({"error": "sigma is a number and fit_atoms a list of atom numbers."}), 400
-    if not _ALIGN_BUSY.acquire(blocking=False):
-        return jsonify({"error": "A renumbering is still running.", "busy": True}), 409
     ref_mol = next(m for m in mols.molecules if m.molecule_name == reference)
     ref_xyz = _xyz_text_from_coords(ref_mol.xyz_df, reference)[0]
+    if not _ALIGN_BUSY.acquire(blocking=False):             # taken last: only the worker below releases it
+        return jsonify({"error": "A renumbering is still running.", "busy": True}), 409
     stop = threading.Event()
     _ALIGN_STOP["event"] = stop
     q = Queue()

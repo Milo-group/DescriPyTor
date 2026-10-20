@@ -79,6 +79,18 @@
   takes `only`). *Compare fits* says for each fit how many atoms end closer to or farther from their reference atom
   than with rmsd, and rings them on the molecule when that fit is chosen. *Try Conformaty's example* offers to stop
   a run left from before a refresh instead of only saying one is running.
+- Fewer ways for the visual extractor to get stuck. Conformer viewer: the same file can be opened again, a file that
+  cannot be read no longer stops the rest (it is named), files keep the order given (the first is the RMSD
+  reference), the benzene search runs once per render, the spread slider draws once per frame, stacked conformers
+  are labelled only at the picks, Clear keeps the 3D viewer (a new one each time ran out of WebGL contexts) and the
+  viewer takes its size when the panel opens. Numbering check: a result for a folder left meanwhile is dropped, a
+  call while one runs waits for it instead of returning nothing, and View reuses its structures only for the same
+  folder, molecule and picks. A file you open is not replaced by the example still loading, and of quick folder
+  changes only the last is shown. Align & renumber: Write, Compare fits and Renumber again use the folder the run
+  was made on (after *Use it for extraction* they wrote `renumbered/renumbered`, renumbered twice); renumbering one
+  molecule holds the run controls and Stop ends it; the server takes its one-run lock only after the reference is
+  read. The explorer frames are asked whether they are ready once loaded. Extract CSV has a Stop, and the server
+  stops extracting at the next molecule (or engine) when the page leaves.
 - `Molecules.get_renumbering_dict(reference)` uses it too (no xyz export, no change of directory) and returns the dicts.
 
 ### Removed
