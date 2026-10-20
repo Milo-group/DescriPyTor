@@ -199,7 +199,9 @@
         if (!has.has(key(i + 1, j + 1)) && d < 1.15 * (covalent(el[i]) + covalent(el[j]))) extra.push([i + 1, j + 1, d]);
       }
     }
-    return { all: bonds.map(([a, b]) => [a, b, 'pkg']).concat(extra.map(([a, b]) => [a, b, 'extra'])), extra };
+    // a metal pair the 2.8 A rule keeps but longer than a covalent bond (a ring C beside a donor N at 2.7 A) is drawn as a faint contact, not a bond
+    const contact = (a, b) => (METAL.has(el[a - 1]) || METAL.has(el[b - 1])) && len(dif(X[a - 1], X[b - 1])) >= 1.15 * (covalent(el[a - 1]) + covalent(el[b - 1]));
+    return { all: bonds.map(([a, b]) => [a, b, contact(a, b) ? 'contact' : 'pkg']).concat(extra.map(([a, b]) => [a, b, 'extra'])), extra };
   }
   // the charge map: blue-white-red by default, or a purple-orange pair that survives red-green colour blindness
   const RAMPS = { bwr: { neg: PAL.qneg, pos: PAL.qpos, label: 'blue &#8211; white &#8211; red' },
@@ -487,6 +489,7 @@
         const i = a - 1, j = b - 1;
         if (t.hidden.has(i) || t.hidden.has(j)) return;
         const p = t.P[i], q = t.P[j], m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], bw = bw0 * (p[3] + q[3]) / 2;
+        if (kind === 'contact') { items.push([(p[2] + q[2]) / 2 - 1e-3, `<g class="bond contact"${opa}><line x1="${f1(p[0])}" y1="${f1(p[1])}" x2="${f1(q[0])}" y2="${f1(q[1])}" style="stroke:#9aa5b1;stroke-opacity:.6;stroke-width:${f1(Math.max(0.8, bw * 0.25))}px;stroke-linecap:round" stroke-dasharray="${f1(Math.max(1, bw * 0.3))} ${f1(Math.max(2.5, bw * 0.8))}"/></g>`]); return; }
         const dash = kind === 'extra' || (sty.metalDash && (METAL.has(t.el[i]) || METAL.has(t.el[j])))
           ? ` stroke-dasharray="${f1(Math.max(2, bw * 0.9))} ${f1(Math.max(2, bw * 0.75))}"` : '';
         const one = (sty.bondColor === 'grey' || sty.bondColor === 'black') && !tint, mono = sty.bondColor === 'black' ? '#1D2025' : grey;
