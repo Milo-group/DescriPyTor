@@ -8,6 +8,8 @@ the page still opens the example and every kept case.
 
 POST /run     {csv, response, iters, name, structures}  ->  the same data the page reads for a prepared case
 POST /checks  {csv, response}                           ->  {job}; the reference lines and the fold counts are computed in the background
+POST /quick   {csv, response}                           ->  {job}; the ensemble model's weights and one deal of stratified 5-fold, the
+                                                            sampler rerun in every fold (chains of 10,000): the honest Q2 in minutes
 POST /handoff {csv, response, structures, name}         ->  {id}; another page (the atom picker) leaves a table here
 GET  /handoff?id=N                                      ->  that table, once: the page opened with #handoff=N runs it
 GET  /status                                             ->  {ok, app, api, sampler, cases}: lets a new start tell this server from an older one
@@ -18,7 +20,9 @@ POST /featurize {case, files: [{name, data}]}           ->  {x}: one compound's 
                                                             recipe needs with it; data: the bytes, base64), by the recipe that made the
                                                             case's columns (the case's `extraction`; featurize.py). Nothing is optimised.
 
-The table: first column the compound name, one numeric response column, the rest descriptors. Columns that are not
+The table: first column the compound name (or two, as acid and amine: the pair is the compound), one numeric response
+column, the rest descriptors. A column named set, split or role holds out its rows marked test, external or heldout: never
+fitted, predicted and scored as external compounds. Columns that are not
 numeric, have a missing value or are constant are dropped and named in the answer. `structures` is an optional folder
 on this computer with one .feather, .log or .xyz per compound (read_structures.py says how names are matched).
 The checks are the ones of bayes_checks.py: the chance line is the 95th percentile, over 100 shuffles of the response,
@@ -34,7 +38,7 @@ import numpy as np, pandas as pd
 import build_case as BC
 import running as RUN
 
-H = Path(__file__).resolve().parent; C = BC.C; LOCK = threading.Lock(); JOBS = {}; HANDOFF = {}; N_PERM, NULL_ITERS = 100, 6000; IDS = itertools.count(1)
+H = Path(__file__).resolve().parent; C = BC.C; LOCK = threading.Lock(); JOBS = {}; HANDOFF = {}; N_PERM, NULL_ITERS, QUICK_ITERS = 100, 6000, 10000; IDS = itertools.count(1)
 PORT, LOOPBACK, MAX_BODY = 8765, True, 64 * 2 ** 20                 # set at start; requests larger than 64 MB are refused
 READER = BC.S["reader_python"]
 try:
@@ -71,13 +75,18 @@ def table(q):
         t = t.drop(columns=t.columns[:2]); t.insert(0, "name", a + "-" + b)      # two name columns (acid, amine): the pair is the compound, "Ac13-N1"
     t = t.set_index(t.columns[0]); t.index = t.index.astype(str).str.strip()
     if t.index.duplicated().any(): raise ValueError("compound names repeat: " + ", ".join(t.index[t.index.duplicated()][:5]))
+    role = next((c for c in t.columns if c.lower() in ("set", "split", "role")), None); out = pd.Series(False, index=t.index)
+    if role is not None:                                                        # the paper's own split: its test rows are never fitted
+        out = t[role].astype(str).str.strip().str.lower().isin(("test", "external", "heldout", "held out", "held-out")); t = t.drop(columns=[role])
     if q["response"] not in t.columns: raise ValueError("no column named " + q["response"])
-    y = pd.to_numeric(t[q["response"]], errors="coerce").replace([np.inf, -np.inf], np.nan); rows = y.notna()
-    X = t.drop(columns=[q["response"]]).apply(pd.to_numeric, errors="coerce").replace([np.inf, -np.inf], np.nan).loc[rows]; y = y[rows]      # inf is a missing value too
+    Y = pd.to_numeric(t[q["response"]], errors="coerce").replace([np.inf, -np.inf], np.nan); rows = Y.notna() & ~out
+    X = t.drop(columns=[q["response"]]).apply(pd.to_numeric, errors="coerce").replace([np.inf, -np.inf], np.nan).loc[rows]; y = Y[rows]      # inf is a missing value too
     if y.std() < 1e-12: raise ValueError("the response has the same value for every compound")
     bad = [c for c in X.columns if X[c].isna().any() or X[c].std() < 1e-9]; X = X.drop(columns=bad)
     if len(y) < 6 or X.shape[1] < 4: raise ValueError("need at least 6 compounds with a response and 4 usable descriptors (the prior expects three in a model); got %d and %d" % (len(y), X.shape[1]))
-    return X, y, bad, [str(i) for i in t.index[~rows]]
+    E = t.loc[out & Y.notna(), X.columns].apply(pd.to_numeric, errors="coerce").replace([np.inf, -np.inf], np.nan); E = E[E.notna().all(1)]      # a held-out row needs its response and every kept column
+    ext = dict(names=[str(i) for i in E.index], X={c: [float("%.6g" % v) for v in E[c]] for c in X.columns}, y=Y[E.index].tolist()) if len(E) else None
+    return X, y, bad, [str(i) for i in t.index[~rows & ~t.index.isin(E.index)]], ext
 
 
 def structures(folder, names):
@@ -91,12 +100,37 @@ def structures(folder, names):
 
 def run(q):
     if not SAMPLER: raise RuntimeError(NEEDS)
-    X, y, bad, skipped = table(q); found, missing = structures((q.get("structures") or "").strip().strip('"'), [str(i) for i in X.index])
+    X, y, bad, skipped, ext = table(q); found, missing = structures((q.get("structures") or "").strip().strip('"'), [str(i) for i in X.index] + (ext["names"] if ext else []))
     with LOCK:                                                                  # one chain at a time: the sampler seeds numpy globally
         iters = max(1000, min(50000, int(q.get("iters", 20000))))
         d = BC.compute(X, y, iters=iters, case=q.get("name") or "uploaded", response=q["response"], seeds=BC.SEEDS if iters >= 20000 else BC.SEEDS[:1])   # a full run also gives the spread between chains
     style = dict(STYLE)
-    d.update(chance=None, nested_q2=None, dropped=bad, not_scored=skipped, mols=found, no_structure=missing, style=style, uploaded=True); return d
+    if ext: ext = dict(ext, X={c: ext["X"][c] for c in d["names"]})              # the columns the run kept
+    d.update(chance=None, nested_q2=None, dropped=bad, not_scored=skipped, mols=found, no_structure=missing, style=style, uploaded=True, ext=ext); return d
+
+
+def quick(job, X, y, K=5):
+    """the ensemble model (BASSA's weights on all compounds) and one deal of stratified 5-fold with the sampler rerun in every fold:
+    the folds of ensemble_protocol.py's first deal, chains of QUICK_ITERS. Fills the page's ensemble card, verdict and intervals."""
+    try:
+        sys.path.insert(0, str(BC.BASSA)); import engine as E
+        yv = y.to_numpy(float); n = len(yv)
+        with LOCK: g = E.fit(X, y, iters=QUICK_ITERS)
+        beta = (g["freq"] * g["coef"]).reindex(X.columns).fillna(0.0); b0 = float(yv.mean() - (beta * X.mean()).sum()); inside = b0 + X.to_numpy() @ beta.to_numpy()
+        ens = dict(b0=b0, beta={c: float(v) for c, v in beta.items() if v}, r2=float(1 - ((yv - inside) ** 2).sum() / ((yv - yv.mean()) ** 2).sum())); job["done"] += 1
+        order = np.argsort(yv); fold = np.zeros(n, int); rng = np.random.default_rng(100)
+        for a in range(0, n, K): blk = order[a:a + K]; fold[blk] = rng.permutation(K)[:len(blk)]
+        P, LO, HI = np.zeros(n), np.zeros(n), np.zeros(n)
+        for k in range(K):
+            te = fold == k
+            with LOCK: P[te], LO[te], HI[te] = E.held(X, y, ~te, te, iters=QUICK_ITERS)
+            job["done"] += 1
+        sst = ((yv - yv.mean()) ** 2).sum(); err = np.abs(yv - P); w = int(np.argmax(err)); keep = np.arange(n) != w
+        k5 = dict(q2=float(1 - ((yv - P) ** 2).sum() / sst), mae=float(err.mean()), cover=float(((yv >= LO) & (yv <= HI)).mean()), worst=str(y.index[w]), worst_err=float(err[w]),
+                  q2_without=float(1 - ((yv[keep] - P[keep]) ** 2).sum() / ((yv[keep] - yv[keep].mean()) ** 2).sum()))
+        job.update(ens=ens, cv=dict(k5=k5, pred5=[round(float(v), 4) for v in P], lo5=[round(float(v), 4) for v in LO], hi5=[round(float(v), 4) for v in HI],
+                                    split="stratified by the response, one deal, chains of %d" % QUICK_ITERS, quick=True))
+    except Exception as e: job["error"] = "%s: %s" % (type(e).__name__, e)
 
 
 def checks(job, X, y):
@@ -205,8 +239,12 @@ class Handler(SimpleHTTPRequestHandler):
             if self.path == "/export": return self.answer(dict(html=BC.standalone(q["cases"])))
             if self.path == "/checks":
                 if not SAMPLER: raise RuntimeError(NEEDS)
-                X, y, _, _ = table(q); name = str(next(IDS)); JOBS[name] = job = dict(done=0, total=N_PERM + len(y), chance=None, nested_q2=None, error=None)
+                X, y, _, _, _ = table(q); name = str(next(IDS)); JOBS[name] = job = dict(done=0, total=N_PERM + len(y), chance=None, nested_q2=None, error=None)
                 threading.Thread(target=checks, args=(job, X, y), daemon=True).start(); return self.answer(dict(job=name, total=job["total"]))
+            if self.path == "/quick":
+                if not SAMPLER: raise RuntimeError(NEEDS)
+                X, y, _, _, _ = table(q); name = str(next(IDS)); JOBS[name] = job = dict(done=0, total=6, cv=None, ens=None, error=None)
+                threading.Thread(target=quick, args=(job, X, y), daemon=True).start(); return self.answer(dict(job=name, total=job["total"]))
             self.send_error(404)
         except ValueError as e: self.answer(dict(error=str(e)), 400)                     # our own refusals are sentences for the reader
         except Exception as e: self.answer(dict(error="%s: %s" % (type(e).__name__, e)), 400)

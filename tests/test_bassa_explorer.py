@@ -186,11 +186,14 @@ def test_names_and_tables_from_the_review():
         "assert 'Ni' not in B.label('B1', B.drawing('B1'))\n"
         "t = pd.DataFrame({'name': ['m%d' % i for i in range(8)], ' a': range(8), 'b ': [i * i % 7 for i in range(8)], 'c': [i * 3 % 5 for i in range(8)],\n"
         "                  'd': [i * 5 % 11 for i in range(8)], 'e': [1.0, 2, 3, np.inf, 5, 6, 7, 8], ' y ': [i % 4 + 0.5 * i for i in range(8)]})\n"
-        "X, y, bad, skipped = S.table(dict(csv=t.to_csv(index=False), response='y'))\n"
-        "assert list(X.columns) == ['a', 'b', 'c', 'd'] and bad == ['e'] and np.isfinite(X.to_numpy()).all()\n"
+        "X, y, bad, skipped, ext = S.table(dict(csv=t.to_csv(index=False), response='y'))\n"
+        "assert list(X.columns) == ['a', 'b', 'c', 'd'] and bad == ['e'] and np.isfinite(X.to_numpy()).all() and ext is None\n"
         "p = pd.DataFrame({'acid': ['A1', 'A1', 'A2', 'A2', 'A3', 'A3', 'A4', 'A4'], 'amine': ['N1', 'NA'] * 4, 'y': range(8), 'a': [1, 3, 2, 5, 4, 7, 6, 9], 'b': [i % 3 for i in range(8)], 'c': [i * 7 % 5 for i in range(8)], 'd': [i * i for i in range(8)]})\n"
-        "X, y, bad, skipped = S.table(dict(csv=p.to_csv(index=False), response='y'))\n"
+        "X, y, bad, skipped, ext = S.table(dict(csv=p.to_csv(index=False), response='y'))\n"
         "assert list(X.index[:2]) == ['A1-N1', 'A1-NA'] and list(X.columns) == ['a', 'b', 'c', 'd']      # two name columns: the pair, and NA is a name\n"
+        "s = t.assign(Set=['train'] * 6 + ['test', 'external'])\n"
+        "X, y, bad, skipped, ext = S.table(dict(csv=s.to_csv(index=False), response='y'))\n"
+        "assert list(X.index) == ['m%d' % i for i in range(6)] and ext['names'] == ['m6', 'm7'] and ext['y'] == [5.0, 6.5] and list(ext['X']) == list(X.columns) and skipped == []      # the split column: test rows held out\n"
     )
     r = subprocess.run([sys.executable, "-c", code], cwd=str(TOOL), capture_output=True, text=True)
     assert r.returncode == 0, r.stderr[-800:]

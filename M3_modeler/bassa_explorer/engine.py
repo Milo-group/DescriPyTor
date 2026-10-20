@@ -35,6 +35,20 @@ def usable(x, full=None):
     return x.loc[:, keep]
 
 
+def held(X, y, tr, te, iters=ITER, seed=7, k=3, sig=(3, 0.4), tau=(1, 1)):
+    """mean and 90 % interval of BASSA's predictive draws for the rows te, the sampler run on the rows tr (fit's set-up). A draw:
+    at a kept step, that step's model applied to the compound plus noise with that step's sigma (bassa_cases/ensemble_protocol.py)."""
+    x = usable(X[tr], X); dd = x.shape[1]; yv = np.asarray(y, float)
+    pri = SpikeAndSlabPriors(a_alpha_prior=1, a_beta_prior=max(dd - k, 1) / k, sigma_alpha_prior=sig[0], sigma_beta_prior=sig[1], tau_alpha_prior=tau[0], tau_beta_prior=tau[1])
+    cfg = SpikeAndSlabConfigurations(sampler_iterations=iters, save_meta_data=False, save_samples=False, seed=seed, turn_on_convergence_tracking=False, dont_save_anything=True, verbose=False)
+    np.random.seed(seed); reg = SpikeAndSlabRegression(x=x, y=y[tr], priors=pri, config=cfg, test_set=None, project_path=TMP, experiment_name="h"); reg.run()
+    names = list(reg.feature_names); b = int(BURN * iters); S = (np.asarray(reg.all_s)[:, b:] > 0.5)[:, ::4]; W = np.asarray(reg.all_w, float)[:, b:][:, ::4]; sg = np.asarray(reg.all_sigma, float).reshape(-1)[b:][::4]
+    m = min(S.shape[1], len(sg)); S, W, sg = S[:, :m], W[:, :m], sg[:m]
+    xs = (X.loc[te, names].to_numpy() - x[names].mean().to_numpy()) / x[names].std(ddof=0).to_numpy(); ym, ys = yv[tr].mean(), yv[tr].std()
+    M = xs @ (W * S); D = (M + sg * np.random.default_rng(seed).standard_normal(M.shape)) * ys + ym
+    return M.mean(1) * ys + ym, np.quantile(D, 0.05, axis=1), np.quantile(D, 0.95, axis=1)
+
+
 def fit(x, y, xt=None, seed=7, k=3, sig=(3, 0.4), iters=ITER, full=None, tau=(1, 1)):
     x = usable(x, full); d = x.shape[1]
     pri = SpikeAndSlabPriors(a_alpha_prior=1, a_beta_prior=max(d - k, 1) / k, sigma_alpha_prior=sig[0], sigma_beta_prior=sig[1], tau_alpha_prior=tau[0], tau_beta_prior=tau[1])

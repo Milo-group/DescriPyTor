@@ -54,13 +54,19 @@ action instead of failing silently.
 **New case…** in the page:
 
 - a CSV whose first column is the compound name, with one response column and the descriptors;
+  - two name columns (an acid and an amine, each repeated) make the pair the compound, `Ac13-N1`;
+  - a column named `set`, `split` or `role` holds out its rows marked `test`, `external` or `heldout`: never fitted, predicted
+    and scored as the external compounds (their R² is a tile of the metrics card);
 - optionally a folder with one `.feather`, `.log` or `.xyz` per compound. A compound takes the file with its exact name,
   else one that contains its name as a whole word, else the only file that carries its number (`L1` and `FL_lig_1_str`).
   Feathers and logs bring charges and the dipole, xyz the geometry only;
 - columns named as the DescriPyTor platform names them (`B1_6-4`, `loc_B5_6-4`, `nbo_atom_5`, `mu_y[C4->N5|C6]`,
   `0_angle_[5, 6, 7]`) are drawn on the molecule. Other columns work everywhere else.
 
-A full run is three chains of 20,000 iterations. **Add chance line and nested Q²** then runs, in the background, 100
+A full run is three chains of 20,000 iterations. When it is done the page **checks it by itself**: BASSA once more on all compounds (the
+ensemble model's weights) and once in each of 5 folds of one stratified deal, chains of 10,000 (about 2–4 minutes for 30–50
+compounds on a laptop). That fills the verdict, the metrics card (5-fold Q²) and the 90 % intervals; **Check it** under the
+selected model starts it again. **Add chance line and nested Q²** then runs, in the background, 100
 shuffles of the response and one rerun per compound left out. **Keep this case** writes it beside the page and adds it
 to the menu.
 

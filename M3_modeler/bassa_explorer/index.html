@@ -319,6 +319,15 @@
   #rbar { margin: 0 0 0 auto; flex-wrap: wrap; justify-content: flex-end; } .predsw { min-height: 30px; align-items: center; }
   body:not(.adv) #peek { display: none; }
   @media (min-width: 1151px) { .top.nocoef { grid-template-areas: "sw sw" "box box" "st st" "plot mol" "side side" "more more" "how how"; } }
+  details.filt .pop.evv { width: 360px; min-width: 0; max-width: calc(100vw - 40px); display: block; white-space: normal; padding: 12px 14px; } .evv .evt > div { min-width: 0; } details.filt .pop.evv * { white-space: normal; } details.filt .pop.evv .evbar em, details.filt .pop.evv .evinc span { white-space: nowrap; } .evv .evh:empty { display: none; } .evv .evh { margin-bottom: 6px; }
+  .evv .evi { margin: 0 0 8px; font-size: 12px; line-height: 1.45; color: var(--ink2); } .evv .evi b { display: block; color: var(--ink); margin-bottom: 2px; }
+  .evt { display: grid; grid-template-columns: 20px 1fr; gap: 0 9px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 12px; } .evt b { font-size: 12.5px; }
+  .evt .ic { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; margin-top: 1px; } .evt .ic.ok { background: var(--up); } .evt .ic.no { background: var(--down); } .evt .ic.na { background: #9aa5b1; }
+  .evt .evs { color: var(--mute); line-height: 1.4; margin: 2px 0 6px; } .evt .evn { font-size: 10.5px; color: var(--faint); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .evdots { display: flex; align-items: center; gap: 5px; } .evdots i { width: 13px; height: 13px; border-radius: 50%; } .evdots i.hit { background: var(--up); } .evdots i.miss { border: 2px solid var(--down); box-sizing: border-box; } .evdots .lab { margin-left: 6px; }
+  .evbar { position: relative; height: 22px; border-radius: 6px; background: #f1f4f8; margin-top: 2px; } .evbar .nz { position: absolute; left: 0; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, #e2e7ee 0 4px, #eef1f5 4px 8px); border-radius: 6px 0 0 6px; border-right: 2px dashed #9aa5b1; }
+  .evbar .nz em { position: absolute; left: 6px; top: 4px; font-size: 10px; font-style: normal; color: #64748b; white-space: nowrap; } .evbar .sv { position: absolute; top: -3px; bottom: -3px; width: 4px; margin-left: -2px; border-radius: 2px; } .evbar .sv.ok { background: var(--up); } .evbar .sv.no { background: var(--down); }
+  .evinc { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 3px 8px; font-size: 11px; color: var(--mute); } .evinc i { height: 8px; border-radius: 4px; background: var(--accent); opacity: .7; } .evinc i.no { background: var(--down); } .evinc b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
   .evd { display: inline-block; } .evd > summary { list-style: none; cursor: pointer; } .evd > summary::-webkit-details-marker { display: none; } .evpop { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 240px; }
   .mab { margin-top: 6px; } .mab > summary { cursor: pointer; font-size: 12.5px; font-weight: 600; padding: 6px 2px; } .mab .stabs { margin: 2px 0 8px; }
   .mab[data-t="w"] .map:not([data-map="w"]), .mab[data-t="res"] .map:not([data-map="res"]), .mab[data-t="how"] .map:not([data-map="how"]) { display: none; }
@@ -1572,11 +1581,11 @@ function draw() { RKEY = '';
           `<div class="ts">a dot is one deal of the folds${ch ? '; grey, the same with the responses shuffled' + hq(T.chance) : ''}</div>${C.cv.loo ? `<div>leave-one-out Q² ${C.cv.loo.q2.toFixed(2)}${hq(T.loo1)}</div>` : ''}` +
           `<div>${cover}</div><div>furthest off: <a data-n="${esc(k.worst)}">${esc(k.worst)}</a>, Q² ${k.q2_without.toFixed(2)} without it${hq(T.worst)}</div></div></div></details>` : '')
         : C.cv || C.nested_q2 != null ? card('Ensemble model', k ? ensT(k.q2, `How well the ensemble model predicts compounds it has not seen: 5-fold Q², one deal of the folds${C.cv.split ? ' (' + C.cv.split + ')' : ''}.`) : [tile('Q² · LOO', f2(C.nested_q2), 'Leave-one-out: the sampler rerun without each compound in turn', true), extT], hq(T.ens))
-        : `<div class="ensb ensl"><span class="tl">Ensemble model</span><span class="lab" data-tip="${C.uploaded && !ALONE ? 'More → Add chance line and nested Q² runs the sampler again without each compound and gives the number to quote.' : 'This case was kept or saved before its checks were run.'}">not validated yet</span></div>`;
+        : `<div class="ensb ensl"><span class="tl">Ensemble model</span>${C._quick ? `<span class="lab" id="quickst">checking on 5 folds: ${C._quick} runs…</span>` : `<span class="lab" data-tip="${C.uploaded && !ALONE ? 'More → Add chance line and nested Q² runs the sampler again without each compound and gives the number to quote.' : 'This case was kept or saved before its checks were run.'}">not validated yet</span>${C.uploaded && !ALONE && C._req ? '<button id="quickgo" class="go" data-tip="Reruns BASSA once on all compounds and once in each of 5 folds (chains of 10,000): the honest Q², the ensemble model and its 90 % intervals, in a few minutes.">Check it</button>' : ''}`}</div>`;
       if (F && !F.ens && !PE) { const P = kfold(cols, 5), fx = extStat ? tile('External R²', f2(extStat.r2), `${X.names.length} external compounds, never fitted: MAE ${f2(extStat.mae)}${u}`) : '';
         eb = card(M ? 'Selected model' : 'Your selection', [tile('Q² · LOO', f2(F.q2), 'This model kept fixed, refitted without each compound', true), tile('Q² · 5-fold', f2(P && P.q2), 'This model kept fixed, refitted in 5 folds'), tile('R² · fit', f2(F.r2), 'Fitted to every compound'), tile('MAE', `${f2(P && P.mae)}<small>${u}</small>`, 'The typical miss on left-out compounds (5-fold)'), M ? tile('Share', pct(M.share), 'How often BASSA sampled this model') : fx],
           `<span class="mn" title="${esc(cols.map((i) => C.label[i]).join(' + '))}">${esc(cols.map((i) => C.label[i]).join(' + '))}</span>${hq(T.kfold)}${hasEns() ? '<a class="back" id="toens">← ensemble model</a>' : ''}`,
-          `Its descriptors were chosen on all compounds, so these numbers flatter it${hasEns() && (looQ != null || k) ? `; the ensemble model, with the search tested too, scores Q² ${f2(looQ != null ? looQ : k.q2)}` : ''}.`, 'sel'); }
+          `Its descriptors were chosen on all compounds, so these numbers flatter it${hasEns() && (looQ != null || k) ? `; the ensemble model, with the search tested too, scores Q² ${f2(looQ != null ? looQ : k.q2)}` : ''}.` + (C._quick ? ` <b id="quickst">Checking on 5 folds: ${C._quick} runs…</b>` : C.uploaded && !ALONE && C._req && !hasEns() ? ' <button id="quickgo" class="go">Check it: the honest Q² in a few minutes</button>' : ''), 'sel'); }
       else if (st.adv && F && !F.ens) { const P = kfold(cols, 5); ps += `<div class="lab" style="margin:2px 0 4px">${M ? `This model, in ${pct(M.share)} of the sampled models,` : 'Your selection,'} kept fixed: R² ${F.r2.toFixed(2)}${hq(T.r2)} · 5-fold Q² ${P ? P.q2.toFixed(2) : '–'}${hq(T.kfold)} · MAE ${P ? P.mae.toFixed(2) : '–'}. Its descriptors were chosen on all compounds, so these flatter it.</div>`; }
       ps +=
       (extStat ? `<div data-tip="External compounds, never fitted: R² ${extStat.r2.toFixed(2)} · MAE ${extStat.mae.toFixed(2)}">${dia('#b45309')} ${X.names.length} external</div>` : '') +
@@ -1730,7 +1739,27 @@ function evidHtml() { const e = C.evidence, ch = (ok, txt, tip) => `<span class=
     : ch(!d.carriers.length, d.carriers.length ? `lead rests on ${esc(d.carriers.slice(0, 3).join(', '))}${d.carriers.length > 3 ? '…' : ''}` : 'no compound carries it', d.carriers.length ? `Refitted without ${d.carriers.join(', ')}, the leading term (${d.lead}) drops below half of the sampled models or leaves the top model. The predictions move by ${d.max_shift.toFixed(2)} sd at most: quote the family, not the single term.` : `Refitted without each compound in turn, the leading term (${d.lead}) stays in at least ${(100 * d.lead_min).toFixed(0)} % of sampled models and no prediction moves more than ${d.max_shift.toFixed(2)} sd.`));
   if (st.adv) return out.join('') + dir;
   const rk = e.rank ? out.shift() : '', tests = [e.T1.passes, e.T2.passes, d && d.lead_incl >= 0.5 ? !d.carriers.length : null].filter((v) => v !== null), ok = tests.filter(Boolean).length;
-  return `<details class="filt evd"><summary class="ev ${ok === tests.length ? 'ok' : ok ? 'na' : 'no'}" title="${e.rank ? `#${e.rank.r} of ${e.rank.of} cases. ` : ''}Design tests: does it find the best, does it point past what it saw, does one compound carry it. Click for each.">${ok === tests.length ? '✓' : '!'} ${ok}/${tests.length}</summary><div class="pop evpop">${rk}${out.join('')}</div></details>` + dir; }
+  return `<details class="filt evd"><summary class="ev ${ok === tests.length ? 'ok' : ok ? 'na' : 'no'}" title="${e.rank ? `#${e.rank.r} of ${e.rank.of} cases. ` : ''}Design tests: does it find the best, does it point past what it saw, does one compound carry it. Click for each.">${ok === tests.length ? '✓' : '!'} ${ok}/${tests.length}</summary><div class="pop evpop evv">${evVisual(e, d)}</div></details>` + dir; }
+// the design tests drawn: what each asks, what this case did, where the line is. A model can predict well on average (Q²) and
+// still fail them: they ask for the top of the ranking and the trend past it, and with few compounds one compound can carry a term.
+function evVisual(e, d) { const n = C.ligands.length, icon = (ok) => `<span class="ic ${ok === null ? 'na' : ok ? 'ok' : 'no'}">${ok === null ? '–' : ok ? '✓' : '✗'}</span>`, pc = (v) => (100 * v).toFixed(0) + ' %';
+  const row = (ok, title, say, pic, nums) => `<div class="evt">${icon(ok)}<div><b>${title}</b><div class="evs">${say}</div>${pic}<div class="evn">${nums}</div></div></div>`;
+  const t1 = e.T1, chance = t1.k * t1.k / n, t2 = e.T2, top = Math.max(t2.S, t2.null_max) * 1.15 || 1, lead = d ? (C.names.includes(d.lead) ? C.label[C.names.indexOf(d.lead)] : d.lead) : '', tr = trust();
+  const dots = range(t1.k).map((j) => `<i class="${j < t1.hits ? 'hit' : 'miss'}"></i>`).join('');
+  const rows = [row(t1.passes, 'Finds the best compounds', `Hide each compound, predict it, and rank them all: are the ${t1.k} best measured ones at the top?`,
+      `<div class="evdots">${dots}<span class="lab">${t1.hits} of ${t1.k} found · by chance about ${chance.toFixed(1)}</span></div>`, `p ${t1.p.toFixed(3)}; passes below 0.05`),
+    row(t2.passes, 'Points past what it saw', `Fit it without the best quarter: does it still put them above the rest, more than with shuffled data?`,
+      `<div class="evbar"><span class="nz" style="width:${(100 * t2.null_max / top).toFixed(1)}%"><em>shuffled data reach up to here</em></span><span class="sv ${t2.passes ? 'ok' : 'no'}" style="left:${(100 * t2.S / top).toFixed(1)}%"></span></div>`,
+      `this case ${t2.S.toFixed(2)} · shuffled at most ${t2.null_max.toFixed(2)} · p ${t2.p.toFixed(3)}; passes when it beats every shuffle`)];
+  if (d && d.lead_incl >= 0.5) rows.push(row(!d.carriers.length, d.carriers.length ? 'Rests on one compound' : 'Rests on more than one compound',
+      d.carriers.length ? `Its leading descriptor, ${esc(lead)}, is used in ${pc(d.lead_incl)} of the models, but without ${esc(d.carriers.join(', '))} it falls to ${pc(d.lead_min)}.` : `Its leading descriptor, ${esc(lead)}, stays in at least ${pc(d.lead_min)} of the models whichever compound is left out.`,
+      `<div class="evinc"><span>all compounds</span><i style="width:${pc(d.lead_incl)}"></i><b>${pc(d.lead_incl)}</b><span>${d.carriers.length ? 'without ' + esc(d.carriers[0]) : 'the lowest, one left out'}</span><i class="${d.carriers.length ? 'no' : ''}" style="width:${pc(d.lead_min)}"></i><b>${pc(d.lead_min)}</b></div>`,
+      d.carriers.length ? 'quote its family, not the single descriptor' : 'no single compound carries it'));
+  else if (d) rows.push(row(null, 'No descriptor leads', `The most used, ${esc(lead)}, is in only ${pc(d.lead_incl)} of the models: read families, not single descriptors.`, '', ''));
+  const fails = rows.length - [t1.passes, t2.passes, d && d.lead_incl >= 0.5 ? !d.carriers.length : true].filter(Boolean).length;
+  const why = fails && (tr.lvl === 'ok' || tr.lvl === 'weak') ? `<p class="evi"><b>It predicts, but is it a design tool?</b> ${esc(tr.say.replace(/^[✓!✗] /, ''))}${tr.q != null ? ` (Q² ${tr.q.toFixed(2)})` : ''}: on average its predictions are close. Design asks for more: the top of the ranking, the trend beyond the compounds seen, and a term that more than one compound supports. With ${n} compounds a model can pass the first and fail these.</p>`
+    : `<p class="evi"><b>Can it guide what to make next?</b> Three tests on the compounds left out.</p>`;
+  return `<div class="evh">${e.rank ? `<span class="ev rk">#${e.rank.r} of ${e.rank.of} cases</span>` : ''}</div>${why}${rows.join('')}`; }
 function syncUI() { $('evid').innerHTML = evidHtml();
   for (const id of ['msort', 'rsort', 'view', 'links']) press(id, st[id]);
   $('minq').value = st.minq; $('minr').value = st.minr; $('minqo').textContent = num(st.minq); $('minro').textContent = num(st.minr); $('only').checked = st.only; syncKey();
@@ -1946,9 +1975,17 @@ $('file').onchange = async (e) => { const f = e.target.files[0]; if (!f) return;
   const head = (csv.split(/\r?\n/)[0].match(/("(?:[^"]|"")*"|[^,]*)(?:,|$)/g) || []).map((s) => s.replace(/,$/, '').trim().replace(/^"|"$/g, '').replace(/""/g, '"')).slice(1).filter(Boolean);   // names such as "0_angle_[5, 6, 7]" carry commas inside quotes
   $('resp').innerHTML = head.map((c) => `<option>${esc(c)}</option>`).join(''); $('resp').value = head[head.length - 1]; $('resp').disabled = $('run').disabled = false;
   $('newstatus').textContent = `${f.name}: ${head.length} columns, ${csv.trim().split(/\r?\n/).length - 1} rows. Choose the response column.`; };
+// the honest Q² of a new table: BASSA's weights on all compounds and one deal of 5-fold with the sampler rerun in every fold
+async function quickCheck(target) { if (ALONE || !target._req || target.cv || target._quick) return; target._quick = '0 of 6'; if (C === target) refresh();
+  try { const { job, total } = await post('quick', target._req);
+    for (;;) { await new Promise((r) => setTimeout(r, 2000)); const j = await (await fetch('checks?job=' + job)).json(); if (j.error) throw new Error(j.error);
+      target._quick = `${j.done} of ${total}`; if (C === target && $('quickst')) $('quickst').textContent = `checking on 5 folds: ${target._quick} runs…`;
+      if (j.cv) { delete target._quick; Object.assign(target, { ens: j.ens, cv: j.cv }); if (C === target) boot(target); say('Checked: the ensemble model, its 5-fold Q² and its 90 % intervals are in.', 8000); break; } } }
+  catch (err) { delete target._quick; if (C === target) refresh(); say('The check failed: ' + err.message, 9000); } }
+$('ensbox').addEventListener('click', (e) => { if (e.target.id === 'quickgo') quickCheck(C); });
 $('run').onclick = async () => { const done = timed('Running BASSA…', (m) => $('newstatus').textContent = m); $('run').disabled = true;
   try { const req = { csv, response: $('resp').value, iters: +$('iters').value, structures: $('xyz').value.trim(), name: csvName.replace(/\.csv$/i, '') || 'table' }, d = await post('run', req), s = done();
-    d.title = 'Your table: ' + d.case; d._req = req; CASES['your table'] = d; $('newcase').close(); boot(d);
+    d.title = 'Your table: ' + d.case; d._req = req; CASES['your table'] = d; $('newcase').close(); boot(d); quickCheck(d);
     say(`Done in ${s} s. ${Object.keys(d.mols).length} of ${d.n} structures found` + (d.no_structure.length ? `; none for ${d.no_structure.slice(0, 4).join(', ')}${d.no_structure.length > 4 ? '…' : ''}` : '') + '.', 9000); }
   catch (err) { done(); $('newstatus').textContent = location.protocol === 'file:' ? 'Start the explorer with start_explorer.bat to run a table.' : 'Could not run: ' + err.message; }
   $('run').disabled = false; };
@@ -2057,12 +2094,13 @@ setMode(MODE, true); addEventListener('load', modeThumb); if (document.fonts) do
 // the case's one verdict, in words: the ensemble model's Q² on compounds it has not seen, and the chance line
 function trust() { const ch = C.cv && C.cv.chance, k = C.cv && C.cv.k5, q = C.cv && C.cv.loo ? C.cv.loo.q2 : C.nested_q2 != null ? C.nested_q2 : k ? k.q2 : null,
     weakP = !ch && (C.p_top != null ? C.p_top > 0.05 : C.chance != null && Math.max(...C.freq) < C.chance);
+  if (q == null && !weakP && C._quick) return { lvl: 'none', say: 'Checking…', tip: 'BASSA is rerun once on all compounds and once in each of 5 folds; the verdict follows.' };
   if (q == null && !weakP) return { lvl: 'none', say: 'Not validated yet', tip: 'This case was kept before its checks were run: read its models as leads, not results.' };
   const tip = (q != null ? `On compounds it has not seen, the ensemble model scores Q² ${q.toFixed(2)} (1 is perfect, 0 is no better than guessing the mean).` : '') +
     (ch ? ` With the responses shuffled among the compounds, ${ch.above} of ${ch.deals} deals beat every shuffle (p ${ch.p.toFixed(ch.p < 0.05 ? 3 : 2)}).` : weakP ? ' With the responses shuffled, the most used descriptor is used as often as the real one.' : '');
   if ((ch && ch.p >= 0.05) || weakP || (q != null && q <= 0)) return { lvl: 'fail', say: '✗ No better than chance', tip: tip + ' Its drivers and suggestions are not shown as advice.', pic: ch ? '' : 'chance' };
-  if ((ch && ch.above < 0.9 * ch.deals) || q < 0.4) return { lvl: 'weak', say: '! Predicts new compounds only weakly', tip: tip + ' Take its drivers as leads.' };
-  return { lvl: 'ok', say: q >= 0.7 ? '✓ Predicts new compounds well' : '✓ Predicts new compounds fairly', tip }; }
+  if ((ch && ch.above < 0.9 * ch.deals) || q < 0.4) return { lvl: 'weak', say: '! Predicts new compounds only weakly', tip: tip + ' Take its drivers as leads.', q };
+  return { lvl: 'ok', say: q >= 0.7 ? '✓ Predicts new compounds well' : '✓ Predicts new compounds fairly', tip, q }; }
 // the cases list, from those loaded so far (the others arrive in the background)
 function casePicker() { const order = [...(window.CASE_FILES || []).filter((k) => CASES[k]), ...Object.keys(CASES).filter((k) => !(window.CASE_FILES || []).includes(k))];
   $('case').innerHTML = order.map((k) => `<option value="${esc(k)}">${esc(CASES[k].title || k)}</option>`).join(''); $('case').value = order.find((k) => CASES[k] === C); $('overview').hidden = order.length < 2; modeThumb(); }
