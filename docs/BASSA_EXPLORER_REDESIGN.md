@@ -47,6 +47,32 @@ Influence views, ranking and colour options, "More about this model" (every weig
 Design sliders and candidates, comparing two compounds, the threshold analysis, the per-test evidence badges, the
 descriptor search (also on Ctrl+K in both).
 
+## Polish (Eden, 20 Oct)
+
+Speed and motion
+- **A case loads when it is opened**, not all of them at start (today every load fetches all 14 case files, Denmark's 6.8 MB
+  among them, before anything is drawn).
+- **No layout jumps**: panels keep their size when the mode, the compound or the model changes; content fades in place; the
+  molecule keeps its orientation from one compound to the next.
+
+Less on screen
+- **One verdict chip** (green, amber or red) instead of the three badges ("#2 of 4", "! 2 of 3 tests passed", "↓ lower is
+  better"); the details open from it.
+- **Say each thing once**: the family bars stay, their repeat inside the table goes; error bars for the selected compound
+  only (the rest on hover); plot resize handles on hover.
+- **The molecule's switches** (the unlabelled "on" boxes, dipole size, Sterimol drawing, reset) go into one gear menu; only
+  the atoms a descriptor uses are labelled.
+
+Consistency
+- **One visual system**: one accent colour for controls, family colours for families only; three type sizes; an 8 px
+  spacing grid; numbers always as "0.91", tabular, Q² and kcal/mol to two decimals.
+- **One vocabulary**: ensemble model, family, driver, share of models; no "deal" or "kept fixed" on the simple page; the help
+  in one **?** drawer instead of a "?" after every heading.
+- **Short links**: only the settings that differ from the default go into the address (today about 40 do, and old defaults
+  travel with them, as `fb=r` did).
+- **Plain messages for missing pieces**: a case without structures, without ensemble predictions, or with its server
+  stopped says so in one line where the panel would be.
+
 ## Steps
 
 1. **Layout** — the simple page as the default with the two modes; the current page is Advanced. The self-test covers
