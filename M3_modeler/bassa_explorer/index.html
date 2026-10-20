@@ -143,6 +143,8 @@
   .step { display: flex; gap: 6px; align-items: center; margin-top: 4px; font-size: 11.5px; color: var(--mute); } .step button { padding: 0 8px; }
   /* the plain page: what is not needed to read families and recipes waits behind "advanced" */
   body:not(.adv) .advonly, body:not(.adv) .fbar em { display: none !important; }
+  /* the plain page: the table's filters and view, the plot's switches, the second compound and the Sterimol drawing options are Advanced */
+  body:not(.adv) #filt, body:not(.adv) #viewbox, body:not(.adv) .colbar .seg.pk, body:not(.adv) #colby, body:not(.adv) label[for="colby"], body:not(.adv) label[for="mol2"], body:not(.adv) #mol2, body:not(.adv) #sterbox { display: none !important; }
   tr.fh th.name b { font-weight: 650; } td.c.alt { cursor: alias; }
   body:not(.adv) td.num { min-width: 10px; padding: 0; } body:not(.adv) th.m .ids ~ .mid { display: none; } .mid.q2 { color: var(--accent); font-weight: 700; }
   #morebox .pop { left: auto; right: 0; min-width: 190px; } #morebox .pop button { text-align: left; } #sterbox .pop { min-width: 210px; gap: 5px; }
@@ -627,8 +629,7 @@ function boot(data, p) {
   $('find').value = ''; syncUI();
   const opt = (l) => `<option value="${esc(l)}">${esc(l)}${C.ligands.includes(l) ? '' : ' · external'}</option>`;
   $('mol').innerHTML = everyone().map(opt).join(''); $('mol2').innerHTML = '<option value="">nothing</option>' + everyone().map(opt).join(''); $('mol').value = st.mol; $('mol2').value = st.mol2;
-  const order = [...(window.CASE_FILES || []).filter((k) => CASES[k]), ...Object.keys(CASES).filter((k) => !(window.CASE_FILES || []).includes(k))];
-  $('case').innerHTML = order.map((k) => `<option value="${esc(k)}">${esc(CASES[k].title || k)}</option>`).join(''); $('case').value = order.find((k) => CASES[k] === C);
+  casePicker();
   $('sub').title = `${C.n_distinct.toLocaleString()} distinct models in ${C.iterations.toLocaleString()} kept iterations; the ${C.models.length} most visited are loaded (${pct(C.shown_share)} of sampled models). Frequencies and links use the whole run.` + (C.dropped && C.dropped.length ? ` Dropped columns (not numeric, missing or constant): ${C.dropped.join(', ')}.` : '');
   C._sub = `${C.n} compounds${C.ext ? ' + ' + C.ext.names.length + ' external' : ''} · ${N} descriptors` + (C.nested_q2 == null ? ' · no chance line or nested Q² yet' : C.p_top != null ? ` · leading descriptor against chance: p = ${C.p_top.toFixed(C.n_shuffles > 100 ? 3 : 2)}${C.p_lo != null ? ` (${C.p_lo.toFixed(3)} to ${C.p_hi.toFixed(3)})` : ''}, ${C.n_shuffles || 100} shuffles` : '') + (C.before ? ' · blue marks: before, with all compounds' : '') + (LONE.some(Boolean) ? ` · ${LONE.filter(Boolean).length} column${LONE.filter(Boolean).length > 1 ? 's' : ''} owned by one compound (!)` : ''); $('sub').title = C._sub + '\n' + $('sub').title; $('sub').textContent = st.adv ? C._sub : C._sub.split(' · ').slice(0, 2).join(' · ');      // the plain page names the compounds and the descriptors; the rest is in advanced and under the pointer
   $('overview').hidden = Object.keys(CASES).length < 2; $('scheme').hidden = !C.scheme; $('checks').hidden = ALONE || !(C.uploaded && C.nested_q2 == null); $('keep').hidden = ALONE || !C.uploaded; $('link').hidden = ALONE; $('coach3').innerHTML = hasEns() ? '<b>3</b>The line over the plot, <b>How well it predicts new compounds</b>, is the number to quote. Click a column of the table to look at one model.' : '<b>3</b>Click a column of the table to look at one model; <b>More → Add chance line and nested Q²</b> gives the number to quote.'; $('new').hidden = $('onefile').hidden = ALONE;  $('thr').setAttribute('aria-pressed', st.thr); $('names').value = st.names; $('stack').checked = st.stack; $('showd').checked = st.showD; $('molopts').querySelectorAll('input[data-x]').forEach((c) => c.checked = st.extra[c.dataset.x]);
@@ -1459,7 +1460,7 @@ function draw() { RKEY = '';
       ticks.map((v) => `<line x1="${x(v).toFixed(1)}" x2="${x(v).toFixed(1)}" y1="${y0}" y2="${y1}" stroke="#eef1f4"/><line x1="${x0}" x2="${x1}" y1="${yy(v).toFixed(1)}" y2="${yy(v).toFixed(1)}" stroke="#eef1f4"/><text x="${x(v).toFixed(1)}" y="${y1 + 12}" text-anchor="middle">${num(v)}</text><text x="${x0 - 4}" y="${(yy(v) + 3).toFixed(1)}" text-anchor="end">${num(v)}</text>`).join('') +
       `<g clip-path="url(#pclip)"><polygon points="${x(a - m)},${yy(a - m + maeL)} ${x(b + m)},${yy(b + m + maeL)} ${x(b + m)},${yy(b + m - maeL)} ${x(a - m)},${yy(a - m - maeL)}" fill="rgba(31,95,208,.08)"/><line x1="${x(a - m)}" y1="${yy(a - m)}" x2="${x(b + m)}" y2="${yy(b + m)}" stroke="#8793a1" stroke-width="1" stroke-dasharray="5 4"/></g>` +
       (cl && st.adv ? Y.map((v, i) => `<line x1="${(x(v) - 4).toFixed(1)}" x2="${(x(v) + 4).toFixed(1)}" y1="${yy(cl[i]).toFixed(1)}" y2="${yy(cl[i]).toFixed(1)}" stroke="#9aa5b1" stroke-width="1.5"/>`).join('') : '') +
-      (FP.ens && C.cv.lo5 ? Y.map((v, i) => `<line x1="${x(v).toFixed(1)}" x2="${x(v).toFixed(1)}" y1="${yy(C.cv.lo5[i]).toFixed(1)}" y2="${yy(C.cv.hi5[i]).toFixed(1)}" stroke="${C.ligands[i] === st.mol ? 'var(--accent)' : '#8793a1'}" stroke-width="${C.ligands[i] === st.mol ? 3 : 1.6}" stroke-linecap="round" opacity="${C.ligands[i] === st.mol ? '.85' : st.adv ? '.45' : '.2'}"><title>${esc(C.ligands[i])}: 90 % interval ${C.cv.lo5[i].toFixed(2)} to ${C.cv.hi5[i].toFixed(2)}</title></line>`).join('') : '') +
+      (FP.ens && C.cv.lo5 ? Y.map((v, i) => !st.adv && C.ligands[i] !== st.mol ? '' : `<line x1="${x(v).toFixed(1)}" x2="${x(v).toFixed(1)}" y1="${yy(C.cv.lo5[i]).toFixed(1)}" y2="${yy(C.cv.hi5[i]).toFixed(1)}" stroke="${C.ligands[i] === st.mol ? 'var(--accent)' : '#8793a1'}" stroke-width="${C.ligands[i] === st.mol ? 3 : 1.6}" stroke-linecap="round" opacity="${C.ligands[i] === st.mol ? '.85' : st.adv ? '.45' : '.2'}"><title>${esc(C.ligands[i])}: 90 % interval ${C.cv.lo5[i].toFixed(2)} to ${C.cv.hi5[i].toFixed(2)}</title></line>`).join('') : '') +
       (Fc ? Y.map((v, i) => `<line x1="${x(v).toFixed(1)}" x2="${x(v).toFixed(1)}" y1="${yy(Fc.loo[i]).toFixed(1)}" y2="${yy(LO[i]).toFixed(1)}" stroke="#9aa5b1" stroke-width="1.3"/><circle cx="${x(v).toFixed(1)}" cy="${yy(Fc.loo[i]).toFixed(1)}" r="3" fill="#fff" stroke="#7b8794" stroke-width="1.3"><title>${esc(C.ligands[i])}: ${Fc.loo[i].toFixed(2)} with the model kept for comparison, ${LO[i].toFixed(2)} with this one</title></circle>`).join('') : '') +
       (dp == null ? '' : `<line id="dline" x1="${pad}" x2="${S - 8}" y1="${yy(dp).toFixed(1)}" y2="${yy(dp).toFixed(1)}" stroke="#1f5fd0" stroke-width="1.5" stroke-dasharray="5 3"/>`) +
       (() => { const P = (n) => { const i = C.ligands.indexOf(n); if (i >= 0) return [x(Y[i]), yy(LO[i])]; const j = pe ? X.names.indexOf(n) : -1; return j >= 0 ? [x(X.y[j]), yy(pe[j])] : null; }, A = st.mol ? P(st.mol) : null, B = st.mol2 ? P(st.mol2) : null;      // where the eye should go: the compound in hand, and the way to the second
@@ -1650,6 +1651,7 @@ function designText(F, cols) {
 }
 const UNDO = []; let undoing = false;
 function writeHash() {
+  $('clear').hidden = !(st.rows.length || (st.pins && st.pins.length) || $('find').value || st.model >= 0 && !st.ens && st.mplot);      // only when there is something to clear
   { const now = hashParams().toString(); if (!restoring && !undoing && UNDO[UNDO.length - 1] !== now) { UNDO.push(now); if (UNDO.length > 80) UNDO.shift(); } }
   if (C.uploaded || ALONE) return C.uploaded && history.replaceState(null, '', location.pathname + location.search);
   const key = [C.case, st.rows.join('.'), st.model, st.view, st.mol, st.mol2].join('|'), step = !restoring && lastKey && key !== lastKey; lastKey = key;        // a new selection, view, compound or case is one step back in the browser
@@ -1959,7 +1961,8 @@ $('onefile').onclick = async () => { try { say('Building the file…', 0); const
   catch (err) { say('Could not build the file: ' + err.message, 9000); } };
 
 // ---------- start: the cases named in manifest.js are loaded, then the address decides which one opens ----------
-const fromHash = () => { const p = new URLSearchParams(location.hash.slice(1)), d = (Object.hasOwn(CASES, p.get('case') || '') ? CASES[p.get('case')] : null) || CASES[(window.CASE_FILES || [])[0]] || Object.values(CASES)[0];
+const fromHash = () => { const p = new URLSearchParams(location.hash.slice(1)); if (files.includes(p.get('case')) && !CASES[p.get('case')]) return load(p.get('case')).then(fromHash);   // a case not loaded yet
+  const d = (Object.hasOwn(CASES, p.get('case') || '') ? CASES[p.get('case')] : null) || CASES[(window.CASE_FILES || [])[0]] || Object.values(CASES)[0];
   if (!d) return ($('sub').textContent = 'No case found. Build one with build_case.bat, or start the server and use New case.'); restoring = true; boot(d, p); restoring = false;
   if (!undoing) { const now = hashParams().toString(); if (UNDO[UNDO.length - 1] !== now) UNDO.push(now); } };      // the state as opened is the first step back
 // #handoff=N: a table another page (the atom picker) left with the server; it is taken once and run as New case would
@@ -1971,8 +1974,17 @@ async function takeHandoff(id) {
   catch (err) { $('newstatus').textContent = 'Could not take the table: ' + err.message; } }
 function start() { const hand = new URLSearchParams(location.hash.slice(1)).get('handoff'); window.addEventListener('hashchange', fromHash); fromHash(); if (hand) return takeHandoff(hand); if (new URLSearchParams(location.search).has('selftest')) return selfTest();
   $('coach').hidden = true; }      // the steps are in the ? guide: the page opens without a paragraph over the table      // a first visit gets three steps above the table; the ? button holds the rest
-const files = ALONE ? [] : (window.CASE_FILES || []); let left = files.length;
-if (!left) start(); else files.forEach((f) => { const s = document.createElement('script'); s.src = f + '.js'; s.onload = s.onerror = () => { if (!--left) start(); }; document.head.appendChild(s); });
+// the cases list, from those loaded so far (the others arrive in the background)
+function casePicker() { const order = [...(window.CASE_FILES || []).filter((k) => CASES[k]), ...Object.keys(CASES).filter((k) => !(window.CASE_FILES || []).includes(k))];
+  $('case').innerHTML = order.map((k) => `<option value="${esc(k)}">${esc(CASES[k].title || k)}</option>`).join(''); $('case').value = order.find((k) => CASES[k] === C); $('overview').hidden = order.length < 2; }
+// a case file is loaded when it is needed: the one opened first, then the others in the background (all 14 at once took seconds)
+const files = ALONE ? [] : (window.CASE_FILES || []), loaded = {};
+const load = (f) => loaded[f] ||= new Promise((res) => { const s = document.createElement('script'); s.src = f + '.js'; s.onload = s.onerror = () => res(); document.head.appendChild(s); });
+const loadAll = () => Promise.all(files.map(load));
+{ const q = new URLSearchParams(location.hash.slice(1)), want = files.includes(q.get('case')) ? q.get('case') : files[0];
+  if (!files.length) start();
+  else if (new URLSearchParams(location.search).has('selftest') || q.get('handoff')) loadAll().then(start);      // these use every case
+  else load(want).then(() => { start(); loadAll().then(() => { if (C) casePicker(); }); }); }
 
 // ?selftest clicks through every case and view and writes the outcome in the page title (test_page.py reads it)
 async function selfTest() {
@@ -1992,7 +2004,7 @@ async function selfTest() {
       need(count('th.m .ids b') === shownCols.reduce((s, c) => s + C.models[shownOf(c)].cols.length, 0) && count('td.c.v0') === count('td.c.v1') && count('td.c.v0') <= shownCols.filter((c) => C.models[shownOf(c)].cols.length > 1).length && count('tr.fh td.c.on') === 0, 'a letter per idea under each column, and the dots of a column joined');
       need(Object.entries(perFam).every(([f, k]) => k <= Math.max(FAMCAP, members[f].filter((j) => drawnNow.has(j)).length)) && count('tr.gap') === Object.keys(perFam).length - 1, 'at most four descriptors of a family, and a gap between ideas');
       const mo = document.querySelector('th[data-more]'); if (mo) { const f = +mo.dataset.more, n0 = count('tbody tr[data-row]'); mo.click(); need(st.open.has(f) && count('tbody tr[data-row]') > n0, 'the rest of a family behind "more"'); document.querySelector(`th[data-more="${f}"]`).click(); need(!st.open.size && count('tbody tr[data-row]') === n0, 'and back'); }
-      need(!!document.querySelector('th.m .mid.vs') && !count('th.m .ck') && !count('#info .cks') && (!hasEns() || (!st.mplot && (!dealt() || count('#parity line[stroke-linecap="round"]') === Y.length) && (!C.cv.chance || count('#ensbox .vd:not(.qw)') === 1))), 'the plain page: visits over the columns, no single-model checks, the ensemble model in the plot');
+      need(!!document.querySelector('th.m .mid.vs') && !count('th.m .ck') && !count('#info .cks') && (!hasEns() || (!st.mplot && (!dealt() || count('#parity line[stroke-linecap="round"]') === (st.adv ? Y.length : 1)) && (!C.cv.chance || count('#ensbox .vd:not(.qw)') === 1))), 'the plain page: visits over the columns, no single-model checks, the ensemble model in the plot');
       if (hasEns()) { $('mplot').click(); need(st.mplot && $('pstats').textContent.includes('kept fixed') && !count('#parity line[stroke-linecap="round"]') && document.querySelector('#info details.eqd[open]'), 'the plain page plots one model with its fit and equation'); $('pens').click(); need(!st.mplot && !$('pstats').textContent.includes('kept fixed'), 'and back to the ensemble model'); }
       st.adv = true; syncUI(); refresh(); if (hasEns()) $('mplot').click();          // the checks belong to the model you clicked, not to the ensemble one
       const K0 = checksOf(st.model); need(count('#info .cks > div') === 0 && count('#info [data-cks]') === 1, 'the checks are one line until asked for'); document.querySelector('#info [data-cks]').click(); need(st.cks, 'the mark under a column opens its checks');
