@@ -350,8 +350,21 @@ def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bass
     env["BASSA_EXPLORER_PORT"] = str(port)                   # so the other pages' links find this server
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '') else host}:{port}/"
     print(f"\n  BASSA model explorer\n  Open:  {url}\n  Press Ctrl+C to stop\n", flush=True)
-    python = bassa_python or os.environ.get("DESCRIPYTOR_BASSA_PYTHON") or sys.executable
     _ensure_project_on_path()
+    from M3_modeler.bassa_explorer.settings import REMEMBERED_PY
+    if bassa_python:                                        # remembered for starts without it (the visual extractor's link)
+        try:
+            REMEMBERED_PY.parent.mkdir(parents=True, exist_ok=True)
+            REMEMBERED_PY.write_text(str(bassa_python), encoding="utf-8")
+        except OSError:
+            pass
+    else:
+        try:
+            kept = REMEMBERED_PY.read_text(encoding="utf-8").strip()
+            bassa_python = kept if Path(kept).is_file() else None
+        except OSError:
+            pass
+    python = bassa_python or os.environ.get("DESCRIPYTOR_BASSA_PYTHON") or sys.executable
     from M3_modeler.bassa_explorer import running
     already = running.state(port)
     if already == "current":                                 # this version's server is up: use it

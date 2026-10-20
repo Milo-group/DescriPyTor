@@ -283,7 +283,17 @@ def _bassa_url():
     if not _listening(port):
         root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         env = dict(os.environ, PYTHONPATH=root_dir + os.pathsep + os.environ.get("PYTHONPATH", ""))
-        subprocess.Popen([sys.executable, "-m", "descripytor.cli", "bassa_explorer", "--no-browser", "--port", str(port)], env=env)
+        # detached: it outlives this server, so restarting the extractor does not take the explorer's open pages down with it
+        cmd = [sys.executable, "-m", "descripytor.cli", "bassa_explorer", "--no-browser", "--port", str(port)]
+        quiet = dict(env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.name == "nt":                            # also out of this process's job, which some launchers close with it
+            flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+            try:
+                subprocess.Popen(cmd, creationflags=flags | 0x01000000, **quiet)     # CREATE_BREAKAWAY_FROM_JOB
+            except OSError:                            # a job that forbids breaking away
+                subprocess.Popen(cmd, creationflags=flags, **quiet)
+        else:
+            subprocess.Popen(cmd, start_new_session=True, **quiet)
         for _ in range(120):
             if _listening(port):
                 break

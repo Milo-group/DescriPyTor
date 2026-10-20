@@ -91,6 +91,13 @@
   molecule holds the run controls and Stop ends it; the server takes its one-run lock only after the reference is
   read. The explorer frames are asked whether they are ready once loaded. Extract CSV has a Stop, and the server
   stops extracting at the next molecule (or engine) when the page leaves.
+- Fixed: a line slipped between a `try` and its `catch` in the visual extractor stopped the page's whole script
+  (nothing loaded). A test now checks that every inline script of the visual extractor and the BASSA explorer parses.
+- The BASSA explorer started by the visual extractor's link runs detached (restarting the extractor took it down
+  with it, and every load on its page failed) and with the Python last given with `--bassa-python`
+  (`~/.descripytor/bassa_python`), so new tables can run. Its page says so when its server is not running.
+- BASSA explorer: families by the sampler are the default; the selected model says its share of the sampled models
+  over the plot, and its weights table gives each descriptor's share of models.
 - `Molecules.get_renumbering_dict(reference)` uses it too (no xyz export, no change of directory) and returns the dicts.
 
 ### Removed

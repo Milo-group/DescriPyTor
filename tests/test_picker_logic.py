@@ -107,3 +107,17 @@ def test_morfeus_sterimol_pairs_stay_with_morfeus():
       const state = { sterimol: [[1, 4]], mf_sterimol: [[2, 7]] };
       console.log(JSON.stringify(pickedSterimolPairs()));""")
     assert got == [[1, 4]]
+
+
+@pytest.mark.parametrize("page", [PAGE, PAGE.parents[1] / "M3_modeler" / "bassa_explorer" / "index.html"],
+                         ids=["visual_extractor", "bassa_explorer"])
+def test_every_inline_script_parses(page, tmp_path):
+    """One syntax error stops a page's whole script (a line slipped between try and catch once left it dead)."""
+    if NODE is None:
+        pytest.skip("node is not installed")
+    src = page.read_text(encoding="utf-8")
+    for k, m in enumerate(re.finditer(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", src, re.S)):
+        f = tmp_path / f"s{k}.js"
+        f.write_text(m.group(1), encoding="utf-8")
+        out = subprocess.run([NODE, "--check", str(f)], capture_output=True, text=True, timeout=60)
+        assert out.returncode == 0, f"script {k} (line {src[:m.start(1)].count(chr(10)) + 1}): {out.stderr[-400:]}"

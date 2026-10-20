@@ -4807,8 +4807,8 @@ function cvLoadFileList(files) {
       const isSdf = /\.sdf$/i.test(file.name) || /\.mol$/i.test(file.name);
       const baseName = file.name.replace(/\.(xyz|sdf|mol)$/i, '');
       try { read[idx] = isSdf ? parseSdf(ev.target.result, baseName) : parseMultiXyz(ev.target.result, baseName); }
-      if (read[idx] && !read[idx].length) bad.push(file.name);   // read, but no structure in it
       catch (e) { bad.push(file.name); }
+      if (read[idx] && !read[idx].length) bad.push(file.name);   // read, but no structure in it
     };
     r.onerror = () => bad.push(file.name);
     r.onloadend = () => {                          // after a load or an error: one bad file does not hold the others

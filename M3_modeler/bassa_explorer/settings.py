@@ -18,6 +18,7 @@ S = dict(bassa_python=sys.executable, reader_python=E("BASSA_EXPLORER_READER") o
          paper=E("BASSA_EXPLORER_PAPER", ""), cs2_feathers=E("BASSA_EXPLORER_CS2_FEATHERS", ""),
          chrome=E("CHROME") or "C:/Program Files/Google/Chrome/Application/chrome.exe")
 REMEMBERED = Path.home() / ".descripytor" / "bassa_cases"     # the last --cases folder: a start without it (the visual extractor's link) finds the cases
+REMEMBERED_PY = Path.home() / ".descripytor" / "bassa_python"  # the last --bassa-python: the Python with bassa_reg, which new tables need
 
 
 def _cases():
