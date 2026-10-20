@@ -362,6 +362,8 @@
   .tmc.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 4px 14px rgba(31,95,208,.12); }
   .tmc .sh { font-size: 18px; font-weight: 650; letter-spacing: -.01em; font-variant-numeric: tabular-nums; } .tmc .sh small { font-size: 11px; color: var(--mute); font-weight: 500; }
   .tmc .ds { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; } .tmc .ds span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  #casewarn.trust { font-size: 12px; font-weight: 600; padding: 2px 10px; cursor: help; } #casewarn.ok { background: var(--up); } #casewarn.weak { background: #b45309; } #casewarn.fail { background: var(--down); } #casewarn.none { background: #7c8794; }
+  body.untrusted #drive .dbar, body.mdesign.untrusted #topmodels .tml { filter: grayscale(1); opacity: .55; } #advnote { padding: 8px 2px; }
   .tmc .qv { font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; } .tmc .qv b { color: var(--ink); font-weight: 600; }
   .tmc .bar2 { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: #eef1f5; overflow: hidden; } .tmc .bar2 i { display: block; height: 100%; background: var(--accent); opacity: .55; border-radius: 2px; }
   main.swap > section { animation: mswap .28s var(--ease); } @keyframes mswap { from { opacity: 0; transform: translateY(5px); } }
@@ -374,7 +376,7 @@
   <h1>BASSA model explorer</h1>
   <select id="case" aria-label="data set"></select>
   <div class="modeseg" id="mode" role="tablist" aria-label="what the page is for"><span class="thumb" aria-hidden="true"></span><button role="tab" data-md="design" title="What makes a better compound: the drivers, the compounds, how to improve one">Design</button><button role="tab" data-md="models" title="The models BASSA visited: the table of models and descriptors">Models</button></div>
-  <span class="sub" id="sub"></span><span class="pill" id="casewarn" hidden style="background:#b45309;cursor:help"></span><span id="evid" class="evid"></span>
+  <span class="sub" id="sub"></span><span class="pill" id="casewarn" hidden></span><span id="evid" class="evid"></span>
   <script>addEventListener('DOMContentLoaded', () => { if (!location.protocol.startsWith('http')) document.getElementById('apps').hidden = true; });</script>
   <div class="tools">
     <button id="overview" title="every case in one table">All cases</button><details class="filt" id="morebox"><summary>More</summary><div class="pop"><button id="new">New case…</button><span class="apps" id="apps"><a href="/visual_extractor" title="pick atoms and extract descriptors">Visual extractor ↗</a><a href="/feature_explorer" title="draw any descriptor on a molecule">Feature explorer ↗</a></span><button id="keep" hidden title="add this case to the menu for next time">Keep this case</button><button id="checks" hidden>Add chance line and nested Q²</button>
@@ -1327,7 +1329,7 @@ function driveHtml() { if (!hasEns() || !['models', 'recipes'].includes(st.view)
   const seg = (x) => { const sh = x.w / tot, nm = famName(x.f, -1), many = members[x.f] && members[x.f].length > 1, tip = `${nm}${many ? ' (a family of ' + members[x.f].length + ')' : ''}: ${pct(sh)} of how the predictions differ between compounds. A higher ${C.label[x.f]}${many ? ' (its most used descriptor)' : ''} predicts ${dir(x)}. Click to draw it on the molecule.`;      // named as in the table
     return `<button class="dseg${st.famView === x.f ? ' on' : ''}" data-df="${x.f}" style="flex:${sh.toFixed(4)};--fc:${ideaCol[x.f] || '#8793a1'}" data-tip="${esc(tip)}" aria-label="${esc(tip)}"><span class="dl">${idb(x.f, true)}<span class="dn">${esc(nm)}</span></span><b>${pct(sh)}</b><i class="${dir(x) === 'better' ? 'up' : 'dn2'}">${dir(x) === 'better' ? '▲' : '▼'}</i></button>`; };
   return `<div class="drive"><div class="dh"><b>What drives the predictions</b>${hq(T.drive)}</div><div class="dsay">${(() => { const top = big.slice(0, 3).filter((x, j) => j === 0 || x.w / tot >= 0.08), word = (x) => `${dir(x) === 'better' ? 'higher' : 'lower'} <b title="${pct(x.w / tot)} of how the predictions differ">${esc(famName(x.f, -1))}</b>`;
-      const w = top.map(word), k5 = C.cv && C.cv.k5; return `Better: ${w.join(', ')}.` + (k5 && k5.q2 < 0.4 ? ` <span class="lab" title="It predicts new compounds only weakly (Q² ${k5.q2.toFixed(2)}): take this as a lead, not a rule.">(weak)</span>` : ''); })()}</div><div class="dbar">` + big.map(seg).join('') +
+      const w = top.map(word), k5 = C.cv && C.cv.k5; if (trust().lvl === 'fail') return `No reliable drivers <span class="lab">· the model does no better than chance here: the bars show what it leans on, not what makes a better compound.</span>`; return `Better: ${w.join(', ')}.` + (k5 && k5.q2 < 0.4 ? ` <span class="lab" title="It predicts new compounds only weakly (Q² ${k5.q2.toFixed(2)}): take this as a lead, not a rule.">(weak)</span>` : ''); })()}</div><div class="dbar">` + big.map(seg).join('') +
     (rw > 0.005 ? `<span class="dseg rest" style="flex:${rw.toFixed(4)}" data-tip="${esc(`${rest.length} other families, ${pct(rw)} together`)}"><b>${rw >= 0.06 ? pct(rw) : ''}</b></span>` : '') + '</div></div>'; }
 // the rows of one family in the table: its heading (folded or not) and its descriptors
 const famRows = (f) => [...$('grid').querySelectorAll(`tr[data-idea="${f}"], tr[data-row]`)].filter((r) => r.dataset.idea !== undefined ? +r.dataset.idea === f : fam[+r.dataset.row] === f);
@@ -1542,9 +1544,8 @@ function draw() { RKEY = '';
         : ch.above < 0.9 * ch.deals ? vd('warn', '! barely better than chance', `the mean beats every shuffle (p ${ch.p.toFixed(3)}), but only ${ch.above} of ${ch.deals} deals do`)
         : vd('ok', '✓ better than chance', `${ch.above === ch.deals ? 'all ' + ch.deals : ch.above + ' of ' + ch.deals} deals beat every shuffle (p ${ch.p.toFixed(3)})`);
       const cover = !k ? '' : C.cv.d_ok === false ? `<span data-tip="${esc(T.nocover)}">90 % interval: <b>not shown</b> <span class="q1 qv">?</span></span>` : `<span>90 % interval holds <b>${pct(k.cover)}</b>${hq(T.cover)}</span>`;
-      // one quiet line: the name, Q², a word and the verdict; everything else in its hover text, the deals chart in Advanced
-      const word = (q) => q >= 0.7 ? ['ok', 'good'] : q >= 0.4 ? ['na', 'fair'] : ['no', 'weak'];
-      const line = (q, tip, extra) => { const [c, w] = word(q); return `<div class="ensb ensl" data-tip="${esc(tip)}"><span class="tl">Ensemble model</span><span class="tv"><small>Q² </small><b>${q.toFixed(2)}</b></span><span class="vd ${c} qw">${w}</span>${extra || ''}${hq(T.ens)}</div>`; };
+      // one quiet line: the name, Q² and the verdict mark (its words are the header verdict); everything else in its hover text, the deals chart in Advanced
+      const line = (q, tip, extra) => { return `<div class="ensb ensl" data-tip="${esc(tip)}"><span class="tl">Ensemble model</span><span class="tv"><small>Q² </small><b>${q.toFixed(2)}</b></span>${extra || ''}${hq(T.ens)}</div>`; };
       eb = k && dealt() ? line(k.q2, `How well the ensemble model predicts compounds it has not seen. Q² ${k.q2.toFixed(2)}: mean of ${nDeals()} deals of 5 folds (${k.lo.toFixed(2)} to ${k.hi.toFixed(2)}); off by ±${k.mae.toFixed(2)}${u} on average` +
             (ch ? `; ${ch.above} of ${ch.deals} deals beat every shuffled response (p ${ch.p.toFixed(3)})` : '') + (C.cv.loo ? `; leave-one-out Q² ${C.cv.loo.q2.toFixed(2)}` : '') +
             (C.cv.d_ok === false ? '' : `; the 90 % interval holds ${pct(k.cover)}`) + `; furthest off: ${k.worst} (Q² ${k.q2_without.toFixed(2)} without it).`,
@@ -1575,7 +1576,8 @@ function draw() { RKEY = '';
       // the model as an equation in the descriptors' own units (the fit works on standardised columns; this is the same model, converted)
       const z = cols.map((i, j) => raw[j] * MS[i][1]), z0 = F.ens ? F.ym : b0 + cols.reduce((a, i, j) => a + raw[j] * MS[i][0], 0), terms = (w, name) => cols.map((i, j) => `${w[j] < 0 ? '−' : '+'} ${g(Math.abs(w[j]))} × <b style="color:${colourOf(i)}">${name(i)}</b>`).join(' '), lhs = `<span class="lab">${esc(C.response.split(' (')[0])}${C.unit ? ' [' + esc(C.unit) + ']' : ''} =</span>`;
       h += `<details class="eqd"${PE ? '' : ' open'}><summary>as an equation</summary><div class="eqn">${lhs} ${g(z0)} ${terms(z, (i) => 'z(' + esc(C.label[i]) + ')')}${F.ens ? ' + the smaller terms' : ''}${hq(T.eq)}<details><summary>in the descriptors' own units</summary>${lhs} ${g(b0)} ${terms(raw, (i) => esc(C.label[i]))}${F.ens ? ' + the smaller terms' : ''}</details></div></details></div>`; } }
-  $('advbox').innerHTML = st.mol2 || !everyone().includes(st.mol) ? '' : PE || (F && F.ens) ? adviceHtml(st.mol, null, []) : F ? adviceHtml(st.mol, F, cols) : '';      // with a second compound, the comparison takes its place
+  $('advbox').innerHTML = st.mol2 || !everyone().includes(st.mol) ? '' : PE || (F && F.ens) ? adviceHtml(st.mol, null, []) : F ? adviceHtml(st.mol, F, cols) : '';
+  if ($('advbox').innerHTML && !st.adv && trust().lvl === 'fail') $('advbox').innerHTML = '<div id="advnote" class="lab">No suggestions: the model does no better than chance here, so it cannot say how to improve a compound. Advanced shows them anyway.</div>';      // with a second compound, the comparison takes its place
   $('pairbox').innerHTML = !st.mol2 || !everyone().includes(st.mol) || !everyone().includes(st.mol2) ? '' : PE || (F && F.ens) ? pairHtml(st.mol, st.mol2, null, []) : F ? pairHtml(st.mol, st.mol2, F, cols) : '';
   $('whybox').innerHTML = !everyone().includes(st.mol) ? '' : PE || (F && F.ens) ? whyHtml(st.mol, null, []) : F ? whyHtml(st.mol, F, cols) : ''; sideTabs();
   if (st.design && F && !F.ens) { const f2 = (v) => +(+v).toPrecision(4);
@@ -1712,11 +1714,8 @@ function syncUI() { $('evid').innerHTML = evidHtml();
   $('minq').value = st.minq; $('minr').value = st.minr; $('minqo').textContent = num(st.minq); $('minro').textContent = num(st.minr); $('only').checked = st.only; syncKey();
   $('sizes').querySelectorAll('button').forEach((b) => { const on = st.sizes.has(+b.dataset.k); b.setAttribute('aria-pressed', on); b.style.background = on ? KCOL[+b.dataset.k] : '#fff'; });
   $('szhint').textContent = sizeCap() < 5 ? `A case opens on models of up to ${sizeCap()}: one descriptor per five compounds (${C.ligands.length} here).` : '';
-  const ch = C.cv && C.cv.chance; $('casewarn').hidden = true; delete $('casewarn').dataset.pic;
-  if (ch) { const near = ch.p < 0.05 && ch.above < 0.9 * ch.deals; $('casewarn').hidden = ch.p < 0.05 && !near; $('casewarn').textContent = near ? `near chance · ${ch.above} of ${ch.deals} deals beat every shuffle` : `not above chance · p ${ch.p.toFixed(2)}`;
-    $('casewarn').dataset.tip = `For this whole case: the ensemble model was validated again with the responses shuffled among the compounds, ${ch.q2.length} times. ` + (near ? `Its mean Q² beats every shuffle, but ${ch.deals - ch.above} of its ${ch.deals} deals do not. Read its numbers as weak.` : `The real responses do not beat the shuffles clearly (p ${ch.p.toFixed(2)}). Read every model here with that in mind.`); }
-  const weak = !ch && (C.p_top != null ? C.p_top > 0.05 : C.chance != null && Math.max(...C.freq) < C.chance); if (weak) $('casewarn').hidden = false;
-  if (weak) { $('casewarn').textContent = 'not above chance' + (C.p_top != null ? ` · p ${C.p_top.toFixed(C.n_shuffles > 100 ? 3 : 2)}` : ''); $('casewarn').dataset.pic = 'chance'; $('casewarn').dataset.tip = 'For this whole case: with the responses shuffled among the compounds, the most used descriptor is used as often as the real one in more than 5 % of shuffles. Read every model here with that in mind.'; }
+  { const t = trust(), cw = $('casewarn'); cw.hidden = false; cw.className = 'pill trust ' + t.lvl; cw.textContent = t.say; cw.dataset.tip = t.tip;
+    if (t.pic) cw.dataset.pic = t.pic; else delete cw.dataset.pic; document.body.classList.toggle('untrusted', t.lvl === 'fail'); }
   syncFam(); $('adv').checked = st.adv; document.body.classList.toggle('adv', st.adv); if (C._sub) $('sub').textContent = st.adv ? C._sub : C._sub.split(' · ').slice(0, 2).join(' · '); $('dipx').value = st.dipx; $('dipxo').textContent = num(st.dipx);
   $('thr').setAttribute('aria-pressed', st.thr); $('names').value = st.names; $('molopts').querySelectorAll('input[data-x]').forEach((c) => c.checked = st.extra[c.dataset.x]);
 }
@@ -1997,6 +1996,7 @@ $('onefile').onclick = async () => { try { say('Building the file…', 0); const
 
 // ---------- start: the cases named in manifest.js are loaded, then the address decides which one opens ----------
 const fromHash = () => { const p = new URLSearchParams(location.hash.slice(1)); if (files.includes(p.get('case')) && !CASES[p.get('case')]) return load(p.get('case')).then(fromHash);   // a case not loaded yet
+  if (['design', 'models'].includes(p.get('md')) && p.get('md') !== MODE) setMode(p.get('md'), true);      // a link or Ctrl+Z can change the mode
   const d = (Object.hasOwn(CASES, p.get('case') || '') ? CASES[p.get('case')] : null) || CASES[(window.CASE_FILES || [])[0]] || Object.values(CASES)[0];
   if (!d) return ($('sub').textContent = 'No case found. Build one with build_case.bat, or start the server and use New case.'); restoring = true; boot(d, p); restoring = false;
   if (!undoing) { const now = hashParams().toString(); if (UNDO[UNDO.length - 1] !== now) UNDO.push(now); } };      // the state as opened is the first step back
@@ -2023,14 +2023,23 @@ $('mode').addEventListener('click', (e) => { const b = e.target.closest('[data-m
 window.addEventListener('resize', () => requestAnimationFrame(modeThumb));
 // the top models as cards: how often BASSA visited each, its descriptors by family, its Q²; a click plots it, the ensemble model is one click back
 function topModels() { const { cols } = columns(), top = cols.slice(0, 5), tot = Math.max(...top.map((c) => c.share), 1e-9);
-  $('topmodels').innerHTML = !top.length ? '' : `<div class="tmh">Top models <span class="lab">share of sampled models · Q² as a fixed model</span></div><div class="tml">` + top.map((c) => {
+  $('topmodels').innerHTML = !top.length ? '' : `<div class="tmh">Top models <span class="lab">share of sampled models</span></div><div class="tml">` + top.map((c) => {
     const M = C.models[c.m], k = kfold(M.cols, 5), on = !st.ens && st.mplot && c.members.includes(st.model);
-    return `<button class="tmc${on ? ' on' : ''}" data-tm="${c.m}" title="${esc(M.cols.map((i) => C.label[i]).join('  +  '))}${c.members.length > 1 ? `\n${c.members.length} models that differ only inside a family` : ''}">` +
+    return `<button class="tmc${on ? ' on' : ''}" data-tm="${c.m}" title="${esc(M.cols.map((i) => C.label[i]).join('  +  '))}${c.members.length > 1 ? `\n${c.members.length} models that differ only inside a family` : ''}${k ? `\nQ² ${k.q2.toFixed(2)} as a fixed model: optimistic, since the model was chosen on this data` : ''}">` +
       `<span class="sh">${(100 * c.share).toFixed(c.share < 0.1 ? 1 : 0)}<small> %</small></span><span class="ds">${M.cols.map((i) => `<span>${idb(fam[i], true)}${esc(C.label[i])}</span>`).join('')}</span>` +
-      `<span class="qv">Q² <b>${k ? k.q2.toFixed(2) : '–'}</b></span><span class="bar2"><i style="width:${(100 * c.share / tot).toFixed(1)}%"></i></span></button>`; }).join('') + '</div>'; }
+      `<span></span><span class="bar2"><i style="width:${(100 * c.share / tot).toFixed(1)}%"></i></span></button>`; }).join('') + '</div>'; }
 $('topmodels').addEventListener('click', (e) => { const b = e.target.closest('[data-tm]'); if (!b) return; const m = +b.dataset.tm;
   if (!st.ens && st.mplot && st.model === m) { st.ens = true; st.mplot = false; } else { st.model = m; st.ens = false; st.mplot = hasEns(); } refresh(); });
 setMode(MODE, true); addEventListener('load', modeThumb); if (document.fonts) document.fonts.ready.then(modeThumb);
+// the case's one verdict, in words: the ensemble model's Q² on compounds it has not seen, and the chance line
+function trust() { const ch = C.cv && C.cv.chance, k = C.cv && C.cv.k5, q = k ? k.q2 : C.nested_q2,
+    weakP = !ch && (C.p_top != null ? C.p_top > 0.05 : C.chance != null && Math.max(...C.freq) < C.chance);
+  if (q == null && !weakP) return { lvl: 'none', say: 'Not validated yet', tip: 'This case was kept before its checks were run: read its models as leads, not results.' };
+  const tip = (q != null ? `On compounds it has not seen, the ensemble model scores Q² ${q.toFixed(2)} (1 is perfect, 0 is no better than guessing the mean).` : '') +
+    (ch ? ` With the responses shuffled among the compounds, ${ch.above} of ${ch.deals} deals beat every shuffle (p ${ch.p.toFixed(ch.p < 0.05 ? 3 : 2)}).` : weakP ? ' With the responses shuffled, the most used descriptor is used as often as the real one.' : '');
+  if ((ch && ch.p >= 0.05) || weakP || (q != null && q <= 0)) return { lvl: 'fail', say: '✗ No better than chance', tip: tip + ' Its drivers and suggestions are not shown as advice.', pic: ch ? '' : 'chance' };
+  if ((ch && ch.above < 0.9 * ch.deals) || q < 0.4) return { lvl: 'weak', say: '! Predicts new compounds only weakly', tip: tip + ' Take its drivers as leads.' };
+  return { lvl: 'ok', say: q >= 0.7 ? '✓ Predicts new compounds well' : '✓ Predicts new compounds fairly', tip }; }
 // the cases list, from those loaded so far (the others arrive in the background)
 function casePicker() { const order = [...(window.CASE_FILES || []).filter((k) => CASES[k]), ...Object.keys(CASES).filter((k) => !(window.CASE_FILES || []).includes(k))];
   $('case').innerHTML = order.map((k) => `<option value="${esc(k)}">${esc(CASES[k].title || k)}</option>`).join(''); $('case').value = order.find((k) => CASES[k] === C); $('overview').hidden = order.length < 2; modeThumb(); }

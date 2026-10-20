@@ -73,6 +73,11 @@ with the sampler rerun in every fold; the fit numbers of single models (R², Q²
 **advanced**, because a model picked from the table was chosen on all compounds and those numbers flatter it. The **advanced** box
 adds the rest (listed at the end of this section). A link made before the plain page existed opens in advanced.
 
+- **The verdict** (the coloured chip in the header): ✓ predicts new compounds well (ensemble Q² ≥ 0.7) or fairly
+  (≥ 0.4), ! only weakly (Q² < 0.4, or fewer than 90 % of the deals beat every shuffle), ✗ no better than chance (chance
+  line p ≥ 0.05, or Q² ≤ 0). On ✗ the plain page greys the drivers and the top models and gives no suggestions under
+  *How to make it better* (Advanced still shows them). The top-model cards show the share of sampled models only; their
+  Q² as a fixed model is in the hover text, marked optimistic.
 - **How far to trust the case** (badges in the header, when the case file carries `evidence`): its rank among the paper's
   cases, whether the averaged model finds the best quarter of the compounds while they are left out, whether a model fitted
   without them still points to them (both pre-registered), and whether one compound carries the leading term (drop-one
