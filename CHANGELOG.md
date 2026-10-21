@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.3 — 2026-10-21
+
+- The BASSA explorer opens on the **last case and compound viewed** when its address names none (from the extractor's link, a
+  bookmark, `descripytor bassa_explorer`), instead of the first case of the list.
+- In the one-file HTML (no server) the *Visual extractor* and *Feature explorer* links are hidden; they led to an error page.
+
 ## 0.4.2 — 2026-10-21
 
 - **The pages open on what you were looking at.** From the BASSA explorer, *Visual extractor* opens the case's structure folder on
