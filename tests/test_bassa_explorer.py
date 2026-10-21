@@ -231,3 +231,14 @@ def test_a_structure_file_becomes_a_candidate_by_the_case_s_recipe(server):
     with pytest.raises(urllib.error.HTTPError) as e:
         urllib.request.urlopen(q, timeout=30)
     assert e.value.code == 415
+
+
+def test_the_other_server_starts_from_the_package_not_from_the_current_folder(tmp_path):
+    """the explorer starts the extractor (and the extractor the explorer) with the package's own folder first on the path; `-m` would put
+    the current folder first, and a folder that holds another copy of the package then answered (the Visual extractor link did not open)"""
+    (tmp_path / "descripytor").mkdir(); (tmp_path / "descripytor" / "__init__.py").write_text("raise SystemExit('another copy of the package')\n")
+    launch = "import sys; sys.path.insert(0, sys.argv.pop(1)); from descripytor.cli import main; sys.exit(main())"
+    for src in ((TOOL / "server.py"), (ROOT / "M2_data_extractor" / "gui_server.py")):
+        assert launch in src.read_text(encoding="utf-8"), src.name           # the commands the two servers run are this one
+    r = subprocess.run([sys.executable, "-c", launch, str(ROOT), "-h"], cwd=str(tmp_path), capture_output=True, text=True)
+    assert r.returncode == 0 and "usage: descripytor" in r.stdout, r.stderr[-300:]

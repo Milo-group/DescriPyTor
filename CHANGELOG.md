@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 — 2026-10-21
+
+### Fixed
+
+- **The Visual extractor and Feature explorer links of the BASSA explorer (and the explorer link of the extractor) did not open
+  when the server was started from a folder that holds another copy of the package.** The two servers start each other with
+  `python -m descripytor.cli`, which puts the current folder first on the path; they now put the package's own folder first.
+
 ## 0.4.0 — 2026-10-21
 
 ### Changed: the BASSA model explorer, redesigned around what a chemist asks

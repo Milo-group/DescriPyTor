@@ -61,7 +61,7 @@ def gui(page):
     if RUN.gui_state(port) == "old": return None
     if not listening(port):
         env = dict(os.environ, PYTHONPATH=BC.S["descripytor"] + os.pathsep + os.environ.get("PYTHONPATH", ""))
-        subprocess.Popen([READER, "-m", "descripytor.cli", "visual_extractor", "--no-browser", "--port", str(port)], env=env)
+        subprocess.Popen([READER, "-c", "import sys; sys.path.insert(0, sys.argv.pop(1)); from descripytor.cli import main; sys.exit(main())", BC.S["descripytor"], "visual_extractor", "--no-browser", "--port", str(port)], env=env)      # not -m: the current folder would come first on the path
         for _ in range(120):
             if listening(port): break
             time.sleep(0.25)

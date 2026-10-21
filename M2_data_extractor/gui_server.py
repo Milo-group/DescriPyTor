@@ -284,7 +284,7 @@ def _bassa_url():
         root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         env = dict(os.environ, PYTHONPATH=root_dir + os.pathsep + os.environ.get("PYTHONPATH", ""))
         # detached: it outlives this server, so restarting the extractor does not take the explorer's open pages down with it
-        cmd = [sys.executable, "-m", "descripytor.cli", "bassa_explorer", "--no-browser", "--port", str(port)]
+        cmd = [sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv.pop(1)); from descripytor.cli import main; sys.exit(main())", root_dir, "bassa_explorer", "--no-browser", "--port", str(port)]      # not -m: the current folder would come first on the path
         quiet = dict(env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if os.name == "nt":                            # also out of this process's job, which some launchers close with it
             flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
