@@ -1503,6 +1503,20 @@ if (typeof $3Dmol === "undefined") {
       <input type="file" id="cvFileIn" multiple style="display:none"
              onchange="cvLoadFileList(Array.from(this.files)); this.value=''" />
       <button onclick="cvLoadCurrent()" title="Load the molecule currently shown in the main picker as a conformer">Load current mol</button>
+      <button onclick="$('cvDirIn').click()" title="a GOAT or CREST results folder (or a folder of them): each one's final ensemble is loaded (*.finalensemble.xyz, crest_conformers.xyz)">Load folder…</button>
+      <input type="file" id="cvDirIn" webkitdirectory multiple style="display:none" onchange="cvLoadFolder(Array.from(this.files)); this.value=''" />
+      <label class="small" style="display:flex;align-items:center;gap:4px;" title="which conformers of each file are drawn; a click in the list still adds or removes one">Draw
+        <select id="cvDraw" onchange="cvApplyDraw(cvConformers, true)">
+          <option value="n3">3 lowest</option>
+          <option value="n5">5 lowest</option>
+          <option value="w1">within 1 kcal/mol</option>
+          <option value="w2">within 2 kcal/mol</option>
+          <option value="w3">within 3 kcal/mol</option>
+          <option value="all">all</option>
+        </select>
+      </label>
+      <label class="small" style="display:flex;align-items:center;gap:4px;" title="conformers of one file whose heavy atoms superpose within 0.25 Å RMSD are listed once, under the lowest; they still count in the ensemble numbers">
+        <input type="checkbox" id="cvDedup" checked onchange="cvDedupAll(); cvApplyDraw(cvConformers, true)" /> merge duplicates</label>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Style
         <select id="cvStyle" onchange="cvRenderStack()">
           <option value="line">Line</option>
@@ -1529,6 +1543,7 @@ if (typeof $3Dmol === "undefined") {
           <option value="conf">one per conformer</option>
           <option value="elemC">by element, carbons per conformer</option>
           <option value="elem">by element</option>
+          <option value="file">one per file</option>
         </select>
       </label>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Align by
@@ -1555,6 +1570,8 @@ if (typeof $3Dmol === "undefined") {
         <input type="checkbox" id="cvShowLabels" onchange="cvRenderStack()" /> atom labels
       </label>
       <button class="ok" onclick="cvRenderStack()">Render</button>
+      <button onclick="cvSaveXyz()" title="the conformers drawn now, as one multi-structure XYZ (their own coordinates and energies)">Save XYZ</button>
+      <button onclick="cvSavePng()" title="the view as a PNG">PNG</button>
       <button onclick="cvClearAll()" style="color:#c0392b;" title="Remove all loaded conformers">Clear all</button>
     </div>
 
@@ -1586,6 +1603,8 @@ if (typeof $3Dmol === "undefined") {
           <button type="button" class="ok" onclick="cvEnsSterimol()" title="DescriPyTor's own Sterimol (the server's Python) on every conformer, whole molecule, CPK radii">Compute</button></span>
         <span class="cv-ens-tool"><b>Contacts</b>
           <button type="button" class="ok" onclick="cvEnsContacts()" title="how much of the ensemble's weight has each H-bond (and, with Contacts set to close contacts, each close contact)">How often</button></span>
+        <span class="cv-ens-tool"><b>Compare files</b>
+          <button type="button" class="ok" onclick="cvEnsCompare()" title="two ensembles of the same molecule (GOAT and CREST, say): which low-energy conformers of each the other also found">What each missed</button></span>
       </div>
       <div id="cvEnsOut" class="cv-ens-out"></div>
     </div>
@@ -4761,7 +4780,7 @@ function cvEnsTable(cs, cols) {        // the conformers carrying the weight, he
 function cvEnsShow(render) { window.cvEnsRedraw = render; render(); }
 document.addEventListener('click', e => {
   const k = e.target.closest && e.target.closest('#cvEnsOut') && e.target.dataset.k; if (k == null || k === false || k === undefined) return;
-  const c = cvConformers[+k]; if (!c) return; c.on = !c.on; cvUpdateList(); cvRenderStack();
+  const c = cvConformers[+k]; if (!c) return; e.preventDefault(); c.on = !c.on; cvUpdateList(); cvRenderStack();
 });
 function cvEnsMeasure() {
   if (!cvConformers.length) return alert('Load conformers first.');
@@ -4824,6 +4843,80 @@ function cvEnsContacts() {
       ${rows.length ? `<table><tr><th>contact</th><th>of the weight</th><th>conformers</th><th>distance</th></tr>${rows.slice(0, 25).map(r => `<tr><td>${r.kind === 'hb' ? '<span style="color:#0284c7">H-bond</span>' : 'contact'} ${nm(r.i)}···${nm(r.j)}</td>
         <td style="text-align:left"><span class="cv-ens-bar" style="width:${Math.max(2, 70 * r.w)}px;${r.kind === 'hb' ? '' : 'background:#9ca3af'}"></span>${(100 * r.w).toFixed(1)} %</td><td>${r.n} / ${g.cs.length}</td><td>${r.lo.toFixed(2)}${r.hi - r.lo > 0.005 ? '–' + r.hi.toFixed(2) : ''} Å</td></tr>`).join('')}</table>` +
         (rows.length > 25 ? `<div style="color:#8a95a3">… ${rows.length - 25} more</div>` : '') : ''}</div>`; }).join(''); });
+}
+
+/* ── Drawing window, duplicates, folders, files compared, export ── */
+const CV_DUP_RMSD = 0.25;                          // Å, heavy atoms after superposition
+function cvHeavy(atoms) { return atoms.map((a, i) => i).filter(i => String(atoms[i][0]).toUpperCase() !== 'H'); }
+function cvRmsd(a, b) {                            // heavy-atom RMSD after superposition; Infinity when the atoms differ
+  if (a.length !== b.length) return Infinity;
+  const ix = cvHeavy(a).filter(i => String(a[i][0]).toUpperCase() === String(b[i][0]).toUpperCase());
+  return ix.length >= 3 ? kabschAlign(b, a, ix).rmsd : Infinity;
+}
+// in each file, lowest energy first: a conformer within CV_DUP_RMSD of one already kept is folded under it
+function cvDedupAll() {
+  cvConformers.forEach(c => { c.dup = null; c.alike = 0; });
+  if (!($('cvDedup') || {}).checked) return;
+  const by = new Map(); cvConformers.forEach(c => { if (!by.has(c.src)) by.set(c.src, []); by.get(c.src).push(c); });
+  for (const cs of by.values()) {
+    const kept = [];
+    cs.slice().sort((a, b) => (a.dE ?? 0) - (b.dE ?? 0)).forEach(c => {
+      const rep = kept.find(r => cvRmsd(r.atoms, c.atoms) < CV_DUP_RMSD);
+      if (rep) { c.dup = rep; c.on = false; rep.alike++; } else kept.push(c);
+    });
+  }
+}
+// which conformers of each file are drawn: the N lowest, those within a window, or all (duplicates never)
+function cvApplyDraw(list, redraw) {
+  const mode = ($('cvDraw') || { value: 'n3' }).value, by = new Map();
+  list.forEach(c => { if (!by.has(c.src)) by.set(c.src, []); by.get(c.src).push(c); });
+  for (const cs of by.values()) {
+    const ok = cs.filter(c => !c.dup).sort((a, b) => (a.dE ?? 0) - (b.dE ?? 0));
+    cs.forEach(c => { c.on = false; });
+    ok.forEach((c, k) => { c.on = mode === 'all' || (mode[0] === 'n' && k < +mode.slice(1)) || (mode[0] === 'w' && (k === 0 || (c.dE != null && c.dE <= +mode.slice(1)))); });
+  }
+  if (redraw) { cvUpdateList(); cvRenderStack(); }
+}
+function cvFileColour(c) { const srcs = [...new Set(cvConformers.map(x => x.src))]; return CV_COLORS[srcs.indexOf(c.src) % CV_COLORS.length]; }
+// a results folder: GOAT's final ensemble or CREST's conformers, named by their folder and sampler
+function cvLoadFolder(files) {
+  // the label: GOAT's file is named after the molecule; CREST's is not, so its nearest folder that is not a generic run folder
+  const xyz = files.filter(f => /\.xyz$/i.test(f.name)), dir = f => (f.webkitRelativePath || '').split('/').slice(0, -1).reverse().find(d => !/^(results?|raw.*|crest.*|goat.*|out(put)?|run.*|calc.*)$/i.test(d)) || '';
+  const pick = xyz.filter(f => /\.finalensemble\.xyz$/i.test(f.name) || /^crest_conformers\.xyz$/i.test(f.name));
+  const use = pick.length ? pick : xyz.filter(f => !/_trj\.xyz$|\.globaliter\.|crest_rotamers|\.ens\.xyz$/i.test(f.name));
+  if (!use.length) return alert('No XYZ ensemble in this folder (looked for *.finalensemble.xyz and crest_conformers.xyz).');
+  use.forEach(f => { const crest = /^crest_/i.test(f.name), goat = /\.finalensemble\./i.test(f.name), d = dir(f);
+    f._label = goat ? `${f.name.replace(/\.finalensemble\.xyz$/i, '')} · GOAT` : crest ? `${d || 'crest'} · CREST` : f.name.replace(/\.xyz$/i, ''); });
+  cvLoadFileList(use);
+}
+function cvDownload(name, href) { const a = document.createElement('a'); a.href = href; a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+function cvSaveXyz() {
+  const on = cvConformers.filter(c => c.on);
+  if (!on.length) return alert('Draw at least one conformer first.');
+  const txt = on.map(c => `${c.atoms.length}\n${c.name}${c.energy != null ? ' E ' + c.energy : ''}${c.dE != null ? ' dE ' + c.dE.toFixed(3) + ' kcal/mol' : ''}\n` +
+    c.atoms.map(a => `${a[0]} ${(+a[1]).toFixed(6)} ${(+a[2]).toFixed(6)} ${(+a[3]).toFixed(6)}`).join('\n')).join('\n') + '\n';
+  const u = URL.createObjectURL(new Blob([txt], { type: 'chemical/x-xyz' })); cvDownload('conformers.xyz', u); setTimeout(() => URL.revokeObjectURL(u), 2000);
+}
+function cvSavePng() { if (!cvViewer3d) return alert('Render the conformers first.'); cvDownload('conformers.png', cvViewer3d.pngURI()); }
+// two ensembles of one molecule: of each file's conformers within 3 kcal/mol, which has a match in the other (heavy-atom RMSD < 0.5 Å)
+function cvEnsCompare() {
+  const by = new Map(); cvConformers.forEach(c => { if (!by.has(c.src)) by.set(c.src, []); by.get(c.src).push(c); });
+  const files = [...by.entries()].filter(([, cs]) => cs.length > 1);
+  if (files.length < 2) return alert('Load two ensembles of the same molecule first (two files with several conformers each, e.g. a GOAT and a CREST folder).');
+  if (files[0][1][0].atoms.length !== files[1][1][0].atoms.length) return alert('The two files have different atom counts: compare needs the same molecule with the same numbering.');
+  cvGroups();
+  const MATCH = 0.5, WIN = 3, [A, B] = files.slice(0, 2);
+  const side = ([na, ca], [nb, cb]) => {
+    const low = ca.filter(c => c.dEg != null ? c.dEg <= WIN : true), rows = low.map(c => { let best = Infinity, who = null; cb.forEach(d => { const r = cvRmsd(c.atoms, d.atoms); if (r < best) { best = r; who = d; } }); return { c, best, who }; });
+    const hit = rows.filter(r => r.best < MATCH), wAll = low.reduce((a, r) => a + r.w, 0), wHit = hit.reduce((a, r) => a + r.c.w, 0), miss = rows.filter(r => r.best >= MATCH).sort((x, y) => y.c.w - x.c.w);
+    return `<div class="cv-ens-card"><h4>${esc(na)}: found by ${esc(nb)}?</h4>
+      <div class="cv-ens-sum"><b>${hit.length} of ${low.length}</b> conformers within ${WIN} kcal/mol have a match in ${esc(nb)} (heavy-atom RMSD &lt; ${MATCH} Å), <b>${wAll ? (100 * wHit / wAll).toFixed(0) : 0} %</b> of their weight.
+      Lowest conformer: nearest in ${esc(nb)} at ${rows[0] ? rows[0].best.toFixed(2) : '–'} Å${rows[0] && rows[0].who && rows[0].who.dEg != null ? `, its ΔE there ${rows[0].who.dEg.toFixed(2)} kcal/mol` : ''}.</div>
+      ${miss.length ? `<table><tr><th>missed by ${esc(nb)}</th><th>ΔE</th><th>weight</th><th>nearest</th></tr>${miss.slice(0, 10).map(r =>
+        `<tr><td><a href="#" data-k="${cvConformers.indexOf(r.c)}" title="draw it">${esc(r.c.name)}</a></td><td>${r.c.dEg != null ? r.c.dEg.toFixed(2) : '–'}</td><td>${(100 * r.c.w).toFixed(1)} %</td><td>${r.best.toFixed(2)} Å</td></tr>`).join('')}</table>`
+        : `<div style="color:#2f7a4f">${esc(nb)} found every one of them.</div>`}</div>`; };
+  window.cvEnsRedraw = null;
+  $('cvEnsOut').innerHTML = side(A, B) + side(B, A) + (files.length > 2 ? `<div class="cv-ens-sum">Compared the first two files with several conformers; ${files.length - 2} more left out.</div>` : '');
 }
 
 /* ── Alignment indices ──────────────────────────────────────────── */
@@ -4974,10 +5067,13 @@ function cvUpdateList() {
     $('cvStats').className='cv-stats'; return;
   }
   el.innerHTML='';
-  const off=cvConformers.filter(c=>!c.on).length;
-  if (off) { const h=document.createElement('div'); h.className='cv-meta'; h.style.cssText='padding:4px 8px 6px';
-    h.textContent=`${cvConformers.length-off} of ${cvConformers.length} drawn, lowest energy first. Click a conformer to add or remove it.`; el.appendChild(h); }
+  cvGroups();                                       // sets each conformer's Boltzmann share within its file
+  const shown=cvConformers.filter(c=>!c.dup), drawn=shown.filter(c=>c.on).length, folded=cvConformers.length-shown.length;
+  const wOf=c=>c.w+cvConformers.reduce((a,d)=>a+(d.dup===c?d.w:0),0);
+  if (drawn<shown.length || folded) { const h=document.createElement('div'); h.className='cv-meta'; h.style.cssText='padding:4px 8px 6px';
+    h.textContent=`${drawn} of ${shown.length} drawn, lowest energy first${folded?`; ${folded} near-duplicates folded under their lowest`:''}. Click a conformer to add or remove it.`; el.appendChild(h); }
   cvConformers.forEach((c,i)=>{
+    if (c.dup) return;
     const div=document.createElement('div');
     div.className='cv-item'+(c.on?' cv-on':'');
     const eStr=c.energy!=null ? c.energy.toFixed(6) : '';
@@ -4986,7 +5082,7 @@ function cvUpdateList() {
       <div class="cv-dot" style="background:${c.color}"></div>
       <div class="cv-info">
         <div class="cv-name" title="${esc(c.src)} frame ${c.frame}">${esc(c.name)}</div>
-        <div class="cv-meta">${c.atoms.length} atoms${c.dE!=null?' &middot; ΔE '+c.dE.toFixed(2)+' kcal/mol':''}${eStr?' &middot; E='+eStr:''}</div>
+        <div class="cv-meta">${c.atoms.length} atoms${c.dE!=null?' &middot; ΔE '+c.dE.toFixed(2)+' kcal/mol &middot; '+(100*wOf(c)).toFixed(1)+' %':''}${c.alike?' &middot; +'+c.alike+' alike':''}${eStr?' &middot; E='+eStr:''}</div>
       </div>
       ${rmsdStr}`;
     div.onclick=()=>{ c.on=!c.on; cvUpdateList(); cvRenderStack(); };
@@ -5052,7 +5148,7 @@ function cvLoadFileList(files) {
     const r = new FileReader();
     r.onload = ev => {
       const isSdf = /\.sdf$/i.test(file.name) || /\.mol$/i.test(file.name);
-      const baseName = file.name.replace(/\.(xyz|sdf|mol)$/i, '');
+      const baseName = file._label || file.name.replace(/\.(xyz|sdf|mol)$/i, '');
       try { read[idx] = isSdf ? parseSdf(ev.target.result, baseName) : parseMultiXyz(ev.target.result, baseName); }
       catch (e) { bad.push(file.name); }
       if (read[idx] && !read[idx].length) bad.push(file.name);   // read, but no structure in it
@@ -5062,10 +5158,12 @@ function cvLoadFileList(files) {
       if (--pending) return;
       // in the order the files were given, so the first is the reference; a file's frames go lowest energy first,
       // and only its CV_FIRST lowest are drawn: fifty overlaid conformers froze the viewer. The rest wait in the list, a click adds one
+      const start = cvConformers.length;
       read.forEach(frames => { const fr = (frames || []).slice(), es = fr.map(f => f.energy).filter(e => e != null), e0 = es.length ? Math.min(...es) : null;
         if (fr.length > CV_FIRST && es.length === fr.length) fr.sort((a, b) => a.energy - b.energy);
         fr.forEach((f, k) => cvConformers.push({...f, dE: f.energy != null && e0 != null ? (f.energy - e0) * 627.5095 : null,
           color: CV_COLORS[cvConformers.length % CV_COLORS.length], on: k < CV_FIRST, rmsd: null})); });
+      cvDedupAll(); cvApplyDraw(cvConformers.slice(start));
       cvUpdateList(); cvRenderStack();
       if (bad.length && typeof setExtractStatus === "function") setExtractStatus("Could not read: " + bad.join(", "), "bad");
     };
@@ -5140,7 +5238,7 @@ function cvRenderStack() {
 
     const col=c.color, cmode=($('cvColour')||{value:'conf'}).value;
     // by element: 3Dmol's Jmol colours; carbons may keep the conformer's colour so the stack still tells them apart
-    const paint = cmode==='conf' ? {color:col} : {colorscheme:{prop:'elem', map:Object.assign({}, $3Dmol.elementColors.Jmol, cmode==='elemC' ? {C:col} : {})}};
+    const paint = cmode==='conf' ? {color:col} : cmode==='file' ? {color:cvFileColour(c)} : {colorscheme:{prop:'elem', map:Object.assign({}, $3Dmol.elementColors.Jmol, cmode==='elemC' ? {C:col} : {})}};
     if (style==='line') {
       cvViewer3d.setStyle({model:mi},{line:{...paint,linewidth:3}});
     } else if (style==='stick') {
