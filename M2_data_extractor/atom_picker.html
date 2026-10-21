@@ -1495,6 +1495,20 @@ if (typeof $3Dmol === "undefined") {
           <option value="ball_stick">Ball &amp; Stick</option>
         </select>
       </label>
+      <label class="small" style="display:flex;align-items:center;gap:4px;">Hydrogens
+        <select id="cvH" onchange="cvRenderStack()">
+          <option value="none">none</option>
+          <option value="polar">on N, O, S</option>
+          <option value="all">all</option>
+        </select>
+      </label>
+      <label class="small" style="display:flex;align-items:center;gap:4px;" title="geometric guesses, within each conformer. H-bond: D–H···A with D, A = N, O, F, S, H···A 1.5–2.6 Å (S 3.0), angle at H ≥ 120°. Close contact: atoms at least 4 bonds apart, closer than the sum of their van der Waals radii (H···H left out)">Contacts
+        <select id="cvNC" onchange="cvRenderStack()">
+          <option value="off">off</option>
+          <option value="hb">H-bonds</option>
+          <option value="all">H-bonds + close contacts</option>
+        </select>
+      </label>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Colour
         <select id="cvColour" onchange="cvRenderStack()" title="by element shows the groups; the conformer's colour stays on its dot in the list">
           <option value="conf">one per conformer</option>
@@ -4611,6 +4625,43 @@ function cvParseAtoms(text) {
   return out;
 }
 
+/* ── Non-covalent contacts ──────────────────────────────────────── */
+const CV_POLAR = new Set(['N', 'O', 'S', 'F']);
+const CV_VDW = { H: 1.20, C: 1.70, N: 1.55, O: 1.52, F: 1.47, P: 1.80, S: 1.80, CL: 1.75, BR: 1.85, I: 1.98, B: 1.92, SI: 2.10 };   // Bondi
+const CV_GRAPH = new WeakMap(), CV_NC = new WeakMap();
+function cvGraphOf(atoms) { if (!CV_GRAPH.has(atoms)) CV_GRAPH.set(atoms, cvBondGraph(atoms, 1.25)); return CV_GRAPH.get(atoms); }
+// [{i, j, h, kind: 'hb'|'vdw', d}] within one structure; for an H-bond i is the H and j the acceptor
+function cvContacts(atoms, mode) {
+  const memo = CV_NC.get(atoms) || {}; CV_NC.set(atoms, memo);
+  if (memo[mode]) return memo[mode];
+  const g = cvGraphOf(atoms), E = i => String(atoms[i][0]).toUpperCase(), n = atoms.length;
+  const dist = (i, j) => Math.hypot(atoms[i][1]-atoms[j][1], atoms[i][2]-atoms[j][2], atoms[i][3]-atoms[j][3]);
+  const out = [], seen = new Set();
+  for (let h = 0; h < n; h++) {
+    if (E(h) !== 'H') continue;
+    const d = g[h].find(k => E(k) !== 'H'); if (d == null || !CV_POLAR.has(E(d))) continue;
+    for (let a = 0; a < n; a++) {
+      if (a === d || !CV_POLAR.has(E(a)) || g[h].includes(a)) continue;
+      const r = dist(h, a); if (r < 1.5 || r > (E(a) === 'S' ? 3.0 : 2.6)) continue;
+      const u = [0,1,2].map(k => atoms[d][k+1]-atoms[h][k+1]), v = [0,1,2].map(k => atoms[a][k+1]-atoms[h][k+1]);
+      const cos = (u[0]*v[0]+u[1]*v[1]+u[2]*v[2]) / (Math.hypot(...u)*Math.hypot(...v));
+      if (cos > Math.cos(120*Math.PI/180)) continue;          // the D-H...A angle must be 120 degrees or wider
+      out.push({ i: h, j: a, h, kind: 'hb', d: r }); seen.add(h+','+a);
+    }
+  }
+  if (mode === 'all') {
+    for (let i = 0; i < n; i++) {
+      const near = new Set([i]); let ring = [i];                // atoms within 3 bonds of i are not contacts
+      for (let s = 0; s < 3; s++) { const nx = []; ring.forEach(k => g[k].forEach(m => { if (!near.has(m)) { near.add(m); nx.push(m); } })); ring = nx; }
+      for (let j = i + 1; j < n; j++) {
+        if (near.has(j) || (E(i) === 'H' && E(j) === 'H') || seen.has(i+','+j) || seen.has(j+','+i)) continue;
+        const r = dist(i, j); if (r < (CV_VDW[E(i)] || 2.0) + (CV_VDW[E(j)] || 2.0)) out.push({ i, j, h: E(i) === 'H' ? i : E(j) === 'H' ? j : null, kind: 'vdw', d: r });
+      }
+    }
+  }
+  return (memo[mode] = out);
+}
+
 /* ── Alignment indices ──────────────────────────────────────────── */
 function cvAlignIndices(refAtoms, mobAtoms, mode) {
   if (mode === 'none') return null;
@@ -4895,7 +4946,7 @@ function cvRenderStack() {
   const cz=refAtoms.reduce((s,a)=>s+a[3],0)/refAtoms.length;
   const centeredRef=refAtoms.map(a=>[a[0],a[1]-cx,a[2]-cy,a[3]-cz]);
 
-  const statsLines=[];
+  const statsLines=[], ncLines=[];
   active.forEach((c, mi)=>{
     let displayAtoms;
     if (mi===0) {
@@ -4921,7 +4972,7 @@ function cvRenderStack() {
 
     const chainId=CV_CHAINS[mi] || 'A';
     const pdb=atomsToPdb(spreadAtoms, chainId);
-    cvViewer3d.addModel(pdb,'pdb');
+    cvViewer3d.addModel(pdb,'pdb',{keepH:true});
 
     const col=c.color, cmode=($('cvColour')||{value:'conf'}).value;
     // by element: 3Dmol's Jmol colours; carbons may keep the conformer's colour so the stack still tells them apart
@@ -4933,6 +4984,22 @@ function cvRenderStack() {
     } else {
       cvViewer3d.setStyle({model:mi},{stick:{...paint,radius:0.10},sphere:{...paint,scale:0.22}});
     }
+    // hydrogens and non-covalent contacts, read on this conformer's own geometry and drawn on its displayed copy
+    const ncMode=($('cvNC')||{value:'off'}).value, hMode=($('cvH')||{value:'none'}).value;
+    const NC = ncMode==='off' ? [] : cvContacts(c.atoms, ncMode);
+    const keepH = new Set(NC.flatMap(x => x.h != null ? [x.h] : []));
+    const gH = cvGraphOf(c.atoms);
+    const hide = c.atoms.map((a,ai)=>ai).filter(ai => String(c.atoms[ai][0]).toUpperCase()==='H' && !keepH.has(ai) &&
+      (hMode==='none' || (hMode==='polar' && !gH[ai].some(j => CV_POLAR.has(String(c.atoms[j][0]).toUpperCase())))));
+    if (hide.length) cvViewer3d.setStyle({model:mi, serial:hide.map(ai=>ai+1)},{});
+    NC.forEach(x => {
+      const A=spreadAtoms[x.i], B=spreadAtoms[x.j];
+      cvViewer3d.addCylinder({start:{x:A[1],y:A[2],z:A[3]}, end:{x:B[1],y:B[2],z:B[3]}, radius:x.kind==='hb'?0.045:0.03,
+        color:x.kind==='hb'?'#0284c7':'#9ca3af', dashed:true, dashLength:0.14, gapLength:0.11, fromCap:1, toCap:1});
+    });
+    if (NC.length) ncLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: ` + NC.map(x =>
+      `${x.kind==='hb'?'H-bond':'contact'} ${c.atoms[x.i][0]}${x.i+1}···${c.atoms[x.j][0]}${x.j+1} ${x.d.toFixed(2)}&thinsp;Å`).join(' · '));
+    else if (ncMode!=='off') ncLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: none found`);
     const showLab = $("cvShowLabels") && $("cvShowLabels").checked;
     const picked = window._numberingPicked || [];
     if (showLab) {
@@ -4953,8 +5020,9 @@ function cvRenderStack() {
 
   cvUpdateList();
   const stats=$('cvStats');
-  if (statsLines.length) {
-    stats.innerHTML='<b>Alignment vs. first conformer</b><br>'+statsLines.join('<br>');
+  if (statsLines.length || ncLines.length) {
+    stats.innerHTML=(statsLines.length?'<b>Alignment vs. first conformer</b><br>'+statsLines.join('<br>'):'')
+      +(ncLines.length?(statsLines.length?'<br>':'')+'<b>Contacts</b> <span style="color:#0284c7">- - H-bond</span> <span style="color:#9ca3af">- - close contact</span><br>'+ncLines.join('<br>'):'');
     stats.className='cv-stats visible';
   } else {
     stats.className='cv-stats';
