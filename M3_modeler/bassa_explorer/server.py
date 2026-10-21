@@ -109,7 +109,9 @@ def run(q):
         d = BC.compute(X, y, iters=iters, case=q.get("name") or "uploaded", response=q["response"], seeds=BC.SEEDS if iters >= 20000 else BC.SEEDS[:1])   # a full run also gives the spread between chains
     style = dict(STYLE)
     if ext: ext = dict(ext, X={c: ext["X"][c] for c in d["names"]})              # the columns the run kept
-    d.update(chance=None, nested_q2=None, dropped=bad, not_scored=skipped, mols=found, no_structure=missing, style=style, uploaded=True, ext=ext); return d
+    folder = (q.get("structures") or "").strip().strip('"')
+    d.update(chance=None, nested_q2=None, dropped=bad, not_scored=skipped, mols=found, no_structure=missing, style=style, uploaded=True, ext=ext,
+             structures_dir=str(Path(folder).resolve()) if folder else None); return d      # the visual extractor opens this folder from the case
 
 
 def quick(job, X, y, K=5):
@@ -227,6 +229,7 @@ class Handler(SimpleHTTPRequestHandler):
             body = b'window.CASE_FILES = ["example"];\n'; self.send_response(200); self.send_header("Content-Type", "text/javascript"); self.send_header("Content-Length", str(len(body))); self.end_headers(); return self.wfile.write(body)
         if u.path in ("/visual_extractor", "/feature_explorer", "/bassa_explorer"):      # the three pages link to each other by these names
             to = "/" if u.path == "/bassa_explorer" else gui("/visual" if u.path == "/visual_extractor" else u.path)
+            if to is not None and u.query: to += "?" + u.query                      # ?folder=…&mol=…: the page opens the same set and compound
             if to is None:
                 gp = int(os.environ.get("GUI_PORT", "7432"))
                 body = (RUN.stop_hint(gp, "the visual extractor") if listening(gp) else "The visual extractor did not start. Start it in a terminal to see why:  descripytor visual_extractor --port %d" % gp).encode("utf-8")

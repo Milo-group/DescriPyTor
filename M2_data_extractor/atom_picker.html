@@ -935,8 +935,8 @@ if (typeof $3Dmol === "undefined") {
 <header>
   <h1>DescriPyTor &middot; Visual Workflow</h1>
   <span class="hint">Load a structure, click the atoms that matter, extract the CSV, then Model.</span>
-  <a class="micro-btn" href="/feature_explorer" title="Draw any descriptor on a molecule, with every control">Feature explorer</a>
-  <a class="micro-btn" href="/bassa_explorer" title="The models a BASSA run visited, beside the molecule (starts its server if needed)">BASSA explorer</a>
+  <a class="micro-btn" id="toFeatureExplorer" href="/feature_explorer" title="Draw any descriptor on a molecule, with every control (opens on the molecule shown here)">Feature explorer</a>
+  <a class="micro-btn" id="toBassa" href="/bassa_explorer" title="The models a BASSA run visited, beside the molecule (starts its server if needed; opens the case made from this folder)">BASSA explorer</a>
   <button type="button" class="tour-start-btn" id="startTourBtn" title="Guided walkthrough (5 steps). Shift-click for the full atom-picking tour.">Tutorial</button>
 </header>
 <div id="a11yStatus" class="sr-only" aria-live="polite" aria-atomic="true"></div>
@@ -6133,6 +6133,20 @@ function tourIsOpen() {
 
   const startBtn = $("startTourBtn");
   if (startBtn) startBtn.onclick = (e) => startTour(e.shiftKey ? "full" : "core");
+})();
+// the links to the other pages carry what is shown: the structure folder and the molecule (BASSA explorer), the molecule as drawn (feature explorer)
+(() => {
+  const dirNow = () => { const v = ($("featherDirInput") && $("featherDirInput").value.trim()) || ""; return v && !(typeof isPlaceholderFeatherDir === "function" && isPlaceholderFeatherDir(v)) ? v : ""; };
+  const molNow = () => String(($("folderMol") && $("folderMol").value) || lastModelName || "").replace(/\.(feather|ftr|xyz|json|log|out)$/i, "");
+  const wire = (id, href) => { const a = $(id); if (!a) return; const set = () => { a.href = href(); }; ["mousedown", "focus", "click"].forEach((e) => a.addEventListener(e, set)); };
+  wire("toBassa", () => dirNow() ? `/bassa_explorer?folder=${encodeURIComponent(dirNow())}&mol=${encodeURIComponent(molNow())}` : "/bassa_explorer");
+  wire("toFeatureExplorer", () => (typeof figLast !== "undefined" && figLast && typeof explorerLink === "function") ? explorerLink() : "/feature_explorer");
+  const q = new URLSearchParams(location.search), dir = q.get("folder"), mol = q.get("mol");
+  if (!dir || !$("featherDirInput")) return;
+  history.replaceState(null, "", location.pathname + location.hash);      // a reload keeps what is done next, not the link
+  $("featherDirInput").value = dir; if ($("featherDirInput").oninput) $("featherDirInput").oninput();
+  const sameName = (names, m) => { m = String(m || ''); if (!m) return null; if (names.includes(m)) return m; const w = m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), word = names.filter((n) => new RegExp(`(^|[^A-Za-z0-9])${w}([^A-Za-z0-9]|$)`).test(n)); if (word.length === 1) return word[0]; const num = (m.match(/\d+/g) || []); if (num.length !== 1) return null; const byNum = names.filter((n) => (n.match(/\d+/g) || []).map(Number).includes(+num[0])); return byNum.length === 1 ? byNum[0] : null; };
+  inspectFolder().then(() => { const n = sameName(FOLDER.names, mol); if (n) showFolderMolecule(n); });      // the explorer sends L1; the file is FL_lig_1_str_optimized
 })();
 </script>
 <script>

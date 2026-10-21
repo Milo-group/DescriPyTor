@@ -70,6 +70,15 @@ selected model starts it again. **Add chance line and nested Q²** then runs, in
 shuffles of the response and one rerun per compound left out. **Keep this case** writes it beside the page and adds it
 to the menu.
 
+## Moving between the pages
+
+The links *Visual extractor* and *Feature explorer* (under More) open on what is shown: the extractor on the case's structure
+folder and the compound in hand, the feature explorer on the molecule as drawn (a double click on the molecule does the
+same). The extractor's *BASSA explorer* link opens the case whose `structures_dir` is its folder, on the same molecule. A table
+run with a structures folder records it; a kept case can be given one by adding `"structures_dir"` to its `.js` file. Compound
+and file names are matched as the structure reader matches them: the exact name, else the name as a whole word, else the
+only file that carries its number.
+
 ## Reading a case
 
 A case opens on the plain page: the views **Models**, **Recipes** and **Your families**, one column per combination of

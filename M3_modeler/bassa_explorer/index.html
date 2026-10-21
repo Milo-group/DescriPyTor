@@ -1927,6 +1927,19 @@ $('copyeq').onclick = async () => { if (st.ens) return say('Copy model writes on
   try { await navigator.clipboard.writeText(text); say('Model copied.'); } catch (err) { $('eqtext').value = text; $('eq').showModal(); $('eqtext').select(); } };
 $('case').onchange = (e) => boot(CASES[e.target.value]);
 $('newmol').onclick = () => $('newmolfile').click(); $('newmolfile').onchange = (e) => { const f = e.target.files; if (!f.length) return; candFile(f).then(() => { const c = $('cands'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); }).catch(() => {}); e.target.value = ''; };
+// the other pages open on what is shown here: the set's structure folder and the compound (visual extractor), the molecule as drawn (feature explorer)
+function appHref(a) { const p = a.getAttribute('href').split(/[?#]/)[0];
+  if (p === '/visual_extractor' && C && C.structures_dir) return `${p}?folder=${encodeURIComponent(C.structures_dir)}&mol=${encodeURIComponent(st.mol || '')}`;
+  if (p === '/feature_explorer') { const f = $('f0'); try { if (f && f.contentWindow && f.contentWindow.serialize) return f.contentWindow.eval("location.origin + location.pathname + '#s=' + b64(JSON.stringify(serialize()))"); } catch (e) {} }
+  return p; }
+$('apps').querySelectorAll('a').forEach((a) => { const set = () => { a.href = appHref(a); }; a.addEventListener('mousedown', set); a.addEventListener('focus', set); a.addEventListener('click', set); });
+const sameName = (names, m) => { m = String(m || ''); if (!m) return null; if (names.includes(m)) return m; const w = m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), word = names.filter((n) => new RegExp(`(^|[^A-Za-z0-9])${w}([^A-Za-z0-9]|$)`).test(n)); if (word.length === 1) return word[0]; const num = (m.match(/\d+/g) || []); if (num.length !== 1) return null; const byNum = names.filter((n) => (n.match(/\d+/g) || []).map(Number).includes(+num[0])); return byNum.length === 1 ? byNum[0] : null; };
+async function openFolder(dir, mol) { const norm = (s) => String(s || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  history.replaceState(null, '', location.pathname + location.hash);              // a reload keeps what is done next, not the link
+  await loadAll(); const c = Object.values(CASES).find((d) => d.structures_dir && norm(d.structures_dir) === norm(dir));
+  if (!c) return say(`No case here was made from ${dir}: open one from the menu, or run its table (More → New case).`, 8000);
+  const all = [...c.ligands, ...(c.ext ? c.ext.names : [])], name = all.find((n) => sameName([mol], n)) || null;      // the extractor sends a file name (FL_lig_1_str_optimized for L1)
+  location.hash = new URLSearchParams(Object.assign({ md: MODE, case: c.case }, name ? { mol: name } : {})).toString(); }
 $('rxn').onclick = () => $('scheme').click(); $('rxn').onkeydown = (e) => { if (e.key === 'Enter') $('scheme').click(); };
 $('scheme').onclick = () => { $('schemeimg').src = C.scheme; $('schemecap').textContent = C.title + ' · response: ' + C.response; $('schemedlg').showModal(); };
 $('schemedlg').onclick = (e) => { if (e.target === $('schemedlg')) $('schemedlg').close(); };
@@ -2078,6 +2091,7 @@ async function takeHandoff(id) {
     $('resp').disabled = $('run').disabled = false; $('run').click(); }
   catch (err) { $('newstatus').textContent = 'Could not take the table: ' + err.message; } }
 function start() { const hand = new URLSearchParams(location.hash.slice(1)).get('handoff'); window.addEventListener('hashchange', fromHash); fromHash(); if (hand) return takeHandoff(hand); if (new URLSearchParams(location.search).has('selftest')) return selfTest();
+  { const q = new URLSearchParams(location.search); if (q.get('folder')) openFolder(q.get('folder'), q.get('mol')); }
   $('coach').hidden = true; }      // the steps are in the ? guide: the page opens without a paragraph over the table      // a first visit gets three steps above the table; the ? button holds the rest
 // two ways into a case: Design (the ensemble model's drivers, a few top models, the compounds) and Models (the full table)
 let MODE = (() => { const q = new URLSearchParams(location.hash.slice(1)).get('md'); if (q === 'design' || q === 'models') return q;
@@ -2182,6 +2196,7 @@ async function selfTest() {
       { const cols = C.models[st.model].cols, F0 = fit(cols), raw = cols.map((i, j) => F0.b[j + 1] / MS[i][1]), b0 = F0.b[0] - cols.reduce((a, i, j) => a + raw[j] * MS[i][0], 0), r = 1, byEq = b0 + cols.reduce((a, i, j) => a + raw[j] * C.X[C.names[i]][r], 0);
         need(Math.abs(byEq - F0.pred[r]) < 1e-8 && count('#info .eqn') === 1, 'the equation in real units gives the prediction of the fit'); }
       if (hasEns()) { $('mplot').click(); need(st.mplot && !count('#parity line[stroke-linecap="round"]'), 'plot this model'); $('pens').click();
+        need(sameName(['FL_lig_1_str_optimized', 'FL_lig_11_str_optimized'], 'L1') === 'FL_lig_1_str_optimized' && sameName(['041_lig_CuCl_xtbopt', '042_lig_CuCl_xtbopt'], '041_lig') === '041_lig_CuCl_xtbopt' && sameName(['m-Me', 'm,m-Me'], 'm-Me') === 'm-Me' && sameName(['L1', 'L2'], 'X9') === null, 'a compound found among file names by the structure reader’s rule');
         { const w = whyData(st.mol, null, []), tot = w.base + w.parts.reduce((s, q) => s + q.c, 0), at = ensFit([]).at((i) => xOf(i, st.mol)); need(Math.abs(tot - at) < 1e-8 && count('#why tr') >= 3, 'a compound taken apart adds up to the ensemble model'); } need(count('#ensw .ewt tr') === N + 2, 'every weight of the ensemble model');
         need(st.ens && !st.mplot && count('#parity .pt') === C.ligands.length + (C.ext ? C.ext.names.length : 0) && ((q) => $('ensbox').querySelector('.mt.hero b')?.textContent === (q < 0 ? '−' : '') + Math.abs(q).toFixed(2))(C.cv.loo ? C.cv.loo.q2 : C.nested_q2 != null ? C.nested_q2 : C.cv.k5.q2), 'one switch: the ensemble model on the molecule and in the plot'); $('mplot').click(); need(!st.ens && st.mplot, 'and the clicked model everywhere'); $('pens').click(); }
       st.adv = false; syncUI(); refresh();

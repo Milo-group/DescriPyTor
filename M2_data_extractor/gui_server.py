@@ -251,7 +251,8 @@ def root():
 @app.route("/visual_extractor")
 def visual_extractor():
     """The picker under its command's name: the three pages link to each other by /visual_extractor, /feature_explorer, /bassa_explorer."""
-    return redirect("/visual")
+    q = request.query_string.decode()
+    return redirect("/visual" + ("?" + q if q else ""))      # ?folder=…&mol=…: the same set and compound
 
 
 def _listening(port):
@@ -310,8 +311,8 @@ BASSA_DOWN = BASSA_NOT_STARTED            # what the last failed _bassa_url() ha
 @app.route("/bassa_explorer")
 def bassa_explorer():
     """Go to the BASSA model explorer, starting its server if needed."""
-    url = _bassa_url()
-    return redirect(url) if url else (BASSA_DOWN, 503)
+    url, q = _bassa_url(), request.query_string.decode()
+    return redirect(url + ("?" + q if q else "")) if url else (BASSA_DOWN, 503)
 
 
 @app.route("/bassa_explorer/handoff", methods=["POST"])

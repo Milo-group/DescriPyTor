@@ -1,7 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.4.2 — 2026-10-21
 
+- **The pages open on what you were looking at.** From the BASSA explorer, *Visual extractor* opens the case's structure folder on
+  the compound shown, and *Feature explorer* opens the molecule as drawn; from the visual extractor, *BASSA explorer* opens the
+  case made from its folder on the same molecule, and *Feature explorer* the molecule in view. A case records its folder
+  (`structures_dir`) when its table is run with one; compound and file names are matched by the structure reader's rule
+  (L1 finds `FL_lig_1_str_optimized.feather`).
 - If the visual extractor cannot be started from the BASSA explorer (no such Python, an import error), the link now says so and
   gives the command to run in a terminal, instead of redirecting to a port with nothing on it.
 
