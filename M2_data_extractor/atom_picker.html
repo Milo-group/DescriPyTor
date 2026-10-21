@@ -4499,6 +4499,7 @@ function csApplyOut() {
  * Conformer Viewer                                                    *
  * ================================================================== */
 let cvOpen = false;
+const CV_FIRST = 3;        // conformers of a file drawn when it loads; the others are one click away in the list
 let cvConformers = [];   // {name, src, frame, atoms, energy, color, on, rmsd}
 let cvViewer3d   = null;
 
@@ -4731,16 +4732,19 @@ function cvUpdateList() {
     $('cvStats').className='cv-stats'; return;
   }
   el.innerHTML='';
+  const off=cvConformers.filter(c=>!c.on).length;
+  if (off) { const h=document.createElement('div'); h.className='cv-meta'; h.style.cssText='padding:4px 8px 6px';
+    h.textContent=`${cvConformers.length-off} of ${cvConformers.length} drawn, lowest energy first. Click a conformer to add or remove it.`; el.appendChild(h); }
   cvConformers.forEach((c,i)=>{
     const div=document.createElement('div');
     div.className='cv-item'+(c.on?' cv-on':'');
     const eStr=c.energy!=null ? c.energy.toFixed(6) : '';
-    const rmsdStr=c.rmsd!=null ? `<span class="cv-rmsd" style="color:${c.color}">RMSD ${c.rmsd.toFixed(3)}&thinsp;Å</span>` : (i===0?'<span class="cv-rmsd">reference</span>':'');
+    const rmsdStr=c.rmsd!=null ? `<span class="cv-rmsd" style="color:${c.color}">RMSD ${c.rmsd.toFixed(3)}&thinsp;Å</span>` : (c===cvConformers.find(x=>x.on)?'<span class="cv-rmsd">reference</span>':'');
     div.innerHTML=`
       <div class="cv-dot" style="background:${c.color}"></div>
       <div class="cv-info">
         <div class="cv-name" title="${esc(c.src)} frame ${c.frame}">${esc(c.name)}</div>
-        <div class="cv-meta">${c.atoms.length} atoms${eStr?' &middot; E='+eStr:''}</div>
+        <div class="cv-meta">${c.atoms.length} atoms${c.dE!=null?' &middot; ΔE '+c.dE.toFixed(2)+' kcal/mol':''}${eStr?' &middot; E='+eStr:''}</div>
       </div>
       ${rmsdStr}`;
     div.onclick=()=>{ c.on=!c.on; cvUpdateList(); cvRenderStack(); };
@@ -4814,8 +4818,12 @@ function cvLoadFileList(files) {
     r.onerror = () => bad.push(file.name);
     r.onloadend = () => {                          // after a load or an error: one bad file does not hold the others
       if (--pending) return;
-      read.forEach(frames => (frames || []).forEach(f =>   // in the order the files were given, so the first is the reference
-        cvConformers.push({...f, color: CV_COLORS[cvConformers.length % CV_COLORS.length], on: true, rmsd: null})));
+      // in the order the files were given, so the first is the reference; a file's frames go lowest energy first,
+      // and only its CV_FIRST lowest are drawn: fifty overlaid conformers froze the viewer. The rest wait in the list, a click adds one
+      read.forEach(frames => { const fr = (frames || []).slice(), es = fr.map(f => f.energy).filter(e => e != null), e0 = es.length ? Math.min(...es) : null;
+        if (fr.length > CV_FIRST && es.length === fr.length) fr.sort((a, b) => a.energy - b.energy);
+        fr.forEach((f, k) => cvConformers.push({...f, dE: f.energy != null && e0 != null ? (f.energy - e0) * 627.5095 : null,
+          color: CV_COLORS[cvConformers.length % CV_COLORS.length], on: k < CV_FIRST, rmsd: null})); });
       cvUpdateList(); cvRenderStack();
       if (bad.length && typeof setExtractStatus === "function") setExtractStatus("Could not read: " + bad.join(", "), "bad");
     };
