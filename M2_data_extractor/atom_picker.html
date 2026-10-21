@@ -681,6 +681,7 @@ if (typeof $3Dmol === "undefined") {
   .csearch-head:hover, .cview-head:hover { background:rgba(0,0,0,.015); }
   .csearch-head.open, .cview-head.open { border-color:rgba(0,0,0,.07); }
   .csearch-body { display:none; padding:20px; }
+  .cview-body { display:none; padding:20px; } .cview-body.open { display:block; }      /* it had no rule: the head's toggle changed only its arrow */
   .csearch-body.open { display:grid; grid-template-columns:minmax(300px,1fr) minmax(300px,1fr) minmax(260px,.85fr); gap:18px; }
 
   /* ── Align & renumber ── */

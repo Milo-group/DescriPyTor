@@ -5,6 +5,8 @@
 - The BASSA explorer opens on the **last case and compound viewed** when its address names none (from the extractor's link, a
   bookmark, `descripytor bassa_explorer`), instead of the first case of the list.
 - In the one-file HTML (no server) the *Visual extractor* and *Feature explorer* links are hidden; they led to an error page.
+- The visual extractor's **Conformer Viewer collapses again**: its panel had no rule to hide it, so the head's toggle changed
+  only its arrow.
 
 ## 0.4.2 — 2026-10-21
 
