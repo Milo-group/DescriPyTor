@@ -61,10 +61,13 @@ def gui(page):
     if RUN.gui_state(port) == "old": return None
     if not listening(port):
         env = dict(os.environ, PYTHONPATH=BC.S["descripytor"] + os.pathsep + os.environ.get("PYTHONPATH", ""))
-        subprocess.Popen([READER, "-c", "import sys; sys.path.insert(0, sys.argv.pop(1)); from descripytor.cli import main; sys.exit(main())", BC.S["descripytor"], "visual_extractor", "--no-browser", "--port", str(port)], env=env)      # not -m: the current folder would come first on the path
+        try:
+            subprocess.Popen([READER, "-c", "import sys; sys.path.insert(0, sys.argv.pop(1)); from descripytor.cli import main; sys.exit(main())", BC.S["descripytor"], "visual_extractor", "--no-browser", "--port", str(port)], env=env)      # not -m: the current folder would come first on the path
+        except OSError: return None                                              # no such Python: nothing will listen
         for _ in range(120):
             if listening(port): break
             time.sleep(0.25)
+        if not listening(port): return None                                      # it did not start: say so, not a link to a closed port
     return "http://127.0.0.1:%d%s" % (port, page)
 
 
@@ -225,7 +228,8 @@ class Handler(SimpleHTTPRequestHandler):
         if u.path in ("/visual_extractor", "/feature_explorer", "/bassa_explorer"):      # the three pages link to each other by these names
             to = "/" if u.path == "/bassa_explorer" else gui("/visual" if u.path == "/visual_extractor" else u.path)
             if to is None:
-                body = RUN.stop_hint(int(os.environ.get("GUI_PORT", "7432")), "the visual extractor").encode("utf-8")
+                gp = int(os.environ.get("GUI_PORT", "7432"))
+                body = (RUN.stop_hint(gp, "the visual extractor") if listening(gp) else "The visual extractor did not start. Start it in a terminal to see why:  descripytor visual_extractor --port %d" % gp).encode("utf-8")
                 self.send_response(503); self.send_header("Content-Type", "text/plain; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.end_headers(); return self.wfile.write(body)
             self.send_response(302); self.send_header("Location", to); self.send_header("Content-Length", "0"); return self.end_headers()
         if u.path == "/status": return self.answer(dict(ok=True, app="bassa_explorer", api=RUN.API, sampler=SAMPLER, cases=str(C)))      # who is on this port, and which version

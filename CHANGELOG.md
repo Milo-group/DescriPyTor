@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- If the visual extractor cannot be started from the BASSA explorer (no such Python, an import error), the link now says so and
+  gives the command to run in a terminal, instead of redirecting to a port with nothing on it.
+
 ## 0.4.1 — 2026-10-21
 
 ### Fixed
