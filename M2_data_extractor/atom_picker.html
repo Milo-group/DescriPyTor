@@ -884,6 +884,21 @@ if (typeof $3Dmol === "undefined") {
     border-radius:12px; padding:10px 13px; line-height:1.6; display:none;
   }
   .cv-stats.visible { display:block; }
+  .cv-ens { margin-top:14px; border-top:1px solid rgba(0,0,0,.07); padding-top:12px; }
+  .cv-ens-head { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; margin-bottom:8px; } .cv-ens-head .small { color:var(--muted); }
+  .cv-ens-row { display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; }
+  .cv-ens-tool { display:inline-flex; flex-wrap:wrap; gap:5px; align-items:center; font-size:12.5px; }
+  .cv-ens-out { margin-top:10px; font-size:12.5px; color:#415165; }
+  .cv-ens-out:empty { display:none; }
+  .cv-ens-card { border:1px solid rgba(0,0,0,.08); border-radius:12px; padding:10px 13px; margin-top:8px; background:#fff; }
+  .cv-ens-card h4 { margin:0 0 4px; font-size:13px; color:#1d2733; } .cv-ens-sum { margin:2px 0 6px; }
+  .cv-ens-grid { display:grid; grid-template-columns:minmax(260px, 360px) 1fr; gap:12px; align-items:start; }
+  @media (max-width:900px) { .cv-ens-grid { grid-template-columns:1fr; } }
+  .cv-ens-card table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+  .cv-ens-card td, .cv-ens-card th { padding:2px 6px; text-align:right; border-bottom:1px solid rgba(0,0,0,.05); white-space:nowrap; }
+  .cv-ens-card td:first-child, .cv-ens-card th:first-child { text-align:left; } .cv-ens-card th { font-weight:600; color:#5b6878; }
+  .cv-ens-card svg circle[data-k] { cursor:pointer; } .cv-ens-grid > div { overflow-x:auto; min-width:0; }
+  .cv-ens-bar { display:inline-block; height:8px; border-radius:4px; background:#0284c7; vertical-align:middle; margin-right:6px; }
   .cv-viewer {
     border-radius:var(--r-lg); overflow:hidden;
     border:1px solid rgba(0,0,0,.07);
@@ -1554,6 +1569,25 @@ if (typeof $3Dmol === "undefined") {
       <div id="cvViewer3d" class="cv-viewer">
         <div class="cv-empty">Viewer appears here after loading conformers and clicking Render.</div>
       </div>
+    </div>
+
+    <!-- across the ensemble: every loaded conformer, drawn or not -->
+    <div class="cv-ens" id="cvEns">
+      <div class="cv-ens-head"><b>Across the ensemble</b>
+        <span class="small">every conformer loaded (drawn or not), Boltzmann-weighted at 298 K within its file. Atom numbers from 1, as in the picker.</span></div>
+      <div class="cv-ens-row">
+        <span class="cv-ens-tool"><b>Measure</b>
+          <input id="cvMeasAtoms" type="text" placeholder="2 atoms: distance · 3: angle · 4: dihedral" style="width:230px" onkeydown="if(event.key==='Enter')cvEnsMeasure()" />
+          <button type="button" onclick="cvUsePicked('cvMeasAtoms')" title="the atoms picked in the 3D picker above, in the order picked">use picked</button>
+          <button type="button" class="ok" onclick="cvEnsMeasure()">Measure</button></span>
+        <span class="cv-ens-tool"><b>Sterimol</b>
+          <input id="cvStAxis" type="text" placeholder="axis: from, to (e.g. 2,1)" style="width:150px" onkeydown="if(event.key==='Enter')cvEnsSterimol()" />
+          <button type="button" onclick="cvUsePicked('cvStAxis')" title="the first two atoms picked in the 3D picker above">use picked</button>
+          <button type="button" class="ok" onclick="cvEnsSterimol()" title="DescriPyTor's own Sterimol (the server's Python) on every conformer, whole molecule, CPK radii">Compute</button></span>
+        <span class="cv-ens-tool"><b>Contacts</b>
+          <button type="button" class="ok" onclick="cvEnsContacts()" title="how much of the ensemble's weight has each H-bond (and, with Contacts set to close contacts, each close contact)">How often</button></span>
+      </div>
+      <div id="cvEnsOut" class="cv-ens-out"></div>
     </div>
 
   </div>
@@ -4662,6 +4696,136 @@ function cvContacts(atoms, mode) {
   return (memo[mode] = out);
 }
 
+/* ── Across the ensemble: one measurement, Sterimol and contacts over every loaded conformer ── */
+const CV_KT = 0.0019872041 * 298.15;               // RT in kcal/mol
+// conformers by file, with Boltzmann weights within the file (equal weights when an energy is missing);
+// separate one-structure files are taken together as one set
+function cvGroups() {
+  const by = new Map(); cvConformers.forEach(c => { if (!by.has(c.src)) by.set(c.src, []); by.get(c.src).push(c); });
+  let gs = [...by.entries()];
+  if (gs.length > 1 && gs.every(([, cs]) => cs.length === 1)) gs = [['all loaded', cvConformers.slice()]];
+  return gs.map(([src, cs]) => {
+    const ok = cs.every(c => c.energy != null), e0 = ok ? Math.min(...cs.map(c => c.energy)) : 0;
+    cs.forEach(c => { c.dEg = ok ? (c.energy - e0) * 627.5095 : null; });
+    const w = cs.map(c => ok ? Math.exp(-c.dEg / CV_KT) : 1), z = w.reduce((a, b) => a + b, 0);
+    cs.forEach((c, k) => { c.w = w[k] / z; });
+    return { src, cs, weighted: ok };
+  });
+}
+function cvUsePicked(id) {
+  const p = window._numberingPicked || [];
+  if (!p.length) return alert('Pick atoms in the 3D picker above first.');
+  $(id).value = (id === 'cvStAxis' ? p.slice(0, 2) : p.slice(0, 4)).join(',');
+}
+function cvAtomList(id, nmin, nmax) {           // ordered, 1-based in the box, 0-based out
+  const ix = String($(id).value || '').split(/[\s,;]+/).filter(Boolean).map(Number);
+  if (ix.length < nmin || ix.length > nmax || ix.some(i => !Number.isInteger(i) || i < 1)) return null;
+  return ix.map(i => i - 1);
+}
+function cvGeom(atoms, ix) {
+  const P = ix.map(i => atoms[i].slice(1, 4)), sub = (a, b) => a.map((v, k) => v - b[k]), dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2],
+    crs = (a, b) => [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]], nrm = a => Math.hypot(...a);
+  if (ix.length === 2) return nrm(sub(P[1], P[0]));
+  if (ix.length === 3) { const u = sub(P[0], P[1]), v = sub(P[2], P[1]); return Math.acos(Math.max(-1, Math.min(1, dot(u, v) / (nrm(u) * nrm(v))))) * 180 / Math.PI; }
+  const b1 = sub(P[1], P[0]), b2 = sub(P[2], P[1]), b3 = sub(P[3], P[2]), n1 = crs(b1, b2), n2 = crs(b2, b3);
+  return Math.atan2(dot(crs(n1, n2), b2) / nrm(b2), dot(n1, n2)) * 180 / Math.PI;     // -180..180
+}
+// weighted mean and sd; a dihedral is averaged on the circle
+function cvWStats(vals, ws, circ) {
+  if (circ) { const r = Math.PI / 180, S = vals.reduce((a, v, k) => a + ws[k] * Math.sin(v * r), 0), C = vals.reduce((a, v, k) => a + ws[k] * Math.cos(v * r), 0), m = Math.atan2(S, C) / r;
+    const dv = vals.map(v => ((v - m + 540) % 360) - 180); return { mean: m, sd: Math.sqrt(dv.reduce((a, d, k) => a + ws[k] * d * d, 0)), min: Math.min(...vals), max: Math.max(...vals) }; }
+  const m = vals.reduce((a, v, k) => a + ws[k] * v, 0);
+  return { mean: m, sd: Math.sqrt(vals.reduce((a, v, k) => a + ws[k] * (v - m) ** 2, 0)), min: Math.min(...vals), max: Math.max(...vals) };
+}
+// value against the energy gap: one dot per conformer, sized by its weight, coloured when drawn; a click adds or removes it
+function cvEnsPlot(cs, vals, unit, mean) {
+  const W = 360, H = 186, L = 46, R = 10, T = 18, B = 30, ok = cs.every(c => c.dEg != null);
+  const xs = cs.map((c, k) => ok ? c.dEg : k), x1 = Math.max(...xs) || 1, ylo = Math.min(...vals), yhi = Math.max(...vals), pad = (yhi - ylo) * 0.08 || Math.abs(yhi) * 0.05 || 1;
+  const X = v => L + (v / x1) * (W - L - R), Y = v => T + (1 - (v - (ylo - pad)) / ((yhi + pad) - (ylo - pad))) * (H - T - B);
+  const yt = [ylo - pad, (ylo + yhi) / 2, yhi + pad].map(v => +v.toPrecision(3));
+  let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px" role="img" aria-label="value against energy, one dot per conformer">`;
+  g += yt.map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#e8ecf1"/><text x="${L - 5}" y="${Y(v) + 3}" text-anchor="end" font-size="10" fill="#6b7482">${v}</text>`).join('');
+  g += `<line x1="${L}" x2="${W - R}" y1="${Y(mean)}" y2="${Y(mean)}" stroke="#1d2733" stroke-dasharray="4 3"/><text x="${W - R}" y="${Y(mean) - 4}" text-anchor="end" font-size="10" fill="#1d2733">Boltzmann mean</text>`;
+  g += `<text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle" font-size="10.5" fill="#6b7482">${ok ? 'ΔE, kcal/mol (0 to ' + x1.toFixed(1) + ')' : 'conformer (no energies)'}</text>`;
+  g += `<text x="${L}" y="10" font-size="10.5" fill="#6b7482">${unit}</text>`;
+  g += cs.map((c, k) => ({ c, k })).sort((a, b) => a.c.w - b.c.w).map(({ c, k }) =>
+    `<circle data-k="${cvConformers.indexOf(c)}" cx="${X(xs[k]).toFixed(1)}" cy="${Y(vals[k]).toFixed(1)}" r="${(2.5 + 7 * Math.sqrt(c.w)).toFixed(1)}" fill="${c.on ? c.color : '#cbd5e1'}" fill-opacity="${c.on ? .9 : .7}" stroke="#fff"><title>${esc(c.name)}: ${vals[k].toFixed(3)} ${unit} · ΔE ${c.dEg != null ? c.dEg.toFixed(2) : '–'} · ${(100 * c.w).toFixed(1)} %${c.on ? ' · drawn' : ' · click to draw'}</title></circle>`).join('');
+  return g + '</svg>';
+}
+function cvEnsTable(cs, cols) {        // the conformers carrying the weight, heaviest first
+  const top = cs.slice().sort((a, b) => b.w - a.w), shown = top.slice(0, 12), rest = top.slice(12), rw = rest.reduce((a, c) => a + c.w, 0);
+  return `<table><tr><th>conformer</th><th>ΔE</th><th>weight</th>${cols.map(([h]) => `<th>${h}</th>`).join('')}</tr>` +
+    shown.map(c => `<tr><td><span style="color:${c.on ? c.color : '#cbd5e1'}">&#9679;</span> ${esc(c.name)}</td><td>${c.dEg != null ? c.dEg.toFixed(2) : '–'}</td><td>${(100 * c.w).toFixed(1)} %</td>${cols.map(([, f]) => `<td>${f(c)}</td>`).join('')}</tr>`).join('') +
+    (rest.length ? `<tr><td colspan="${3 + cols.length}" style="text-align:left;color:#8a95a3">… ${rest.length} more, ${(100 * rw).toFixed(1)} % of the weight</td></tr>` : '') + '</table>';
+}
+function cvEnsShow(render) { window.cvEnsRedraw = render; render(); }
+document.addEventListener('click', e => {
+  const k = e.target.closest && e.target.closest('#cvEnsOut') && e.target.dataset.k; if (k == null || k === false || k === undefined) return;
+  const c = cvConformers[+k]; if (!c) return; c.on = !c.on; cvUpdateList(); cvRenderStack();
+});
+function cvEnsMeasure() {
+  if (!cvConformers.length) return alert('Load conformers first.');
+  const ix = cvAtomList('cvMeasAtoms', 2, 4);
+  if (!ix) return alert('Give 2, 3 or 4 atom numbers (from 1), e.g. 3,7 or 3,7,9,12.');
+  const kind = ['', '', 'distance', 'angle', 'dihedral'][ix.length], unit = ix.length === 2 ? 'Å' : '°';
+  const groups = cvGroups();
+  for (const g of groups) for (const c of g.cs) if (ix.some(i => !c.atoms[i])) return alert(`${c.name} has no atom ${Math.max(...ix) + 1}.`);
+  cvEnsShow(() => { $('cvEnsOut').innerHTML = groups.map(g => {
+    const vals = g.cs.map(c => cvGeom(c.atoms, ix)), st = cvWStats(vals, g.cs.map(c => c.w), ix.length === 4), names = ix.map(i => (g.cs[0].atoms[i] || ['?'])[0] + (i + 1)).join('–');
+    const big = st.sd > (ix.length === 2 ? 0.1 : 10);
+    return `<div class="cv-ens-card"><h4>${kind} ${names}${groups.length > 1 ? ' · ' + esc(g.src) : ''}</h4>
+      <div class="cv-ens-sum">Boltzmann mean <b>${st.mean.toFixed(ix.length === 2 ? 3 : 1)} ${unit}</b> · sd ${st.sd.toFixed(ix.length === 2 ? 3 : 1)} · range ${st.min.toFixed(ix.length === 2 ? 3 : 1)} to ${st.max.toFixed(ix.length === 2 ? 3 : 1)} over ${g.cs.length} conformer${g.cs.length > 1 ? 's' : ''}${g.weighted ? '' : ' (no energies: equal weights)'}
+      ${g.cs.length > 1 ? (big ? ' · <b style="color:#b45309">moves between conformers</b>: which conformer you model matters' : ' · <span style="color:#2f7a4f">steady across the conformers</span>') : ''}</div>
+      <div class="cv-ens-grid"><div>${cvEnsPlot(g.cs, vals, unit, st.mean)}</div><div>${cvEnsTable(g.cs, [[`${kind} ${unit}`, c => cvGeom(c.atoms, ix).toFixed(ix.length === 2 ? 3 : 1)]])}</div></div></div>`; }).join(''); });
+}
+let cvStSeq = 0;
+async function cvEnsSterimol() {
+  if (!cvConformers.length) return alert('Load conformers first.');
+  const ix = cvAtomList('cvStAxis', 2, 2);
+  if (!ix) return alert('Give the two atoms of the axis (from 1), e.g. 2,1: from the attachment atom to the first atom of the group.');
+  const seq = ++cvStSeq, key = ix.join('-'), groups = cvGroups(), all = groups.flatMap(g => g.cs), out = $('cvEnsOut');
+  let done = 0, err = null;
+  for (const c of all) {
+    if (seq !== cvStSeq) return;
+    c.st = c.st || {};
+    if (!c.st[key]) {
+      out.innerHTML = `<div class="cv-ens-card">Sterimol on axis ${ix.map(i => i + 1).join('→')}: ${done} / ${all.length} conformers…</div>`;
+      const xyz = `${c.atoms.length}\n\n` + c.atoms.map(a => `${a[0]} ${a[1]} ${a[2]} ${a[3]}`).join('\n');
+      try { const r = await fetch('/feature_explorer/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ xyz, a: ix[0] + 1, b: ix[1] + 1 }) });
+        const d = await r.json(); if (d.error || !r.ok) { err = `${c.name}: ${d.error || r.status}`; break; } c.st[key] = d; }
+      catch (e) { err = 'the DescriPyTor server is not answering (open this page with descripytor visual): ' + e.message; break; }
+    }
+    done++;
+  }
+  if (err) { out.innerHTML = `<div class="cv-ens-card" style="color:#b4232a">Sterimol stopped: ${esc(err)}</div>`; return; }
+  const D = [['B1', 'Å', 2], ['B5', 'Å', 2], ['L', 'Å', 2], ['loc_B5', 'Å', 2], ['B1_B5_angle', '°', 1]];
+  let pick = 'B1';
+  cvEnsShow(() => { out.innerHTML = groups.map(g => {
+    const ws = g.cs.map(c => c.w), S = D.map(([k, u, n]) => { const v = g.cs.map(c => c.st[key][k]); return [k, u, n, v, cvWStats(v, ws, false)]; });
+    const [, pu, , pv, ps] = S.find(r => r[0] === pick);
+    return `<div class="cv-ens-card"><h4>Sterimol on ${ix.map(i => (g.cs[0].atoms[i] || ['?'])[0] + (i + 1)).join('→')}${groups.length > 1 ? ' · ' + esc(g.src) : ''}</h4>
+      <div class="cv-ens-sum">DescriPyTor's Python, whole molecule, CPK radii, on each of ${g.cs.length} conformers${g.weighted ? '' : ' (no energies: equal weights)'}.</div>
+      <table style="margin-bottom:8px"><tr><th>descriptor</th><th>Boltzmann mean</th><th>sd</th><th>range</th><th>lowest-E conformer</th></tr>${S.map(([k, u, n, v, st]) => {
+        const low = g.cs.reduce((b, c, i) => (c.dEg ?? i) < (g.cs[b].dEg ?? b) ? i : b, 0);
+        return `<tr><td><a href="#" data-stpick="${k}" style="${k === pick ? 'font-weight:700' : ''}">${{ loc_B5: 'loc B5', B1_B5_angle: 'B1–B5 angle' }[k] || k}</a></td><td>${st.mean.toFixed(n)} ${u}</td><td>${st.sd.toFixed(n)}</td><td>${st.min.toFixed(n)}–${st.max.toFixed(n)}</td><td>${v[low].toFixed(n)}</td></tr>`; }).join('')}</table>
+      <div class="cv-ens-grid"><div>${cvEnsPlot(g.cs, pv, pick + ' ' + pu, ps.mean)}</div><div>${cvEnsTable(g.cs, D.slice(0, 3).map(([k, , n]) => [k, c => c.st[key][k].toFixed(n)]))}</div></div></div>`; }).join('');
+    out.querySelectorAll('[data-stpick]').forEach(a => a.onclick = e => { e.preventDefault(); pick = a.dataset.stpick; window.cvEnsRedraw(); }); });
+}
+function cvEnsContacts() {
+  if (!cvConformers.length) return alert('Load conformers first.');
+  const mode = ($('cvNC') || { value: 'off' }).value === 'all' ? 'all' : 'hb', groups = cvGroups();
+  cvEnsShow(() => { $('cvEnsOut').innerHTML = groups.map(g => {
+    const by = new Map();
+    g.cs.forEach(c => cvContacts(c.atoms, mode).forEach(x => { const k = x.kind + ':' + x.i + '-' + x.j, r = by.get(k) || { ...x, w: 0, n: 0, lo: 9, hi: 0 };
+      r.w += c.w; r.n++; r.lo = Math.min(r.lo, x.d); r.hi = Math.max(r.hi, x.d); by.set(k, r); }));
+    const rows = [...by.values()].sort((a, b) => b.w - a.w), a0 = g.cs[0].atoms, nm = i => a0[i][0] + (i + 1);
+    return `<div class="cv-ens-card"><h4>${mode === 'hb' ? 'H-bonds' : 'H-bonds and close contacts'} across ${g.cs.length} conformer${g.cs.length > 1 ? 's' : ''}${groups.length > 1 ? ' · ' + esc(g.src) : ''}</h4>
+      <div class="cv-ens-sum">${rows.length ? 'Share of the Boltzmann weight in which each is present.' : 'None found in any conformer.'}${mode === 'hb' ? ' Set Contacts to "H-bonds + close contacts" to count those too.' : ''}</div>
+      ${rows.length ? `<table><tr><th>contact</th><th>of the weight</th><th>conformers</th><th>distance</th></tr>${rows.slice(0, 25).map(r => `<tr><td>${r.kind === 'hb' ? '<span style="color:#0284c7">H-bond</span>' : 'contact'} ${nm(r.i)}···${nm(r.j)}</td>
+        <td style="text-align:left"><span class="cv-ens-bar" style="width:${Math.max(2, 70 * r.w)}px;${r.kind === 'hb' ? '' : 'background:#9ca3af'}"></span>${(100 * r.w).toFixed(1)} %</td><td>${r.n} / ${g.cs.length}</td><td>${r.lo.toFixed(2)}${r.hi - r.lo > 0.005 ? '–' + r.hi.toFixed(2) : ''} Å</td></tr>`).join('')}</table>` +
+        (rows.length > 25 ? `<div style="color:#8a95a3">… ${rows.length - 25} more</div>` : '') : ''}</div>`; }).join(''); });
+}
+
 /* ── Alignment indices ──────────────────────────────────────────── */
 function cvAlignIndices(refAtoms, mobAtoms, mode) {
   if (mode === 'none') return null;
@@ -5019,6 +5183,7 @@ function cvRenderStack() {
   cvViewer3d.render();
 
   cvUpdateList();
+  if (window.cvEnsRedraw) cvEnsRedraw();      // the ensemble plot shows which conformers are drawn
   const stats=$('cvStats');
   if (statsLines.length || ncLines.length) {
     stats.innerHTML=(statsLines.length?'<b>Alignment vs. first conformer</b><br>'+statsLines.join('<br>'):'')
