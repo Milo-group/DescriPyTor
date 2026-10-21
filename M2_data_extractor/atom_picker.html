@@ -1495,6 +1495,13 @@ if (typeof $3Dmol === "undefined") {
           <option value="ball_stick">Ball &amp; Stick</option>
         </select>
       </label>
+      <label class="small" style="display:flex;align-items:center;gap:4px;">Colour
+        <select id="cvColour" onchange="cvRenderStack()" title="by element shows the groups; the conformer's colour stays on its dot in the list">
+          <option value="conf">one per conformer</option>
+          <option value="elemC">by element, carbons per conformer</option>
+          <option value="elem">by element</option>
+        </select>
+      </label>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Align by
         <select id="cvAlignMode" onchange="$('cvAlignAtomsBox').style.display=this.value==='atoms'?'inline-flex':'none';cvRenderStack()">
           <option value="benzene">Benzene ring (if present)</option>
@@ -4916,13 +4923,15 @@ function cvRenderStack() {
     const pdb=atomsToPdb(spreadAtoms, chainId);
     cvViewer3d.addModel(pdb,'pdb');
 
-    const col=c.color;
+    const col=c.color, cmode=($('cvColour')||{value:'conf'}).value;
+    // by element: 3Dmol's Jmol colours; carbons may keep the conformer's colour so the stack still tells them apart
+    const paint = cmode==='conf' ? {color:col} : {colorscheme:{prop:'elem', map:Object.assign({}, $3Dmol.elementColors.Jmol, cmode==='elemC' ? {C:col} : {})}};
     if (style==='line') {
-      cvViewer3d.setStyle({model:mi},{line:{color:col,linewidth:3}});
+      cvViewer3d.setStyle({model:mi},{line:{...paint,linewidth:3}});
     } else if (style==='stick') {
-      cvViewer3d.setStyle({model:mi},{stick:{color:col,radius:0.12}});
+      cvViewer3d.setStyle({model:mi},{stick:{...paint,radius:0.12}});
     } else {
-      cvViewer3d.setStyle({model:mi},{stick:{color:col,radius:0.10},sphere:{color:col,scale:0.22}});
+      cvViewer3d.setStyle({model:mi},{stick:{...paint,radius:0.10},sphere:{...paint,scale:0.22}});
     }
     const showLab = $("cvShowLabels") && $("cvShowLabels").checked;
     const picked = window._numberingPicked || [];
