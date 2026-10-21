@@ -4803,36 +4803,46 @@ function cvEnsMeasure() {
       <div class="cv-ens-grid"><div>${cvEnsPlot(g.cs, vals, unit, st.mean)}</div><div>${cvEnsTable(g.cs, [[`${kind} ${unit}`, c => cvGeom(c.atoms, ix).toFixed(ix.length === 2 ? 3 : 1)]])}</div></div></div>`; }).join(''); });
 }
 let cvStSeq = 0;
+const CV_ST_COVER = 0.999;             // share of each file's Boltzmann weight Sterimol is computed on
 async function cvEnsSterimol() {
   if (!cvConformers.length) return alert('Load conformers first.');
   const ix = cvAtomList('cvStAxis', 2, 2);
   if (!ix) return alert('Give the two atoms of the axis (from 1), e.g. 2,1: from the attachment atom to the first atom of the group.');
-  const seq = ++cvStSeq, key = ix.join('-'), groups = cvGroups(), all = groups.flatMap(g => g.cs), out = $('cvEnsOut');
+  const seq = ++cvStSeq, key = ix.join('-'), groups = cvGroups(), out = $('cvEnsOut');
+  // the Python takes ~0.1 s a structure: in each file only the conformers holding 99.9 % of its weight, heaviest first
+  const all = groups.flatMap(g => { const o = g.cs.slice().sort((a, b) => b.w - a.w); let cum = 0; return o.filter(c => { const take = cum < CV_ST_COVER; cum += c.w; return take; }); });
   let done = 0, err = null;
-  for (const c of all) {
-    if (seq !== cvStSeq) return;
+  const one = async c => {
     c.st = c.st || {};
     if (!c.st[key]) {
-      out.innerHTML = `<div class="cv-ens-card">Sterimol on axis ${ix.map(i => i + 1).join('→')}: ${done} / ${all.length} conformers…</div>`;
       const xyz = `${c.atoms.length}\n\n` + c.atoms.map(a => `${a[0]} ${a[1]} ${a[2]} ${a[3]}`).join('\n');
       try { const r = await fetch('/feature_explorer/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ xyz, a: ix[0] + 1, b: ix[1] + 1 }) });
-        const d = await r.json(); if (d.error || !r.ok) { err = `${c.name}: ${d.error || r.status}`; break; } c.st[key] = d; }
-      catch (e) { err = 'the DescriPyTor server is not answering (open this page with descripytor visual): ' + e.message; break; }
+        const d = await r.json(); if (d.error || !r.ok) { err = err || `${c.name}: ${d.error || r.status}`; return; } c.st[key] = d; }
+      catch (e) { err = err || 'the DescriPyTor server is not answering (open this page with descripytor visual): ' + e.message; return; }
     }
     done++;
-  }
+    if (seq === cvStSeq) out.innerHTML = `<div class="cv-ens-card">Sterimol on axis ${ix.map(i => i + 1).join('→')}: ${done} / ${all.length} conformers…</div>`;
+  };
+  let next = 0;
+  await Promise.all(Array.from({ length: 4 }, async () => { while (next < all.length && !err && seq === cvStSeq) await one(all[next++]); }));
+  if (seq !== cvStSeq) return;
   if (err) { out.innerHTML = `<div class="cv-ens-card" style="color:#b4232a">Sterimol stopped: ${esc(err)}</div>`; return; }
   const D = [['B1', 'Å', 2], ['B5', 'Å', 2], ['L', 'Å', 2], ['loc_B5', 'Å', 2], ['B1_B5_angle', '°', 1]];
   let pick = 'B1';
-  cvEnsShow(() => { out.innerHTML = groups.map(g => {
-    const ws = g.cs.map(c => c.w), S = D.map(([k, u, n]) => { const v = g.cs.map(c => c.st[key][k]); return [k, u, n, v, cvWStats(v, ws, false)]; });
+  cvEnsShow(() => { out.innerHTML = groups.map(g0 => {
+    // the conformers computed, their weights renormalised among themselves (shown as such in the plot and the table)
+    const cs = g0.cs.filter(c => c.st && c.st[key]), wsum = cs.reduce((a, c) => a + c.w, 0), left = g0.cs.length - cs.length, g = { ...g0, cs };
+    cs.forEach(c => { c.w /= wsum; });
+    const ws = cs.map(c => c.w), S = D.map(([k, u, n]) => { const v = g.cs.map(c => c.st[key][k]); return [k, u, n, v, cvWStats(v, ws, false)]; });
     const [, pu, , pv, ps] = S.find(r => r[0] === pick);
-    return `<div class="cv-ens-card"><h4>Sterimol on ${ix.map(i => (g.cs[0].atoms[i] || ['?'])[0] + (i + 1)).join('→')}${groups.length > 1 ? ' · ' + esc(g.src) : ''}</h4>
-      <div class="cv-ens-sum">DescriPyTor's Python, whole molecule, CPK radii, on each of ${g.cs.length} conformers${g.weighted ? '' : ' (no energies: equal weights)'}.</div>
+    const html = `<div class="cv-ens-card"><h4>Sterimol on ${ix.map(i => (g.cs[0].atoms[i] || ['?'])[0] + (i + 1)).join('→')}${groups.length > 1 ? ' · ' + esc(g.src) : ''}</h4>
+      <div class="cv-ens-sum">DescriPyTor's Python, whole molecule, CPK radii, on ${left ? `the ${cs.length} conformers holding ${(100 * wsum).toFixed(1)} % of the weight (${left} lighter ones left out, weights renormalised)` : `each of ${cs.length} conformers`}${g.weighted ? '' : ' (no energies: equal weights)'}.</div>
       <table style="margin-bottom:8px"><tr><th>descriptor</th><th>Boltzmann mean</th><th>sd</th><th>range</th><th>lowest-E conformer</th></tr>${S.map(([k, u, n, v, st]) => {
         const low = g.cs.reduce((b, c, i) => (c.dEg ?? i) < (g.cs[b].dEg ?? b) ? i : b, 0);
         return `<tr><td><a href="#" data-stpick="${k}" style="${k === pick ? 'font-weight:700' : ''}">${{ loc_B5: 'loc B5', B1_B5_angle: 'B1–B5 angle' }[k] || k}</a></td><td>${st.mean.toFixed(n)} ${u}</td><td>${st.sd.toFixed(n)}</td><td>${st.min.toFixed(n)}–${st.max.toFixed(n)}</td><td>${v[low].toFixed(n)}</td></tr>`; }).join('')}</table>
-      <div class="cv-ens-grid"><div>${cvEnsPlot(g.cs, pv, pick + ' ' + pu, ps.mean)}</div><div>${cvEnsTable(g.cs, D.slice(0, 3).map(([k, , n]) => [k, c => c.st[key][k].toFixed(n)]))}</div></div></div>`; }).join('');
+      <div class="cv-ens-grid"><div>${cvEnsPlot(g.cs, pv, pick + ' ' + pu, ps.mean)}</div><div>${cvEnsTable(g.cs, D.slice(0, 3).map(([k, , n]) => [k, c => c.st[key][k].toFixed(n)]))}</div></div></div>`;
+    cs.forEach(c => { c.w *= wsum; });                // back to the file's own weights for everything else
+    return html; }).join('');
     out.querySelectorAll('[data-stpick]').forEach(a => a.onclick = e => { e.preventDefault(); pick = a.dataset.stpick; window.cvEnsRedraw(); }); });
 }
 function cvEnsContacts() {
@@ -4853,6 +4863,34 @@ function cvEnsContacts() {
 /* ── Drawing window, duplicates, folders, files compared, export ── */
 const CV_DUP_RMSD = 0.25;                          // Å, heavy atoms after superposition
 function cvHeavy(atoms) { return atoms.map((a, i) => i).filter(i => String(atoms[i][0]).toUpperCase() !== 'H'); }
+// per structure, once: its heavy atoms centred, their elements, and each one's distance from the centre
+const CV_PROF = new WeakMap();
+function cvProf(atoms) {
+  let P = CV_PROF.get(atoms); if (P) return P;
+  const ix = cvHeavy(atoms), n = ix.length, c = [0, 0, 0];
+  ix.forEach(i => { c[0] += +atoms[i][1]; c[1] += +atoms[i][2]; c[2] += +atoms[i][3]; });
+  c[0] /= n; c[1] /= n; c[2] /= n;
+  const X = new Float64Array(3 * n), d = new Float64Array(n); let G = 0;
+  ix.forEach((i, k) => { for (let q = 0; q < 3; q++) X[3 * k + q] = atoms[i][q + 1] - c[q]; d[k] = Math.hypot(X[3 * k], X[3 * k + 1], X[3 * k + 2]); G += d[k] * d[k]; });
+  P = { n, X, d, G, sig: atoms.length + ':' + ix.map(i => String(atoms[i][0]).toUpperCase()).join('') };
+  CV_PROF.set(atoms, P); return P;
+}
+// heavy-atom RMSD after the best superposition (Kabsch). Below 'bound' it is exact; at or above it, it may stop at a lower
+// bound (each atom's distance from the centre can change by no more than the atom moves), which is all a threshold needs
+function cvRmsdFast(a, b, bound = Infinity) {
+  const A = cvProf(a), B = cvProf(b);
+  if (A.sig !== B.sig) return cvRmsd(a, b);
+  const n = A.n; if (n < 3) return Infinity;
+  let lb = 0; for (let k = 0; k < n; k++) lb += (A.d[k] - B.d[k]) ** 2;
+  lb = Math.sqrt(lb / n); if (lb >= bound) return lb;
+  const H = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let k = 0; k < n; k++) for (let i = 0; i < 3; i++) { const x = B.X[3 * k + i]; for (let j = 0; j < 3; j++) H[i][j] += x * A.X[3 * k + j]; }
+  const HtH = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) HtH[i][j] += H[k][i] * H[k][j];
+  const sv = jacobi3(HtH).vals.map(v => Math.sqrt(Math.max(0, v))).sort((x, y) => y - x);
+  const e = A.G + B.G - 2 * (sv[0] + sv[1] + (mat3det(H) < 0 ? -sv[2] : sv[2]));     // no reflection
+  return Math.sqrt(Math.max(0, e) / n);
+}
 function cvRmsd(a, b) {                            // heavy-atom RMSD after superposition; Infinity when the atoms differ
   if (a.length !== b.length) return Infinity;
   const ix = cvHeavy(a).filter(i => String(a[i][0]).toUpperCase() === String(b[i][0]).toUpperCase());
@@ -4866,7 +4904,7 @@ function cvDedupAll() {
   for (const cs of by.values()) {
     const kept = [];
     cs.slice().sort((a, b) => (a.dE ?? 0) - (b.dE ?? 0)).forEach(c => {
-      const rep = kept.find(r => cvRmsd(r.atoms, c.atoms) < CV_DUP_RMSD);
+      const rep = kept.find(r => cvRmsdFast(r.atoms, c.atoms, CV_DUP_RMSD) < CV_DUP_RMSD);
       if (rep) { c.dup = rep; c.on = false; rep.alike++; } else kept.push(c);
     });
   }
@@ -4912,7 +4950,7 @@ function cvEnsCompare() {
   cvGroups();
   const MATCH = 0.5, WIN = 3, [A, B] = files.slice(0, 2);
   const side = ([na, ca], [nb, cb]) => {
-    const low = ca.filter(c => c.dEg != null ? c.dEg <= WIN : true), rows = low.map(c => { let best = Infinity, who = null; cb.forEach(d => { const r = cvRmsd(c.atoms, d.atoms); if (r < best) { best = r; who = d; } }); return { c, best, who }; });
+    const low = ca.filter(c => c.dEg != null ? c.dEg <= WIN : true), rows = low.map(c => { let best = Infinity, who = null; cb.forEach(d => { const r = cvRmsdFast(c.atoms, d.atoms, best); if (r < best) { best = r; who = d; } }); return { c, best, who }; });
     const hit = rows.filter(r => r.best < MATCH), wAll = low.reduce((a, r) => a + r.w, 0), wHit = hit.reduce((a, r) => a + r.c.w, 0), miss = rows.filter(r => r.best >= MATCH).sort((x, y) => y.c.w - x.c.w);
     return `<div class="cv-ens-card"><h4>${esc(na)}: found by ${esc(nb)}?</h4>
       <div class="cv-ens-sum"><b>${hit.length} of ${low.length}</b> conformers within ${WIN} kcal/mol have a match in ${esc(nb)} (heavy-atom RMSD &lt; ${MATCH} Å), <b>${wAll ? (100 * wHit / wAll).toFixed(0) : 0} %</b> of their weight.
@@ -5101,7 +5139,8 @@ function cvUpdateList() {
   el.innerHTML='';
   cvGroups();                                       // sets each conformer's Boltzmann share within its file
   const shown=cvConformers.filter(c=>!c.dup), drawn=shown.filter(c=>c.on).length, folded=cvConformers.length-shown.length;
-  const wOf=c=>c.w+cvConformers.reduce((a,d)=>a+(d.dup===c?d.w:0),0);
+  const extraW=new Map(); cvConformers.forEach(d=>{ if (d.dup) extraW.set(d.dup,(extraW.get(d.dup)||0)+d.w); });
+  const wOf=c=>c.w+(extraW.get(c)||0);
   if (drawn<shown.length || folded) { const h=document.createElement('div'); h.className='cv-meta'; h.style.cssText='padding:4px 8px 6px';
     h.textContent=`${drawn} of ${shown.length} drawn, lowest energy first${folded?`; ${folded} near-duplicates folded under their lowest`:''}. Click a conformer to add or remove it.`; el.appendChild(h); }
   cvConformers.forEach((c,i)=>{
