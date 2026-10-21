@@ -1496,13 +1496,19 @@ if (typeof $3Dmol === "undefined") {
         </select>
       </label>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Align by
-        <select id="cvAlignMode" onchange="cvRenderStack()">
+        <select id="cvAlignMode" onchange="$('cvAlignAtomsBox').style.display=this.value==='atoms'?'inline-flex':'none';cvRenderStack()">
           <option value="benzene">Benzene ring (if present)</option>
+          <option value="ring5">5-membered ring (if present)</option>
+          <option value="atoms">Chosen atoms…</option>
           <option value="heavy">Heavy atoms</option>
           <option value="all">All atoms</option>
           <option value="none">No alignment</option>
         </select>
       </label>
+      <span id="cvAlignAtomsBox" class="small" style="display:none;align-items:center;gap:4px;">
+        <input id="cvAlignAtoms" type="text" placeholder="atoms, e.g. 1,2,3,4,5" title="atom numbers (1-based, as in the picker), at least 3; ranges like 1-6 work" style="width:150px" onchange="cvRenderStack()" />
+        <button type="button" onclick="const p=window._numberingPicked||[];if(!p.length)return alert('Pick atoms in the 3D picker above first.');$('cvAlignAtoms').value=p.join(',');cvRenderStack()" title="the atoms picked in the 3D picker above">use picked</button>
+      </span>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Spread
         <input type="range" id="cvSpread" min="0" max="5" step="0.25" value="0"
                oninput="$('cvSpreadVal').textContent=parseFloat(this.value).toFixed(2);cvRenderSoon()"
@@ -4556,21 +4562,22 @@ function cvBondGraph(atoms, scale) {
   return g;
 }
 
-const CV_RING = new WeakMap();                    // atoms -> its benzene ring: searched once, not per conformer and redraw
-function cvFindBenzene(atoms) {
-  if (CV_RING.has(atoms)) return CV_RING.get(atoms);
-  const ring = cvFindBenzeneRaw(atoms);
-  CV_RING.set(atoms, ring);
-  return ring;
+const CV_RING = new WeakMap();                    // atoms -> {size: ring}: searched once, not per conformer and redraw
+function cvFindRing(atoms, size) {
+  if (!CV_RING.has(atoms)) CV_RING.set(atoms, {});
+  const memo = CV_RING.get(atoms);
+  if (!(size in memo)) memo[size] = cvFindRingRaw(atoms, size);
+  return memo[size];
 }
-function cvFindBenzeneRaw(atoms) {
+function cvFindBenzene(atoms) { return cvFindRing(atoms, 6); }
+function cvFindRingRaw(atoms, size) {
   const g = cvBondGraph(atoms, 1.25);
   const cycles = new Set();
   function dfs(start, cur, path, depth) {
-    if (depth === 6) {
+    if (depth === size) {
       if (g[cur].includes(start)) {
         const c = [...path]; let best = null;
-        for (let r = 0; r < 2; r++) { c.reverse(); for (let k = 0; k < 6; k++) { const rot = c.slice(k).concat(c.slice(0,k)); const key = rot.join(','); if (!best || key < best) best = key; } }
+        for (let r = 0; r < 2; r++) { c.reverse(); for (let k = 0; k < size; k++) { const rot = c.slice(k).concat(c.slice(0,k)); const key = rot.join(','); if (!best || key < best) best = key; } }
         cycles.add(best);
       }
       return;
@@ -4582,16 +4589,29 @@ function cvFindBenzeneRaw(atoms) {
     }
   }
   for (let s = 0; s < atoms.length; s++) dfs(s, s, [s], 1);
-  for (const key of cycles) {
-    const ring = key.split(',').map(Number);
-    if (ring.every(i => atoms[i][0].toUpperCase() === 'C')) return ring;
+  const rings = [...cycles].map(key => key.split(',').map(Number));
+  return rings.find(r => r.every(i => atoms[i][0].toUpperCase() === 'C'))
+      || rings.find(r => r.every(i => atoms[i][0].toUpperCase() !== 'H')) || null;
+}
+// "1,2,5-8" -> 0-based indices
+function cvParseAtoms(text) {
+  const out = [];
+  for (const part of String(text || '').split(/[\s,;]+/).filter(Boolean)) {
+    const m = part.match(/^(\d+)(?:-(\d+))?$/); if (!m) continue;
+    const a = +m[1], b = m[2] ? +m[2] : a;
+    for (let k = Math.min(a, b); k <= Math.max(a, b); k++) if (k >= 1 && !out.includes(k - 1)) out.push(k - 1);
   }
-  return null;
+  return out;
 }
 
 /* ── Alignment indices ──────────────────────────────────────────── */
 function cvAlignIndices(refAtoms, mobAtoms, mode) {
-  if (mode === 'none' || refAtoms.length !== mobAtoms.length) return null;
+  if (mode === 'none') return null;
+  const same = i => refAtoms[i] && mobAtoms[i] && refAtoms[i][0].toUpperCase() === mobAtoms[i][0].toUpperCase();
+  // named atoms: the same numbers in every structure, so molecules of different size that share a numbered core align too
+  if (mode === 'atoms') { const ix = cvParseAtoms(($('cvAlignAtoms') || {}).value).filter(same); return ix.length >= 3 ? ix : null; }
+  if (refAtoms.length !== mobAtoms.length) return null;
+  if (mode === 'ring5') { const ring = cvFindRing(refAtoms, 5); if (ring && ring.every(same)) return ring; mode = 'heavy'; }
   if (mode === 'benzene') {
     const ring = cvFindBenzene(refAtoms);
     if (ring && ring.every(i => refAtoms[i] && mobAtoms[i] &&
