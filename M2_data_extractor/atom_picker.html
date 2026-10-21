@@ -1546,6 +1546,8 @@ if (typeof $3Dmol === "undefined") {
           <option value="elemC">by element, carbons per conformer</option>
           <option value="elem">by element</option>
           <option value="file">one per file</option>
+          <option value="fam">by family</option>
+          <option value="flex">by flexibility (RMSF)</option>
         </select>
       </label>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Align by
@@ -1572,6 +1574,7 @@ if (typeof $3Dmol === "undefined") {
         <input type="checkbox" id="cvShowLabels" onchange="cvRenderStack()" /> atom labels
       </label>
       <button class="ok" onclick="cvRenderStack()">Render</button>
+      <button id="cvPlayBtn" onclick="cvPlay()" title="each conformer in turn over the lowest, lowest energy first">&#9654; Play</button>
       <button onclick="cvSaveXyz()" title="the conformers drawn now, as one multi-structure XYZ (their own coordinates and energies)">Save XYZ</button>
       <button onclick="cvSavePng()" title="the view as a PNG">PNG</button>
       <button onclick="cvClearAll()" style="color:#c0392b;" title="Remove all loaded conformers">Clear all</button>
@@ -1596,7 +1599,7 @@ if (typeof $3Dmol === "undefined") {
         <span class="small">every conformer loaded (drawn or not), Boltzmann-weighted at 298 K within its file. Atom numbers from 1, as in the picker.</span></div>
       <div class="cv-ens-row">
         <span class="cv-ens-tool"><b>Measure</b>
-          <input id="cvMeasAtoms" type="text" placeholder="2 atoms: distance · 3: angle · 4: dihedral" style="width:230px" onkeydown="if(event.key==='Enter')cvEnsMeasure()" />
+          <input id="cvMeasAtoms" type="text" placeholder="2 atoms: distance · 3: angle · 4: dihedral · two with ; to plot one against the other" style="width:300px" onkeydown="if(event.key==='Enter')cvEnsMeasure()" />
           <button type="button" class="cv-pickbtn" data-target="cvMeasAtoms" aria-pressed="false" onclick="cvPickToggle('cvMeasAtoms')" title="numbers on the atoms of the view; click 2, 3 or 4 atoms in it, in order">&#9757; pick in view</button>
           <button type="button" onclick="cvUsePicked('cvMeasAtoms')" title="the atoms picked in the 3D picker above, in the order picked">use picked</button>
           <button type="button" class="ok" onclick="cvEnsMeasure()">Measure</button></span>
@@ -1609,6 +1612,11 @@ if (typeof $3Dmol === "undefined") {
           <button type="button" class="ok" onclick="cvEnsContacts()" title="how much of the ensemble's weight has each H-bond (and, with Contacts set to close contacts, each close contact)">How often</button></span>
         <span class="cv-ens-tool"><b>Compare files</b>
           <button type="button" class="ok" onclick="cvEnsCompare()" title="two ensembles of the same molecule (GOAT and CREST, say): which low-energy conformers of each the other also found">What each missed</button></span>
+        <span class="cv-ens-tool"><b>Families</b>
+          <input id="cvFamCut" type="number" value="1.0" min="0.2" max="3" step="0.1" style="width:58px" title="heavy-atom RMSD (Å) within which conformers count as one family" /> Å
+          <button type="button" class="ok" onclick="cvEnsFamilies()" title="the ensemble grouped into conformer families, each with its Boltzmann weight">Group</button></span>
+        <span class="cv-ens-tool"><b>Flexibility</b>
+          <button type="button" class="ok" onclick="cvEnsFlex()" title="how far each atom moves across the ensemble (Boltzmann-weighted RMSF after superposing the heavy atoms on the lowest conformer); colours the view">Map it</button></span>
       </div>
       <div id="cvPickHint" class="cv-ens-sum" style="display:none;color:#b45309"></div>
       <div id="cvEnsOut" class="cv-ens-out"></div>
@@ -4789,6 +4797,7 @@ document.addEventListener('click', e => {
 });
 function cvEnsMeasure() {
   if (!cvConformers.length) return alert('Load conformers first.');
+  if (/[;|]/.test($('cvMeasAtoms').value)) return cvEnsMeasurePair();
   const ix = cvAtomList('cvMeasAtoms', 2, 4);
   if (!ix) return alert('Give 2, 3 or 4 atom numbers (from 1), e.g. 3,7 or 3,7,9,12.');
   const kind = ['', '', 'distance', 'angle', 'dihedral'][ix.length], unit = ix.length === 2 ? 'Å' : '°';
@@ -4987,6 +4996,124 @@ function cvPickAtom(atom) {
   const next = cur.length >= max ? [ai] : cur[cur.length - 1] === ai ? cur.slice(0, -1) : cur.concat(ai);     // a second click on the last atom takes it back
   $(cvPickTarget).value = next.map(i => i + 1).join(',');
   cvPickHint(); cvRedrawKeep();
+}
+
+/* ── Play: each conformer in turn over the lowest ── */
+let cvPlayT = null, cvPlaySaved = null, cvPlayK = 0, cvPlayNow = null;
+// the first file's conformers, lowest first (it loads in that order, so the lowest is also drawn first: the reference)
+function cvPlayList() { const src = cvConformers.length ? cvConformers[0].src : null; return cvConformers.filter(c => !c.dup && c.src === src).sort((a, b) => (a.dE ?? 0) - (b.dE ?? 0)); }
+function cvPlayLabel() {
+  const host = $('cvViewer3d'); if (!host) return;
+  let el = $('cvPlayLab');
+  if (!cvPlayNow) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'cvPlayLab'; el.style.cssText = 'position:absolute;left:12px;top:10px;z-index:5;background:rgba(255,255,255,.9);border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:5px 10px;font-size:12.5px;pointer-events:none'; host.appendChild(el); }
+  const c = cvPlayNow, L = cvPlayList();
+  el.innerHTML = `<b style="color:${c.color}">&#9679; ${esc(c.name)}</b> &nbsp;${L.indexOf(c) + 1} / ${L.length}${c.dE != null ? ` &nbsp;·&nbsp; ΔE ${c.dE.toFixed(2)} kcal/mol` : ''}${c.w != null ? ` &nbsp;·&nbsp; ${(100 * c.w).toFixed(1)} %` : ''}<br><span style="color:#8a95a3">over the lowest, <span style="color:${L[0].color}">&#9679;</span> ${esc(L[0].name)}</span>`;
+}
+function cvPlay() {
+  const btn = $('cvPlayBtn');
+  if (cvPlayT) {                                    // stop: back to what was drawn before
+    clearInterval(cvPlayT); cvPlayT = null; cvPlayNow = null;
+    cvConformers.forEach((c, i) => { c.on = cvPlaySaved[i]; }); cvPlaySaved = null; btn.innerHTML = '&#9654; Play'; cvRedrawKeep(); return;
+  }
+  const L = cvPlayList(); if (L.length < 2) return alert('Load an ensemble of at least two conformers first.');
+  cvGroups(); cvPlaySaved = cvConformers.map(c => c.on); cvPlayK = 0; btn.innerHTML = '&#9632; Stop';
+  const step = () => { const L2 = cvPlayList(), ref = L2[0]; cvPlayK = cvPlayK % L2.length || (L2.length > 1 ? 1 : 0); const c = L2[cvPlayK++];
+    cvConformers.forEach(x => { x.on = x === ref || x === c; }); cvPlayNow = c;
+    cvRedrawKeep(); };
+  step(); cvPlayT = setInterval(step, 900);
+}
+
+/* ── Flexibility: Boltzmann-weighted RMSF of each atom after superposing the heavy atoms on the lowest conformer ── */
+const CV_FLEX = new Map();                          // src -> {rmsf, max, n}
+function cvFlexOf(src) {
+  const cs = cvConformers.filter(c => c.src === src); if (!cs.length) return null;
+  const mode = ($('cvAlignMode') || { value: 'heavy' }).value, key = src + '|' + cs.length + '|' + mode + '|' + (($('cvAlignAtoms') || {}).value || '');
+  if (CV_FLEX.has(key)) return CV_FLEX.get(key);
+  cvGroups();
+  // superposed on what the view aligns by (a ring, chosen atoms), so the map reads as motion relative to that part
+  const ref = cs.slice().sort((a, b) => (a.dE ?? 0) - (b.dE ?? 0))[0], fit = mode !== 'none' && cvAlignIndices(ref.atoms, ref.atoms, mode), ix = fit && fit.length >= 3 ? fit : cvHeavy(ref.atoms), n = ref.atoms.length, acc = new Float64Array(n);
+  let wsum = 0;
+  cs.forEach(c => { if (c.atoms.length !== n) return; const { aligned } = kabschAlign(c.atoms, ref.atoms, ix);
+    for (let i = 0; i < n; i++) acc[i] += c.w * ((aligned[i][1] - ref.atoms[i][1]) ** 2 + (aligned[i][2] - ref.atoms[i][2]) ** 2 + (aligned[i][3] - ref.atoms[i][3]) ** 2);
+    wsum += c.w; });
+  const rmsf = Array.from(acc, v => Math.sqrt(v / (wsum || 1)));
+  const F = { rmsf, max: Math.max(0.3, ...rmsf.filter((v, i) => String(ref.atoms[i][0]).toUpperCase() !== 'H')), n: cs.length, ref, on: ix.length === cvHeavy(ref.atoms).length ? 'all heavy atoms' : ix.map(i => ref.atoms[i][0] + (i + 1)).join(', ') };
+  CV_FLEX.set(key, F); return F;
+}
+function cvFlexColour(v, max) {                     // rigid blue → amber → red
+  const t = Math.max(0, Math.min(1, (v || 0) / max)), mix = (a, b, u) => a.map((x, k) => Math.round(x + (b[k] - x) * u));
+  const rgb = t < 0.5 ? mix([37, 99, 235], [245, 158, 11], t * 2) : mix([245, 158, 11], [220, 38, 38], (t - 0.5) * 2);
+  return '#' + rgb.map(x => x.toString(16).padStart(2, '0')).join('');
+}
+function cvEnsFlex() {
+  if (!cvConformers.length) return alert('Load conformers first.');
+  const srcs = [...new Set(cvConformers.map(c => c.src))].filter(s => cvConformers.filter(c => c.src === s).length > 1);
+  if (!srcs.length) return alert('Flexibility needs an ensemble: a file with several conformers.');
+  $('cvColour').value = 'flex'; cvRedrawKeep();
+  window.cvEnsRedraw = null;
+  $('cvEnsOut').innerHTML = srcs.map(src => { const F = cvFlexOf(src), at = F.ref.atoms;
+    const top = at.map((a, i) => i).filter(i => String(at[i][0]).toUpperCase() !== 'H').sort((a, b) => F.rmsf[b] - F.rmsf[a]);
+    const bar = (v) => `<span class="cv-ens-bar" style="width:${Math.max(2, 90 * v / F.max)}px;background:${cvFlexColour(v, F.max)}"></span>`;
+    return `<div class="cv-ens-card"><h4>Flexibility · ${esc(src)}</h4>
+      <div class="cv-ens-sum">How far each atom moves over ${F.n} conformers, Boltzmann-weighted, after superposing ${esc(F.on)} on the lowest (set by Align by). The view is coloured by it:
+      <span style="color:#2563eb">rigid</span> → <span style="color:#f59e0b">moves</span> → <span style="color:#dc2626">floppy</span> (red = ${F.max.toFixed(2)} Å).</div>
+      <table><tr><th>most mobile heavy atoms</th><th>RMSF</th></tr>${top.slice(0, 8).map(i => `<tr><td>${at[i][0]}${i + 1}</td><td style="text-align:left">${bar(F.rmsf[i])}${F.rmsf[i].toFixed(2)} Å</td></tr>`).join('')}
+      <tr><td style="color:#8a95a3">most rigid: ${top.slice(-3).reverse().map(i => at[i][0] + (i + 1)).join(', ')}</td><td style="color:#8a95a3">${F.rmsf[top[top.length - 1]].toFixed(2)} Å</td></tr></table></div>`; }).join('');
+}
+
+/* ── Families: conformers within a heavy-atom RMSD of a family's lowest, greedy in energy order ── */
+let CV_FAM_CUT = null;
+function cvFamilies(cut) {
+  if (CV_FAM_CUT === cut && cvConformers.every(c => c.fam != null)) return;
+  CV_FAM_CUT = cut;
+  const by = new Map(); cvConformers.forEach(c => { if (!by.has(c.src)) by.set(c.src, []); by.get(c.src).push(c); });
+  for (const cs of by.values()) { const heads = [];
+    cs.slice().sort((a, b) => (a.dE ?? 0) - (b.dE ?? 0)).forEach(c => { let k = heads.findIndex(h => cvRmsdFast(h.atoms, c.atoms, cut) < cut);
+      if (k < 0) { heads.push(c); k = heads.length - 1; } c.fam = k; c.famHead = heads[k]; }); }
+}
+function cvFamColour(c) { if (c.fam == null) cvFamilies(+(($('cvFamCut') || {}).value) || 1.0); return CV_COLORS[c.fam % CV_COLORS.length]; }
+function cvEnsFamilies() {
+  if (!cvConformers.length) return alert('Load conformers first.');
+  const cut = +$('cvFamCut').value || 1.0; cvConformers.forEach(c => { c.fam = null; }); cvFamilies(cut);
+  const groups = cvGroups();
+  const render = () => { $('cvEnsOut').innerHTML = groups.map(g => {
+    const fams = new Map(); g.cs.forEach(c => { const f = fams.get(c.fam) || { k: c.fam, head: c.famHead, cs: [], w: 0 }; f.cs.push(c); f.w += c.w; fams.set(c.fam, f); });
+    const list = [...fams.values()].sort((a, b) => b.w - a.w);
+    return `<div class="cv-ens-card"><h4>${list.length} famil${list.length === 1 ? 'y' : 'ies'} within ${cut.toFixed(1)} Å${groups.length > 1 ? ' · ' + esc(g.src) : ''}</h4>
+      <div class="cv-ens-sum">Each family: conformers within ${cut.toFixed(1)} Å heavy-atom RMSD of its lowest. Click a family to draw it alone (its lowest and two more); Colour → by family colours the view.</div>
+      <table><tr><th>family</th><th>weight</th><th>conformers</th><th>ΔE of its lowest</th></tr>${list.slice(0, 15).map(f =>
+        `<tr><td><a href="#" data-fam="${f.k}" data-src="${esc(g.src)}"><span style="color:${CV_COLORS[f.k % CV_COLORS.length]}">&#9632;</span> family ${f.k + 1}</a> · ${esc(f.head.name)}</td>
+         <td style="text-align:left"><span class="cv-ens-bar" style="width:${Math.max(2, 90 * f.w)}px;background:${CV_COLORS[f.k % CV_COLORS.length]}"></span>${(100 * f.w).toFixed(1)} %</td><td>${f.cs.length}</td><td>${f.head.dEg != null ? f.head.dEg.toFixed(2) : '–'}</td></tr>`).join('')}</table>
+      ${list.length > 15 ? `<div style="color:#8a95a3">… ${list.length - 15} more families, ${(100 * list.slice(15).reduce((a, f) => a + f.w, 0)).toFixed(1)} % of the weight</div>` : ''}</div>`; }).join('');
+    $('cvEnsOut').querySelectorAll('[data-fam]').forEach(a => a.onclick = e => { e.preventDefault(); const k = +a.dataset.fam, src = a.dataset.src;
+      const mem = cvConformers.filter(c => c.fam === k && (c.src === src || src === 'all loaded') && !c.dup).sort((x, y) => (x.dE ?? 0) - (y.dE ?? 0)).slice(0, 3);
+      cvConformers.forEach(c => { c.on = mem.includes(c); }); cvUpdateList(); cvRenderStack(); }); };
+  window.cvEnsRedraw = null; render();
+}
+
+/* ── Two measurements against each other, one dot per conformer coloured by its energy ── */
+function cvEnsMeasurePair() {
+  const parts = $('cvMeasAtoms').value.split(/[;|]/).map(t => t.split(/[\s,]+/).filter(Boolean).map(Number).map(i => i - 1));
+  if (parts.length !== 2 || parts.some(ix => ix.length < 2 || ix.length > 4 || ix.some(i => !Number.isInteger(i) || i < 0))) return alert('Two measurements separated by ; e.g. 1,2,19,27 ; 2,19,20,22');
+  const groups = cvGroups(), kind = ix => ['', '', 'distance', 'angle', 'dihedral'][ix.length], unit = ix => ix.length === 2 ? 'Å' : '°';
+  for (const g of groups) for (const c of g.cs) if (parts.flat().some(i => !c.atoms[i])) return alert(`${c.name} has no atom ${Math.max(...parts.flat()) + 1}.`);
+  const render = () => { $('cvEnsOut').innerHTML = groups.map(g => {
+    const [ia, ib] = parts, xs = g.cs.map(c => cvGeom(c.atoms, ia)), ys = g.cs.map(c => cvGeom(c.atoms, ib)), nm = ix => ix.map(i => g.cs[0].atoms[i][0] + (i + 1)).join('–');
+    const W = 360, H = 300, L = 48, R = 12, T = 18, B = 34, ang = ix => ix.length === 4;
+    const span = (v, ix) => ang(ix) ? [-180, 180] : (() => { const lo = Math.min(...v), hi = Math.max(...v), pd = (hi - lo) * .08 || 1; return [lo - pd, hi + pd]; })();
+    const [x0, x1] = span(xs, ia), [y0, y1] = span(ys, ib), X = v => L + (v - x0) / (x1 - x0) * (W - L - R), Y = v => T + (1 - (v - y0) / (y1 - y0)) * (H - T - B);
+    const eMax = Math.max(1, ...g.cs.map(c => c.dEg ?? 0)), ecol = c => cvFlexColour(c.dEg ?? 0, eMax);
+    const ticks = (a, b, ix) => ang(ix) ? [-180, -90, 0, 90, 180] : [a, (a + b) / 2, b].map(v => +v.toPrecision(3));
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px" role="img" aria-label="one measurement against the other">`;
+    svg += ticks(x0, x1, ia).map(v => `<line x1="${X(v)}" x2="${X(v)}" y1="${T}" y2="${H - B}" stroke="#eef1f5"/><text x="${X(v)}" y="${H - B + 13}" text-anchor="middle" font-size="10" fill="#6b7482">${v}</text>`).join('');
+    svg += ticks(y0, y1, ib).map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#eef1f5"/><text x="${L - 5}" y="${Y(v) + 3}" text-anchor="end" font-size="10" fill="#6b7482">${v}</text>`).join('');
+    svg += `<text x="${(L + W - R) / 2}" y="${H - 5}" text-anchor="middle" font-size="10.5" fill="#6b7482">${kind(ia)} ${nm(ia)} (${unit(ia)})</text><text x="${L}" y="11" font-size="10.5" fill="#6b7482">${kind(ib)} ${nm(ib)} (${unit(ib)})</text>`;
+    svg += g.cs.map((c, k) => ({ c, k })).sort((a, b) => (b.c.dEg ?? 0) - (a.c.dEg ?? 0)).map(({ c, k }) => `<circle data-k="${cvConformers.indexOf(c)}" cx="${X(xs[k]).toFixed(1)}" cy="${Y(ys[k]).toFixed(1)}" r="${(3 + 7 * Math.sqrt(c.w)).toFixed(1)}" fill="${ecol(c)}" fill-opacity=".85" stroke="${c.on ? '#111' : '#fff'}" stroke-width="${c.on ? 1.6 : 1}"><title>${esc(c.name)}: ${xs[k].toFixed(2)}, ${ys[k].toFixed(2)} · ΔE ${c.dEg != null ? c.dEg.toFixed(2) : '–'} · ${(100 * c.w).toFixed(1)} %</title></circle>`).join('');
+    return `<div class="cv-ens-card"><h4>${kind(ia)} ${nm(ia)} against ${kind(ib)} ${nm(ib)}${groups.length > 1 ? ' · ' + esc(g.src) : ''}</h4>
+      <div class="cv-ens-sum">One dot per conformer, sized by its weight, coloured by ΔE: <span style="color:#2563eb">lowest</span> → <span style="color:#dc2626">${eMax.toFixed(1)} kcal/mol</span>; a black ring = drawn. Click a dot to draw it. Clusters are the combinations the molecule takes.</div>
+      ${svg}</svg></div>`; }).join(''); };
+  cvEnsShow(render);
 }
 
 /* ── Alignment indices ──────────────────────────────────────────── */
@@ -5309,7 +5436,9 @@ function cvRenderStack() {
 
     const col=c.color, cmode=($('cvColour')||{value:'conf'}).value;
     // by element: 3Dmol's Jmol colours; carbons may keep the conformer's colour so the stack still tells them apart
-    const paint = cmode==='conf' ? {color:col} : cmode==='file' ? {color:cvFileColour(c)} : {colorscheme:{prop:'elem', map:Object.assign({}, $3Dmol.elementColors.Jmol, cmode==='elemC' ? {C:col} : {})}};
+    const flex = cmode==='flex' ? cvFlexOf(c.src) : null, famc = cmode==='fam' ? cvFamColour(c) : null;
+    const paint = cmode==='conf' ? {color:col} : cmode==='file' ? {color:cvFileColour(c)} : famc ? {color:famc} :
+      flex ? {colorfunc: at => cvFlexColour(flex.rmsf[at.serial-1], flex.max)} : {colorscheme:{prop:'elem', map:Object.assign({}, $3Dmol.elementColors.Jmol, cmode==='elemC' ? {C:col} : {})}};
     if (style==='line') {
       cvViewer3d.setStyle({model:mi},{line:{...paint,linewidth:3}});
     } else if (style==='stick') {
@@ -5352,6 +5481,7 @@ function cvRenderStack() {
     }
   });
 
+  cvPlayLabel();
   if (cvKeepView) cvViewer3d.setView(cvKeepView); else cvViewer3d.zoomTo();      // a pick keeps the reader's view
   cvViewer3d.setClickable({}, true, cvPickAtom);
   cvViewer3d.render();
