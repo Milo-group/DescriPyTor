@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.5 — 2026-10-21
+
+- The BASSA explorer's **molecule window is taller by default** (47 % of the window height, 320–560 px; was 38 %, 250–460 px), so the
+  molecule beside the plot is drawn at about the plot's height. The corner handle still resizes it.
+
 ## 0.4.4 — 2026-10-21
 
 - **The BASSA explorer's help marks draw their answer.** Every "?" and every metric tile (Q² · LOO, Q² · 5-fold, R², MAE, share,
