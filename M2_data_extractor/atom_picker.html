@@ -851,7 +851,8 @@ if (typeof $3Dmol === "undefined") {
     background:rgba(0,122,255,.08); box-shadow:0 2px 10px rgba(0,122,255,.12);
   }
   .cview-main { display:grid; grid-template-columns:290px 1fr; gap:14px; min-height:480px; }
-  .cvlist-wrap { display:flex; flex-direction:column; gap:10px; overflow:hidden; }
+  .cvlist-wrap { display:flex; flex-direction:column; gap:10px; overflow:hidden; max-height:560px; }      /* a long list scrolls; it stretched the viewer to thousands of pixels */
+  .cvlist-wrap .cv-list { min-height:0; } .cvlist-wrap .cv-stats { max-height:190px; overflow-y:auto; flex:none; }
   .cv-list {
     flex:1; overflow-y:auto;
     border:1px solid rgba(0,0,0,.07); border-radius:14px;
@@ -887,6 +888,7 @@ if (typeof $3Dmol === "undefined") {
   .cv-ens { margin-top:14px; border-top:1px solid rgba(0,0,0,.07); padding-top:12px; }
   .cv-ens-head { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; margin-bottom:8px; } .cv-ens-head .small { color:var(--muted); }
   .cv-ens-row { display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; }
+  .cv-pickbtn[aria-pressed="true"] { background:#b45309; color:#fff; border-color:#b45309; }
   .cv-ens-tool { display:inline-flex; flex-wrap:wrap; gap:5px; align-items:center; font-size:12.5px; }
   .cv-ens-out { margin-top:10px; font-size:12.5px; color:#415165; }
   .cv-ens-out:empty { display:none; }
@@ -1595,10 +1597,12 @@ if (typeof $3Dmol === "undefined") {
       <div class="cv-ens-row">
         <span class="cv-ens-tool"><b>Measure</b>
           <input id="cvMeasAtoms" type="text" placeholder="2 atoms: distance · 3: angle · 4: dihedral" style="width:230px" onkeydown="if(event.key==='Enter')cvEnsMeasure()" />
+          <button type="button" class="cv-pickbtn" data-target="cvMeasAtoms" aria-pressed="false" onclick="cvPickToggle('cvMeasAtoms')" title="numbers on the atoms of the view; click 2, 3 or 4 atoms in it, in order">&#9757; pick in view</button>
           <button type="button" onclick="cvUsePicked('cvMeasAtoms')" title="the atoms picked in the 3D picker above, in the order picked">use picked</button>
           <button type="button" class="ok" onclick="cvEnsMeasure()">Measure</button></span>
         <span class="cv-ens-tool"><b>Sterimol</b>
           <input id="cvStAxis" type="text" placeholder="axis: from, to (e.g. 2,1)" style="width:150px" onkeydown="if(event.key==='Enter')cvEnsSterimol()" />
+          <button type="button" class="cv-pickbtn" data-target="cvStAxis" aria-pressed="false" onclick="cvPickToggle('cvStAxis')" title="numbers on the atoms of the view; click the axis in it: first the atom it starts from, then the first atom of the group">&#9757; pick in view</button>
           <button type="button" onclick="cvUsePicked('cvStAxis')" title="the first two atoms picked in the 3D picker above">use picked</button>
           <button type="button" class="ok" onclick="cvEnsSterimol()" title="DescriPyTor's own Sterimol (the server's Python) on every conformer, whole molecule, CPK radii">Compute</button></span>
         <span class="cv-ens-tool"><b>Contacts</b>
@@ -1606,6 +1610,7 @@ if (typeof $3Dmol === "undefined") {
         <span class="cv-ens-tool"><b>Compare files</b>
           <button type="button" class="ok" onclick="cvEnsCompare()" title="two ensembles of the same molecule (GOAT and CREST, say): which low-energy conformers of each the other also found">What each missed</button></span>
       </div>
+      <div id="cvPickHint" class="cv-ens-sum" style="display:none;color:#b45309"></div>
       <div id="cvEnsOut" class="cv-ens-out"></div>
     </div>
 
@@ -4919,6 +4924,33 @@ function cvEnsCompare() {
   $('cvEnsOut').innerHTML = side(A, B) + side(B, A) + (files.length > 2 ? `<div class="cv-ens-sum">Compared the first two files with several conformers; ${files.length - 2} more left out.</div>` : '');
 }
 
+/* ── Picking atoms in the view, for the Sterimol axis or a measurement ── */
+let cvPickTarget = null, cvKeepView = null;
+const CV_PICK_MAX = { cvStAxis: 2, cvMeasAtoms: 4 };
+function cvPickedNow() { return cvPickTarget ? String($(cvPickTarget).value || '').split(/[\s,;]+/).filter(Boolean).map(Number).filter(Number.isInteger).map(i => i - 1) : []; }
+function cvPickHint() {
+  const h = $('cvPickHint'); if (!h) return;
+  const n = cvPickedNow().length, st = cvPickTarget === 'cvStAxis';
+  h.style.display = cvPickTarget ? 'block' : 'none';
+  if (cvPickTarget) h.textContent = st ? (n === 0 ? 'Click the atom the axis starts from (the attachment atom).' : n === 1 ? 'Now the first atom of the group: the axis points from the first to the second.' : 'Axis set. Compute, or click again to start a new axis.')
+    : (n < 2 ? `Click atoms in order: 2 for a distance, 3 for an angle, 4 for a dihedral (${n} so far).` : n < 4 ? `${['', '', 'distance', 'angle'][n]} so far: Measure, or click more atoms.` : 'Dihedral set. Measure, or click again to start over.');
+}
+function cvRedrawKeep() { cvKeepView = cvViewer3d ? cvViewer3d.getView() : null; cvRenderStack(); cvKeepView = null; }
+function cvPickToggle(id) {
+  cvPickTarget = cvPickTarget === id ? null : id;
+  document.querySelectorAll('.cv-pickbtn').forEach(b => b.setAttribute('aria-pressed', b.dataset.target === cvPickTarget));
+  cvPickHint();
+  if (!cvConformers.some(c => c.on)) return cvPickTarget && alert('Draw a conformer first: its atoms are the ones you click.');
+  cvRedrawKeep();
+}
+function cvPickAtom(atom) {
+  if (!cvPickTarget || !atom || atom.serial == null) return;
+  const cur = cvPickedNow(), max = CV_PICK_MAX[cvPickTarget], ai = atom.serial - 1;
+  const next = cur.length >= max ? [ai] : cur[cur.length - 1] === ai ? cur.slice(0, -1) : cur.concat(ai);     // a second click on the last atom takes it back
+  $(cvPickTarget).value = next.map(i => i + 1).join(',');
+  cvPickHint(); cvRedrawKeep();
+}
+
 /* ── Alignment indices ──────────────────────────────────────────── */
 function cvAlignIndices(refAtoms, mobAtoms, mode) {
   if (mode === 'none') return null;
@@ -5077,7 +5109,7 @@ function cvUpdateList() {
     const div=document.createElement('div');
     div.className='cv-item'+(c.on?' cv-on':'');
     const eStr=c.energy!=null ? c.energy.toFixed(6) : '';
-    const rmsdStr=c.rmsd!=null ? `<span class="cv-rmsd" style="color:${c.color}">RMSD ${c.rmsd.toFixed(3)}&thinsp;Å</span>` : (c===cvConformers.find(x=>x.on)?'<span class="cv-rmsd">reference</span>':'');
+    const rmsdStr=c.on&&c.rmsd!=null ? `<span class="cv-rmsd" style="color:${c.color}">RMSD ${c.rmsd.toFixed(3)}&thinsp;Å</span>` : (c===cvConformers.find(x=>x.on)?'<span class="cv-rmsd">reference</span>':'');
     div.innerHTML=`
       <div class="cv-dot" style="background:${c.color}"></div>
       <div class="cv-info">
@@ -5262,12 +5294,16 @@ function cvRenderStack() {
     if (NC.length) ncLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: ` + NC.map(x =>
       `${x.kind==='hb'?'H-bond':'contact'} ${c.atoms[x.i][0]}${x.i+1}···${c.atoms[x.j][0]}${x.j+1} ${x.d.toFixed(2)}&thinsp;Å`).join(' · '));
     else if (ncMode!=='off') ncLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: none found`);
-    const showLab = $("cvShowLabels") && $("cvShowLabels").checked;
+    const showLab = ($("cvShowLabels") && $("cvShowLabels").checked) || !!cvPickTarget;
     const picked = window._numberingPicked || [];
+    if (mi === 0 && cvPickTarget) cvPickedNow().forEach((ai, k) => { const a = spreadAtoms[ai]; if (a) {
+      cvViewer3d.addSphere({ center: { x: a[1], y: a[2], z: a[3] }, radius: 0.42, color: '#f59e0b', opacity: 0.55 });
+      cvViewer3d.addLabel(String(k + 1), { position: { x: a[1], y: a[2], z: a[3] }, fontSize: 11, fontColor: '#fff', backgroundColor: '#b45309', showBackground: true, inFront: true, alignment: 'bottomLeft' }); } });
     if (showLab) {
       spreadAtoms.forEach((a, ai) => {
         const idx = ai + 1;
         if (mi !== 0 && !picked.includes(idx)) return;   // the others only at the picks: every atom of every conformer froze the view
+        if (hide.includes(ai)) return;                    // a hydrogen not drawn gets no number
         cvViewer3d.addLabel(`${a[0]}${idx}`, {
           position: { x: a[1], y: a[2], z: a[3] },
           fontSize: 10, fontColor: col, backgroundColor: "rgba(255,255,255,0.85)",
@@ -5277,7 +5313,8 @@ function cvRenderStack() {
     }
   });
 
-  cvViewer3d.zoomTo();
+  if (cvKeepView) cvViewer3d.setView(cvKeepView); else cvViewer3d.zoomTo();      // a pick keeps the reader's view
+  cvViewer3d.setClickable({}, true, cvPickAtom);
   cvViewer3d.render();
 
   cvUpdateList();
