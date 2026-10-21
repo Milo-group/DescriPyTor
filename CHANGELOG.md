@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.4 — 2026-10-21
+
+- **The BASSA explorer's help marks draw their answer.** Every "?" and every metric tile (Q² · LOO, Q² · 5-fold, R², MAE, share,
+  external R²) shows a small drawing and one sentence; the help texts are one or two sentences each.
+- **"What you can do"** in the plot's toolbar and at the top of the guide lists every click, drag and key of the page: the plot,
+  the molecule, the table and the shortcuts.
+- **The molecule is drawn larger by default**: one scale for the whole case, as large as the case's largest compound allows
+  (at most 20 % larger than before).
+- BASSA engine: the prior on the inclusion rate is an option (`BASSA_PRIOR` or `prior=`: `k3`, the recipe and the default;
+  `strong`; `n5`). A test of the other two on eight cases found no detectable difference, so the default is unchanged.
+
 ## 0.4.3 — 2026-10-21
 
 - The BASSA explorer opens on the **last case and compound viewed** when its address names none (from the extractor's link, a

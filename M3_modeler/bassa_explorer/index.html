@@ -1342,6 +1342,11 @@ function layersOf(name, on) {
 }
 // the length of the dipole arrow, in Å per debye: the case's own, else the explorer's automatic one (0), times the slider. It is always sent, because the explorer keeps a length it was given before
 const arrowPerD = (mol) => { const own = (C.style || {}).muPerD > 0 ? C.style.muPerD : 0; return st.dipx === 1 || !mol.dipole ? own : st.dipx * (own || Math.min(0.6, 2.6 / (Math.hypot(...mol.dipole.slice(0, 3)) || 1))); };
+// one drawing scale for every compound of a case (units per Å in the explorer's 640 × 540 frame): 36, or less when the largest compound would not fit
+const PERA = new WeakMap(), perA = () => { if (!PERA.has(C)) { let span = 0;
+  for (const m of Object.values(C.mols || {})) { const X = String(m.xyz || '').split('\n').slice(2).map((l) => l.trim().split(/\s+/).slice(1, 4).map(Number)).filter((q) => q.length === 3 && q.every(isFinite));
+    for (let i = 0; i < X.length; i++) for (let j = i + 1; j < X.length; j++) span = Math.max(span, Math.hypot(X[i][0] - X[j][0], X[i][1] - X[j][1], X[i][2] - X[j][2])); }
+  PERA.set(C, Math.max(16, Math.min(36, 600 / (span + 1.2)))); } return PERA.get(C); };
 function session(name, also = []) {
   const mol = C.mols[name], P = layersOf(name, ''), others = also.filter((n) => n && n !== name && C.mols[n]), skipped = P.skipped.slice(), axes = P.axes.slice(), sites = P.sites.slice(), dips = []; let align = { mode: 'none', atoms: '', spread: 0 };
   const structs = [{ name, key: name, xyz: mol.xyz, color: '#1F2937', on: true, own: '', dipole: mol.dipole, charges: mol.charges }];
@@ -1356,10 +1361,10 @@ function session(name, also = []) {
   const limits = [];
   if (!st.showD) { const off = { on: false, origin: '', y: '', plane: '', show: { frame: true, mu: true, u: true, v: false, w: false } };          // structures alone; the superposition above already used the descriptors' atoms
     return { s: { v: 1, active: 0, align, sm: { q: '', any: true, all: true }, L: { axes: [], active: -1, dip: off, sites: [], map: '', fade: '', fadeOff: false, fadeHide: false, legend: false, labShift: {} },
-      style: { ...C.style, labelAtoms: [], atomLabels: 'off' }, view: { R: mol.view || undefined, zoom: 1, perA: 30 }, structs }, skipped: [], limits: [] }; }
+      style: { ...C.style, labelAtoms: [], atomLabels: 'off' }, view: { R: mol.view || undefined, zoom: 1, perA: perA() }, structs }, skipped: [], limits: [] }; }
   const L = Object.assign({ axes, active: P.axes.length ? 0 : -1, dip: P.dip, sites, dips, marks: P.marks, vburs: P.vburs, map: '', fade: '', fadeOff: !!(st.extra.frag && axes.length), fadeHide: false, legend: false, labShift: {} });
   return { limits, s: { v: 1, active: 0, align, sm: { q: '', any: true, all: true }, L, style: { ...C.style, labelScale: 0.75 * ((C.style || {}).labelScale || 1), muPerD: arrowPerD(mol), touch: true, labelAtoms: P.label, dropLabels: ['[uvw]&#770;'].concat(P.total ? [] : ['&#956; -?[0-9.]+ D']) },
-    view: { R: mol.view || undefined, zoom: 1, perA: 30 }, structs }, skipped };   // without a stored view the explorer turns the molecule onto its principal axes
+    view: { R: mol.view || undefined, zoom: 1, perA: perA() }, structs }, skipped };   // without a stored view the explorer turns the molecule onto its principal axes
 }
 // the explorer lives in two frames that stay loaded; a new session is posted to them, and the rotation is kept while the compound is the same
 const frames = [{ el: $('f0'), ready: false, key: '', json: '' }, { el: $('f1'), ready: false, key: '', json: '' }];
