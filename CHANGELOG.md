@@ -1,6 +1,39 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-10-21
+
+### Changed: the BASSA model explorer, redesigned around what a chemist asks
+
+- **Two modes behind one switch**: *Overview* (what drives the predictions, the top models as cards, the compound with
+  its *Why this prediction* and *How to make it better*) and *Models* (the full table). Everything else is under
+  **Advanced**. "Averaged model" is now **ensemble model** throughout.
+- **One verdict in words** in the header: predicts new compounds well / fairly / only weakly / no better than chance. On
+  *no better than chance* the plain page greys the drivers and gives no suggestions.
+- **A metrics card** over the plot: leave-one-out Q² with the BASSA search rerun in every fold (the headline: honest, and the
+  convention in the field), 5-fold Q², R² of the fit, MAE and, with external compounds, their R². A selected model shows its
+  own numbers, its share of sampled models and a note that they flatter it. The design tests are drawn (the best compounds
+  found against chance, the case against the shuffled ceiling, the lead term with and without the compound that carries it).
+- **Why this prediction is a waterfall**: from an average compound, one bar per family steps to the prediction, with an axis;
+  the three closest measured compounds are listed under it. **90 % intervals** are a switch beside Colour.
+- The case's **reaction scheme** sits at the top of Overview; **+ New compound** predicts a structure file with its range.
+- Lazy loading of cases (the first draw in about 1.3 s), Ctrl+Z through the view, double-click on the molecule opens it in
+  the feature explorer, short wording, details on hover.
+
+### Added: a new table is a first-class case
+
+- After a run the page **checks the table itself** (`POST /quick`): the ensemble model's weights and one stratified deal
+  of 5-fold with the sampler rerun in every fold (chains of 10,000), plus leave-one-out up to 25 compounds. The verdict,
+  the metrics card and the intervals then work for a table you just loaded.
+- A column named `set`, `split` or `role` **holds out its `test`, `external` or `heldout` rows**: never fitted, predicted
+  and scored as external compounds.
+- **Two name columns** (an acid and an amine, each repeated) make the pair the compound; a compound named `NA` is a name.
+
+### Changed: the feature explorer's metal bonds
+
+- A metal pair is drawn as a bond only below 1.15 × the sum of the covalent radii; the rest of the package's 2.8 Å contacts
+  (a ring carbon beside the donor N, the detached N of a phosphine-amine) are faint dotted lines. Drawing only: the
+  package's bonds and every computed value are unchanged.
+
 
 ### Added: every structure format, and a calmer view
 

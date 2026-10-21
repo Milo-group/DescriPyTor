@@ -38,7 +38,7 @@ import numpy as np, pandas as pd
 import build_case as BC
 import running as RUN
 
-H = Path(__file__).resolve().parent; C = BC.C; LOCK = threading.Lock(); JOBS = {}; HANDOFF = {}; N_PERM, NULL_ITERS, QUICK_ITERS = 100, 6000, 10000; IDS = itertools.count(1)
+H = Path(__file__).resolve().parent; C = BC.C; LOCK = threading.Lock(); JOBS = {}; HANDOFF = {}; N_PERM, NULL_ITERS, QUICK_ITERS, QUICK_LOO_MAX = 100, 6000, 10000, 25; IDS = itertools.count(1)
 PORT, LOOPBACK, MAX_BODY = 8765, True, 64 * 2 ** 20                 # set at start; requests larger than 64 MB are refused
 READER = BC.S["reader_python"]
 try:
@@ -125,11 +125,19 @@ def quick(job, X, y, K=5):
             te = fold == k
             with LOCK: P[te], LO[te], HI[te] = E.held(X, y, ~te, te, iters=QUICK_ITERS)
             job["done"] += 1
+        loo = None
+        if n <= QUICK_LOO_MAX:                                                  # a small table also gets leave-one-out, the convention in the field (n runs more)
+            L, Ll, Lh = np.zeros(n), np.zeros(n), np.zeros(n)
+            for i in range(n):
+                te = np.arange(n) == i
+                with LOCK: L[i], Ll[i], Lh[i] = (v[0] for v in E.held(X, y, ~te, te, iters=QUICK_ITERS))
+                job["done"] += 1
+            loo = dict(q2=float(1 - ((yv - L) ** 2).sum() / ((yv - yv.mean()) ** 2).sum()), mae=float(np.abs(yv - L).mean()), cover=float(((yv >= Ll) & (yv <= Lh)).mean()))
         sst = ((yv - yv.mean()) ** 2).sum(); err = np.abs(yv - P); w = int(np.argmax(err)); keep = np.arange(n) != w
         k5 = dict(q2=float(1 - ((yv - P) ** 2).sum() / sst), mae=float(err.mean()), cover=float(((yv >= LO) & (yv <= HI)).mean()), worst=str(y.index[w]), worst_err=float(err[w]),
                   q2_without=float(1 - ((yv[keep] - P[keep]) ** 2).sum() / ((yv[keep] - yv[keep].mean()) ** 2).sum()))
         job.update(ens=ens, cv=dict(k5=k5, pred5=[round(float(v), 4) for v in P], lo5=[round(float(v), 4) for v in LO], hi5=[round(float(v), 4) for v in HI],
-                                    split="stratified by the response, one deal, chains of %d" % QUICK_ITERS, quick=True))
+                                    split="stratified by the response, one deal, chains of %d" % QUICK_ITERS, quick=True, **({"loo": loo} if loo else {})))
     except Exception as e: job["error"] = "%s: %s" % (type(e).__name__, e)
 
 
@@ -243,7 +251,7 @@ class Handler(SimpleHTTPRequestHandler):
                 threading.Thread(target=checks, args=(job, X, y), daemon=True).start(); return self.answer(dict(job=name, total=job["total"]))
             if self.path == "/quick":
                 if not SAMPLER: raise RuntimeError(NEEDS)
-                X, y, _, _, _ = table(q); name = str(next(IDS)); JOBS[name] = job = dict(done=0, total=6, cv=None, ens=None, error=None)
+                X, y, _, _, _ = table(q); name = str(next(IDS)); JOBS[name] = job = dict(done=0, total=6 + (len(y) if len(y) <= QUICK_LOO_MAX else 0), cv=None, ens=None, error=None)
                 threading.Thread(target=quick, args=(job, X, y), daemon=True).start(); return self.answer(dict(job=name, total=job["total"]))
             self.send_error(404)
         except ValueError as e: self.answer(dict(error=str(e)), 400)                     # our own refusals are sentences for the reader

@@ -352,6 +352,14 @@ that name, they replace the ones from the batch run.
 Each CSV becomes a kept case. `--checks` adds the chance line, the nested Q² and the fold frequencies (a hundred more
 runs per table).
 
+## The N-alkylation anilines
+
+`aniline_nalkylation` is a ready case beside the paper's: the 13 anilines of the Alassad/Hyster N-alkylation draft, the
+response the ratio N/C (read off the draft's Fig. 3), each on its lowest M06-2X/def2-TZVP structure, 13 descriptors
+(the Boltzmann-averaged B1–B5 angle, θ, B1, NBO charges, dipole, HOMO, the N–H stretches). The angle in the table is the average
+over the rotamers; the molecule shows the lowest one. Leave-one-out Q² 0.57, 5-fold 0.33 (one deal, chains of 10,000):
+the angle is in 87 % of the models, and no other descriptor helps. It lives in the cases folder, not in the package.
+
 ## Prepared cases of the DescriPyTor paper
 
 They are not in the package. `build_case.py models <case>` and `build_case.py page <case>` rebuild them from the paper's

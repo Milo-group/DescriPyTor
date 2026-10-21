@@ -1986,7 +1986,7 @@ $('file').onchange = async (e) => { const f = e.target.files[0]; if (!f) return;
   $('resp').innerHTML = head.map((c) => `<option>${esc(c)}</option>`).join(''); $('resp').value = head[head.length - 1]; $('resp').disabled = $('run').disabled = false;
   $('newstatus').textContent = `${f.name}: ${head.length} columns, ${csv.trim().split(/\r?\n/).length - 1} rows. Choose the response column.`; };
 // the honest Q² of a new table: BASSA's weights on all compounds and one deal of 5-fold with the sampler rerun in every fold
-async function quickCheck(target) { if (ALONE || !target._req || target.cv || target._quick) return; target._quick = '0 of 6'; if (C === target) refresh();
+async function quickCheck(target) { if (ALONE || !target._req || target.cv || target._quick) return; target._quick = '0 runs'; if (C === target) refresh();
   try { const { job, total } = await post('quick', target._req);
     for (;;) { await new Promise((r) => setTimeout(r, 2000)); const j = await (await fetch('checks?job=' + job)).json(); if (j.error) throw new Error(j.error);
       target._quick = `${j.done} of ${total}`; if (C === target && $('quickst')) $('quickst').textContent = `checking on 5 folds: ${target._quick} runs…`;
