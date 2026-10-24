@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.4.6 — 2026-10-24
+
+- **The Conformer Viewer of the visual extractor grew up** (13 commits since 0.4.5): big ensembles open on their 3 lowest
+  conformers and load about ten times faster; near-duplicates fold (with symmetry-aware matching on the server, flags by
+  hand); align by a ring or chosen atoms; colour by element, family, file or flexibility; hydrogens and H-bond / contact
+  lines; split view A | B; play and arrow keys; across the ensemble: a measurement, DescriPyTor Sterimol (drawn on the
+  structure, picked by clicking), contact frequency, files compared, families, flexibility, a t-SNE / PCA map, wells;
+  folder loading, save the unique set, CSV.
 
 ### BASSA model explorer: review for publication and user testing (24 Oct 2026)
 

@@ -247,7 +247,10 @@ descripytor model -m classification -f features.csv -t labels.csv --leave-out L3
 
 ## Python API
 
-Extract a feature table and search models, on the bundled set of 18 substrates with measured outputs:
+Extract a feature table and search models, on the bundled set of 18 substrates with measured outputs. It shows the
+calls, not a good model: these descriptors do not predict this set (in the BASSA explorer its 5-fold Q² is below zero, one
+substrate, o-CN, carrying most of the error). For a set that predicts, open the explorer's bundled example
+(`descripytor bassa_explorer`; 17 ligands, 6 descriptors).
 
 ```python
 from M2_data_extractor.data_extractor import Molecules
