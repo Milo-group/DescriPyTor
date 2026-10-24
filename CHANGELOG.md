@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.7 — 2026-10-24
+
+- **Conformer Viewer: torsions.** The Wells box is now Torsions, with three views of 1–3 dihedrals (left empty, it takes the
+  rotatable bonds that move most). *Torsion map*: each pair of dihedrals with the Boltzmann-weighted density as shading,
+  the weight along each dihedral on the edges, one dot per conformer (click to draw). *Newman*: down the middle bond, the
+  back bonds of every conformer fanned out by weight and a band where the fourth atom sits; φ positive clockwise (IUPAC).
+- **Conformer Viewer: element colours by default**, in a quieter palette, so an overlay reads as one shape. One colour per
+  conformer is still in the menu.
+- **One-file BASSA explorer** (`build_case.standalone`) carries the feature explorer and the visual extractor, opened from
+  the file itself.
+
 ## 0.4.6 — 2026-10-24
 
 - **The Conformer Viewer of the visual extractor grew up** (13 commits since 0.4.5): big ensembles open on their 3 lowest

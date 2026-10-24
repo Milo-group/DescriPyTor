@@ -5156,7 +5156,7 @@ function cvPickHint() {
   else if (cvPickTarget === 'cvStAxis') h.textContent = n === 0 ? 'Click the atom the axis starts from (the attachment atom).' : n === 1 ? 'Now the first atom of the group: the axis points from the first to the second.' : 'Axis set. Compute, or click again to start a new axis.';
   else if (cvPickTarget === 'cvWellAtoms') {
     const parts = cvWellParts(), last = parts.length ? parts[parts.length - 1].length : 0;
-    h.textContent = parts.length >= 3 && last === 4 ? 'Three dihedrals. Vote. Click a highlighted atom to drop it.' : `Dihedral ${Math.max(parts.length, 1)}: ${last} of 4 atoms. After four, the next click starts another (up to 3).`;
+    h.textContent = parts.length >= 3 && last === 4 ? 'Three dihedrals: Torsion map, Newman or Wells. Click a highlighted atom to drop it.' : `Dihedral ${Math.max(parts.length, 1)}: ${last} of 4 atoms. After four, the next click starts another (up to 3).`;
   }
   else h.textContent = n < 2 ? `Click atoms in order: 2 for a distance, 3 for an angle, 4 for a dihedral (${n} so far).` : n < 4 ? `${['', '', 'distance', 'angle'][n]} so far: Measure, or click more atoms.` : 'Dihedral set. Measure, or click again to start over.';
 }
