@@ -41,7 +41,7 @@ from .xtb_singlepoint import XtbSinglePoint
 # Connectivity radii (build_general.py). Used for donor/stereocentre walks.
 CONNECT_COV = {
     "H": 0.31, "C": 0.76, "N": 0.71, "O": 0.66, "F": 0.57, "P": 1.07,
-    "S": 1.05, "Cl": 1.02, "Br": 1.20, "Ni": 1.24, "Cu": 1.32,
+    "S": 1.05, "Cl": 1.02, "Br": 1.20, "I": 1.39, "Ni": 1.24, "Cu": 1.32,   # I: Cordero 2008, as STERIMOL_COV (C-I was unbonded at the 0.77 fallback)
 }
 
 # Sterimol fragment adjacency (regen_b1.py). Intentionally has Ni but not Cu —

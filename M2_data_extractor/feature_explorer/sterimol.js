@@ -232,6 +232,7 @@
     const atoms = new Set();                             // only atoms on a real bond inside the set
     bonds.forEach(([a, b]) => { if (reach.has(a) && reach.has(b)) { atoms.add(a - 1); atoms.add(b - 1); } });
     stop.forEach((i) => atoms.delete(i - 1));
+    if (!atoms.size && !stop.has(direction) && origin !== direction) atoms.add(direction - 1);      // a lone end atom (an H on a blocked C*): placement_search.fragment keeps it
     if (!atoms.size) throw new Error('The two atoms share no bonded fragment.');
     return [...atoms].sort((a, b) => a - b);
   }

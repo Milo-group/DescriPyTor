@@ -714,7 +714,7 @@ def df_file_handler(data):
     nbo_charge_df=nbo_charge_df.dropna()
     nbo_charge_df=nbo_charge_df.reset_index(drop=True)
     charge_dict={'nbo':nbo_charge_df, 'hirshfeld':hirshfeld_charge_df, 'cm5':cm5_charge_df}
-    pol_df.rename(columns={pol_df.columns[0]: 'aniso', pol_df.columns[1]: 'iso'}, inplace=True)
+    pol_df.rename(columns={pol_df.columns[0]: 'iso', pol_df.columns[1]: 'aniso'}, inplace=True)   # stored [iso, aniso]; read the other way round before 2026-10-18
     pol_df=pol_df.astype(float)
     pol_df=pol_df.dropna()
     pol_df=pol_df.reset_index(drop=True)

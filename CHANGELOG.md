@@ -10,6 +10,12 @@
   conformer is still in the menu.
 - **One-file BASSA explorer** (`build_case.standalone`) carries the feature explorer and the visual extractor, opened from
   the file itself.
+- **Polarizability columns were swapped.** The writer stores `[iso, aniso]`; `feather_extractor` and `gaussian_handler`
+  read them the other way round, so "aniso" held the isotropic value. **Tables extracted before 0.4.7 have the two
+  polarizability columns exchanged.**
+- Iodine has a covalent radius in the metal-complex walks (C–I was left unbonded); Sterimol in the pages accepts a lone
+  end atom (an H on a blocked C*) as the fragment, as `placement_search` does; `build_case` gives Wu–Doyle dipoles in
+  Debye and passes each chelate axis's blocked atoms to the page.
 
 ## 0.4.6 — 2026-10-24
 

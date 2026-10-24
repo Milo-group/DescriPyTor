@@ -274,7 +274,7 @@ def structures(case, ligands):
         t = pd.read_csv(WD / "tables/wu_doyle_sterimol_dipole.csv").set_index("ligand"); role = pd.read_csv(WD / "tables/wu_doyle_table2.csv").set_index("ligand").role
         for lig in ligands:
             r = t.loc[lig]; txt = next((WD / "geometries/numbered").glob(r["id"] + "_*.xyz")).read_text().replace(chr(13), ""); v = np.array(SA.view(txt, 1, 2)); c, sn = np.cos(np.radians(-40)), np.sin(np.radians(-40))
-            yield lig, dict(xyz=txt, dipole=[float(r.dipole_metal_x), float(r.dipole_metal_y), float(r.dipole_metal_z), float(r.dipole_total)], charges=None,     # as summary_axes.wu_doyle: the file is written in the Ni->P frame
+            yield lig, dict(xyz=txt, dipole=[2.541746 * float(r[k]) for k in ("dipole_metal_x", "dipole_metal_y", "dipole_metal_z", "dipole_total")], charges=None,     # as summary_axes.wu_doyle: the file is written in the Ni->P frame; the table is xtb atomic units (wu_doyle_cs/README), the page draws D
                             roles=dict(M=[1], D=[2], Pl=[int(r.plane_carbon)]), view=[list(v[0]), list(c * v[1] + sn * v[2]), list(-sn * v[1] + c * v[2])])
     else:
         klass = pd.read_csv(BASSA / "f50_cs3_cp.csv", index_col=0).ligand_class
@@ -287,7 +287,23 @@ def chelate(f, SA):
     c = mc.MetalComplex.from_xyz(str(f)); arms = [mc.stereocentre(c.symbols, c.adj, a, b, metal=c.metal, coords=c.coords) for a, b in ((c.donor_1, c.donor_2), (c.donor_2, c.donor_1))]
     if None in arms: raise RuntimeError(f"{Path(f).name}: no stereocentre on an arm")
     txt = Path(f).read_text(); roles = more_roles(txt, dict(M=[c.metal + 1] * 2, D=[c.donor_1 + 1, c.donor_2 + 1], Cs=[a[0] + 1 for a in arms], R=[a[1] + 1 for a in arms]))
-    return dict(xyz=txt, dipole=None, charges=None, roles=roles, view=SA.view(txt, roles["Cs"][0], roles["R"][0]))
+    return dict(xyz=txt, dipole=None, charges=None, roles=roles, view=SA.view(txt, roles["Cs"][0], roles["R"][0]), axblock=chelate_blocks(txt))
+
+
+def chelate_blocks(txt):
+    """the atoms each role axis of a chelate may not cross, as the CS3 columns were measured (placement_search.chelate_placements and
+    the ring rule of its fragment()): {"start-end": [1-based atoms]}. The page passes them as the axis's block (index.html layersOf, `axblock`; W10c, 20 Oct 2026)."""
+    sys.path.insert(0, str(PKG)); from M2_data_extractor import placement_search as ps
+    rows = [l.split() for l in txt.strip().splitlines()[2:]]; m = ps.Mol("x", [r[0] for r in rows], np.array([[float(v) for v in r[1:4]] for r in rows]))
+    out = {}
+    for p in ps.chelate_placements():
+        t = p.resolve(m)
+        if not t: continue
+        o, a, block = t; stop = set(block)
+        if any(s != a - 1 for s in m.adj[o - 1]):      # fragment(): a ring through the start atom that avoids the end atom is not crossed
+            r = ps.ring_of(m, o, avoid=(a,)); stop |= set(r or []) - {o}
+        out[f"{o}-{a}"] = sorted(int(x) for x in stop - {a})
+    return out
 
 
 CPA_GEOM = (V5 / "notes/cpa_pass1/out", V5 / "notes/analysis/capped_bassa/cpa_246_vi_gfn2")      # the GFN2 structures with their Mulliken .q and .props (dipole x y z in a.u., HOMO, LUMO)

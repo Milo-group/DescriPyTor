@@ -136,7 +136,7 @@ def feather_file_handler(feather_file: str) -> List[Any]:
         ).astype(float).reset_index(drop=True)
 
         pol_df = data.iloc[:, 8:10].dropna().rename(
-            columns={8: 'aniso', 9: 'iso'}
+            columns={8: 'iso', 9: 'aniso'}                      # the writer stores [iso, aniso] (feather_extractor pol_df); read 8 as aniso before 2026-10-18
         ).astype(float).reset_index(drop=True)
 
         info_df = data.iloc[:, 13:15].dropna().rename(
