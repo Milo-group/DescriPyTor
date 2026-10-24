@@ -386,6 +386,10 @@ def standalone(cases):
     # a file to pass around: no paths of this computer (structures folder, recipe), no copy of the uploaded table
     cases = {k: {f: v for f, v in d.items() if f not in ("structures_dir", "extraction", "request")} for k, d in cases.items()}
     data = "<script>window.STANDALONE = true; window.CASES = " + json.dumps(cases).replace("</", "<\\/") + ";</script>"
+    # the two other pages, opened from the file (index.html pageUrl): the full feature explorer, and the visual extractor, whose
+    # server parts (feather folders, extraction) say they need `descripytor visual_extractor`; XYZ files and the conformer viewer work
+    pages = dict(feature_explorer=ex, visual_extractor=(PKG / "M2_data_extractor" / "atom_picker.html").read_text(encoding="utf-8"))
+    data += "<script>window.STANDALONE_PAGES = " + json.dumps(pages).replace("</", "<\\/") + ";</script>"
     return page_.replace(a, data).replace(b, 'srcdoc="' + ex.replace("&", "&amp;").replace('"', "&quot;") + '"')
 
 
