@@ -102,6 +102,17 @@ def test_a_field_the_files_cannot_give_says_why():
     assert got == ["", "the files in this folder have no dipole", "the files in this folder have no charges", "", ""]
 
 
+def test_align_picks_and_dihedral_difference():
+    got = _run(["cvParseAtoms", "cvCircDiff"], """
+      console.log(JSON.stringify([
+        cvParseAtoms("1, 2, 5-7 2"),
+        cvParseAtoms(""),
+        cvCircDiff(170, -170),
+        cvCircDiff(10, 40),
+      ]));""")
+    assert got == [[0, 1, 4, 5, 6], [], 20, 30]
+
+
 def test_morfeus_sterimol_pairs_stay_with_morfeus():
     got = _run(["pickedSterimolPairs"], """
       const state = { sterimol: [[1, 4]], mf_sterimol: [[2, 7]] };

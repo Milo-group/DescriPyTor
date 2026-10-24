@@ -164,6 +164,38 @@ def test_fast_feather_xyz_reads_basic():
     assert xyz.splitlines()[0].strip() == str(n_atoms)
 
 
+def test_electronic_energy_skips_an_orbital_gap_and_reads_the_log(tmp_path):
+    import pandas as pd
+
+    from M2_data_extractor.gui_server import (
+        _energy_for_path,
+        _energy_from_log_text,
+        _energy_from_table,
+        _xyz_text_from_coords,
+    )
+
+    gap = pd.DataFrame({"energy": [7.797]})
+    assert _energy_from_table(gap) is None
+    assert _energy_from_table(pd.DataFrame({"energy": [-287.5]})) == -287.5
+    log = (
+        "SCF Done:  E(RM062X) =  -287.100000000\n"
+        "SCF Done:  E(RM062X) =  -287.584813856\n"
+    )
+    assert _energy_from_log_text(log) == -287.584813856
+    assert _energy_from_log_text("FINAL SINGLE POINT ENERGY       -40.123456789\n") == -40.123456789
+    feather = tmp_path / "feather_files" / "H_c1.feather"
+    feather.parent.mkdir()
+    (tmp_path / "H_c1.log").write_text(log, encoding="utf-8")
+    assert _energy_for_path(str(feather), gap) == -287.584813856
+    xyz, _name, n_atoms = _xyz_text_from_coords(
+        pd.DataFrame({"atom": ["C"], "x": [0.0], "y": [0.0], "z": [1.0]}),
+        "H_c1",
+        -287.584813856,
+    )
+    assert "E -287.5848138560" in xyz.splitlines()[1]
+    assert n_atoms == 1
+
+
 def test_visual_serves_atom_picker(client):
     response = client.get("/visual")
     assert response.status_code == 200
@@ -178,7 +210,7 @@ def test_visual_serves_atom_picker(client):
     assert "Run linear regression" in body
     assert "1-based" in body
     assert "Advanced" in body
-    assert "Conformer Search" in body
+    assert "Conformer Viewer" in body          # the Conformer Search panel was removed
     assert "Browse" in body
     assert 'id="fileInput"' in body
     assert 'id="loadFileBtn"' in body
@@ -219,6 +251,38 @@ def test_visual_trailing_slash(client):
     response = client.get("/visual/")
     assert response.status_code == 200
     assert "3Dmol" in response.get_data(as_text=True)
+
+
+def test_conformer_duplicates_route_folds_a_rotated_copy(client):
+    pytest.importorskip("rdkit")
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    mol = Chem.AddHs(Chem.MolFromSmiles("CCO"))
+    assert AllChem.EmbedMolecule(mol, randomSeed=1) == 0
+    conf = mol.GetConformer()
+    rows = [(a.GetSymbol(), conf.GetAtomPosition(i).x, conf.GetAtomPosition(i).y, conf.GetAtomPosition(i).z) for i, a in enumerate(mol.GetAtoms())]
+    turned = [(el, z, x, y) for el, x, y, z in rows]
+    response = client.post("/conformers/duplicates", json={"groups": [{"frames": [
+        {"id": 3, "atoms": rows, "energy": -1.0},
+        {"id": 8, "atoms": turned, "energy": -0.5},
+    ]}]})
+    assert response.status_code == 200
+    pairs = response.get_json()["pairs"]
+    assert len(pairs) == 1
+    assert pairs[0]["child"] == 8 and pairs[0]["parent"] == 3
+    assert pairs[0]["reason"] == "tight" and pairs[0]["rmsd"] < 0.05
+    assert isinstance(pairs[0]["swaps"], list)
+
+
+def test_conformer_wells_route_reports_the_four_votes(client):
+    angles = [[0.0, 0.0]] * 6 + [[0.0, 180.0]] * 6 + [[180.0, 0.0]] * 6 + [[180.0, 180.0]] * 6
+    groups = ["A", "B"] * (len(angles) // 2)
+    response = client.post("/conformers/wells", json={"angles": angles, "groups": groups})
+    assert response.status_code == 200
+    body = response.get_json()
+    assert set(body["criteria"]) == {"knee", "silhouette_jump", "silhouette_max", "density", "coverage"}
+    assert body["criteria"]["density"] == 4
+    assert "4" in body["labels"]
 
 
 def test_packaged_picker_is_preferred():
@@ -878,3 +942,95 @@ def test_numbering_check_compares_with_the_picked_molecule(client):
                                                 "reference_xyz": sent, "reference_name": "mine"}).get_json()
     assert got["reference"] == "mine" and got["reference_n_atoms"] == 2
     assert all(not m["ok"] for m in got["molecules"])
+
+
+def test_post_scf_energies_read_from_real_gaussian_lines():
+    from M2_data_extractor.gui_server import _energy_from_log_text
+
+    scf = " SCF Done:  E(RB2PLYPD3) =  -385.123456789     A.U. after   12 cycles\n"
+    dh = " E2(B2PLYPD3) =    -0.1234567890D+00 E(B2PLYPD3) =    -0.38553583000D+03\n"
+    assert _energy_from_log_text(scf) == -385.123456789
+    assert _energy_from_log_text(scf + dh) == pytest.approx(-385.53583)
+    mp2 = " SCF Done:  E(RHF) =  -384.9     A.U. after   9 cycles\n E2 =    -0.3D+00 EUMP2 =    -0.38512345678D+03\n"
+    assert _energy_from_log_text(mp2) == pytest.approx(-385.12345678)
+    oniom = scf + " ONIOM: extrapolated energy =    -385.987654321\n"
+    assert _energy_from_log_text(oniom) == -385.987654321
+    orca = "FINAL SINGLE POINT ENERGY      -40.123456789 (Wavefunction not fully converged!)\n"
+    assert _energy_from_log_text(orca) == -40.123456789
+
+
+def _cf3_rows():
+    import math
+
+    rows = [["C", 0.0, 0.0, 0.0], ["C", 1.52, 0.0, 0.0]]
+    for k in range(3):        # three fluorines on the second carbon
+        t = 2 * math.pi * k / 3
+        rows.append(["F", 1.97, 1.27 * math.cos(t), 1.27 * math.sin(t)])
+    rows.append(["O", -0.6, 1.2, 0.3])
+    return rows
+
+
+def test_conformer_duplicates_fold_a_relabelled_cf3(client):
+    pytest.importorskip("rdkit")
+    a = _cf3_rows()
+    b = [r[:] for r in a]
+    b[2], b[3] = [b[3][0]] + b[3][1:], [b[2][0]] + b[2][1:]     # two fluorines trade labels: same shape, other numbering
+    response = client.post("/conformers/duplicates", json={"groups": [{"frames": [
+        {"id": 0, "atoms": a, "energy": -1.0}, {"id": 1, "atoms": b, "energy": -0.9}]}]})
+    assert response.status_code == 200
+    pairs = response.get_json()["pairs"]
+    assert len(pairs) == 1 and pairs[0]["child"] == 1 and pairs[0]["parent"] == 0
+    assert pairs[0]["rmsd"] < 0.05 and pairs[0]["swaps"]          # matched only by the swap
+
+
+def test_cross_tags_matches_one_to_one_by_assignment(monkeypatch):
+    pytest.importorskip("rdkit")
+    import M2_data_extractor.conformer_duplicates as cd
+
+    # left L1 is close to R1 (0.10) and R2 (0.12); L2 is close to R1 only (0.02). Greedy in file order gave
+    # L1-R1 and left L2 unmatched; the assignment gives L1-R2 and L2-R1.
+    table = {(0, 10): 0.10, (0, 11): 0.12, (1, 10): 0.02}
+
+    def frame(fid):           # the same shape everywhere; the id rides on a translation the judge reads back
+        return {"id": fid, "energy": -1.0, "atoms": [[r[0], r[1] + 100 * fid, r[2], r[3]] for r in _cf3_rows()]}
+
+    def judge(probe, other, *args, **kwargs):
+        pid = round(probe.GetConformer().GetAtomPosition(0).x / 100)
+        oid = round(other.GetConformer().GetAtomPosition(0).x / 100)
+        r = table.get((pid, oid))
+        return {"kind": "tight" if r is not None else "apart", "rmsd": r if r is not None else 1.0, "amap": None, "torsion": 0.0}
+
+    monkeypatch.setattr(cd, "judge_pair", judge)
+    out = cd.cross_tags([{"name": "GOAT", "frames": [frame(0), frame(1)]}, {"name": "CREST", "frames": [frame(10), frame(11)]}])
+    pairs = {(t["id"], t["with"]) for t in out["tags"] if t["tag"] == "BOTH"}
+    assert (0, 11) in pairs and (1, 10) in pairs and len(pairs) == 4
+
+
+def test_conformer_sources_route_tags_both_and_own(client):
+    pytest.importorskip("rdkit")
+    a = _cf3_rows()
+    far = [r[:] for r in a]
+    far[-1] = ["O", -0.6, -1.2, -0.3]                         # the OH on the other side: another conformer
+    files = [{"name": "o_nitro GOAT", "frames": [{"id": 0, "atoms": a, "energy": -1.0}, {"id": 1, "atoms": far, "energy": -0.999}]},
+             {"name": "o_nitro CREST", "frames": [{"id": 2, "atoms": a, "energy": -1.0005}]}]
+    response = client.post("/conformers/sources", json={"files": files})
+    assert response.status_code == 200
+    tags = {t["id"]: t["tag"] for t in response.get_json()["tags"]}
+    assert tags[0] == "BOTH" and tags[2] == "BOTH" and tags[1] == "GOAT"
+
+
+def test_conformer_routes_refuse_bad_input_clearly(client):
+    many = [{"id": k, "atoms": [["C", 0, 0, k], ["C", 1, 0, k], ["O", 0, 1, k]], "energy": -1.0} for k in range(801)]
+    body = client.post("/conformers/duplicates", json={"groups": [{"frames": many}]}).get_json()
+    assert body["pairs"] == [] and "800" in body["warning"]   # over the budget: left unmatched, said why
+    r = client.post("/conformers/wells", json={"angles": [[0.0], [None], [180.0]]})
+    assert r.status_code == 400 and "finite" in r.get_json()["error"]
+    r = client.post("/conformers/duplicates", data="{not json", content_type="application/json")
+    assert r.status_code == 400 and "JSON" in r.get_json()["error"]
+
+
+def test_xyz_from_feather_refuses_a_same_named_other_file(client, tmp_path):
+    xyz = tmp_path / "mol1.xyz"
+    xyz.write_text("2\n\nC 0 0 0\nO 0 0 1.2\n", encoding="utf-8")
+    r = client.post("/xyz_from_feather", json={"filepath": str(xyz), "name": "mol1", "expect_size": xyz.stat().st_size + 5})
+    assert r.status_code == 409

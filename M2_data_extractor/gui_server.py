@@ -410,9 +410,106 @@ def visual_static(filename):
     return jsonify({"error": "not found"}), 404
 
 
-def _xyz_text_from_coords(df, name):
+def _energy_from_table(data):
+    """Hartree total energy from a feather table.
+
+    A column named energy that is only a few eV is the HOMO-LUMO gap the old
+    writer stored there, not the electronic energy.
+    """
+    import pandas as pd
+
+    if data is None or getattr(data, "empty", True):
+        return None
+    cols = {str(c).strip().lower(): c for c in data.columns}
+    for key in ("e_scf", "scf_energy", "energy_hartree", "electronic_energy", "final_energy"):
+        if key not in cols:
+            continue
+        series = pd.to_numeric(data[cols[key]], errors="coerce").dropna()
+        if len(series):
+            return float(series.iloc[0])
+    if "energy" in cols:
+        series = pd.to_numeric(data[cols["energy"]], errors="coerce").dropna()
+        if len(series):
+            value = float(series.iloc[0])
+            if value < -1.0:
+                return value
+    return None
+
+
+def _energy_from_log_text(text):
+    """The last electronic energy in a Gaussian log or an ORCA output, Hartree.
+
+    For Gaussian the highest level the log reports wins: ONIOM's extrapolated energy, CCSD(T), a double hybrid's
+    total (the second term of the "E2(B2PLYPD3) = ... E(B2PLYPD3) = ..." line), MP2 (EUMP2), then the last
+    "SCF Done", which for those methods is only the SCF part.
+    """
+    import re
+
+    text = text or ""
+    num = r"([-+]?\d+\.\d+(?:[DdEe][-+]?\d+)?)"
+    to_float = lambda v: float(v.replace("D", "E").replace("d", "e"))
+    for pattern in (
+        r"ONIOM: extrapolated energy\s*=\s*" + num,
+        r"CCSD\(T\)\s*=\s*" + num,
+        r"E2\([^)]*\)\s*=\s*[-+]?\d+\.\d+(?:[DdEe][-+]?\d+)?\s+E\([^)]*\)\s*=\s*" + num,
+        r"EUMP2\s*=\s*" + num,
+        r"SCF Done:\s+E\([^)]*\)\s*=\s*" + num,
+    ):
+        found = re.findall(pattern, text)
+        if found:
+            return to_float(found[-1])
+    orca = re.findall(r"FINAL SINGLE POINT ENERGY\s+([-+]?\d+\.\d+)", text or "")
+    if orca:
+        return float(orca[-1])
+    return None
+
+
+def _energy_for_path(path, table=None):
+    """Electronic energy for one calculation file.
+
+    A feather written by the old extractor has no Hartree energy. The Gaussian
+    log or ORCA output with the same name, beside the file or in the parent
+    folder, carries it.
+    """
+    value = _energy_from_table(table)
+    if value is not None or not path:
+        return value
+    stem = os.path.splitext(os.path.basename(path))[0]
+    folder = os.path.dirname(os.path.abspath(path))
+    candidates = [path]
+    for directory in (folder, os.path.dirname(folder)):
+        for ext in (".log", ".out"):
+            candidates.append(os.path.join(directory, stem + ext))
+    seen = set()
+    for candidate in candidates:
+        if candidate in seen or not os.path.isfile(candidate):
+            continue
+        seen.add(candidate)
+        if not candidate.lower().endswith((".log", ".out")):
+            continue
+        try:
+            st = os.stat(candidate)
+            key = (os.path.abspath(candidate), st.st_size, st.st_mtime_ns)
+            if key not in _LOG_ENERGY:          # each log read once while it is unchanged, not once per request
+                with open(candidate, "r", encoding="utf-8", errors="replace") as handle:
+                    _LOG_ENERGY[key] = _energy_from_log_text(handle.read())
+                if len(_LOG_ENERGY) > 4096:
+                    _LOG_ENERGY.pop(next(iter(_LOG_ENERGY)))
+            value = _LOG_ENERGY[key]
+        except OSError:
+            continue
+        if value is not None:
+            return value
+    return None
+
+
+_LOG_ENERGY = {}
+
+
+def _xyz_text_from_coords(df, name, energy=None):
     label = name or "molecule"
-    lines = [str(len(df)), str(label)]
+    comment = str(label) if energy is None else f"{label} E {float(energy):.10f}"
+    lines = [str(len(df)), comment]
     for _, row in df.iterrows():
         lines.append(
             f"{str(row['atom']):2s} {float(row['x']):14.8f} "
@@ -464,7 +561,7 @@ def _dipole_from_feather_df(data):
     return {"vector": [dx, dy, dz], "total": total}
 
 
-def _viewer_payload_from_feather(path, display_name="molecule"):
+def _viewer_payload_from_feather(path, display_name="molecule", with_energy=True):
     """XYZ plus dipole overlay from one feather read."""
     import pandas as pd
 
@@ -484,8 +581,9 @@ def _viewer_payload_from_feather(path, display_name="molecule"):
     if df.empty:
         raise ValueError("No atom coordinates in this feather file")
     label = display_name or os.path.splitext(os.path.basename(path))[0]
-    xyz, name, n_atoms = _xyz_text_from_coords(df, label)
-    overlay = {"dipole": _dipole_from_feather_df(data), "modes": _modes_from_feather_df(data, n_atoms)}
+    energy = _energy_for_path(path, data) if with_energy else None
+    xyz, name, n_atoms = _xyz_text_from_coords(df, label, energy)
+    overlay = {"dipole": _dipole_from_feather_df(data), "modes": _modes_from_feather_df(data, n_atoms), "energy": energy}
     return xyz, name, n_atoms, overlay
 
 
@@ -613,16 +711,16 @@ def _mol_data_from_molecule(mol):
     return overlay
 
 
-def _xyz_text_from_molecule(mol, name=None):
+def _xyz_text_from_molecule(mol, name=None, energy=None):
     df = mol.xyz_df[["atom", "x", "y", "z"]]
     label = name or getattr(mol, "molecule_name", "molecule")
-    return _xyz_text_from_coords(df, label)
+    return _xyz_text_from_coords(df, label, energy)
 
 
-def _molecule_view_from_path(path, display_name="molecule"):
+def _molecule_view_from_path(path, display_name="molecule", with_energy=True):
     """XYZ, dipole, and vibration overlays for the 3D viewer."""
     try:
-        return _viewer_payload_from_feather(path, display_name)
+        return _viewer_payload_from_feather(path, display_name, with_energy)
     except Exception:
         pass
     here = os.path.dirname(os.path.abspath(__file__))
@@ -633,13 +731,18 @@ def _molecule_view_from_path(path, display_name="molecule"):
     except ImportError:
         from data_extractor import Molecule
     mol = Molecule(path)
-    xyz, name, n_atoms = _xyz_text_from_molecule(mol, display_name)
-    return xyz, name, n_atoms, _mol_data_from_molecule(mol)
+    energy = _energy_for_path(path) if with_energy else None
+    if energy is None and with_energy:
+        energy = _energy_from_table(getattr(mol, "energy_value", None))
+    xyz, name, n_atoms = _xyz_text_from_molecule(mol, display_name, energy)
+    overlay = _mol_data_from_molecule(mol)
+    overlay["energy"] = energy
+    return xyz, name, n_atoms, overlay
 
 
 def _molecule_xyz_from_path(path, display_name="molecule"):
     """XYZ for the 3D viewer. Prefer a fast feather read; fall back to Molecule()."""
-    xyz, name, n_atoms, _overlay = _molecule_view_from_path(path, display_name)
+    xyz, name, n_atoms, _overlay = _molecule_view_from_path(path, display_name, with_energy=False)     # geometry only
     return xyz, name, n_atoms
 
 
@@ -671,9 +774,14 @@ def xyz_from_feather():
             return jsonify({"error": "Upload a .feather file or pass filepath"}), 400
         if not os.path.isfile(path):
             return jsonify({"error": "File not found: " + str(path)}), 404
+        expect = None if cleanup else (request.json or {}).get("expect_size")
+        if expect is not None and os.path.getsize(path) != int(expect):
+            # the page looked for the file it was given in the Structure folder; a same-named file there is another file
+            return jsonify({"error": "not the file that was picked (size differs)"}), 409
         xyz, name, n_atoms, overlay = _molecule_view_from_path(path, display_name)
         payload = {
             "xyz": xyz, "name": name, "n_atoms": n_atoms, "mol_data": overlay,
+            "energy": None if not overlay else overlay.get("energy"),
         }
         if not cleanup:
             payload["filepath"] = path
@@ -1054,6 +1162,132 @@ def theta_check():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 400
+
+
+def _conformer_request():
+    """The JSON object of a conformer route; anything else is the caller's mistake (400)."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        raise ValueError("the request body must be a JSON object")
+    return data
+
+
+def _conformer_error(e):
+    """Bad input answers 400 with its message; a failure inside RDKit or numpy is the server's (500)."""
+    traceback.print_exc()
+    if isinstance(e, (ValueError, TypeError, KeyError)):
+        return jsonify({"error": str(e)}), 400
+    return jsonify({"error": f"internal error: {type(e).__name__}: {e}"}), 500
+
+
+# The symmetry match grows with the square of the frames (600 near-alike frames ~10 s). One request matches at most
+# this many frames in all, and a newer request from the page stops an older one between frames.
+CONFORMER_MATCH_BUDGET = 800
+_DUP_LATEST = {}
+
+
+@app.route("/conformers/duplicates", methods=["POST"])
+def conformer_duplicates_route():
+    """Fold frames that match after a permutation of identical atoms.
+
+    groups: [{frames: [{id, atoms: [[el,x,y,z], ...], energy}, ...]}, ...]
+    Matching stays inside one group, so two files are not merged here.
+    token (optional): the page's request id; a later token stops this one.
+    """
+    try:
+        data = _conformer_request()
+        ensure_path("")
+        from conformer_duplicates import DUP_A, TIGHT_A, TORSION_DEG, fold_duplicates
+
+        token = data.get("token")
+        page = str(token).split(":")[0] if token is not None else None      # "<page>:<n>": only that page's newer request stops it
+        if token is not None:
+            _DUP_LATEST[page] = token
+        superseded = (lambda: token is not None and _DUP_LATEST.get(page) != token)
+        groups = data.get("groups") or []
+        pairs, suggestions, skipped, budget = [], [], 0, CONFORMER_MATCH_BUDGET
+        for g in groups:
+            frames, ids = [], []
+            for fr in g.get("frames") or []:
+                ids.append(fr.get("id"))
+                frames.append({"atoms": fr.get("atoms") or [], "energy": fr.get("energy")})
+            if len(frames) > budget:
+                skipped += 1
+                continue
+            budget -= len(frames)
+            folded = fold_duplicates(
+                frames,
+                rmsd_cut=float(data.get("rmsd") or DUP_A),
+                tight=float(data.get("tight") or TIGHT_A),
+                torsion_cut=float(data.get("torsion") or TORSION_DEG),
+                should_stop=superseded,
+            )
+            if superseded():
+                return jsonify({"pairs": [], "suggestions": [], "warning": "superseded by a newer request"})
+            for key, bucket in (("pairs", pairs), ("suggestions", suggestions)):
+                for pair in folded[key]:
+                    bucket.append({
+                        "child": ids[pair["child"]],
+                        "parent": ids[pair["parent"]],
+                        "rmsd": None if pair["rmsd"] is None else round(float(pair["rmsd"]), 4),
+                        "reason": pair["reason"],
+                        "swaps": pair.get("swaps") or [],
+                        "torsion": pair.get("torsion"),
+                    })
+        warning = (f"{skipped} file(s) left unmatched: one match takes at most {CONFORMER_MATCH_BUDGET} conformers in all. "
+                   "Untick equivalent atoms to merge them by plain RMSD, or load fewer files at once") if skipped else ""
+        return jsonify({"pairs": pairs, "suggestions": suggestions, "warning": warning})
+    except Exception as e:
+        return _conformer_error(e)
+
+
+@app.route("/conformers/sources", methods=["POST"])
+def conformer_sources_route():
+    """Tag two ensembles of one molecule: BOTH, CREST, GOAT, or the file name.
+
+    Energies are measured from the lower of the two minima.
+    """
+    try:
+        data = _conformer_request()
+        ensure_path("")
+        from conformer_duplicates import cross_tags
+
+        files = data.get("files") or []
+        if len(files) < 2:
+            return jsonify({"error": "two files are needed"}), 400
+        n = sum(len(f.get("frames") or []) for f in files[:2])
+        if n > CONFORMER_MATCH_BUDGET:
+            return jsonify({"error": f"too many conformers for one match ({n}; at most {CONFORMER_MATCH_BUDGET}): "
+                                     "narrow the Draw window or merge duplicates first"}), 400
+        return jsonify(cross_tags(files[:2]))
+    except Exception as e:
+        return _conformer_error(e)
+
+
+@app.route("/conformers/wells", methods=["POST"])
+def conformer_wells_route():
+    """Knee, silhouette, density peaks and coverage for 1–3 dihedrals."""
+    import math
+
+    try:
+        data = _conformer_request()
+        ensure_path("")
+        from conformer_wells import vote_wells
+
+        angles = data.get("angles") or []
+        if len(angles) > 2500:
+            return jsonify({"error": "too many conformers (2500)"}), 400
+        for row in angles:          # one missing angle would turn every score into NaN, which is not JSON
+            values = row if isinstance(row, (list, tuple)) else [row]
+            if not values or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in values):
+                return jsonify({"error": "every conformer needs a finite angle for each dihedral "
+                                         "(two atoms on top of each other?)"}), 400
+        result = vote_wells(angles, data.get("groups") or ["all"] * len(angles))
+        if result.get("error"):
+            return jsonify(result), 400
+        return jsonify(result)
+    except Exception as e:
+        return _conformer_error(e)
 
 
 @app.route("/figure/load", methods=["POST"])

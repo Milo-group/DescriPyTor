@@ -661,7 +661,7 @@ if (typeof $3Dmol === "undefined") {
   @media (max-width:520px) { .preset-grid { grid-template-columns:1fr; } }
 
   /* ── Collapsible bars (shared) ── */
-  .csearch-bar, .cview-bar {
+  .cview-bar {
     margin:0 18px 16px;
     background:var(--surface);
     border:1px solid rgba(255,255,255,.90);
@@ -672,17 +672,15 @@ if (typeof $3Dmol === "undefined") {
     overflow:hidden;
     transition:box-shadow .2s;
   }
-  .csearch-bar:hover, .cview-bar:hover { box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.9); }
-  .csearch-head, .cview-head {
+  .cview-bar:hover { box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.9); }
+  .cview-head {
     display:flex; gap:10px; align-items:center;
     padding:14px 20px; cursor:pointer; user-select:none;
     border-bottom:1px solid transparent; transition:border-color .15s,background .15s;
   }
-  .csearch-head:hover, .cview-head:hover { background:rgba(0,0,0,.015); }
-  .csearch-head.open, .cview-head.open { border-color:rgba(0,0,0,.07); }
-  .csearch-body { display:none; padding:20px; }
+  .cview-head:hover { background:rgba(0,0,0,.015); }
+  .cview-head.open { border-color:rgba(0,0,0,.07); }
   .cview-body { display:none; padding:20px; } .cview-body.open { display:block; }      /* it had no rule: the head's toggle changed only its arrow */
-  .csearch-body.open { display:grid; grid-template-columns:minmax(300px,1fr) minmax(300px,1fr) minmax(260px,.85fr); gap:18px; }
 
   /* ── Align & renumber ── */
   .al-body { padding:18px 20px 20px; display:grid; gap:14px; }
@@ -798,120 +796,155 @@ if (typeof $3Dmol === "undefined") {
   .al-note { font-size:12px; color:var(--muted); }
   button.al-on { background:rgba(255,159,10,.16); border-color:rgba(255,159,10,.5); }
 
-  /* ── Conformer Search internals ── */
-  .cs-h2 { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.10em; color:var(--muted); margin:0 0 12px; }
-  .prog-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 12px; }
-  .prog-card {
-    text-align:left; border:1.5px solid rgba(0,0,0,.07); border-radius:12px;
-    padding:10px 12px; background:rgba(255,255,255,.80); cursor:pointer;
-    transition:all .15s; box-shadow:var(--shadow-xs);
-  }
-  .prog-card:hover { border-color:rgba(0,122,255,.28); transform:translateY(-1px); box-shadow:0 4px 14px rgba(0,122,255,.10); }
-  .prog-card b { display:block; font-size:13px; font-weight:600; margin-bottom:3px; }
-  .prog-card span { display:block; font-size:11.5px; color:var(--muted); line-height:1.3; }
-  .prog-card.active { border-color:var(--blue); background:rgba(0,122,255,.06); box-shadow:0 4px 16px rgba(0,122,255,.14); }
-  .cs-pre {
-    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;
-    background:rgba(246,249,253,.98); border:1px solid rgba(0,0,0,.07);
-    border-radius:12px; padding:13px 15px; white-space:pre-wrap;
-    word-break:break-all; min-height:90px; color:var(--text); line-height:1.55;
-    box-shadow:inset 0 1px 4px rgba(0,0,0,.04);
-  }
-  .cs-note { font-size:12px; color:#415165; background:rgba(0,122,255,.05); border:1px solid rgba(0,122,255,.14); border-radius:10px; padding:10px 12px; margin-top:12px; line-height:1.55; }
-  .cs-note code { background:rgba(0,0,0,.06); border-radius:4px; padding:1px 5px; font-family:ui-monospace,Menlo,Consolas,monospace; }
-  .src-tabs { display:flex; gap:0; margin-bottom:12px; background:rgba(116,116,128,.10); border-radius:999px; padding:3px; width:max-content; }
-  .src-tabs button { border:0; background:transparent; border-radius:999px; padding:4px 14px; font-size:12.5px; cursor:pointer; color:var(--muted); font-family:inherit; box-shadow:none; min-height:28px; transition:all .15s; }
-  .src-tabs button:hover { transform:none; box-shadow:none; }
-  .src-tabs button.active { background:#fff; color:#0B63CE; box-shadow:0 2px 8px rgba(0,0,0,.10); }
-  .cs-field { margin-bottom:10px; }
-  .cs-field label { display:block; font-size:12px; color:var(--muted); font-weight:500; margin-bottom:5px; }
-  .cs-field input,.cs-field select,.cs-field textarea { width:100%; min-height:34px; border:1px solid rgba(0,0,0,.10); border-radius:10px; padding:7px 10px; font:inherit; color:var(--text); background:rgba(255,255,255,.90); outline:none; transition:border-color .15s,box-shadow .15s; }
-  .cs-field input:focus,.cs-field select:focus,.cs-field textarea:focus { border-color:rgba(0,122,255,.40); box-shadow:0 0 0 3px rgba(0,122,255,.12); }
-  .cs-field textarea { min-height:110px; resize:vertical; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; }
-  .cs-row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .cs-row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
-  @media (max-width:960px) { .csearch-body.open { grid-template-columns:1fr; } }
-
   /* ── Conformer Viewer internals ── */
-  .cvctrl-bar {
-    display:flex; flex-wrap:wrap; align-items:center; gap:10px;
-    padding:12px 16px;
-    background:rgba(246,249,253,.96);
-    border:1px solid rgba(0,0,0,.07); border-radius:14px;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+  #cviewBody { display:none; padding:16px 18px 20px; background:linear-gradient(180deg, rgba(255,255,255,.35), transparent 90px); }
+  #cviewBody.open { display:block; }
+  #cviewBody select, #cviewBody input[type="text"], #cviewBody input[type="number"] {
+    border:1px solid rgba(0,0,0,.10); border-radius:9px; background:#fff;
+    padding:4px 8px; min-height:28px; font:inherit; font-size:12.5px; color:var(--text);
+    outline:none; transition:border-color .15s, box-shadow .15s;
+  }
+  #cviewBody select:focus, #cviewBody input[type="text"]:focus, #cviewBody input[type="number"]:focus {
+    border-color:rgba(0,122,255,.45); box-shadow:0 0 0 3px rgba(0,122,255,.12);
+  }
+  #cviewBody input[type="range"] { accent-color:var(--blue); }
+  #cviewBody .cvctrl-bar button, #cviewBody .cv-ens-tool button { min-height:28px; padding:3px 12px; font-size:12.5px; }
+  #cviewBody button.cv-quiet { color:#a91d14; background:transparent; border-color:transparent; box-shadow:none; }
+  #cviewBody button.cv-quiet:hover { background:rgba(255,59,48,.08); border-color:rgba(255,59,48,.22); }
+  .cvctrl-bar { display:flex; flex-direction:column; gap:8px; }
+  .cv-group {
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px;
+    padding:8px 12px 8px 10px;
+    background:rgba(244,247,252,.92);
+    border:1px solid rgba(20,40,80,.06);
+    border-radius:16px;
+    box-shadow:0 1px 2px rgba(20,40,80,.04), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  .cv-k {
+    flex:0 0 auto; min-width:46px;
+    font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
   }
   #cvDropZone {
-    border:2px dashed rgba(0,122,255,.28); border-radius:12px;
-    padding:8px 18px; cursor:pointer; font-size:12.5px; font-weight:500;
-    color:rgba(0,122,255,.75); background:rgba(0,122,255,.04);
-    transition:all .15s;
+    border:1.5px dashed rgba(0,122,255,.35); border-radius:999px;
+    padding:6px 16px; cursor:pointer; font-size:12.5px; font-weight:600;
+    color:#0B63CE; background:rgba(0,122,255,.06);
+    transition:background .15s, border-color .15s, box-shadow .15s;
   }
   #cvDropZone:hover, .drag-over {
-    border-color:var(--blue); color:var(--blue);
-    background:rgba(0,122,255,.08); box-shadow:0 2px 10px rgba(0,122,255,.12);
+    border-color:var(--blue); background:rgba(0,122,255,.12);
+    box-shadow:0 4px 16px rgba(0,122,255,.14);
   }
-  .cview-main { display:grid; grid-template-columns:290px 1fr; gap:14px; min-height:480px; }
-  .cvlist-wrap { display:flex; flex-direction:column; gap:10px; overflow:hidden; max-height:560px; }      /* a long list scrolls; it stretched the viewer to thousands of pixels */
-  .cvlist-wrap .cv-list { min-height:0; } .cvlist-wrap .cv-stats { max-height:190px; overflow-y:auto; flex:none; }
+  .cview-main { display:grid; grid-template-columns:minmax(280px, 320px) 1fr; gap:14px; min-height:560px; margin-top:12px; align-items:stretch; }
+  .cvlist-wrap { display:flex; flex-direction:column; gap:8px; overflow:hidden; max-height:640px; }
+  .cv-railhead { display:flex; justify-content:space-between; align-items:baseline; padding:0 4px; font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .cv-railhead span:last-child { font-weight:500; letter-spacing:0; text-transform:none; font-size:11.5px; }
+  .cvlist-wrap .cv-list { min-height:0; } .cvlist-wrap .cv-stats { max-height:160px; overflow-y:auto; flex:none; }
   .cv-list {
     flex:1; overflow-y:auto;
-    border:1px solid rgba(0,0,0,.07); border-radius:14px;
-    background:rgba(255,255,255,.80); padding:6px;
-    box-shadow:inset 0 1px 3px rgba(0,0,0,.04);
+    border:1px solid rgba(0,0,0,.06); border-radius:18px;
+    background:rgba(255,255,255,.78); padding:6px;
+    box-shadow:0 8px 28px rgba(20,40,80,.05), inset 0 1px 0 rgba(255,255,255,.9);
   }
   .cv-item {
-    display:flex; align-items:center; gap:9px;
-    padding:7px 9px; border-radius:10px; cursor:pointer;
-    transition:all .13s;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:8px 10px; border-radius:12px; cursor:pointer;
+    transition:background .13s, box-shadow .13s;
   }
-  .cv-item:hover { background:rgba(0,122,255,.05); }
-  .cv-item.cv-on { background:rgba(0,122,255,.07); }
+  .cv-item:hover { background:rgba(0,122,255,.045); }
+  .cv-item.cv-on { background:rgba(0,122,255,.08); box-shadow:inset 3px 0 0 var(--blue); }
+  .cv-item.cv-focus { box-shadow:inset 3px 0 0 #3450A8; background:rgba(52,80,168,.1); }
+  .cv-handbar { width:4px; height:28px; border-radius:3px; flex:none; }
+  #cvList button.cv-hand {
+    width:28px; height:28px; padding:0; border-radius:8px; flex:none;
+    display:inline-flex; align-items:center; justify-content:center;
+    border:1px solid rgba(0,0,0,.08); background:#fff; color:var(--hand,#0284c7);
+    box-shadow:inset 0 0 0 2px var(--hand,#0284c7);
+  }
+  #cvList button.cv-hand:hover { background:rgba(2,132,199,.08); }
   .cv-dot {
-    width:13px; height:13px; border-radius:50%; flex-shrink:0;
-    border:2px solid rgba(255,255,255,.7);
-    box-shadow:0 1px 3px rgba(0,0,0,.18);
+    width:11px; height:11px; border-radius:50%; flex-shrink:0;
+    box-shadow:0 0 0 2px #fff, 0 0 0 3px rgba(0,0,0,.08);
   }
-  .cv-info { flex:1; min-width:0; }
-  .cv-name { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
-  .cv-meta { font-size:11px; color:var(--muted); margin-top:1px; }
+  .cv-info { flex:1 1 140px; min-width:0; }
+  .cv-name { font-size:12.5px; font-weight:650; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
+  .cv-meta { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.35; }
   .cv-rmsd {
-    font-size:11px; font-weight:700; white-space:nowrap;
-    padding:2px 7px; border-radius:6px;
-    background:rgba(0,0,0,.05); color:var(--text);
+    font-size:11px; font-weight:650; white-space:nowrap; font-variant-numeric:tabular-nums;
+    padding:3px 8px; border-radius:999px;
+    background:rgba(0,0,0,.045); color:var(--text);
   }
   .cv-stats {
     font-size:12px; color:#415165;
-    background:rgba(0,122,255,.05); border:1px solid rgba(0,122,255,.14);
-    border-radius:12px; padding:10px 13px; line-height:1.6; display:none;
+    background:rgba(255,255,255,.7); border:1px solid rgba(0,122,255,.14);
+    border-radius:14px; padding:10px 13px; line-height:1.55; display:none;
   }
   .cv-stats.visible { display:block; }
-  .cv-ens { margin-top:14px; border-top:1px solid rgba(0,0,0,.07); padding-top:12px; }
-  .cv-ens-head { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; margin-bottom:8px; } .cv-ens-head .small { color:var(--muted); }
-  .cv-ens-row { display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; }
-  .cv-pickbtn[aria-pressed="true"] { background:#b45309; color:#fff; border-color:#b45309; }
-  .cv-ens-tool { display:inline-flex; flex-wrap:wrap; gap:5px; align-items:center; font-size:12.5px; }
-  .cv-ens-out { margin-top:10px; font-size:12.5px; color:#415165; }
+  .cv-views { display:grid; gap:10px; min-width:0; } .cv-views.split { grid-template-columns:1fr 1fr; } #cvViewerB[hidden] { display:none; }
+  .cv-views .cv-viewer { min-width:0; }
+  .cv-pan { position:absolute; left:12px; top:12px; z-index:5; font:700 11px/1 system-ui; letter-spacing:.08em; color:#fff; background:rgba(15,23,42,.72); border-radius:999px; padding:5px 9px; pointer-events:none; backdrop-filter:blur(8px); }
+  #cvList .cv-pill, #cvList button.cv-pill, span.cv-pill {
+    min-height:0; padding:2px 8px; font-size:10.5px; font-weight:700; line-height:1.35;
+    border:1px solid rgba(0,0,0,.08); background:rgba(255,255,255,.9); border-radius:999px;
+    color:#334155; box-shadow:none; cursor:pointer;
+  }
+  #cvList button.cv-pill:hover { transform:none; background:#f4f7fb; box-shadow:none; }
+  #cvList button.cv-pill.b { background:#1C1C1E; color:#fff; border-color:#1C1C1E; }
+  span.cv-pill { cursor:default; background:rgba(0,122,255,.10); color:#0B63CE; border-color:transparent; }
+  #cvList button[data-act="accept"] { background:rgba(40,205,65,.16); border-color:rgba(40,205,65,.28); color:#136b27; }
+  .cv-sub { margin-left:18px; opacity:.92; }
+  .cv-ens { margin-top:18px; }
+  .cv-ens-head { display:flex; flex-wrap:wrap; gap:4px 12px; align-items:baseline; margin:0 2px 10px; }
+  .cv-ens-head b { font-size:13px; letter-spacing:-.01em; }
+  .cv-ens-head .small { color:var(--muted); }
+  .cv-ens-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:10px; }
+  .cv-pickbtn[aria-pressed="true"] { background:#7a4300; color:#fff; border-color:#7a4300; }
+  .cv-ens-tool {
+    display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+    padding:10px 12px 12px;
+    background:rgba(255,255,255,.7);
+    border:1px solid rgba(0,0,0,.06);
+    border-radius:16px;
+    box-shadow:0 1px 2px rgba(20,40,80,.04);
+    font-size:12.5px;
+  }
+  .cv-ens-tool > b {
+    flex:1 0 100%; margin-bottom:2px;
+    font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted);
+  }
+  .cv-ens-tool input[type="text"] { flex:1 1 140px; min-width:0; }
+  #cvPickHint { margin-top:10px; padding:8px 12px; border-radius:12px; background:rgba(255,159,10,.10); border:1px solid rgba(255,159,10,.25); color:#7a4300; }
+  .cv-ens-out { margin-top:12px; font-size:12.5px; color:#415165; }
   .cv-ens-out:empty { display:none; }
-  .cv-ens-card { border:1px solid rgba(0,0,0,.08); border-radius:12px; padding:10px 13px; margin-top:8px; background:#fff; }
-  .cv-ens-card h4 { margin:0 0 4px; font-size:13px; color:#1d2733; } .cv-ens-sum { margin:2px 0 6px; }
+  .cv-ens-card {
+    border:1px solid rgba(0,0,0,.06); border-radius:16px; padding:12px 14px; margin-top:10px;
+    background:rgba(255,255,255,.82);
+    box-shadow:0 8px 24px rgba(20,40,80,.05);
+  }
+  .cv-ens-card h4 { margin:0 0 4px; font-size:13.5px; letter-spacing:-.01em; color:#1d2733; }
+  .cv-ens-sum { margin:2px 0 8px; line-height:1.45; }
   .cv-ens-grid { display:grid; grid-template-columns:minmax(260px, 360px) 1fr; gap:12px; align-items:start; }
   @media (max-width:900px) { .cv-ens-grid { grid-template-columns:1fr; } }
   .cv-ens-card table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
-  .cv-ens-card td, .cv-ens-card th { padding:2px 6px; text-align:right; border-bottom:1px solid rgba(0,0,0,.05); white-space:nowrap; }
-  .cv-ens-card td:first-child, .cv-ens-card th:first-child { text-align:left; } .cv-ens-card th { font-weight:600; color:#5b6878; }
+  .cv-ens-card td, .cv-ens-card th { padding:5px 8px; text-align:right; border-bottom:1px solid rgba(0,0,0,.05); white-space:nowrap; }
+  .cv-ens-card td:first-child, .cv-ens-card th:first-child { text-align:left; }
+  .cv-ens-card th { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#5b6878; }
+  .cv-ens-card a { color:#0B63CE; text-decoration:none; }
+  .cv-ens-card a:hover { text-decoration:underline; }
   .cv-ens-card svg circle[data-k] { cursor:pointer; } .cv-ens-grid > div { overflow-x:auto; min-width:0; }
-  .cv-ens-bar { display:inline-block; height:8px; border-radius:4px; background:#0284c7; vertical-align:middle; margin-right:6px; }
+  .cv-ens-bar { display:inline-block; height:7px; border-radius:999px; background:#0284c7; vertical-align:middle; margin-right:6px; }
   .cv-viewer {
-    border-radius:var(--r-lg); overflow:hidden;
-    border:1px solid rgba(0,0,0,.07);
-    position:relative; min-height:480px; background:#ffffff;
-    box-shadow:inset 0 1px 4px rgba(0,0,0,.04);
+    border-radius:22px; overflow:hidden;
+    border:1px solid rgba(255,255,255,.85);
+    position:relative; min-height:560px;
+    background:radial-gradient(ellipse 85% 70% at 50% 42%, #ffffff 0%, #eef3f9 100%);
+    box-shadow:0 16px 40px rgba(20,40,80,.08), inset 0 1px 0 rgba(255,255,255,.9);
   }
   .cv-empty {
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    height:100%; gap:8px; font-size:13px; color:var(--muted); text-align:center; line-height:1.5;
+    height:100%; min-height:180px; gap:6px; padding:24px;
+    font-size:13.5px; color:var(--muted); text-align:center; line-height:1.5;
   }
-  @media (max-width:900px) { .cview-main { grid-template-columns:1fr; } .cv-viewer { min-height:320px; } }
+  @media (max-width:900px) { .cview-main { grid-template-columns:1fr; } .cv-viewer, .cvlist-wrap { min-height:360px; max-height:none; } }
   /* The Model tab */
   .model-grid { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:12px; }
   .model-field { display:flex; flex-direction:column; gap:5px; min-width:0; }
@@ -934,15 +967,13 @@ if (typeof $3Dmol === "undefined") {
     .wrap { padding:10px; }
     #viewer-card { min-height:390px; height:62vh; border-radius:16px; }
     .panel, .vizbar { border-radius:14px; padding:14px; }
-    .csearch-bar, .cview-bar { margin:10px 10px 14px; border-radius:14px; }
-    .csearch-head, .cview-head { padding:12px 14px; flex-wrap:wrap; gap:7px; }
-    .csearch-head .small, .cview-head .small { display:none; }
-    .csearch-head > span:last-child, .cview-head > span:last-child { margin-left:auto; }
-    .csearch-body { padding:14px; }
+    .cview-bar { margin:10px 10px 14px; border-radius:14px; }
+    .cview-head { padding:12px 14px; flex-wrap:wrap; gap:7px; }
+    .cview-head .small { display:none; }
+    .cview-head > span:last-child { margin-left:auto; }
     .model-grid { grid-template-columns:1fr; }
     .model-field.wide { grid-column:span 1; }
     .model-actions button { flex:1 1 135px; }
-    .csearch-body.open { grid-template-columns:1fr; }
     .cview-body { padding:10px; }
     .cvctrl-bar { align-items:stretch; }
     #cvDropZone { width:100%; }
@@ -1393,88 +1424,8 @@ if (typeof $3Dmol === "undefined") {
   </div>
 </section>
 
-<!-- ── Conformer Search (advanced) ─────────────────────────────────── -->
 <details class="advanced-box" style="margin:12px 18px 18px" id="cviewDetails">
-  <summary>Advanced: conformer search</summary>
-<div class="csearch-bar">
-  <div class="csearch-head" id="csearchHead" onclick="toggleCsearch()">
-    <b style="font-size:14px;">Conformer Search</b>
-    <span class="pill">AQME CSEARCH</span>
-    <span class="small" style="flex:1;color:var(--muted)">Generate an XYZ ensemble from SMILES &rarr; feeds rdkit_fp, mordred, rafbl, morfeus and any other xyz engine</span>
-    <span id="csearchChevron" style="color:var(--muted);font-size:12px;">▼ expand</span>
-  </div>
-  <div class="csearch-body" id="csearchBody">
-
-    <!-- col 1: SMILES input -->
-    <div>
-      <p class="cs-h2">1 &middot; SMILES input</p>
-      <div class="src-tabs">
-        <button id="srcFileBtn" class="active" onclick="setCsSrc('file')">CSV file</button>
-        <button id="srcPasteBtn" onclick="setCsSrc('paste')">Paste SMILES</button>
-      </div>
-
-      <div id="csSrcFile">
-        <div class="cs-field">
-          <label>CSV path</label>
-          <input id="csSmilesCsv" placeholder="path/to/smiles.csv" oninput="csRefresh()" />
-        </div>
-        <div class="cs-row2">
-          <div class="cs-field"><label>Name column</label><input id="csNameCol" value="name" oninput="csRefresh()" /></div>
-          <div class="cs-field"><label>SMILES column</label><input id="csSmilesCol" value="smiles" oninput="csRefresh()" /></div>
-        </div>
-      </div>
-
-      <div id="csSrcPaste" style="display:none">
-        <div class="cs-field">
-          <label>Paste name, SMILES &mdash; one per line, comma or tab separated</label>
-          <textarea id="csPasteArea" placeholder="mol_A,c1ccccc1&#10;mol_B,CC(=O)O&#10;mol_C,CCO" oninput="csRefresh()"></textarea>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <a id="csCsvDlLink" download="smiles.csv"><button type="button" style="font-size:12px;padding:5px 13px;">&#8659; Save smiles.csv</button></a>
-          <span class="small">Save first, then fill the path below.</span>
-        </div>
-        <div class="cs-field">
-          <label>Saved CSV path</label>
-          <input id="csPasteCsvPath" placeholder="path/to/smiles.csv" oninput="csRefresh()" />
-        </div>
-      </div>
-    </div>
-
-    <!-- col 2: settings -->
-    <div>
-      <p class="cs-h2">2 &middot; Settings</p>
-      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Engine</label>
-      <div class="prog-grid" id="csProgramGrid"></div>
-      <div class="cs-row3">
-        <div class="cs-field"><label>Conformers / mol</label><input id="csSample" type="number" value="10" min="1" max="500" oninput="csRefresh()" /></div>
-        <div class="cs-field">
-          <label>Keep</label>
-          <select id="csKeep" onchange="csRefresh()">
-            <option value="lowest">Lowest energy</option>
-            <option value="all">All conformers</option>
-          </select>
-        </div>
-        <div class="cs-field"><label>Charge</label><input id="csCharge" type="number" value="0" oninput="csRefresh()" /></div>
-      </div>
-      <div class="cs-field">
-        <label>Output XYZ directory</label>
-        <input id="csOutDir" placeholder="path/to/csearch_xyz" oninput="csRefresh()" />
-      </div>
-    </div>
-
-    <!-- col 3: command + actions -->
-    <div>
-      <p class="cs-h2">3 &middot; Command</p>
-      <div class="cs-pre" id="csCmd"></div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        <button class="ok" id="csCopyBtn" onclick="csCopy()" style="font-size:13px;">Copy</button>
-        <button onclick="csApplyOut()" style="font-size:13px;" title="Wire the output dir into the run config as xyz_dir">Use as xyz_dir &#8594; config</button>
-      </div>
-      <div class="cs-note" id="csNote"></div>
-    </div>
-
-  </div>
-</div>
+  <summary>Conformer viewer</summary>
 
 <!-- ── Feature explorer ─────────────────────────────────────────── -->
 <div class="cview-bar" id="explorerBar">
@@ -1489,24 +1440,29 @@ if (typeof $3Dmol === "undefined") {
   <div class="cview-head" id="cviewHead" onclick="toggleCview()">
     <b style="font-size:14px;">Conformer Viewer</b>
     <span class="pill">STACK &amp; COMPARE</span>
-    <span class="small" style="flex:1;color:var(--muted)">Load XYZ ensembles &rarr; Kabsch-align &rarr; overlay conformers with per-conformer RMSD</span>
+    <span class="small" style="flex:1;color:var(--muted)">Load an ensemble, align it, and set one geometry beside another.</span>
     <span id="cviewChevron" style="color:var(--muted);font-size:12px;">&#9660; expand</span>
   </div>
   <div class="cview-body" id="cviewBody">
 
     <!-- controls strip -->
     <div class="cvctrl-bar">
+     <div class="cv-group">
+      <span class="cv-k">Load</span>
       <div id="cvDropZone" onclick="$('cvFileIn').click()"
            ondragover="event.preventDefault();this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
            ondrop="event.preventDefault();this.classList.remove('drag-over');cvLoadFileList(event.dataTransfer.files)">
-        &#8659; Drop XYZ / SDF files or click to load
+        Drop XYZ, SDF, feather or log
       </div>
       <input type="file" id="cvFileIn" multiple style="display:none"
              onchange="cvLoadFileList(Array.from(this.files)); this.value=''" />
-      <button onclick="cvLoadCurrent()" title="Load the molecule currently shown in the main picker as a conformer">Load current mol</button>
-      <button onclick="$('cvDirIn').click()" title="a GOAT or CREST results folder (or a folder of them): each one's final ensemble is loaded (*.finalensemble.xyz, crest_conformers.xyz)">Load folder…</button>
+      <button onclick="cvLoadCurrent()" title="Load the molecule currently shown in the main picker as a conformer">Current molecule</button>
+      <button onclick="$('cvDirIn').click()" title="a GOAT or CREST results folder, or a folder of .feather / Gaussian .log / ORCA .out files: each file's geometry is loaded">Folder…</button>
       <input type="file" id="cvDirIn" webkitdirectory multiple style="display:none" onchange="cvLoadFolder(Array.from(this.files)); this.value=''" />
+     </div>
+     <div class="cv-group">
+      <span class="cv-k">Show</span>
       <label class="small" style="display:flex;align-items:center;gap:4px;" title="which conformers of each file are drawn; a click in the list still adds or removes one">Draw
         <select id="cvDraw" onchange="cvApplyDraw(cvConformers, true)">
           <option value="n3">3 lowest</option>
@@ -1517,20 +1473,18 @@ if (typeof $3Dmol === "undefined") {
           <option value="all">all</option>
         </select>
       </label>
-      <label class="small" style="display:flex;align-items:center;gap:4px;" title="conformers of one file whose heavy atoms superpose within 0.25 Å RMSD are listed once, under the lowest; they still count in the ensemble numbers">
-        <input type="checkbox" id="cvDedup" checked onchange="cvDedupAll(); cvApplyDraw(cvConformers, true)" /> merge duplicates</label>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Style
         <select id="cvStyle" onchange="cvRenderStack()">
           <option value="line">Line</option>
           <option value="stick">Stick</option>
-          <option value="ball_stick">Ball &amp; Stick</option>
+          <option value="ball_stick" selected>Ball &amp; Stick</option>
         </select>
       </label>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Hydrogens
         <select id="cvH" onchange="cvRenderStack()">
           <option value="none">none</option>
           <option value="polar">on N, O, S</option>
-          <option value="all">all</option>
+          <option value="all" selected>all</option>
         </select>
       </label>
       <label class="small" style="display:flex;align-items:center;gap:4px;" title="geometric guesses, within each conformer. H-bond: D–H···A with D, A = N, O, F, S, H···A 1.5–2.6 Å (S 3.0), angle at H ≥ 120°. Close contact: atoms at least 4 bonds apart, closer than the sum of their van der Waals radii (H···H left out)">Contacts
@@ -1548,22 +1502,12 @@ if (typeof $3Dmol === "undefined") {
           <option value="file">one per file</option>
           <option value="fam">by family</option>
           <option value="flex">by flexibility (RMSF)</option>
+          <option value="move">by motion vs first drawn</option>
         </select>
       </label>
-      <label class="small" style="display:flex;align-items:center;gap:4px;">Align by
-        <select id="cvAlignMode" onchange="$('cvAlignAtomsBox').style.display=this.value==='atoms'?'inline-flex':'none';cvRenderStack()">
-          <option value="benzene">Benzene ring (if present)</option>
-          <option value="ring5">5-membered ring (if present)</option>
-          <option value="atoms">Chosen atoms…</option>
-          <option value="heavy">Heavy atoms</option>
-          <option value="all">All atoms</option>
-          <option value="none">No alignment</option>
-        </select>
+      <label class="small" style="display:flex;align-items:center;gap:4px;" title="The conformer you clicked stays whole. The others keep these colours and draw only atoms that moved by more than 0.4 Å.">
+        <input type="checkbox" id="cvMoved" onchange="cvRenderStack()" /> only what moved
       </label>
-      <span id="cvAlignAtomsBox" class="small" style="display:none;align-items:center;gap:4px;">
-        <input id="cvAlignAtoms" type="text" placeholder="atoms, e.g. 1,2,3,4,5" title="atom numbers (1-based, as in the picker), at least 3; ranges like 1-6 work" style="width:150px" onchange="cvRenderStack()" />
-        <button type="button" onclick="const p=window._numberingPicked||[];if(!p.length)return alert('Pick atoms in the 3D picker above first.');$('cvAlignAtoms').value=p.join(',');cvRenderStack()" title="the atoms picked in the 3D picker above">use picked</button>
-      </span>
       <label class="small" style="display:flex;align-items:center;gap:4px;">Spread
         <input type="range" id="cvSpread" min="0" max="5" step="0.25" value="0"
                oninput="$('cvSpreadVal').textContent=parseFloat(this.value).toFixed(2);cvRenderSoon()"
@@ -1574,22 +1518,57 @@ if (typeof $3Dmol === "undefined") {
         <input type="checkbox" id="cvShowLabels" onchange="cvRenderStack()" /> atom labels
       </label>
       <button class="ok" onclick="cvRenderStack()">Render</button>
+      <label class="small" style="display:flex;align-items:center;gap:4px;" title="two linked panels: each conformer goes to A or B with the A/B button in the list; both are superposed on the same reference and turn together">
+        <input type="checkbox" id="cvSplit" onchange="cvSplitToggle()" /> split A | B</label>
       <button id="cvPlayBtn" onclick="cvPlay()" title="each conformer in turn over the lowest, lowest energy first">&#9654; Play</button>
-      <button onclick="cvSaveXyz()" title="the conformers drawn now, as one multi-structure XYZ (their own coordinates and energies)">Save XYZ</button>
+      <button type="button" onclick="cvHideAll()" title="Take every structure off the view. They stay in the list; click one to draw it again">Hide all</button>
+     </div>
+     <div class="cv-group">
+      <span class="cv-k">Fit</span>
+      <label class="small" style="display:flex;align-items:center;gap:4px;">Align by
+        <select id="cvAlignMode" onchange="cvAlignModeChanged()">
+          <option value="benzene">Benzene ring (if present)</option>
+          <option value="ring5">5-membered ring (if present)</option>
+          <option value="atoms">Chosen atoms…</option>
+          <option value="heavy">Heavy atoms</option>
+          <option value="all">All atoms</option>
+          <option value="none">No alignment</option>
+        </select>
+      </label>
+      <span id="cvAlignAtomsBox" class="small" style="display:none;align-items:center;gap:4px;">
+        <input id="cvAlignAtoms" type="text" placeholder="click atoms in the view" title="atom numbers (1-based), at least 3; ranges like 1-6 work" style="width:150px" onchange="cvRenderStack()" />
+        <button type="button" class="cv-pickbtn" data-target="cvAlignAtoms" aria-pressed="false" onclick="cvPickToggle('cvAlignAtoms')" title="numbers appear on the first conformer; click the atoms to fit on, click one again to drop it">&#9757; pick in view</button>
+        <button type="button" onclick="cvUsePicked('cvAlignAtoms')" title="the atoms picked in the 3D picker above">use picked</button>
+      </span>
+      <label class="small" style="display:flex;align-items:center;gap:4px;" title="list each geometry once. Copies that overlay within 0.05 Å fold on their own. A close match (0.05–0.15 Å, torsions agreeing) stays in the list until you accept it">
+        <input type="checkbox" id="cvDedup" checked onchange="cvDupChanged()" /> merge duplicates</label>
+      <label class="small" style="display:flex;align-items:center;gap:4px;" title="let identical atoms trade labels (nitro oxygens, CF3 fluorines, the two faces of a symmetric ring) before the RMSD. Auto-fold only at or below 0.05 Å. Needs the DescriPyTor server. Off: the atom numbers in the file, 0.25 Å">
+        <input type="checkbox" id="cvSym" checked onchange="cvDupChanged()" /> equivalent atoms</label>
+     </div>
+     <div class="cv-group">
+      <span class="cv-k">Keep</span>
+      <button onclick="cvSaveXyz()" title="the conformers drawn now, as one multi-structure XYZ (their own coordinates and energies)">XYZ</button>
       <button onclick="cvSavePng()" title="the view as a PNG">PNG</button>
-      <button onclick="cvClearAll()" style="color:#c0392b;" title="Remove all loaded conformers">Clear all</button>
+      <button onclick="cvSaveUnique()" title="every conformer not folded as a duplicate, lowest first, within the Draw window when it is an energy window: the set to send on to DFT">Unique set</button>
+      <button onclick="cvSaveCsv()" title="one row per conformer: file, energy, ΔE, weight, duplicate of, family, map coordinates and every Sterimol computed">CSV</button>
+      <button class="cv-quiet" onclick="cvClearAll()" title="Remove all loaded conformers">Clear</button>
+     </div>
     </div>
 
     <!-- list + viewer -->
     <div class="cview-main">
       <div class="cvlist-wrap">
+        <div class="cv-railhead"><span>Conformers</span><span>lowest energy first</span></div>
         <div id="cvList" class="cv-list">
-          <div class="cv-empty" style="height:200px">No conformers loaded yet.<br>Drop XYZ files above.</div>
+          <div class="cv-empty">Nothing loaded yet.<br>Drop an ensemble, or open a GOAT or CREST folder.</div>
         </div>
         <div id="cvStats" class="cv-stats"></div>
       </div>
-      <div id="cvViewer3d" class="cv-viewer">
-        <div class="cv-empty">Viewer appears here after loading conformers and clicking Render.</div>
+      <div class="cv-views" id="cvViews">
+        <div id="cvViewer3d" class="cv-viewer">
+          <div class="cv-empty">The ensemble will sit here,<br>aligned, once you load it.</div>
+        </div>
+        <div id="cvViewerB" class="cv-viewer" hidden></div>
       </div>
     </div>
 
@@ -1607,18 +1586,37 @@ if (typeof $3Dmol === "undefined") {
           <input id="cvStAxis" type="text" placeholder="axis: from, to (e.g. 2,1)" style="width:150px" onkeydown="if(event.key==='Enter')cvEnsSterimol()" />
           <button type="button" class="cv-pickbtn" data-target="cvStAxis" aria-pressed="false" onclick="cvPickToggle('cvStAxis')" title="numbers on the atoms of the view; click the axis in it: first the atom it starts from, then the first atom of the group">&#9757; pick in view</button>
           <button type="button" onclick="cvUsePicked('cvStAxis')" title="the first two atoms picked in the 3D picker above">use picked</button>
-          <button type="button" class="ok" onclick="cvEnsSterimol()" title="DescriPyTor's own Sterimol (the server's Python) on every conformer, whole molecule, CPK radii">Compute</button></span>
+          <button type="button" class="ok" onclick="cvEnsSterimol()" title="DescriPyTor's own Sterimol (the server's Python) on every conformer, whole molecule, CPK radii">Compute</button>
+          <label class="small" style="display:inline-flex;align-items:center;gap:4px;" title="φ on the first structure of each panel: the blue wedge from B1 around to B5.">
+            <input type="checkbox" id="cvSterShow" onchange="cvRedrawKeep()" /> on the structures
+          </label>
+          <label class="small" style="display:inline-flex;align-items:center;gap:4px;" title="φ of the average structure, in black, on both panels: the conformers' coordinates averaged with their Boltzmann weights after superposition, then measured. Not the Boltzmann mean of φ in the Sterimol table: averaging coordinates pulls a freely turning group in, so B5 and φ come out smaller. With both on, the average is the outer arc.">
+            <input type="checkbox" id="cvSterAvg" onchange="cvRedrawKeep()" /> average structure
+          </label>
+          <button type="button" onclick="cvSterFace()" title="Look down the axis, with B1 up, so the wedge is face on. Both panels turn together.">down the axis</button></span>
         <span class="cv-ens-tool"><b>Contacts</b>
           <button type="button" class="ok" onclick="cvEnsContacts()" title="how much of the ensemble's weight has each H-bond (and, with Contacts set to close contacts, each close contact)">How often</button></span>
         <span class="cv-ens-tool"><b>Compare files</b>
-          <button type="button" class="ok" onclick="cvEnsCompare()" title="two ensembles of the same molecule (GOAT and CREST, say): which low-energy conformers of each the other also found">What each missed</button></span>
+          <button type="button" class="ok" onclick="cvEnsCompare()" title="two ensembles of the same molecule (GOAT and CREST, say): which low-energy conformers of each the other also found">What each missed</button>
+          <button type="button" class="ok" onclick="cvEnsSources()" title="the same two files on one energy zero: BOTH where both found the geometry, otherwise CREST, GOAT, or the file name">On one scale</button></span>
+        <span class="cv-ens-tool"><b>This pair</b>
+          <button type="button" class="ok" onclick="cvEnsMoved()" title="the conformers drawn now, after the current alignment: which atoms moved, and the measurement in the box on each">What moved</button></span>
         <span class="cv-ens-tool"><b>Families</b>
           <input id="cvFamCut" type="number" value="1.0" min="0.2" max="3" step="0.1" style="width:58px" title="heavy-atom RMSD (Å) within which conformers count as one family" /> Å
           <button type="button" class="ok" onclick="cvEnsFamilies()" title="the ensemble grouped into conformer families, each with its Boltzmann weight">Group</button></span>
+        <span class="cv-ens-tool"><b>Wells</b>
+          <input id="cvWellAtoms" type="text" placeholder="dihedral ; dihedral (1–3)" title="1 to 3 dihedrals, four atom numbers each, separated by ;" style="width:210px" onkeydown="if(event.key==='Enter')cvEnsWells()" />
+          <button type="button" class="cv-pickbtn" data-target="cvWellAtoms" aria-pressed="false" onclick="cvPickToggle('cvWellAtoms')" title="click four atoms for a dihedral; once those four are in, the next click starts another (up to 3)">&#9757; pick in view</button>
+          <button type="button" class="ok" onclick="cvEnsWells()" title="knee, silhouette jump, density peaks, and the largest split that still puts every file in every well">Vote</button></span>
+        <span class="cv-ens-tool"><b>Map</b>
+          <select id="cvMapFeat" title="what places the conformers: the rotatable dihedrals (found on the bonds, as sin and cos), the last Sterimol computed, or both"><option value="tor">dihedrals</option><option value="st">Sterimol</option><option value="both">both</option></select>
+          <select id="cvMapMeth"><option value="tsne">t-SNE</option><option value="pca">PCA</option></select>
+          <select id="cvMapCol"><option value="e">colour: ΔE</option><option value="fam">colour: family</option><option value="file">colour: file</option></select>
+          <button type="button" class="ok" onclick="cvEnsMap()" title="every loaded conformer on one map; near = alike. Files with the same numbering share it (GOAT and CREST together)">Map</button></span>
         <span class="cv-ens-tool"><b>Flexibility</b>
           <button type="button" class="ok" onclick="cvEnsFlex()" title="how far each atom moves across the ensemble (Boltzmann-weighted RMSF after superposing the heavy atoms on the lowest conformer); colours the view">Map it</button></span>
       </div>
-      <div id="cvPickHint" class="cv-ens-sum" style="display:none;color:#b45309"></div>
+      <div id="cvPickHint" class="cv-ens-sum" style="display:none"></div>
       <div id="cvEnsOut" class="cv-ens-out"></div>
     </div>
 
@@ -2063,17 +2061,10 @@ async function loadStructureFile(file) {
   }
   if (isFeatherName(file.name)) {
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const response = await fetch("/xyz_from_feather", { method: "POST", body: fd });
-      const data = await response.json();
-      if (!response.ok || data.error) {
-        alert(data.error || "Could not read this .feather file. Try an .xyz, or install RDKit/pyarrow in the conda env.");
-        return;
-      }
+      const data = await fetchStructurePayload(file);
       if (typeof showMolecule === "function") showMolecule(data.xyz, data.name || file.name, data.mol_data);
     } catch (err) {
-      alert("Could not convert feather to XYZ: " + err.message);
+      alert("Could not read this file: " + err.message);
     }
     return;
   }
@@ -2083,11 +2074,13 @@ async function loadStructureFile(file) {
 }
 
 /* ── Molecule info badge ── */
-function updateMolInfoBadge(name, atomCount) {
+function updateMolInfoBadge(name, atomCount, energy) {
   const badge = document.getElementById('molInfoBadge');
   if (!badge) return;
+  const e = Number.isFinite(+energy) ? +energy : null;
   badge.style.display = 'flex';
-  badge.innerHTML = `<span class="mol-dot"></span><span>${esc(name || 'molecule')}</span><span class="mol-count">${atomCount} atoms</span>`;
+  badge.innerHTML = `<span class="mol-dot"></span><span>${esc(name || 'molecule')}</span><span class="mol-count">${atomCount} atoms</span>` +
+    (e == null ? "" : `<span class="mol-count">E = ${e.toFixed(6)}</span>`);
 }
 
 /* --- default demo molecule (caffeine) so the picker works on open --- */
@@ -2152,9 +2145,11 @@ function coordsToXYZ(coords) {
 
 function applyMolData(payload) {
   const src = (payload && typeof payload === "object") ? payload : {};
+  const energy = src.energy == null || src.energy === "" ? null : +src.energy;
   MOL_DATA = {
     dipole: src.dipole != null ? src.dipole : null,
     modes: Array.isArray(src.modes) ? src.modes : [],
+    energy: Number.isFinite(energy) ? energy : null,
   };
 }
 
@@ -2334,13 +2329,17 @@ function initViewer(xyz, filename, opts) {
     ? filename.replace(/\.xyz$/i, '')
     : (molComment && molComment.length < 40 ? molComment : 'molecule');
   lastModelName = molName;
+  if (MOL_DATA.energy == null) {                 // an xyz comment carries the energy when the file itself does
+    const e = commentEnergy(molComment);
+    if (e != null) MOL_DATA.energy = e;
+  }
   viewer = figEnsure();
   buildSterPairOptions();
   buildBvOptions();
   buildModeOptions();
   syncDipoleBox();
   buildScene(baseCoords, true);
-  if (typeof updateMolInfoBadge === 'function') updateMolInfoBadge(molName, nAtoms);
+  if (typeof updateMolInfoBadge === 'function') updateMolInfoBadge(molName, nAtoms, MOL_DATA.energy);
   const silent = !!(opts && opts.silent);
   if (!silent && filename && !/demo/i.test(String(filename)) && typeof tourNotify === "function") tourNotify("file");
   if (typeof saveSession === "function") saveSession();
@@ -4470,124 +4469,6 @@ $("featAll").onclick = () => {
   highlight();
 };
 
-/* ------------------------------------------------------------------ *
- * Conformer Search panel                                              *
- * ------------------------------------------------------------------ */
-let csearchOpen = false;
-let csSrc = 'file';
-let csProgram = 'rdkit';
-
-const CS_PROGRAMS = [
-  { key:'rdkit',     label:'RDKit',      desc:'Fast 3D embedding. No extra install beyond rdkit.' },
-  { key:'summ',      label:'Summ',       desc:'Systematic OPLS torsion scan (AQME full install).' },
-  { key:'fullmonte', label:'FullMonte',  desc:'Monte Carlo torsional (AQME full install).' },
-  { key:'crest',     label:'CREST',      desc:'GFN2-xTB iMTD-GC — highest quality, slowest.' },
-];
-
-function toggleCsearch() {
-  csearchOpen = !csearchOpen;
-  $('csearchBody').classList.toggle('open', csearchOpen);
-  $('csearchHead').classList.toggle('open', csearchOpen);
-  $('csearchChevron').textContent = csearchOpen ? '▲ collapse' : '▼ expand';
-  if (csearchOpen) csRefresh();
-}
-
-function setCsSrc(src) {
-  csSrc = src;
-  $('csSrcFile').style.display  = src === 'file'  ? '' : 'none';
-  $('csSrcPaste').style.display = src === 'paste' ? '' : 'none';
-  $('srcFileBtn').classList.toggle('active', src === 'file');
-  $('srcPasteBtn').classList.toggle('active', src === 'paste');
-  csRefresh();
-}
-
-function buildCsProgramGrid() {
-  const box = $('csProgramGrid');
-  if (box.dataset.built) return;
-  CS_PROGRAMS.forEach(p => {
-    const card = document.createElement('button');
-    card.className = 'prog-card' + (p.key === csProgram ? ' active' : '');
-    card.id = 'csprog_' + p.key;
-    card.type = 'button';
-    card.innerHTML = `<b>${p.label}</b><span>${p.desc}</span>`;
-    card.onclick = () => {
-      csProgram = p.key;
-      document.querySelectorAll('#csProgramGrid .prog-card').forEach(c => c.classList.remove('active'));
-      card.classList.add('active');
-      csRefresh();
-    };
-    box.appendChild(card);
-  });
-  box.dataset.built = '1';
-}
-
-function csRefresh() {
-  buildCsProgramGrid();
-  const outDir = $('csOutDir').value.trim() || 'csearch_xyz';
-  const sample = parseInt($('csSample').value, 10) || 10;
-  const keep   = $('csKeep').value;
-  const charge = parseInt($('csCharge').value, 10) || 0;
-
-  let csvPath, nameCol = 'name', smilesCol = 'smiles', pasteCount = 0;
-  if (csSrc === 'file') {
-    csvPath    = $('csSmilesCsv').value.trim()  || 'smiles.csv';
-    nameCol    = $('csNameCol').value.trim()    || 'name';
-    smilesCol  = $('csSmilesCol').value.trim()  || 'smiles';
-  } else {
-    csvPath = $('csPasteCsvPath').value.trim() || 'smiles.csv';
-    const raw = ($('csPasteArea').value || '').trim().split(/\r?\n/).filter(l => l.trim());
-    pasteCount = raw.length;
-    if (pasteCount) {
-      const csvText = 'name,smiles\n' + raw.map(l => {
-        const sep = l.includes('\t') ? '\t' : ',';
-        const parts = l.split(sep);
-        return parts.length >= 2 ? `${parts[0].trim()},${parts.slice(1).join(',').trim()}` : l.trim();
-      }).join('\n');
-      const blob = new Blob([csvText], { type: 'text/csv' });
-      $('csCsvDlLink').href = URL.createObjectURL(blob);
-    }
-  }
-
-  const q = s => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-  const lines = [
-    'python descriptor_extractor.py',
-    `  --csearch ${q(csvPath)}`,
-    `  --csearch-out ${q(outDir)}`,
-    `  --name-col ${nameCol}`,
-    `  --smiles-col ${smilesCol}`,
-    `  --csearch-program ${csProgram}`,
-    `  --csearch-sample ${sample}`,
-    `  --keep ${keep}`,
-  ];
-  if (charge !== 0) lines.push(`  --charge ${charge}`);   // future flag placeholder
-  $('csCmd').textContent = lines.join(' \\\n');
-
-  let note = '';
-  if (csSrc === 'paste' && pasteCount) {
-    note = `<b>${pasteCount} molecules</b> ready. Download <code>smiles.csv</code>, fill its path above, then copy the command.<br>`;
-  }
-  note += `After the run: click <b>Use as xyz_dir → config</b> to wire <code>${esc(outDir)}</code> into the exported run_config, ` +
-    `then enable <b>rdkit_fp</b>, <b>mordred</b>, <b>rafbl</b>, or any other xyz engine in the Feature packages panel.`;
-  $('csNote').innerHTML = note;
-}
-
-function csCopy() {
-  navigator.clipboard.writeText($('csCmd').textContent).then(() => {
-    $('csCopyBtn').textContent = 'Copied!';
-    setTimeout(() => $('csCopyBtn').textContent = 'Copy', 1300);
-  });
-}
-
-function csApplyOut() {
-  const outDir = $('csOutDir').value.trim();
-  if (!outDir || outDir === 'csearch_xyz') { alert('Set a specific output XYZ directory first.'); return; }
-  RUN_PATHS.xyz_dir = outDir;
-  if ($('useFeatherXyz')) $('useFeatherXyz').checked = false;
-  refresh();
-  $('csNote').innerHTML = `<b>Done.</b> <code>${esc(outDir)}</code> is now the <code>xyz_dir</code> in your run_config. ` +
-    `Enable the xyz engines in the Feature packages panel and export the config.`;
-}
-
 /* ================================================================== *
  * Conformer Viewer                                                    *
  * ================================================================== */
@@ -4608,6 +4489,32 @@ const CV_COVALENT = { H:0.31, B:0.85, C:0.76, N:0.71, O:0.66, F:0.57,
 function cvCovR(el) { return CV_COVALENT[String(el).toUpperCase()] || 0.77; }
 
 /* ── XYZ parser ─────────────────────────────────────────────────── */
+function commentEnergy(comment) {               // last Hartree-sized float; a leading RMSD is not the energy
+  // a value labelled E or energy wins: the viewer's own saves write "name E <Eh> dE <kcal/mol>", and ORCA trajectories "... E <Eh>"
+  const named = String(comment || "").match(/(?:^|\s)(?:E|energy)\s*[:=]?\s*([-+]?(?:\d+\.\d*|\.\d+)(?:[eE][-+]?\d+)?)(?=\s|$)/i);
+  if (named && Number.isFinite(parseFloat(named[1]))) return parseFloat(named[1]);
+  const floats = [];
+  String(comment || "").replace(/=/g, " ").split(/\s+/).forEach(tok => {
+    if (/^[-+]?(?:\d+\.\d+|\d+\.|\.\d+)(?:[eE][-+]?\d+)?$/.test(tok)) {
+      const v = parseFloat(tok);
+      if (Number.isFinite(v)) floats.push(v);
+    }
+  });
+  if (!floats.length) return null;
+  const eh = floats.filter(v => Math.abs(v) > 1);         // above 1: a CREST rotamer weight is at most 1.0, any molecule's energy is below -1 Eh
+  const use = eh.length ? eh : floats;
+  return use[use.length - 1];
+}
+// the element of an XYZ atom column: a symbol (C, Cl), a label (C1, Cl12) or an atomic number (6)
+const CV_Z = ',H,He,Li,Be,B,C,N,O,F,Ne,Na,Mg,Al,Si,P,S,Cl,Ar,K,Ca,Sc,Ti,V,Cr,Mn,Fe,Co,Ni,Cu,Zn,Ga,Ge,As,Se,Br,Kr,Rb,Sr,Y,Zr,Nb,Mo,Tc,Ru,Rh,Pd,Ag,Cd,In,Sn,Sb,Te,I,Xe,Cs,Ba,La,Ce,Pr,Nd,Pm,Sm,Eu,Gd,Tb,Dy,Ho,Er,Tm,Yb,Lu,Hf,Ta,W,Re,Os,Ir,Pt,Au,Hg,Tl,Pb,Bi,Po,At,Rn'.split(',');
+function cvElementOf(tok) {
+  const t = String(tok || '');
+  if (/^\d{1,2}$/.test(t)) return CV_Z[+t] || null;
+  const m = t.match(/^([A-Za-z]{1,2})\d*$/);
+  if (!m) return null;
+  const e = m[1][0].toUpperCase() + m[1].slice(1).toLowerCase();
+  return CV_Z.includes(e) ? e : (CV_Z.includes(e[0]) && m[1].length === 2 && /\d/.test(t) ? e[0] : null);     // "CA1"-style labels: the first letter
+}
 function parseMultiXyz(text, srcName) {
   const lines = text.split(/\r?\n/);
   const frames = [];
@@ -4619,15 +4526,18 @@ function parseMultiXyz(text, srcName) {
     if (!isFinite(n) || n <= 0) { i++; continue; }
     const comment = (lines[i+1] || '').trim();
     const atoms = [];
-    for (let k = 0; k < n; k++) {
+    let ok = true;
+    for (let k = 0; k < n && ok; k++) {
       const parts = (lines[i+2+k] || '').trim().split(/\s+/);
-      if (parts.length < 4) continue;
-      atoms.push([parts[0], parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])]);
+      const x = parseFloat(parts[1]), y = parseFloat(parts[2]), z = parseFloat(parts[3]);
+      // a Gaussian mode line starts "3  C  …": the count is an atom index and a coordinate is the letter C
+      const el = /^\d+$/.test(parts[0]) && parts.length !== 4 ? null : cvElementOf(parts[0]);     // a bare number only on 'Z x y z' lines, not a log's 'centre Z type x y z' row
+      if (parts.length < 4 || !el || !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) ok = false;
+      else atoms.push([el, x, y, z]);
     }
-    if (atoms.length === n) {
-      const eMatch = comment.match(/[-+]?\d+\.\d{4,}/);
+    if (ok && atoms.length === n) {
       frames.push({ src: srcName, frame: frames.length, atoms, comment,
-        energy: eMatch ? parseFloat(eMatch[0]) : null,
+        energy: commentEnergy(comment),
         name: srcName + (frames.length > 0 ? ' #' + frames.length : '') });
     }
     i += 2 + n;
@@ -4747,7 +4657,8 @@ function cvGroups() {
 function cvUsePicked(id) {
   const p = window._numberingPicked || [];
   if (!p.length) return alert('Pick atoms in the 3D picker above first.');
-  $(id).value = (id === 'cvStAxis' ? p.slice(0, 2) : p.slice(0, 4)).join(',');
+  $(id).value = (id === 'cvStAxis' ? p.slice(0, 2) : id === 'cvAlignAtoms' ? p : p.slice(0, 4)).join(',');
+  if (id === 'cvAlignAtoms') { $('cvAlignMode').value = 'atoms'; $('cvAlignAtomsBox').style.display = 'inline-flex'; cvRenderStack(); }
 }
 function cvAtomList(id, nmin, nmax) {           // ordered, 1-based in the box, 0-based out
   const ix = String($(id).value || '').split(/[\s,;]+/).filter(Boolean).map(Number);
@@ -4762,10 +4673,13 @@ function cvGeom(atoms, ix) {
   const b1 = sub(P[1], P[0]), b2 = sub(P[2], P[1]), b3 = sub(P[3], P[2]), n1 = crs(b1, b2), n2 = crs(b2, b3);
   return Math.atan2(dot(crs(n1, n2), b2) / nrm(b2), dot(n1, n2)) * 180 / Math.PI;     // -180..180
 }
+function cvCircDiff(a, b) { let d = b - a; while (d > 180) d -= 360; while (d < -180) d += 360; return d; }
 // weighted mean and sd; a dihedral is averaged on the circle
 function cvWStats(vals, ws, circ) {
   if (circ) { const r = Math.PI / 180, S = vals.reduce((a, v, k) => a + ws[k] * Math.sin(v * r), 0), C = vals.reduce((a, v, k) => a + ws[k] * Math.cos(v * r), 0), m = Math.atan2(S, C) / r;
-    const dv = vals.map(v => ((v - m + 540) % 360) - 180); return { mean: m, sd: Math.sqrt(dv.reduce((a, d, k) => a + ws[k] * d * d, 0)), min: Math.min(...vals), max: Math.max(...vals) }; }
+    // the range runs around the mean (179 to -179 is 2 degrees wide, not 358); 'unwrapped' keeps the values next to each other for a plot
+    const dv = vals.map(v => ((v - m + 540) % 360) - 180), w = v => ((v + 540) % 360) - 180;
+    return { mean: m, sd: Math.sqrt(dv.reduce((a, d, k) => a + ws[k] * d * d, 0)), min: w(m + Math.min(...dv)), max: w(m + Math.max(...dv)), unwrapped: dv.map(d => m + d) }; }
   const m = vals.reduce((a, v, k) => a + ws[k] * v, 0);
   return { mean: m, sd: Math.sqrt(vals.reduce((a, v, k) => a + ws[k] * (v - m) ** 2, 0)), min: Math.min(...vals), max: Math.max(...vals) };
 }
@@ -4793,7 +4707,7 @@ function cvEnsTable(cs, cols) {        // the conformers carrying the weight, he
 function cvEnsShow(render) { window.cvEnsRedraw = render; render(); }
 document.addEventListener('click', e => {
   const k = e.target.closest && e.target.closest('#cvEnsOut') && e.target.dataset.k; if (k == null || k === false || k === undefined) return;
-  const c = cvConformers[+k]; if (!c) return; e.preventDefault(); c.on = !c.on; cvUpdateList(); cvRenderStack();
+  const c = cvConformers[+k]; if (!c) return; e.preventDefault(); c.on = !c.on; cvRenderStack();
 });
 function cvEnsMeasure() {
   if (!cvConformers.length) return alert('Load conformers first.');
@@ -4809,9 +4723,9 @@ function cvEnsMeasure() {
     return `<div class="cv-ens-card"><h4>${kind} ${names}${groups.length > 1 ? ' · ' + esc(g.src) : ''}</h4>
       <div class="cv-ens-sum">Boltzmann mean <b>${st.mean.toFixed(ix.length === 2 ? 3 : 1)} ${unit}</b> · sd ${st.sd.toFixed(ix.length === 2 ? 3 : 1)} · range ${st.min.toFixed(ix.length === 2 ? 3 : 1)} to ${st.max.toFixed(ix.length === 2 ? 3 : 1)} over ${g.cs.length} conformer${g.cs.length > 1 ? 's' : ''}${g.weighted ? '' : ' (no energies: equal weights)'}
       ${g.cs.length > 1 ? (big ? ' · <b style="color:#b45309">moves between conformers</b>: which conformer you model matters' : ' · <span style="color:#2f7a4f">steady across the conformers</span>') : ''}</div>
-      <div class="cv-ens-grid"><div>${cvEnsPlot(g.cs, vals, unit, st.mean)}</div><div>${cvEnsTable(g.cs, [[`${kind} ${unit}`, c => cvGeom(c.atoms, ix).toFixed(ix.length === 2 ? 3 : 1)]])}</div></div></div>`; }).join(''); });
+      <div class="cv-ens-grid"><div>${cvEnsPlot(g.cs, st.unwrapped || vals, unit, st.mean)}</div><div>${cvEnsTable(g.cs, [[`${kind} ${unit}`, c => cvGeom(c.atoms, ix).toFixed(ix.length === 2 ? 3 : 1)]])}</div></div></div>`; }).join(''); });
 }
-let cvStSeq = 0;
+let cvStSeq = 0, cvStLastKey = null;
 const CV_ST_COVER = 0.999;             // share of each file's Boltzmann weight Sterimol is computed on
 async function cvEnsSterimol() {
   if (!cvConformers.length) return alert('Load conformers first.');
@@ -4835,6 +4749,7 @@ async function cvEnsSterimol() {
   let next = 0;
   await Promise.all(Array.from({ length: 4 }, async () => { while (next < all.length && !err && seq === cvStSeq) await one(all[next++]); }));
   if (seq !== cvStSeq) return;
+  if (!err) cvStLastKey = key;
   if (err) { out.innerHTML = `<div class="cv-ens-card" style="color:#b4232a">Sterimol stopped: ${esc(err)}</div>`; return; }
   const D = [['B1', 'Å', 2], ['B5', 'Å', 2], ['L', 'Å', 2], ['loc_B5', 'Å', 2], ['B1_B5_angle', '°', 1]];
   let pick = 'B1';
@@ -4870,7 +4785,8 @@ function cvEnsContacts() {
 }
 
 /* ── Drawing window, duplicates, folders, files compared, export ── */
-const CV_DUP_RMSD = 0.25;                          // Å, heavy atoms after superposition
+const CV_DUP_RMSD = 0.25;                          // Å, numbered heavy atoms, used when equivalent-atom matching is off
+let cvSymSeq = 0, cvSymPending = false, cvSymNote = '';
 function cvHeavy(atoms) { return atoms.map((a, i) => i).filter(i => String(atoms[i][0]).toUpperCase() !== 'H'); }
 // per structure, once: its heavy atoms centred, their elements, and each one's distance from the centre
 const CV_PROF = new WeakMap();
@@ -4905,18 +4821,143 @@ function cvRmsd(a, b) {                            // heavy-atom RMSD after supe
   const ix = cvHeavy(a).filter(i => String(a[i][0]).toUpperCase() === String(b[i][0]).toUpperCase());
   return ix.length >= 3 ? kabschAlign(b, a, ix).rmsd : Infinity;
 }
+const CV_MIRROR = 0.15, CV_HAND = ['#0284c7', '#7c3aed', '#db2777', '#059669', '#d97706', '#4f46e5'];
+const CV_MIR = new WeakMap(), CV_MIR_PAIRS = new Map();      // src -> {sig, cs, pairs}: the last mirror search of each file
+function cvMirrorOf(atoms) {
+  let m = CV_MIR.get(atoms);
+  if (!m) { m = atoms.map(a => [a[0], -a[1], a[2], a[3]]); CV_MIR.set(atoms, m); }
+  return m;
+}
+// a kept conformer and the one that is its other hand: they overlay once one is reflected, and they do not overlay before that
+function cvMarkMirrors() {
+  cvConformers.forEach(c => { c.mirror = null; c.mirrorColor = null; });
+  const by = new Map();
+  cvConformers.forEach(c => { if (c.dup) return; if (!by.has(c.src)) by.set(c.src, []); by.get(c.src).push(c); });
+  let n = 0;
+  for (const [src, cs] of by) {
+    // all pairs of a file: done again only when the file's kept conformers change (a load runs this several times)
+    const sig = cs.map(c => c.frame).join(','), hit = CV_MIR_PAIRS.get(src);
+    let pairs;
+    if (hit && hit.sig === sig && hit.cs.length === cs.length && hit.cs.every((c, i) => c === cs[i])) pairs = hit.pairs;
+    else {
+      pairs = [];
+      const used = new Set();
+      const order = cs.slice().sort((a, b) => (a.dE ?? 0) - (b.dE ?? 0) || a.frame - b.frame);
+      for (let i = 0; i < order.length; i++) {
+        const a = order[i];
+        if (used.has(a)) continue;
+        let best = null, bestR = CV_MIRROR;
+        for (let j = i + 1; j < order.length; j++) {
+          const b = order[j];
+          if (used.has(b)) continue;
+          const mr = cvRmsdFast(a.atoms, cvMirrorOf(b.atoms), bestR);
+          if (!(mr < bestR)) continue;
+          if (cvRmsdFast(a.atoms, b.atoms, CV_DUP_RMSD) < CV_DUP_RMSD) continue;
+          bestR = mr; best = b;
+        }
+        if (!best) continue;
+        used.add(a); used.add(best); pairs.push([a, best]);
+      }
+      CV_MIR_PAIRS.set(src, { sig, cs: cs.slice(), pairs });
+    }
+    pairs.forEach(([a, best]) => { const color = CV_HAND[n++ % CV_HAND.length]; a.mirror = best; best.mirror = a; a.mirrorColor = best.mirrorColor = color; });
+  }
+}
 // in each file, lowest energy first: a conformer within CV_DUP_RMSD of one already kept is folded under it
 function cvDedupAll() {
   cvConformers.forEach(c => { c.dup = null; c.alike = 0; });
-  if (!($('cvDedup') || {}).checked) return;
+  const merging = !!(($('cvDedup') || {}).checked), sym = merging && !!(($('cvSym') || {}).checked);
+  if (!merging) { cvConformers.forEach(c => { const r = c.userDup; if (!r || r.userDup) return; c.dup = r; c.on = false; r.alike++; }); cvFoldChains(); cvMarkMirrors(); return; }
   const by = new Map(); cvConformers.forEach(c => { if (!by.has(c.src)) by.set(c.src, []); by.get(c.src).push(c); });
   for (const cs of by.values()) {
+    if (sym) {                                     // the server matched equivalent atoms; nothing is folded until that returns
+      cs.forEach(c => {
+        if (c.userDup || c.notDup || !c.symDup || c.symDup === c) return;
+        let r = c.symDup; while (r.symDup && r.symDup !== r) r = r.symDup; if (r === c) return;
+        c.dup = r; c.on = false; r.alike++;
+      });
+      continue;
+    }
     const kept = [];
     cs.slice().sort((a, b) => (a.dE ?? 0) - (b.dE ?? 0)).forEach(c => {
-      const rep = kept.find(r => cvRmsdFast(r.atoms, c.atoms, CV_DUP_RMSD) < CV_DUP_RMSD);
+      if (c.userDup) return;                       // flagged by hand: placed below
+      const rep = c.notDup ? null : kept.find(r => cvRmsdFast(r.atoms, c.atoms, CV_DUP_RMSD) < CV_DUP_RMSD);
       if (rep) { c.dup = rep; c.on = false; rep.alike++; } else kept.push(c);
     });
   }
+  cvConformers.forEach(c => { if (!c.userDup) return; let r = c.userDup; while (r.dup) r = r.dup; if (r === c) return; c.dup = r; c.on = false; r.alike++; });
+  cvFoldChains();
+  cvMarkMirrors();
+}
+// a copy folded under a conformer that was then folded itself (flagged by hand) points at the end of the chain, so it is listed
+// under the conformer that is shown; the +n counts are taken from the result
+function cvFoldChains() {
+  const end = c => { const seen = new Set([c]); let r = c.dup; while (r && r.dup && !seen.has(r.dup)) { seen.add(r); r = r.dup; } return r; };
+  cvConformers.forEach(c => { if (!c.dup) return; const r = end(c); c.dup = r && r !== c && !r.dup ? r : (r === c ? null : r); });
+  cvConformers.forEach(c => { c.alike = 0; });
+  cvConformers.forEach(c => { if (c.dup) c.dup.alike++; });
+}
+function cvDupChanged() {
+  if (($('cvSym') || {}).checked && ($('cvDedup') || {}).checked) cvSymDedup();
+  else { cvSymSeq++; cvConformers.forEach(c => { c.symDup = null; c.symRmsd = null; c.symWhy = null; c.symSwaps = null; c.symSuggest = null; }); cvSymPending = false; cvSymNote = ''; cvDedupAll(); cvApplyDraw(cvConformers, true); }
+}
+function cvSwapText(swaps) {
+  if (!swaps || !swaps.length) return 'same labels';
+  return swaps.slice(0, 6).map(p => p[0] + '\u2194' + p[1]).join(' ');
+}
+const CV_TAB = Math.random().toString(36).slice(2);   // this page, so its requests can supersede one another
+async function cvSymDedup() {                      // copies at or below 0.05 Å fold; the 0.05–0.15 Å band is offered
+  const seq = ++cvSymSeq;
+  cvConformers.forEach(c => {
+    if (c.symWhy === 'accepted') return;           // a match the user already took stays taken
+    c.symDup = null; c.symRmsd = null; c.symWhy = null; c.symSwaps = null; c.symSuggest = null;
+  });
+  if (!($('cvSym') || {}).checked || !($('cvDedup') || {}).checked || cvConformers.length < 2) {
+    cvSymPending = false; cvSymNote = ''; cvDedupAll(); cvUpdateList(); return;
+  }
+  const by = new Map();
+  cvConformers.forEach((c, i) => { if (!by.has(c.src)) by.set(c.src, []); by.get(c.src).push({ id: i, atoms: c.atoms, energy: c.energy }); });
+  const groups = [...by.values()].filter(g => g.length > 1).map(frames => ({ frames }));
+  if (!groups.length) { cvSymPending = false; cvSymNote = ''; cvDedupAll(); cvUpdateList(); return; }
+  cvSymPending = true; cvSymNote = ''; cvDedupAll(); cvUpdateList();
+  if (typeof setExtractStatus === 'function') setExtractStatus('Matching equivalent atoms…', 'ok');
+  try {
+    const r = await fetch('/conformers/duplicates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groups, token: CV_TAB + ':' + seq }) });     // a newer request stops this one on the server
+    const d = await r.json();
+    if (seq !== cvSymSeq) return;
+    if (!r.ok || d.error) { cvSymPending = false; cvSymNote = d.error || ('match failed (' + r.status + ')'); cvUpdateList(); return; }
+    (d.pairs || []).forEach(p => {
+      const child = cvConformers[p.child], parent = cvConformers[p.parent];
+      if (!child || !parent || child.notDup) return;
+      child.symDup = parent; child.symRmsd = p.rmsd; child.symWhy = p.reason; child.symSwaps = p.swaps || []; child.symSuggest = null;
+    });
+    (d.suggestions || []).forEach(p => {
+      const child = cvConformers[p.child], parent = cvConformers[p.parent];
+      if (!child || !parent || child.notDup || child.symDup) return;
+      child.symSuggest = { parent, rmsd: p.rmsd, swaps: p.swaps || [], torsion: p.torsion };
+    });
+    const offered = cvConformers.filter(c => c.symSuggest).length;
+    cvSymPending = false;
+    cvSymNote = [offered ? offered + ' close match' + (offered === 1 ? '' : 'es') + ' to accept' : '', d.warning || ''].filter(Boolean).join(' · ');
+    cvDedupAll();
+    if (new Set(cvConformers.map(c => c.src)).size > 1) {   // several files: keep the one on screen, only take folded copies off it
+      cvConformers.forEach(c => { if (c.dup) c.on = false; });
+      if (!cvConformers.some(c => c.on && !c.dup)) { const first = cvConformers.find(c => !c.dup); if (first) first.on = true; }
+      cvRenderStack();
+    } else cvApplyDraw(cvConformers, true);
+    if (typeof setExtractStatus === 'function') setExtractStatus(cvSymNote || 'Equivalent-atom match finished. Copies within 0.05 Å are folded.', 'ok');
+  } catch (e) {
+    if (seq !== cvSymSeq) return;
+    cvSymPending = false; cvSymNote = 'equivalent-atom match needs the DescriPyTor server (descripytor visual)';
+    cvUpdateList();
+  }
+}
+function cvFlagDup(c) {                            // fold it under the closest conformer of its file that is kept
+  const cand = cvConformers.filter(d => d !== c && d.src === c.src && !d.dup);
+  if (!cand.length) return alert('No other conformer in this file to fold it under.');
+  let best = null, r = Infinity; cand.forEach(d => { const x = cvRmsdFast(d.atoms, c.atoms, r); if (x < r) { r = x; best = d; } });
+  c.userDup = best; c.notDup = false; cvDedupAll(); cvRenderStack();
+  if (typeof setExtractStatus === 'function') setExtractStatus(`${c.name} folded under ${best.name} (heavy-atom RMSD ${r.toFixed(2)} Å).`, 'ok');
 }
 // which conformers of each file are drawn: the N lowest, those within a window, or all (duplicates never)
 function cvApplyDraw(list, redraw) {
@@ -4927,19 +4968,27 @@ function cvApplyDraw(list, redraw) {
     cs.forEach(c => { c.on = false; });
     ok.forEach((c, k) => { c.on = mode === 'all' || (mode[0] === 'n' && k < +mode.slice(1)) || (mode[0] === 'w' && (k === 0 || (c.dE != null && c.dE <= +mode.slice(1)))); });
   }
-  if (redraw) { cvUpdateList(); cvRenderStack(); }
+  if (redraw) { cvRenderStack(); }
 }
 function cvFileColour(c) { const srcs = [...new Set(cvConformers.map(x => x.src))]; return CV_COLORS[srcs.indexOf(c.src) % CV_COLORS.length]; }
 // a results folder: GOAT's final ensemble or CREST's conformers, named by their folder and sampler
+function cvIsCalcName(name) { return /\.(feather|ftr|json|log|out)$/i.test(name || ""); }
 function cvLoadFolder(files) {
   // the label: GOAT's file is named after the molecule; CREST's is not, so its nearest folder that is not a generic run folder
   const xyz = files.filter(f => /\.xyz$/i.test(f.name)), dir = f => (f.webkitRelativePath || '').split('/').slice(0, -1).reverse().find(d => !/^(results?|raw.*|crest.*|goat.*|out(put)?|run.*|calc.*)$/i.test(d)) || '';
   const pick = xyz.filter(f => /\.finalensemble\.xyz$/i.test(f.name) || /^crest_conformers\.xyz$/i.test(f.name));
   const use = pick.length ? pick : xyz.filter(f => !/_trj\.xyz$|\.globaliter\.|crest_rotamers|\.ens\.xyz$/i.test(f.name));
-  if (!use.length) return alert('No XYZ ensemble in this folder (looked for *.finalensemble.xyz and crest_conformers.xyz).');
-  use.forEach(f => { const crest = /^crest_/i.test(f.name), goat = /\.finalensemble\./i.test(f.name), d = dir(f);
-    f._label = goat ? `${f.name.replace(/\.finalensemble\.xyz$/i, '')} · GOAT` : crest ? `${d || 'crest'} · CREST` : f.name.replace(/\.xyz$/i, ''); });
-  cvLoadFileList(use);
+  if (use.length) {
+    use.forEach(f => { const crest = /^crest_/i.test(f.name), goat = /\.finalensemble\./i.test(f.name), d = dir(f);
+      f._label = goat ? `${f.name.replace(/\.finalensemble\.xyz$/i, '')} · GOAT` : crest ? `${d || 'crest'} · CREST` : f.name.replace(/\.xyz$/i, ''); });
+    cvLoadFileList(use);
+    return;
+  }
+  const calc = files.filter(f => cvIsCalcName(f.name));
+  if (!calc.length) return alert('No structures in this folder (looked for XYZ ensembles, .feather, Gaussian .log and ORCA .out).');
+  calc.forEach(f => { f._label = f.name.replace(/\.(feather|ftr|json|log|out)$/i, ''); });
+  if (typeof setExtractStatus === 'function') setExtractStatus('Reading ' + calc.length + ' calculation file' + (calc.length === 1 ? '' : 's') + '…', 'ok');
+  cvLoadFileList(calc);
 }
 function cvDownload(name, href) { const a = document.createElement('a'); a.href = href; a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
 function cvSaveXyz() {
@@ -4970,36 +5019,238 @@ function cvEnsCompare() {
   window.cvEnsRedraw = null;
   $('cvEnsOut').innerHTML = side(A, B) + side(B, A) + (files.length > 2 ? `<div class="cv-ens-sum">Compared the first two files with several conformers; ${files.length - 2} more left out.</div>` : '');
 }
+function cvSrcStem(name) {
+  return String(name || '').replace(/\s*[·•|]\s*(CREST|GOAT)\s*$/i, '').replace(/\s+(CREST|GOAT)\s*$/i, '').trim();
+}
+// two files of one molecule, survivors only, on the lower of the two minima
+async function cvEnsSources() {
+  const by = new Map();
+  cvConformers.forEach((c, i) => { if (c.dup) return; if (!by.has(c.src)) by.set(c.src, []); by.get(c.src).push({ id: i, atoms: c.atoms, energy: c.energy }); });
+  const files = [...by.entries()].filter(([, fr]) => fr.length);
+  if (files.length < 2) return alert('Load two ensembles of the same molecule (CREST and GOAT, or any two files).');
+  let jobs;
+  if (files.length === 2) jobs = [files];
+  else {
+    const stems = new Map();
+    files.forEach(entry => { const stem = cvSrcStem(entry[0]) || entry[0]; if (!stems.has(stem)) stems.set(stem, []); stems.get(stem).push(entry); });
+    const both = [...stems.values()].filter(group => group.some(([n]) => /crest/i.test(n)) && group.some(([n]) => /goat/i.test(n)));
+    if (!both.length) return alert('Several molecules are loaded. On one scale pairs the CREST and GOAT of one molecule; these names do not line up.');
+    jobs = both.map(group => [group.find(([n]) => /crest/i.test(n)), group.find(([n]) => /goat/i.test(n))]);
+  }
+  const skipped = jobs.filter(pair => pair[0][1][0].atoms.length !== pair[1][1][0].atoms.length);
+  jobs = jobs.filter(pair => pair[0][1][0].atoms.length === pair[1][1][0].atoms.length);
+  if (!jobs.length) return alert(skipped.map(pair => pair[0][0] + ' and ' + pair[1][0]).join(', ') + ' have different atom counts, so they are not put on one scale.');
+  if (typeof setExtractStatus === 'function') setExtractStatus('Putting ' + jobs.length + ' molecule' + (jobs.length === 1 ? '' : 's') + ' on one scale…', 'ok');
+  const tags = [];
+  try {
+    for (const pair of jobs) {
+      const r = await fetch('/conformers/sources', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ files: pair.map(([name, frames]) => ({ name, frames })) }) });
+      const d = await r.json();
+      if (!r.ok || d.error) return alert((d && d.error) || ('match failed (' + r.status + ')'));
+      (d.tags || []).forEach(t => tags.push(t));
+    }
+  } catch (e) { return alert('The joint scale needs the DescriPyTor server (descripytor visual).'); }
+  const tally = {};
+  tags.forEach(t => { const c = cvConformers[t.id]; if (!c) return; c.sourceTag = t.tag; c.jointKcal = t.joint_kcal; c.sourceWith = t.with; c.sourceSwaps = t.swaps || []; tally[t.tag] = (tally[t.tag] || 0) + (t.tag === 'BOTH' ? 0.5 : 1); });
+  cvUpdateList();
+  const one = jobs.length === 1;
+  const rows = tags.filter(t => t.tag !== 'BOTH' || t.id < t.with).map(t => { const c = cvConformers[t.id];
+    return `<tr><td>${esc(c ? c.name : t.id)}</td><td>${esc(t.tag)}</td><td>${t.joint_kcal == null ? '–' : Number(t.joint_kcal).toFixed(2)}</td><td>${t.rmsd == null ? '–' : Number(t.rmsd).toFixed(3) + ' Å'}</td></tr>`; });
+  window.cvEnsRedraw = null;
+  $('cvEnsOut').innerHTML = `<div class="cv-ens-card"><h4>${one ? esc(jobs[0][0][0]) + ' and ' + esc(jobs[0][1][0]) : jobs.length + ' molecules'}</h4>
+    <div class="cv-ens-sum">One zero per molecule, the lower of its two minima. ${Object.entries(tally).map(([k, n]) => '<b>' + n + '</b> ' + esc(k)).join(', ') || 'nothing matched'}. Folded duplicates stay out. The ΔE already in the list stays each file's own.${skipped.length ? ' ' + skipped.length + ' pair' + (skipped.length === 1 ? '' : 's') + ' skipped (different atom counts).' : ''}</div>
+    <table><tr><th>conformer</th><th>where</th><th>kcal/mol above the joint minimum</th><th>match</th></tr>${rows.slice(0, 40).join('')}</table>
+    ${rows.length > 40 ? `<div style="color:#8a95a3">… ${rows.length - 40} more. The tag on each row in the list has the rest.</div>` : ''}</div>`;
+  if (typeof setExtractStatus === 'function') setExtractStatus('Joint scale set for ' + jobs.length + ' molecule' + (jobs.length === 1 ? '' : 's') + '.', 'ok');
+}
+function cvWellParts() { return String(($('cvWellAtoms') || {}).value || '').split(';').map(s => cvParseAtoms(s)).filter(p => p.length); }
+async function cvEnsWells() {
+  const parts = cvWellParts();
+  if (!parts.length || parts.length > 3 || parts.some(ix => ix.length !== 4)) return alert('Name 1 to 3 dihedrals, four atoms each, separated by ; .');
+  const use = cvConformers.filter(c => !c.dup);
+  if (use.length < 4) return alert('Wells need at least 4 conformers that are not folded as duplicates.');
+  for (const c of use) for (const ix of parts) if (ix.some(i => !c.atoms[i])) return alert(`${c.name} has no atom ${Math.max(...ix) + 1}.`);
+  let d;
+  try {
+    const r = await fetch('/conformers/wells', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ angles: use.map(c => parts.map(ix => cvGeom(c.atoms, ix))), groups: use.map(c => c.src || 'file') }) });
+    d = await r.json();
+    if (!r.ok || d.error) return alert(d.error || ('wells failed (' + r.status + ')'));
+  } catch (e) { return alert('Wells need the DescriPyTor server (descripytor visual).'); }
+  const crit = d.criteria || {};
+  const word = { knee: 'knee', silhouette_jump: 'silhouette jump', density: 'density peaks', coverage: 'every file in every well' };
+  const line = ['knee', 'silhouette_jump', 'density', 'coverage'].map(k => word[k] + ' ' + (crit[k] == null ? '–' : crit[k])).join(' · ');
+  const apply = (k) => {
+    const labels = (d.labels || {})[String(k)]; if (!labels || labels.length !== use.length) return;
+    use.forEach((c, i) => { c.fam = labels[i]; c.famFrom = 'wells'; });
+    cvConformers.forEach(c => { if (c.dup && c.dup.fam != null) { c.fam = c.dup.fam; c.famFrom = 'wells'; } });
+    CV_FAM_CUT = null; const colour = $('cvColour'); if (colour) colour.value = 'fam';
+    cvRenderStack();
+  };
+  window.cvEnsRedraw = null;
+  $('cvEnsOut').innerHTML = `<div class="cv-ens-card"><h4>Torsion wells</h4>
+    <div class="cv-ens-sum">${line}. Suggested <b>${d.suggested}</b>, from ${use.length} conformer${use.length === 1 ? '' : 's'} (folded copies are left out). Click a k to colour the view by that split.${crit.coverage == null ? ' Coverage stays quiet with one file.' : ''}</div>
+    <table><tr><th>k</th><th>inertia</th><th>silhouette</th><th>every file</th></tr>${(d.rows || []).map(row =>
+      `<tr><td><a href="#" data-wk="${row.k}">${row.k}${row.k === d.suggested ? ' · suggested' : ''}</a></td><td>${row.inertia}</td><td>${row.silhouette}</td><td>${row.every_file == null ? '–' : row.every_file ? 'yes' : 'no'}</td></tr>`).join('')}</table></div>`;
+  $('cvEnsOut').querySelectorAll('[data-wk]').forEach(a => a.onclick = e => { e.preventDefault(); apply(+a.dataset.wk); });     // data-wk: data-k means a conformer to draw
+  apply(d.suggested);
+}
+// the conformers drawn now, against the first of them, after the alignment the view is using
+function cvEnsMoved() {
+  const active = cvConformers.filter(c => c.on);
+  if (active.length < 2) return alert('Draw two conformers to compare. With split on, put one in A and one in B.');
+  const mode = ($('cvAlignMode') || { value: 'benzene' }).value;
+  if (mode === 'atoms' && cvParseAtoms($('cvAlignAtoms').value).length < 3)
+    return alert('Click at least 3 atoms in the view. Align by is set to Chosen atoms, and the pick button is on.');
+  if (mode === 'none') active.forEach(c => { c.disp = null; });
+  else { $('cvColour').value = 'move'; cvRedrawKeep(); }
+  const ref = active[0], ix = cvParseAtoms(($('cvMeasAtoms') || {}).value || ''), split = !!(($('cvSplit') || {}).checked);
+  const meas = ix.length >= 2 && ix.length <= 4 && active.every(c => ix.every(i => c.atoms[i]));
+  const kind = ['', '', 'distance', 'angle', 'dihedral'][meas ? ix.length : 0], unit = ix.length === 2 ? 'Å' : '°';
+  const refG = meas ? cvGeom(ref.atoms, ix) : null, names = meas ? ix.map(i => ref.atoms[i][0] + (i + 1)).join('–') : '';
+  const cards = active.slice(1, 5).map(c => {
+    const top = c.disp ? cvHeavy(c.atoms).slice().sort((a, b) => c.disp[b] - c.disp[a]).slice(0, 8) : [];
+    const rows = top.map(i => `<tr><td>${c.atoms[i][0]}${i + 1}</td><td style="text-align:left"><span class="cv-ens-bar" style="width:${Math.max(2, 90 * c.disp[i] / (c.dispMax || 1))}px;background:${cvFlexColour(c.disp[i], c.dispMax || 1)}"></span>${c.disp[i].toFixed(2)} Å</td></tr>`).join('');
+    const g = meas ? cvGeom(c.atoms, ix) : null, d = meas ? (ix.length === 4 ? cvCircDiff(refG, g) : g - refG) : null;
+    return `<div class="cv-ens-card"><h4>${esc(c.name)} against ${esc(ref.name)}</h4>
+      <div class="cv-ens-sum">${c.rmsd != null ? `RMSD on the fit atoms ${c.rmsd.toFixed(3)} Å.` : 'Not aligned, so atom motion is not shown.'}${c.dE != null && ref.dE != null ? ` ΔE ${c.dE.toFixed(2)} vs ${ref.dE.toFixed(2)} kcal/mol.` : ''}${split ? ` Panel ${c.panel === 'B' ? 'B' : 'A'}.` : ''}</div>
+      ${meas ? `<div class="cv-ens-sum">${kind} ${names}: ${g.toFixed(2)} ${unit} here, ${refG.toFixed(2)} on ${esc(ref.name)}, difference ${d.toFixed(2)} ${unit}.</div>` : ''}
+      ${rows ? `<table><tr><th>atom that moved</th><th>after the fit</th></tr>${rows}</table>` : ''}</div>`;
+  }).join('');
+  window.cvEnsRedraw = null;
+  $('cvEnsOut').innerHTML = (mode === 'none' ? '' : `<div class="cv-ens-sum">Motion from the first drawn conformer, <b>${esc(ref.name)}</b>, which stays grey. <span style="color:#2563eb">Blue</span> barely moved, <span style="color:#dc2626">red</span> moved most. Both panels keep this fit.</div>`)
+    + cards
+    + (active.length > 5 ? `<div class="cv-ens-sum">Showing the first 4 against ${esc(ref.name)}. Turn the others off to compare a different pair.</div>` : '')
+    + (meas ? '' : `<div class="cv-ens-sum">Put 2, 3 or 4 atoms in Measure to see that distance, angle or dihedral on each of them.</div>`);
+}
 
 /* ── Picking atoms in the view, for the Sterimol axis or a measurement ── */
 let cvPickTarget = null, cvKeepView = null;
 const CV_PICK_MAX = { cvStAxis: 2, cvMeasAtoms: 4 };
-function cvPickedNow() { return cvPickTarget ? String($(cvPickTarget).value || '').split(/[\s,;]+/).filter(Boolean).map(Number).filter(Number.isInteger).map(i => i - 1) : []; }
+function cvPickedNow() {
+  if (!cvPickTarget) return [];
+  if (cvPickTarget === 'cvWellAtoms') return cvWellParts().flat();
+  return cvParseAtoms($(cvPickTarget).value);
+}
 function cvPickHint() {
   const h = $('cvPickHint'); if (!h) return;
-  const n = cvPickedNow().length, st = cvPickTarget === 'cvStAxis';
+  const n = cvPickedNow().length;
   h.style.display = cvPickTarget ? 'block' : 'none';
-  if (cvPickTarget) h.textContent = st ? (n === 0 ? 'Click the atom the axis starts from (the attachment atom).' : n === 1 ? 'Now the first atom of the group: the axis points from the first to the second.' : 'Axis set. Compute, or click again to start a new axis.')
-    : (n < 2 ? `Click atoms in order: 2 for a distance, 3 for an angle, 4 for a dihedral (${n} so far).` : n < 4 ? `${['', '', 'distance', 'angle'][n]} so far: Measure, or click more atoms.` : 'Dihedral set. Measure, or click again to start over.');
+  if (!cvPickTarget) return;
+  if (cvPickTarget === 'cvAlignAtoms') h.textContent = n < 3
+    ? `Click the atoms to align on (${n} so far, at least 3). Click a chosen atom again to drop it.`
+    : `Aligning on ${n} atoms. Click a highlighted atom to drop it.`;
+  else if (cvPickTarget === 'cvStAxis') h.textContent = n === 0 ? 'Click the atom the axis starts from (the attachment atom).' : n === 1 ? 'Now the first atom of the group: the axis points from the first to the second.' : 'Axis set. Compute, or click again to start a new axis.';
+  else if (cvPickTarget === 'cvWellAtoms') {
+    const parts = cvWellParts(), last = parts.length ? parts[parts.length - 1].length : 0;
+    h.textContent = parts.length >= 3 && last === 4 ? 'Three dihedrals. Vote. Click a highlighted atom to drop it.' : `Dihedral ${Math.max(parts.length, 1)}: ${last} of 4 atoms. After four, the next click starts another (up to 3).`;
+  }
+  else h.textContent = n < 2 ? `Click atoms in order: 2 for a distance, 3 for an angle, 4 for a dihedral (${n} so far).` : n < 4 ? `${['', '', 'distance', 'angle'][n]} so far: Measure, or click more atoms.` : 'Dihedral set. Measure, or click again to start over.';
 }
 function cvRedrawKeep() { cvKeepView = cvViewer3d ? cvViewer3d.getView() : null; cvRenderStack(); cvKeepView = null; }
+let cvPickLabs = [], cvPickMarks = [], cvPickAt = 0;
+function cvPickHosts() {
+  const out = [], take = V => { const c = cvConformers.find(x => x.on && x._drawV === V && x._drawAtoms); if (c) out.push(c); };
+  if (cvViewer3d) take(cvViewer3d);
+  if (cvViewerB && $('cvSplit') && $('cvSplit').checked) take(cvViewerB);
+  return out;
+}
+function cvPickClearLabs() {
+  cvPickLabs.forEach(({ V, label }) => { try { if (label) V.removeLabel(label); } catch (e) {} });
+  cvPickLabs = [];
+}
+function cvPickClearMarks() {
+  cvPickMarks.forEach(({ V, shape, label }) => {
+    try { if (shape) V.removeShape(shape); } catch (e) {}
+    try { if (label) V.removeLabel(label); } catch (e) {}
+  });
+  cvPickMarks = [];
+}
+function cvViewRender() {
+  [cvViewer3d, $('cvSplit') && $('cvSplit').checked ? cvViewerB : null].forEach(V => { try { if (V) V.render(); } catch (e) {} });
+}
+function cvPickAddLabels() {
+  cvPickHosts().forEach(c => {
+    const hide = new Set(c._drawHide || []), V = c._drawV, col = c.color || '#334155';
+    c._drawAtoms.forEach((a, ai) => {
+      if (!a || hide.has(ai)) return;
+      const label = V.addLabel(`${a[0]}${ai + 1}`, { position: { x: a[1], y: a[2], z: a[3] }, fontSize: 11, fontColor: col, backgroundColor: 'rgba(255,255,255,0.9)', showBackground: true, inFront: true });
+      cvPickLabs.push({ V, label });
+    });
+  });
+}
+function cvPickAddMarks() {
+  const picks = cvPickedNow();
+  cvPickHosts().forEach(c => {
+    const V = c._drawV;
+    const hide = new Set(c._drawHide || []);
+    picks.forEach((ai, k) => {
+      if (hide.has(ai)) return;
+      const a = c._drawAtoms[ai]; if (!a) return;
+      const center = { x: a[1], y: a[2], z: a[3] };
+      const shape = V.addShape({ color: '#f59e0b', opacity: 0.55, clickable: true, callback: () => cvPickAtom({ serial: ai + 1 }) });
+      if (shape && shape.addSphere) shape.addSphere({ center, radius: 0.32, color: '#f59e0b' });
+      const label = V.addLabel(String(k + 1), { position: center, fontSize: 12, fontColor: '#fff', backgroundColor: '#b45309', showBackground: true, inFront: true });
+      cvPickMarks.push({ V, shape, label });
+    });
+  });
+}
+function cvPickRefresh() {
+  cvPickClearMarks();
+  if (cvPickTarget) cvPickAddMarks();
+  cvViewRender();
+}
+function cvAlignModeChanged() {
+  const atoms = $('cvAlignMode').value === 'atoms';
+  $('cvAlignAtomsBox').style.display = atoms ? 'inline-flex' : 'none';
+  if (atoms && cvPickTarget !== 'cvAlignAtoms') cvPickTarget = 'cvAlignAtoms';
+  else if (!atoms && cvPickTarget === 'cvAlignAtoms') cvPickTarget = null;
+  document.querySelectorAll('.cv-pickbtn').forEach(b => b.setAttribute('aria-pressed', b.dataset.target === cvPickTarget));
+  cvPickHint();
+  cvRenderStack();
+}
 function cvPickToggle(id) {
   cvPickTarget = cvPickTarget === id ? null : id;
   document.querySelectorAll('.cv-pickbtn').forEach(b => b.setAttribute('aria-pressed', b.dataset.target === cvPickTarget));
   cvPickHint();
-  if (!cvConformers.some(c => c.on)) return cvPickTarget && alert('Draw a conformer first: its atoms are the ones you click.');
-  cvRedrawKeep();
+  if (cvPickTarget && !cvConformers.some(c => c.on)) return alert('Draw a conformer first: its atoms are the ones you click.');
+  cvPickClearLabs();
+  cvPickClearMarks();
+  if (cvPickTarget && !($('cvShowLabels') && $('cvShowLabels').checked)) cvPickAddLabels();
+  if (cvPickTarget) cvPickAddMarks();
+  cvViewRender();
 }
-function cvPickAtom(atom) {
+function cvPickAtom(atom, viewer) {
   if (!cvPickTarget || !atom || atom.serial == null) return;
-  const cur = cvPickedNow(), max = CV_PICK_MAX[cvPickTarget], ai = atom.serial - 1;
-  const next = cur.length >= max ? [ai] : cur[cur.length - 1] === ai ? cur.slice(0, -1) : cur.concat(ai);     // a second click on the last atom takes it back
+  if (viewer && viewer._cvGhost != null && atom.model === viewer._cvGhost) return;     // the mirror ghost: not the molecule's numbering
+  const now = performance.now();
+  if (now - cvPickAt < 50) return;
+  cvPickAt = now;
+  const cur = cvPickedNow();
+  let ai = atom.serial - 1;
+  const host = cvPickHosts()[0], hostN = host && host._drawAtoms.length;
+  if (hostN && ai >= hostN && atom.index != null) ai = atom.index;
+  if (ai < 0) return;
+  let next;
+  if (cvPickTarget === 'cvWellAtoms') {
+    let bits = cvWellParts();
+    if (!bits.length || bits[bits.length - 1].length >= 4) {
+      if (bits.length >= 3) { if (bits[2].includes(ai)) bits[2] = bits[2].filter(i => i !== ai); }
+      else bits.push([ai]);
+    } else {
+      const curW = bits[bits.length - 1];
+      bits[bits.length - 1] = curW.includes(ai) ? curW.filter(i => i !== ai) : curW.concat(ai);
+    }
+    $('cvWellAtoms').value = bits.filter(p => p.length).map(p => p.map(i => i + 1).join(',')).join(' ; ');
+    cvPickHint(); cvPickRefresh(); return;
+  }
+  if (cvPickTarget === 'cvAlignAtoms') next = cur.includes(ai) ? cur.filter(i => i !== ai) : cur.concat(ai);
+  else { const max = CV_PICK_MAX[cvPickTarget]; next = cur.length >= max ? [ai] : cur[cur.length - 1] === ai ? cur.slice(0, -1) : cur.concat(ai); }
   $(cvPickTarget).value = next.map(i => i + 1).join(',');
-  cvPickHint(); cvRedrawKeep();
+  cvPickHint(); cvPickRefresh();
 }
 
 /* ── Play: each conformer in turn over the lowest ── */
-let cvPlayT = null, cvPlaySaved = null, cvPlayK = 0, cvPlayNow = null;
+let cvPlayT = null, cvPlaySaved = null, cvPlayK = 0, cvPlayNow = null, cvSterFocus = null;
 // the first file's conformers, lowest first (it loads in that order, so the lowest is also drawn first: the reference)
 function cvPlayList() { const src = cvConformers.length ? cvConformers[0].src : null; return cvConformers.filter(c => !c.dup && c.src === src).sort((a, b) => (a.dE ?? 0) - (b.dE ?? 0)); }
 function cvPlayLabel() {
@@ -5067,15 +5318,18 @@ let CV_FAM_CUT = null;
 function cvFamilies(cut) {
   if (CV_FAM_CUT === cut && cvConformers.every(c => c.fam != null)) return;
   CV_FAM_CUT = cut;
-  const by = new Map(); cvConformers.forEach(c => { if (!by.has(c.src)) by.set(c.src, []); by.get(c.src).push(c); });
-  for (const cs of by.values()) { const heads = [];
-    cs.slice().sort((a, b) => (a.dE ?? 0) - (b.dE ?? 0)).forEach(c => { let k = heads.findIndex(h => cvRmsdFast(h.atoms, c.atoms, cut) < cut);
+  // the sets the weights use: a file, or every one-structure file together (a folder of single logs is one ensemble)
+  for (const { cs } of cvGroups()) { const heads = [];
+    cs.slice().sort((a, b) => (a.dEg ?? a.dE ?? 0) - (b.dEg ?? b.dE ?? 0)).forEach(c => { let k = heads.findIndex(h => cvRmsdFast(h.atoms, c.atoms, cut) < cut);
       if (k < 0) { heads.push(c); k = heads.length - 1; } c.fam = k; c.famHead = heads[k]; }); }
 }
-function cvFamColour(c) { if (c.fam == null) cvFamilies(+(($('cvFamCut') || {}).value) || 1.0); return CV_COLORS[c.fam % CV_COLORS.length]; }
+function cvFamColour(c) {
+  if (c.fam == null && !cvConformers.some(x => x.famFrom === 'wells')) cvFamilies(+(($('cvFamCut') || {}).value) || 1.0);
+  return CV_COLORS[(c.fam || 0) % CV_COLORS.length];
+}
 function cvEnsFamilies() {
   if (!cvConformers.length) return alert('Load conformers first.');
-  const cut = +$('cvFamCut').value || 1.0; cvConformers.forEach(c => { c.fam = null; }); cvFamilies(cut);
+  const cut = +$('cvFamCut').value || 1.0; cvConformers.forEach(c => { c.fam = null; c.famFrom = null; }); cvFamilies(cut);
   const groups = cvGroups();
   const render = () => { $('cvEnsOut').innerHTML = groups.map(g => {
     const fams = new Map(); g.cs.forEach(c => { const f = fams.get(c.fam) || { k: c.fam, head: c.famHead, cs: [], w: 0 }; f.cs.push(c); f.w += c.w; fams.set(c.fam, f); });
@@ -5088,7 +5342,7 @@ function cvEnsFamilies() {
       ${list.length > 15 ? `<div style="color:#8a95a3">… ${list.length - 15} more families, ${(100 * list.slice(15).reduce((a, f) => a + f.w, 0)).toFixed(1)} % of the weight</div>` : ''}</div>`; }).join('');
     $('cvEnsOut').querySelectorAll('[data-fam]').forEach(a => a.onclick = e => { e.preventDefault(); const k = +a.dataset.fam, src = a.dataset.src;
       const mem = cvConformers.filter(c => c.fam === k && (c.src === src || src === 'all loaded') && !c.dup).sort((x, y) => (x.dE ?? 0) - (y.dE ?? 0)).slice(0, 3);
-      cvConformers.forEach(c => { c.on = mem.includes(c); }); cvUpdateList(); cvRenderStack(); }); };
+      cvConformers.forEach(c => { c.on = mem.includes(c); }); cvRenderStack(); }); };
   window.cvEnsRedraw = null; render();
 }
 
@@ -5113,6 +5367,144 @@ function cvEnsMeasurePair() {
     return `<div class="cv-ens-card"><h4>${kind(ia)} ${nm(ia)} against ${kind(ib)} ${nm(ib)}${groups.length > 1 ? ' · ' + esc(g.src) : ''}</h4>
       <div class="cv-ens-sum">One dot per conformer, sized by its weight, coloured by ΔE: <span style="color:#2563eb">lowest</span> → <span style="color:#dc2626">${eMax.toFixed(1)} kcal/mol</span>; a black ring = drawn. Click a dot to draw it. Clusters are the combinations the molecule takes.</div>
       ${svg}</svg></div>`; }).join(''); };
+  cvEnsShow(render);
+}
+
+/* ── Split view: panel B beside A, the same reference and the same view ── */
+let cvViewerB = null;
+function cvEnsureB() {
+  if (cvViewerB) return;
+  const host = $('cvViewerB'); host.hidden = false; host.innerHTML = '';
+  cvViewerB = $3Dmol.createViewer(host, { backgroundColor: 'white' });
+  cvViewer3d.linkViewer(cvViewerB); cvViewerB.linkViewer(cvViewer3d);          // turn one, the other turns too
+  ['cvViewer3d', 'cvViewerB'].forEach((id, k) => { const b = document.createElement('div'); b.className = 'cv-pan'; b.textContent = k ? 'B' : 'A'; $(id).appendChild(b); });
+}
+function cvSplitToggle() {
+  const on = $('cvSplit').checked;
+  $('cvViews').classList.toggle('split', on); $('cvViewerB').hidden = !on;
+  document.querySelectorAll('.cv-pan').forEach(b => { b.style.display = on ? '' : 'none'; });
+  if (on && !cvConformers.some(c => c.panel === 'B')) {      // a start: the second conformer drawn goes to B
+    const d = cvConformers.filter(c => c.on); if (d[1]) d[1].panel = 'B'; else { const nx = cvConformers.find(c => !c.on && !c.dup); if (nx) { nx.on = true; nx.panel = 'B'; } }
+  }
+  cvRenderStack();
+  setTimeout(() => { try { cvViewer3d.resize(); if (cvViewerB) cvViewerB.resize(); cvViewer3d.render(); if (cvViewerB) cvViewerB.render(); } catch (e) {} }, 60);
+}
+
+/* ── Arrow keys over the viewer: the next conformer over the lowest ── */
+function cvStep(d) {
+  const L = cvPlayList(); if (L.length < 2) return;
+  const ref = L[0], cur = cvConformers.filter(c => c.on && c !== ref && L.includes(c)).pop();
+  let k = cur ? L.indexOf(cur) + d : (d > 0 ? 1 : L.length - 1); if (k < 1) k = L.length - 1; if (k >= L.length) k = 1;
+  cvConformers.forEach(c => { c.on = c === ref || c === L[k]; }); cvPlayNow = L[k]; cvRedrawKeep(); cvPlayNow = null;      // its label stays until the next redraw
+}
+document.addEventListener('keydown', e => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(e.key) || /INPUT|SELECT|TEXTAREA/.test((e.target.tagName || ''))) return;
+  const body = $('cviewBody'); if (!body || !body.classList.contains('open') || !cvConformers.length || !$('cvViews').matches(':hover')) return;
+  e.preventDefault(); cvStep(e.key === 'ArrowRight' ? 1 : -1);
+});
+
+/* ── Save the unique set, and a table of everything ── */
+function cvSaveUnique() {
+  const mode = ($('cvDraw') || { value: 'all' }).value, win = mode[0] === 'w' ? +mode.slice(1) : Infinity;
+  const order = new Map(); cvConformers.forEach((c, i) => { if (!order.has(c.src)) order.set(c.src, i); });     // file by file, in load order, each lowest first
+  const keep = cvConformers.filter(c => !c.dup && (c.dE == null || c.dE <= win)).sort((a, b) => (order.get(a.src) - order.get(b.src)) || (a.dE ?? 0) - (b.dE ?? 0));
+  if (!keep.length) return alert('Load conformers first.');
+  const txt = keep.map(c => `${c.atoms.length}\n${c.name}${c.energy != null ? ' E ' + c.energy : ''}${c.dE != null ? ' dE ' + c.dE.toFixed(3) + ' kcal/mol' : ''}${c.alike ? ' +' + c.alike + ' duplicates' : ''}\n` +
+    c.atoms.map(a => `${a[0]} ${(+a[1]).toFixed(6)} ${(+a[2]).toFixed(6)} ${(+a[3]).toFixed(6)}`).join('\n')).join('\n') + '\n';
+  const u = URL.createObjectURL(new Blob([txt], { type: 'chemical/x-xyz' })); cvDownload('unique_conformers.xyz', u); setTimeout(() => URL.revokeObjectURL(u), 2000);
+  if (typeof setExtractStatus === 'function') setExtractStatus(`Saved ${keep.length} unique conformers${isFinite(win) ? ` within ${win} kcal/mol` : ''} (${cvConformers.filter(c => c.dup).length} duplicates left out).`, 'ok');
+}
+function cvSaveCsv() {
+  if (!cvConformers.length) return alert('Load conformers first.');
+  cvGroups();
+  const stKeys = [...new Set(cvConformers.flatMap(c => Object.keys(c.st || {})))], D = ['B1', 'B5', 'L', 'loc_B5', 'B1_B5_angle'];
+  const head = ['file', 'name', 'frame', 'energy_Eh', 'dE_kcal', 'weight', 'duplicate_of', 'family', 'map_x', 'map_y', ...stKeys.flatMap(k => D.map(d => `${d}_${k.split('-').map(i => +i + 1).join('-')}`))];
+  const q = v => v == null || v === '' ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+  const rows = cvConformers.map(c => [c.src, c.name, c.frame, c.energy, c.dE != null ? c.dE.toFixed(4) : '', c.w != null ? c.w.toFixed(5) : '', c.dup ? c.dup.name : '', c.fam != null ? c.fam + 1 : '',
+    c.map ? c.map[0].toFixed(4) : '', c.map ? c.map[1].toFixed(4) : '', ...stKeys.flatMap(k => D.map(d => c.st && c.st[k] ? c.st[k][d] : ''))].map(q).join(','));
+  const u = URL.createObjectURL(new Blob([head.join(',') + '\n' + rows.join('\n') + '\n'], { type: 'text/csv' })); cvDownload('conformers.csv', u); setTimeout(() => URL.revokeObjectURL(u), 2000);
+}
+
+/* ── Map: t-SNE or PCA of the conformers on their rotatable dihedrals and/or Sterimol ── */
+// rotatable: a bond between two heavy atoms that each have another heavy neighbour, not in a ring; its dihedral uses the lowest-numbered heavy neighbours
+function cvRotors(atoms) {
+  const g = cvGraphOf(atoms), H = i => String(atoms[i][0]).toUpperCase() === 'H', hv = i => g[i].filter(j => !H(j)), out = [];
+  const inRing = (a, b) => { const seen = new Set([a]), q = [a]; while (q.length) { const x = q.shift(); for (const y of g[x]) { if ((x === a && y === b) || seen.has(y)) continue; if (y === b) return true; seen.add(y); q.push(y); } } return false; };
+  for (let i = 0; i < atoms.length; i++) if (!H(i)) for (const j of hv(i)) {
+    if (j < i) continue; const ni = hv(i).filter(k => k !== j), nj = hv(j).filter(k => k !== i);
+    if (!ni.length || !nj.length || inRing(i, j)) continue;
+    out.push([Math.min(...ni), i, j, Math.min(...nj)]);
+  }
+  return out;
+}
+function cvPca2(X) {                               // the top two principal components, by power iteration on the covariance
+  const n = X.length, d = X[0].length, mu = Array(d).fill(0); X.forEach(r => r.forEach((v, k) => { mu[k] += v / n; }));
+  const Z = X.map(r => r.map((v, k) => v - mu[k])), C = Array.from({ length: d }, () => Array(d).fill(0));
+  Z.forEach(r => { for (let a = 0; a < d; a++) for (let b = 0; b < d; b++) C[a][b] += r[a] * r[b] / Math.max(1, n - 1); });
+  const vecs = [], vals = [];
+  for (let k = 0; k < 2; k++) { let v = Array.from({ length: d }, (_, i) => Math.cos(i + k + 1));
+    for (let it = 0; it < 200; it++) { let w = C.map(row => row.reduce((s, x, j) => s + x * v[j], 0)); vecs.forEach((u, m) => { const p = w.reduce((s, x, j) => s + x * u[j], 0); w = w.map((x, j) => x - p * u[j]); });
+      const nn = Math.hypot(...w) || 1; v = w.map(x => x / nn); }
+    vecs.push(v); vals.push(C.map(row => row.reduce((s, x, j) => s + x * v[j], 0)).reduce((s, x, j) => s + x * v[j], 0)); }
+  const tot = C.reduce((s, row, i) => s + row[i], 0) || 1;
+  return { Y: Z.map(r => vecs.map(u => r.reduce((s, x, j) => s + x * u[j], 0))), expl: vals.map(v => v / tot) };
+}
+async function cvTsne(X, progress) {               // exact t-SNE (van der Maaten 2008), seeded from PCA so it is the same every run
+  const n = X.length, perp = Math.max(2, Math.min(30, Math.floor((n - 1) / 3))), D = new Float64Array(n * n);
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { let s = 0; for (let k = 0; k < X[i].length; k++) s += (X[i][k] - X[j][k]) ** 2; D[i * n + j] = D[j * n + i] = s; }
+  const P = new Float64Array(n * n), H0 = Math.log(perp);
+  for (let i = 0; i < n; i++) { let lo = -Infinity, hi = Infinity, beta = 1;
+    for (let t = 0; t < 60; t++) { let sum = 0, hs = 0; for (let j = 0; j < n; j++) { if (j === i) continue; const p = Math.exp(-D[i * n + j] * beta); P[i * n + j] = p; sum += p; hs += D[i * n + j] * p; }
+      const H = Math.log(sum || 1e-300) + beta * hs / (sum || 1e-300); for (let j = 0; j < n; j++) P[i * n + j] /= sum || 1;
+      if (Math.abs(H - H0) < 1e-5) break; if (H > H0) { lo = beta; beta = hi === Infinity ? beta * 2 : (beta + hi) / 2; } else { hi = beta; beta = lo === -Infinity ? beta / 2 : (beta + lo) / 2; } } }
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const v = Math.max((P[i * n + j] + P[j * n + i]) / (2 * n), 1e-12); P[i * n + j] = P[j * n + i] = v; }
+  const Y0 = cvPca2(X).Y, sc = Math.max(1e-9, ...Y0.map(r => Math.abs(r[0]))) / 1e-2;
+  const Y = Y0.map(r => [r[0] / sc, (r[1] || 0) / sc]), G = Y.map(() => [0, 0]), U = Y.map(() => [0, 0]), gains = Y.map(() => [1, 1]), Q = new Float64Array(n * n), IT = 600, eta = Math.max(50, n / 12);
+  for (let it = 0; it < IT; it++) {
+    const ex = it < 120 ? 12 : 1, mom = it < 250 ? 0.5 : 0.8; let qs = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const q = 1 / (1 + (Y[i][0] - Y[j][0]) ** 2 + (Y[i][1] - Y[j][1]) ** 2); Q[i * n + j] = Q[j * n + i] = q; qs += 2 * q; }
+    for (let i = 0; i < n; i++) { let gx = 0, gy = 0; for (let j = 0; j < n; j++) { if (j === i) continue; const q = Q[i * n + j], m = (ex * P[i * n + j] - q / qs) * q; gx += m * (Y[i][0] - Y[j][0]); gy += m * (Y[i][1] - Y[j][1]); } G[i][0] = 4 * gx; G[i][1] = 4 * gy; }
+    for (let i = 0; i < n; i++) for (let k = 0; k < 2; k++) { gains[i][k] = Math.sign(G[i][k]) !== Math.sign(U[i][k]) ? gains[i][k] + 0.2 : Math.max(0.01, gains[i][k] * 0.8);
+      U[i][k] = mom * U[i][k] - eta * gains[i][k] * G[i][k]; Y[i][k] += U[i][k]; }
+    if (it % 40 === 0) { progress(it / IT); await new Promise(r => setTimeout(r, 0)); }
+  }
+  return Y;
+}
+let cvMapSeq = 0;
+async function cvEnsMap() {
+  if (cvConformers.length < 4) return alert('Load an ensemble first (at least 4 conformers).');
+  const feat = $('cvMapFeat').value, meth = $('cvMapMeth').value, colBy = $('cvMapCol').value, seq = ++cvMapSeq, out = $('cvEnsOut');
+  cvGroups(); if (colBy === 'fam') cvFamilies(+(($('cvFamCut') || {}).value) || 1.0);
+  // every conformer with the first one's atoms (files with the same numbering share the map), the heaviest 800 if more
+  const n0 = cvConformers[0].atoms.length; let cs = cvConformers.filter(c => c.atoms.length === n0);
+  const left = []; if (cs.length > 800) { const keep = cs.slice().sort((a, b) => (b.w || 0) - (a.w || 0)).slice(0, 800); left.push(cs.length - 800); cs = keep; }
+  const rot = feat === 'st' ? [] : cvRotors(cvConformers[0].atoms);
+  const stKey = feat === 'tor' ? null : cvStLastKey;
+  if (feat !== 'tor' && !stKey) return alert('Compute Sterimol first (Sterimol → Compute): the map uses the last axis computed.');
+  if (stKey) { const had = cs.filter(c => c.st && c.st[stKey]); if (had.length < cs.length) { left.push(cs.length - had.length); cs = had; } }
+  if (feat !== 'st' && !rot.length) return alert('No rotatable bond found between heavy atoms outside rings.');
+  if (cs.length < 4) return alert('Fewer than 4 conformers have what the map needs.');
+  const stCols = ['B1', 'B5', 'L', 'loc_B5'];
+  let X = cs.map(c => [...rot.flatMap(t => { const v = cvGeom(c.atoms, t) * Math.PI / 180; return [Math.sin(v), Math.cos(v)]; }), ...(stKey ? stCols.map(k => c.st[stKey][k]) : [])]);
+  if (stKey) { const o = rot.length * 2; for (let k = o; k < X[0].length; k++) { const v = X.map(r => r[k]), m = v.reduce((a, b) => a + b, 0) / v.length, sd = Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length) || 1; X.forEach(r => { r[k] = (r[k] - m) / sd; }); } }
+  let Y, note;
+  if (meth === 'pca') { const r = cvPca2(X); Y = r.Y; note = `PCA: the two axes hold ${(100 * r.expl[0]).toFixed(0)} % and ${(100 * r.expl[1]).toFixed(0)} % of the variance.`; }
+  else { const t0 = performance.now(); Y = await cvTsne(X, f => { if (seq === cvMapSeq) out.innerHTML = `<div class="cv-ens-card">t-SNE on ${cs.length} conformers… ${Math.round(100 * f)} %</div>`; });
+    note = `t-SNE (perplexity ${Math.max(2, Math.min(30, Math.floor((cs.length - 1) / 3)))}, ${((performance.now() - t0) / 1000).toFixed(1)} s): near means alike; distances between far groups and the axes mean nothing.`; }
+  if (seq !== cvMapSeq) return;
+  cs.forEach((c, k) => { c.map = Y[k]; });
+  const what = feat === 'tor' ? `${rot.length} rotatable dihedral${rot.length > 1 ? 's' : ''} (${rot.map(t => t.map(i => i + 1).join('-')).join(', ')})` : feat === 'st' ? `Sterimol on ${stKey.split('-').map(i => +i + 1).join('→')}` : `${rot.length} dihedrals and Sterimol on ${stKey.split('-').map(i => +i + 1).join('→')}`;
+  const srcs = [...new Set(cs.map(c => c.src))], eMax = Math.max(1, ...cs.map(c => c.dEg ?? 0));
+  const colour = c => colBy === 'fam' ? CV_COLORS[(c.fam ?? 0) % CV_COLORS.length] : colBy === 'file' ? CV_COLORS[srcs.indexOf(c.src) % CV_COLORS.length] : cvFlexColour(c.dEg ?? 0, eMax);
+  const render = () => {
+    const W = 380, H = 320, P = 16, xs = Y.map(r => r[0]), ys = Y.map(r => r[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const X_ = v => P + (v - x0) / ((x1 - x0) || 1) * (W - 2 * P), Y_ = v => P + (1 - (v - y0) / ((y1 - y0) || 1)) * (H - 2 * P);
+    const dots = cs.map((c, k) => ({ c, k })).sort((a, b) => (a.c.w || 0) - (b.c.w || 0)).map(({ c, k }) =>
+      `<circle data-k="${cvConformers.indexOf(c)}" cx="${X_(xs[k]).toFixed(1)}" cy="${Y_(ys[k]).toFixed(1)}" r="${(3 + 7 * Math.sqrt(c.w || 0)).toFixed(1)}" fill="${colour(c)}" fill-opacity="${c.dup ? .35 : .85}" stroke="${c.on ? '#111' : '#fff'}" stroke-width="${c.on ? 1.8 : 1}"><title>${esc(c.name)} · ΔE ${c.dEg != null ? c.dEg.toFixed(2) : '–'} · ${(100 * (c.w || 0)).toFixed(1)} %${c.dup ? ' · duplicate of ' + esc(c.dup.name) : ''}${c.fam != null ? ' · family ' + (c.fam + 1) : ''}</title></circle>`).join('');
+    const key = colBy === 'e' ? `<span style="color:#2563eb">lowest</span> → <span style="color:#dc2626">${eMax.toFixed(1)} kcal/mol</span>` : colBy === 'file' ? srcs.map((s, i) => `<span style="color:${CV_COLORS[i % CV_COLORS.length]}">&#9679;</span> ${esc(s)}`).join(' ') : 'a colour per family';
+    out.innerHTML = `<div class="cv-ens-card"><h4>Map of ${cs.length} conformers · ${what}</h4>
+      <div class="cv-ens-sum">${note} Dot size: weight · colour: ${key} · faded: a duplicate · black ring: drawn. Click a dot to draw it.${left.length ? ` Left out: ${left.join(' + ')} (lightest, or without the Sterimol).` : ''}</div>
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;border:1px solid #eef1f5;border-radius:10px" role="img" aria-label="map of the conformers">${dots}</svg></div>`; };
   cvEnsShow(render);
 }
 
@@ -5234,14 +5626,24 @@ function kabschAlign(mobile, reference, indices) {
   return { aligned, rmsd: Math.sqrt(sq/n) };
 }
 
+function cvGeomKey(atoms) {
+  let h = atoms ? atoms.length >>> 0 : 0, sx = 0, sy = 0, sz = 0;
+  for (let i = 0; atoms && i < atoms.length; i++) {
+    const a = atoms[i], x = Math.round(+a[1] * 1000), y = Math.round(+a[2] * 1000), z = Math.round(+a[3] * 1000);
+    h = Math.imul(h, 33) ^ (x + Math.imul(y, 131) + Math.imul(z, 17));
+    sx += x; sy += y; sz += z;
+  }
+  return h + ':' + sx + ':' + sy + ':' + sz;
+}
 /* ── PDB formatter ──────────────────────────────────────────────── */
 const CV_CHAINS='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-function atomsToPdb(atoms, chainId) {
+function atomsToPdb(atoms, chainId, ids) {
   const lines=[];
   atoms.forEach((a,i)=>{
+    if (!a || !Number.isFinite(+a[1]) || !Number.isFinite(+a[2]) || !Number.isFinite(+a[3])) return;
     const el=String(a[0]).padStart(2,' ');
-    const serial=String(i+1).padStart(5,' ');
-    const x=a[1].toFixed(3).padStart(8,' '), y=a[2].toFixed(3).padStart(8,' '), z=a[3].toFixed(3).padStart(8,' ');
+    const serial=String((ids ? ids[i] : i) + 1).padStart(5,' ');
+    const x=(+a[1]).toFixed(3).padStart(8,' '), y=(+a[2]).toFixed(3).padStart(8,' '), z=(+a[3]).toFixed(3).padStart(8,' ');
     lines.push(`HETATM${serial} ${el.trimStart().padEnd(4,' ')} MOL ${chainId}   1    ${x}${y}${z}  1.00  0.00          ${el.trim().padStart(2,' ')}`);
   });
   lines.push('TER\nEND');
@@ -5257,39 +5659,78 @@ function toggleCview() {
   if (cvOpen && cvViewer3d) requestAnimationFrame(() => { try { cvViewer3d.resize(); cvViewer3d.render(); } catch (e) {} });   // sized 0x0 while closed
 }
 
+let cvListSig = '';
+function cvListSignature(split) {
+  let s = (cvSterFocus && cvSterFocus.on ? cvSterFocus.src + '\t' + cvSterFocus.frame : '') + '|' + (split ? 1 : 0) + '|' + (cvSymPending ? 1 : 0) + '|' + (cvSymNote || '');
+  for (let i = 0; i < cvConformers.length; i++) {
+    const c = cvConformers[i], sg = c.symSuggest;
+    s += '\n' + [c.on ? 1 : 0, c.panel || 'A', c.open ? 1 : 0, c.dup ? 1 : 0, c.alike || 0, c.rmsd == null ? '' : c.rmsd.toFixed(3), c.notDup ? 1 : 0, c.symDup ? 1 : 0, c.userDup ? 1 : 0, c.mirror ? 1 : 0, c.w == null ? '' : c.w.toFixed(5), c.dE == null ? '' : c.dE.toFixed(2), c.energy == null ? '' : c.energy, c.fam == null ? '' : c.fam, c.sourceTag || '', c.jointKcal == null ? '' : c.jointKcal, c.color, c.name, c.frame, c.atoms.length, c.symRmsd == null ? '' : Number(c.symRmsd).toFixed(2), c.symSwaps ? c.symSwaps.length : 0, sg && sg.rmsd != null ? Number(sg.rmsd).toFixed(2) + ':' + (sg.torsion == null ? '' : Number(sg.torsion).toFixed(0)) + ':' + (sg.parent && sg.parent.name) : ''].join('\t');
+  }
+  return s;
+}
 function cvUpdateList() {
   const el=$('cvList');
   if (!cvConformers.length) {
-    el.innerHTML='<div class="cv-empty" style="height:200px">No conformers loaded yet.<br>Drop XYZ files above.</div>';
+    if (cvListSig !== '0') { cvListSig = '0'; el.innerHTML='<div class="cv-empty">Nothing loaded yet.<br>Drop an ensemble, or open a GOAT or CREST folder.</div>'; }
     $('cvStats').className='cv-stats'; return;
   }
-  el.innerHTML='';
   cvGroups();                                       // sets each conformer's Boltzmann share within its file
+  const split=!!(($('cvSplit')||{}).checked), sig = cvListSignature(split);
+  if (sig === cvListSig) return;
+  cvListSig = sig;
+  el.innerHTML='';
   const shown=cvConformers.filter(c=>!c.dup), drawn=shown.filter(c=>c.on).length, folded=cvConformers.length-shown.length;
   const extraW=new Map(); cvConformers.forEach(d=>{ if (d.dup) extraW.set(d.dup,(extraW.get(d.dup)||0)+d.w); });
   const wOf=c=>c.w+(extraW.get(c)||0);
-  if (drawn<shown.length || folded) { const h=document.createElement('div'); h.className='cv-meta'; h.style.cssText='padding:4px 8px 6px';
-    h.textContent=`${drawn} of ${shown.length} drawn, lowest energy first${folded?`; ${folded} near-duplicates folded under their lowest`:''}. Click a conformer to add or remove it.`; el.appendChild(h); }
-  cvConformers.forEach((c,i)=>{
-    if (c.dup) return;
+  // once per rebuild, not once per row: the reference, each file's size, each conformer's folded copies
+  const ref0=cvConformers.find(x=>x.on), nSrc=new Map(), kids=new Map();
+  cvConformers.forEach(d=>{ nSrc.set(d.src,(nSrc.get(d.src)||0)+1); if (d.dup) { if (!kids.has(d.dup)) kids.set(d.dup,[]); kids.get(d.dup).push(d); } });
+  if (drawn<shown.length || folded || cvSymPending || cvSymNote) { const h=document.createElement('div'); h.className='cv-meta'; h.style.cssText='padding:4px 8px 6px';
+    h.textContent=`${drawn} of ${shown.length} drawn, lowest energy first${folded?`; ${folded} near-duplicates folded under their lowest`:''}${cvSymPending?' · matching equivalent atoms…':''}${cvSymNote?' · '+cvSymNote:''}. Click a conformer to add or remove it.`; el.appendChild(h); }
+  const item=(c, sub)=>{
     const div=document.createElement('div');
-    div.className='cv-item'+(c.on?' cv-on':'');
+    div.className='cv-item'+(c.on?' cv-on':'')+(c===cvSterFocus&&c.on?' cv-focus':'')+(sub?' cv-sub':'');
+    const hand = !sub && c.mirror ? `<span class="cv-handbar" data-act="mirror" style="background:${c.mirrorColor}"></span><button type="button" class="cv-hand" data-act="mirror" style="--hand:${c.mirrorColor};color:${c.mirrorColor}" title="Show this structure and its mirror image, one on each side of a plane"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 1.2v13.6" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6.6 3.2 2.2 8l4.4 4.8z" fill="currentColor"/><path d="M9.4 3.2 13.8 8 9.4 12.8z" fill="currentColor" opacity=".4"/></svg></button>` : '';
     const eStr=c.energy!=null ? c.energy.toFixed(6) : '';
-    const rmsdStr=c.on&&c.rmsd!=null ? `<span class="cv-rmsd" style="color:${c.color}">RMSD ${c.rmsd.toFixed(3)}&thinsp;Å</span>` : (c===cvConformers.find(x=>x.on)?'<span class="cv-rmsd">reference</span>':'');
+    const rmsdStr=c.on&&c.rmsd!=null ? `<span class="cv-rmsd" style="color:${c.color}">RMSD ${c.rmsd.toFixed(3)}&thinsp;Å</span>` : (c===ref0?'<span class="cv-rmsd">reference</span>':'');
     div.innerHTML=`
+      ${hand}
       <div class="cv-dot" style="background:${c.color}"></div>
       <div class="cv-info">
         <div class="cv-name" title="${esc(c.src)} frame ${c.frame}">${esc(c.name)}</div>
-        <div class="cv-meta">${c.atoms.length} atoms${c.dE!=null?' &middot; ΔE '+c.dE.toFixed(2)+' kcal/mol &middot; '+(100*wOf(c)).toFixed(1)+' %':''}${c.alike?' &middot; +'+c.alike+' alike':''}${eStr?' &middot; E='+eStr:''}</div>
+        <div class="cv-meta">${c.atoms.length} atoms${eStr?' &middot; E='+eStr:''}${(nSrc.get(c.src)||0)>1&&c.dE!=null?' &middot; ΔE '+c.dE.toFixed(2)+' kcal/mol &middot; '+(100*wOf(c)).toFixed(1)+' %':''}${c.alike?' &middot; +'+c.alike+' alike':''}${!sub&&c.alike?(()=>{const note=[...new Set((kids.get(c)||[]).filter(d=>d.symSwaps&&d.symSwaps.length).map(d=>cvSwapText(d.symSwaps)))].slice(0,2).join('; ');return note?' &middot; '+note:'';})():''}${c.symRmsd!=null?' &middot; same atoms '+Number(c.symRmsd).toFixed(2)+' Å'+(c.symSwaps&&c.symSwaps.length?' ('+cvSwapText(c.symSwaps)+')':''):''}${c.symSuggest?' &middot; close to '+esc(c.symSuggest.parent&&c.symSuggest.parent.name)+', '+Number(c.symSuggest.rmsd).toFixed(2)+' Å'+(c.symSuggest.swaps&&c.symSuggest.swaps.length?' ('+cvSwapText(c.symSuggest.swaps)+')':'')+(c.symSuggest.torsion!=null?' · torsions '+Number(c.symSuggest.torsion).toFixed(0)+'°':''):''}</div>
       </div>
-      ${rmsdStr}`;
-    div.onclick=()=>{ c.on=!c.on; cvUpdateList(); cvRenderStack(); };
+      ${rmsdStr}
+      ${c.sourceTag?`<span class="cv-pill" title="on the joint scale: kcal/mol above the lower of the two minima">${esc(c.sourceTag)}${c.jointKcal!=null?' '+Number(c.jointKcal).toFixed(1):''}</span>`:''}
+      ${split&&!sub?`<button class="cv-pill${c.panel==='B'?' b':''}" data-act="panel" title="draw it in panel ${c.panel==='B'?'A':'B'}">${c.panel==='B'?'B':'A'}</button>`:''}
+      ${c.symSuggest&&!sub?`<button class="cv-pill" data-act="accept" title="fold it under that match">accept</button>`:''}
+      ${sub?`<button class="cv-pill" data-act="notdup" title="not a duplicate: list and use it on its own">not dup</button>`
+        :`<button class="cv-pill" data-act="dup" title="flag as a duplicate: fold it under its closest kept conformer of the file">&#9873;</button>${c.alike?`<button class="cv-pill" data-act="open" title="show the duplicates folded under it">${c.open?'&#9652;':'&#9662;'} ${c.alike}</button>`:''}`}`;
+    div.onclick=e=>{ const hit=e.target.closest?e.target.closest('[data-act]'):null; const act=hit&&hit.dataset.act;
+      if (act==='panel') { c.panel=c.panel==='B'?'A':'B'; c.on=true; }
+      else if (act==='dup') return cvFlagDup(c);
+      else if (act==='accept' && c.symSuggest) { const s = c.symSuggest; c.symDup = s.parent; c.symRmsd = s.rmsd; c.symSwaps = s.swaps; c.symWhy = 'accepted'; c.symSuggest = null; c.notDup = false; cvDedupAll(); }
+      else if (act==='notdup') { c.notDup=true; c.userDup=null; c.symDup=null; c.symSuggest=null; cvDedupAll(); }
+      else if (act==='open') { c.open=!c.open; return cvUpdateList(); }
+      else if (act==='mirror' && c.mirror) { cvConformers.forEach(d => { d.on = d === c || d === c.mirror; }); cvSterFocus = c; }
+      else if (c.on && cvSterFocus !== c) cvSterFocus = c;
+      else { c.on = !c.on; cvSterFocus = c.on ? c : (cvSterFocus === c ? null : cvSterFocus); }
+      cvRenderStack(); };
     el.appendChild(div);
-  });
+  };
+  cvConformers.forEach(c=>{ if (c.dup) return; item(c, false); if (c.open) (kids.get(c)||[]).forEach(d=>item(d, true)); });
 }
 
+function cvHideAll() {
+  cvConformers.forEach(c => { c.on = false; });
+  cvRenderStack();
+}
 function cvClearAll() {
-  cvConformers=[];
+  if (cvPlayT) { clearInterval(cvPlayT); cvPlayT=null; cvPlaySaved=null; cvPlayNow=null; const b=$('cvPlayBtn'); if (b) b.innerHTML='&#9654; Play'; }
+  cvStSeq++; cvMapSeq++;                            // a Sterimol run or a t-SNE still going stops drawing into the new set
+  window.cvEnsRedraw=null; if ($('cvEnsOut')) $('cvEnsOut').innerHTML='';
+  CV_FLEX.clear(); cvAvgCache.clear(); cvAvgGeom.clear(); CV_MIR_PAIRS.clear(); cvStLastKey=null; CV_FAM_CUT=null;
+  cvConformers=[]; cvSymSeq++; cvSymPending=false; cvSymNote='';
   if (cvViewer3d) { try { cvViewer3d.clear(); cvViewer3d.render(); } catch(e){} }   // kept: each new viewer is a new WebGL context
   else $('cvViewer3d').innerHTML='<div class="cv-empty">Viewer appears here after loading conformers and clicking Render.</div>';
   $('cvStats').className='cv-stats';
@@ -5301,6 +5742,7 @@ function cvLoadCurrent() {
   const frames=parseMultiXyz(lastModelXYZ, 'current');
   if (!frames.length) return;
   frames.forEach(f=>{ f.name='current mol'; cvConformers.push({...f, color:CV_COLORS[cvConformers.length%CV_COLORS.length], on:true, rmsd:null}); });
+  cvDedupAll(); cvSymDedup();
   cvUpdateList();
 }
 
@@ -5338,34 +5780,90 @@ function parseSdf(text, srcName) {
   return frames;
 }
 
-function cvLoadFileList(files) {
-  files = Array.from(files);
-  const read = new Array(files.length), bad = [];
-  let pending = files.length;
-  files.forEach((file, idx) => {
+async function fetchStructurePayload(file) {   // the file on disk when Structure folder is set, so a sibling .log can give the energy
+  const dir = ($("featherDirInput") && $("featherDirInput").value.trim()) || "";
+  const stem = file.name.replace(/\.(feather|ftr|json|log|out|xyz)$/i, "");
+  if (dir) {
+    const sep = dir.indexOf("\\") >= 0 ? "\\" : "/";
+    const filepath = dir.replace(/[\\/]+$/, "") + sep + file.name;
+    try {
+      const r = await fetch("/xyz_from_feather", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filepath, name: stem, expect_size: file.size }) });     // the server refuses a same-named file that is not this one
+      const data = await r.json().catch(() => ({}));
+      if (r.ok && data.xyz && !data.error) return data;
+    } catch (_) {}
+  }
+  const fd = new FormData();
+  fd.append("file", file);
+  const response = await fetch("/xyz_from_feather", { method: "POST", body: fd });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.error || !data.xyz) throw new Error((data && data.error) || "no geometry");
+  return data;
+}
+function cvUseServerEnergy(frames, data, base) {
+  const raw = data && (data.energy != null ? data.energy : (data.mol_data && data.mol_data.energy));
+  const energy = raw == null || raw === "" ? null : +raw;
+  frames.forEach(f => {
+    if (!f.name || f.name === base) f.name = base;
+    if (Number.isFinite(energy)) f.energy = energy;   // the server's Hartree value, not a gap that happened to sit in the comment
+  });
+  return frames;
+}
+async function cvReadServerFile(file) {
+  const stem = file.name.replace(/\.(feather|ftr|json|log|out)$/i, "");
+  const base = file._label || stem;
+  const data = await fetchStructurePayload(file);
+  return cvUseServerEnergy(parseMultiXyz(data.xyz, base), data, base);
+}
+function cvReadLocalFile(file) {
+  return new Promise(resolve => {
     const r = new FileReader();
     r.onload = ev => {
       const isSdf = /\.sdf$/i.test(file.name) || /\.mol$/i.test(file.name);
-      const baseName = file._label || file.name.replace(/\.(xyz|sdf|mol)$/i, '');
-      try { read[idx] = isSdf ? parseSdf(ev.target.result, baseName) : parseMultiXyz(ev.target.result, baseName); }
-      catch (e) { bad.push(file.name); }
-      if (read[idx] && !read[idx].length) bad.push(file.name);   // read, but no structure in it
+      const baseName = file._label || file.name.replace(/\.(xyz|sdf|mol)$/i, "");
+      try {
+        const frames = isSdf ? parseSdf(ev.target.result, baseName) : parseMultiXyz(ev.target.result, baseName);
+        resolve(frames.length ? frames : null);
+      } catch (e) { resolve(null); }
     };
-    r.onerror = () => bad.push(file.name);
-    r.onloadend = () => {                          // after a load or an error: one bad file does not hold the others
-      if (--pending) return;
-      // in the order the files were given, so the first is the reference; a file's frames go lowest energy first,
-      // and only its CV_FIRST lowest are drawn: fifty overlaid conformers froze the viewer. The rest wait in the list, a click adds one
-      const start = cvConformers.length;
-      read.forEach(frames => { const fr = (frames || []).slice(), es = fr.map(f => f.energy).filter(e => e != null), e0 = es.length ? Math.min(...es) : null;
-        if (fr.length > CV_FIRST && es.length === fr.length) fr.sort((a, b) => a.energy - b.energy);
-        fr.forEach((f, k) => cvConformers.push({...f, dE: f.energy != null && e0 != null ? (f.energy - e0) * 627.5095 : null,
-          color: CV_COLORS[cvConformers.length % CV_COLORS.length], on: k < CV_FIRST, rmsd: null})); });
-      cvDedupAll(); cvApplyDraw(cvConformers.slice(start));
-      cvUpdateList(); cvRenderStack();
-      if (bad.length && typeof setExtractStatus === "function") setExtractStatus("Could not read: " + bad.join(", "), "bad");
-    };
+    r.onerror = () => resolve(null);
     r.readAsText(file);
+  });
+}
+function cvLoadFileList(files) {
+  files = Array.from(files);
+  const bad = [];
+  Promise.all(files.map(file => (cvIsCalcName(file.name) ? cvReadServerFile(file) : cvReadLocalFile(file)).catch(() => null))).then(read => {
+    read.forEach((frames, idx) => { if (!frames || !frames.length) bad.push(files[idx].name); });
+    // in the order the files were given, so the first is the reference; a file's frames go lowest energy first,
+    // and only its CV_FIRST lowest are drawn: fifty overlaid conformers froze the viewer. The rest wait in the list, a click adds one
+    const start = cvConformers.length;
+    // two files of the same name (two crest_conformers.xyz) stay two ensembles: the second gets "(2)"
+    const taken = new Set(cvConformers.map(c => c.src));
+    read.forEach(frames => { if (!frames || !frames.length) return; const src = frames[0].src; if (!taken.has(src)) { taken.add(src); return; }
+      let k = 2; while (taken.has(`${src} (${k})`)) k++; const nu = `${src} (${k})`; taken.add(nu);
+      frames.forEach(f => { if (f.src === src) { f.src = nu; if (typeof f.name === 'string' && f.name.startsWith(src)) f.name = nu + f.name.slice(src.length); } }); });
+    read.forEach(frames => { const fr = (frames || []).slice(), es = fr.map(f => f.energy).filter(e => e != null), e0 = es.length ? Math.min(...es) : null;
+      if (fr.length > CV_FIRST && es.length === fr.length) fr.sort((a, b) => a.energy - b.energy);
+      fr.forEach((f, k) => cvConformers.push({...f, dE: f.energy != null && e0 != null ? (f.energy - e0) * 627.5095 : null,
+        color: CV_COLORS[cvConformers.length % CV_COLORS.length], on: k < CV_FIRST, rmsd: null})); });
+    cvDedupAll(); cvApplyDraw(cvConformers.slice(start));
+    const added = cvConformers.slice(start);
+    if (new Set(added.map(c => c.src)).size > 1) {   // many files: one structure on screen, the rest wait in the list
+      let shown = false;
+      added.forEach(c => { c.on = !shown && !c.dup; if (c.on) shown = true; });
+    }
+    cvRenderStack(); cvSymDedup();
+    if (bad.length && typeof setExtractStatus === "function") setExtractStatus("Could not read: " + bad.join(", "), "bad");
+    else if (read.some(fr => fr && fr.length) && typeof setExtractStatus === "function") {
+      const n = read.reduce((s, fr) => s + ((fr && fr.length) || 0), 0);
+      const addedNow = cvConformers.slice(start);
+      const sources = new Set(addedNow.map(c => c.src)).size;
+      const missingE = files.some(f => cvIsCalcName(f.name)) && addedNow.length && addedNow.every(c => c.energy == null);
+      const note = sources > 1 ? " Showing one; the rest are in the list." : "";
+      const energyNote = missingE ? " No electronic energy: set Structure folder to this directory so the matching .log or .out can be read." : "";
+      setExtractStatus("Loaded " + n + " structure" + (n === 1 ? "" : "s") + "." + note + energyNote, missingE ? "warn" : "ok");
+    }
   });
 }
 let cvRenderQueued = false;
@@ -5375,12 +5873,375 @@ function cvRenderSoon() {                         // the spread slider: one redr
   requestAnimationFrame(() => { cvRenderQueued = false; cvRenderStack(); });
 }
 
+/* B1, B5 and θ, the same construction the main viewer draws. Computed here, only for what is on screen. */
+let cvSterApi = null, cvSterWait = null, cvSterTold = '', cvFaceNext = false, cvCamAnim = 0, cvAvgCache = new Map(), cvAvgGeom = new Map();
+function cvSterPair() {
+  const boxed = ($('cvStAxis') && $('cvStAxis').value.trim()) ? cvAtomList('cvStAxis', 2, 2) : null;
+  if (boxed) return [boxed[0] + 1, boxed[1] + 1];
+  const picked = (typeof state !== 'undefined' && state.sterimol || []).find(g => g && g.length >= 2);
+  if (picked) return [picked[0], picked[1]];
+  const v = $('vizSterPair') && $('vizSterPair').value;
+  if (v && v.indexOf('-') > 0) { const p = v.split('-').map(Number); if (p.length >= 2 && p.every(n => n >= 1)) return p; }
+  return null;
+}
+function cvSterReady() {
+  if (cvSterApi) return Promise.resolve(cvSterApi);
+  if (cvSterWait) return cvSterWait;
+  cvSterWait = new Promise(resolve => {
+    const grab = () => { try { const api = figFrame && figFrame.contentWindow && figFrame.contentWindow.Sterimol; if (api && api.sterimol) { cvSterApi = api; return true; } } catch (e) {} return false; };
+    try { if (typeof figEnsure === 'function' && !figFrame) figEnsure(); } catch (e) { resolve(null); return; }
+    if (grab()) { resolve(cvSterApi); return; }
+    if (figFrame) figFrame.addEventListener('load', () => { grab(); resolve(cvSterApi); }, { once: true });
+    setTimeout(() => resolve(cvSterApi), 2500);
+  });
+  return cvSterWait;
+}
+function cvSterWorld(r) {
+  const F = r.frame, idx = r.atoms, R = r.radii, B1 = r.B1;
+  let n = r.normal.slice();
+  const supOf = nn => Math.max(...idx.map((i, j) => F[i][0] * nn[0] + F[i][2] * nn[1] + R[j]));
+  if (Math.abs(supOf(n) - B1) > Math.abs(supOf([-n[0], -n[1]]) - B1)) n = [-n[0], -n[1]];
+  const v = F[r.b5], pm = Math.hypot(v[0], v[2]) || 1, q = [v[0] / pm, v[2] / pm], t = [-n[1], n[0]];
+  const w = f => [0, 1, 2].map(k => r.origin[k] + f[0] * r.basis[0][k] + f[1] * r.basis[1][k] + f[2] * r.basis[2][k]);
+  const base = w([0, 0, 0]), sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], unit = a => { const h = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / h, a[1] / h, a[2] / h]; };
+  const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s], add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  const Yw = w([0, v[1], 0]);
+  const Nw = unit(sub(w([n[0], 0, n[1]]), base)), Qdir = unit(sub(w([q[0], 0, q[1]]), base));
+  const qn = sub(Qdir, scl(Nw, dot(Nw, Qdir)));
+  const wq = Math.hypot(qn[0], qn[1], qn[2]) > 1e-6 ? unit(qn) : unit(sub(w([t[0], 0, t[1]]), base));
+  const phA = Math.acos(Math.max(-1, Math.min(1, dot(Nw, Qdir))));
+  const rp = Math.max(1.35, 0.55 * r.B5);
+  const ring = Array.from({ length: 32 }, (_, k) => { const a = phA * k / 31; return add(Yw, add(scl(Nw, rp * Math.cos(a)), scl(wq, rp * Math.sin(a)))); });
+  return { base: Yw, b1From: Yw, b1To: add(Yw, scl(Nw, rp * 1.22)), b5To: add(Yw, scl(Qdir, r.B5)), ax0: base, ax1: w([0, 1, 0]), Llen: r.L, b1: r.B1, b5: r.B5, theta: r.B1_B5_angle, ring, phi: r.phi };
+}
+function cvSterOn(api, atoms, pair) {
+  if (!api || !atoms || !pair || pair[0] === pair[1] || pair.some(i => i < 1 || i > atoms.length)) return null;
+  const el = s => { s = String(s); return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(); };
+  const mol = { el: atoms.map(a => el(a[0])), X: atoms.map(a => [+a[1], +a[2], +a[3]]) };
+  const drop = typeof singlesFlat === 'function' ? singlesFlat('drop_atoms') : [];
+  try { return cvSterWorld(api.sterimol(mol, pair[0], pair[1], drop.length ? { drop } : undefined)); }
+  catch (e) { return null; }
+}
+function cvSterCached(api, c, pair) {
+  const key = pair.join(',') + '|vals';
+  if (!c._ster || c._ster.key !== key) c._ster = { key, g: cvSterOn(api, c.atoms, pair) };
+  return c._ster.g;
+}
+function cvMoveGeom(g, srcAtoms, dstAtoms) {
+  if (!g) return null;
+  const keys = ['base', 'b1From', 'b1To', 'b5To', 'ax0', 'ax1'];
+  const extra = keys.map(k => g[k]).concat(g.ring || []);
+  const mobile = srcAtoms.concat(extra.map(p => ['X', p[0], p[1], p[2]]));
+  const ix = [];
+  for (let i = 0; i < srcAtoms.length && ix.length < 6; i++) if (String(srcAtoms[i][0]).toUpperCase() !== 'H') ix.push(i);
+  if (ix.length < 3) return g;
+  const pts = kabschAlign(mobile, dstAtoms, ix).aligned.slice(srcAtoms.length);
+  const out = { ring: pts.slice(keys.length).map(a => [a[1], a[2], a[3]]), phi: g.phi, theta: g.theta, Llen: g.Llen, b1: g.b1, b5: g.b5 };
+  keys.forEach((k, i) => { out[k] = [pts[i][1], pts[i][2], pts[i][3]]; });
+  return out;
+}
+function cvSterCyl(V, a, b, color, radius) {
+  if (!a || !b || !V) return;
+  const dx = a[0] - b[0], dy = a[1] - b[1], dz = a[2] - b[2];
+  if (dx * dx + dy * dy + dz * dz < 1e-6) return;
+  V.addCylinder({ start: { x: a[0], y: a[1], z: a[2] }, end: { x: b[0], y: b[1], z: b[2] }, radius: radius || 0.03, color, fromCap: 1, toCap: 1 });
+}
+function cvSterDash(V, a, b, color, radius) {
+  if (!a || !b) return;
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+  const len = Math.hypot(dx, dy, dz);
+  if (!(len > 0.08)) return;
+  const ux = dx / len, uy = dy / len, uz = dz / len, dash = 0.2, gap = 0.12;
+  for (let t = 0; t < len - 0.02; t += dash + gap) {
+    const t2 = Math.min(len, t + dash);
+    cvSterCyl(V, [a[0] + ux * t, a[1] + uy * t, a[2] + uz * t], [a[0] + ux * t2, a[1] + uy * t2, a[2] + uz * t2], color, radius || 0.045);
+  }
+}
+function cvSterPt(p) { return { x: p[0], y: p[1], z: p[2] }; }
+function cvSterTxt(name, v, deg) {
+  if (v == null || !isFinite(+v)) return name;
+  return name + ' ' + Number(v).toFixed(deg ? 1 : 2) + (deg ? '°' : '');
+}
+function cvSterAngles(V, sheet, g, color) {
+  const mid = sheet.ring[Math.floor(sheet.ring.length / 2)], o = sheet.base;
+  const dx = mid[0] - o[0], dy = mid[1] - o[1], dz = mid[2] - o[2];
+  const at = f => [o[0] + dx * f, o[1] + dy * f, o[2] + dz * f];
+  cvSterLab(V, at(0.5), cvSterTxt('θ', g.theta, true), color);
+  cvSterLab(V, at(1.28), cvSterTxt('φ', g.phi, true), color);
+}
+function cvSterLab(V, p, text, color) {
+  if (!p) return;
+  V.addLabel(text, {
+    position: { x: p[0], y: p[1], z: p[2] },
+    fontSize: 14, fontColor: '#fff', backgroundColor: color,
+    showBackground: true, inFront: true,
+  });
+}
+/* the angle, lifted a hair off the bonds so the wedge reads on its own */
+function cvSterSheet(g) {
+  const o = g.base, a = g.ring[0], b = g.ring[g.ring.length - 1];
+  let nx = (a[1] - o[1]) * (b[2] - o[2]) - (a[2] - o[2]) * (b[1] - o[1]);
+  let ny = (a[2] - o[2]) * (b[0] - o[0]) - (a[0] - o[0]) * (b[2] - o[2]);
+  let nz = (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const h = Math.hypot(nx, ny, nz) || 1; nx /= h; ny /= h; nz /= h;
+  const L = p => [p[0] + nx * 0.05, p[1] + ny * 0.05, p[2] + nz * 0.05];
+  return { base: L(o), ring: g.ring.map(L), phi: g.phi };
+}
+function cvPaintSter(V, g, opt) {
+  if (!V || !g || !g.ring || g.ring.length < 3 || !g.base) return;
+  opt = opt || {};
+  const ink = opt.mono
+    ? { b1: '#1a1a1a', b5: '#1a1a1a', th: '#111111', axis: '#333333' }
+    : { b1: '#6C4AB6', b5: '#C9352B', th: '#3450A8', axis: '#1d4ed8' };
+  const sheet = cvSterSheet(g);
+  if (!opt.arcOnly) {
+    const sh = V.addShape({ color: ink.th, opacity: opt.mono ? 0.2 : 0.34 });
+    const verts = [sheet.base].concat(sheet.ring).map(cvSterPt);
+    const faces = [];
+    for (let i = 1; i < verts.length - 1; i++) faces.push(0, i, i + 1);
+    sh.addCustom({ vertexArr: verts, faceArr: faces, color: ink.th });
+  }
+  for (let i = 1; i < sheet.ring.length; i++) cvSterCyl(V, sheet.ring[i - 1], sheet.ring[i], opt.faint ? (opt.color || '#94a3b8') : ink.th, opt.faint ? 0.012 : (opt.arcOnly ? 0.028 : 0.025));
+  if (opt.arcOnly) { if (!opt.faint) cvSterAngles(V, sheet, g, ink.th); return; }
+  const off = [sheet.base[0] - g.base[0], sheet.base[1] - g.base[1], sheet.base[2] - g.base[2]];
+  const lift = p => p && [p[0] + off[0], p[1] + off[1], p[2] + off[2]];
+  if (g.ax0 && g.ax1 && g.Llen > 0.2) {
+    const lx = g.ax1[0] - g.ax0[0], ly = g.ax1[1] - g.ax0[1], lz = g.ax1[2] - g.ax0[2];
+    const tip = [g.ax0[0] + lx * g.Llen, g.ax0[1] + ly * g.Llen, g.ax0[2] + lz * g.Llen];
+    const lh = Math.hypot(lx, ly, lz) || 1;
+    cvSterCyl(V, g.ax0, tip, ink.axis, 0.028);
+    V.addSphere({ center: cvSterPt(tip), radius: 0.07, color: ink.axis });
+    cvSterLab(V, [tip[0] + lx / lh * 0.45, tip[1] + ly / lh * 0.45, tip[2] + lz / lh * 0.45], cvSterTxt('L', g.Llen), ink.axis);
+  }
+  if (g.b1From && g.b1To) {
+    const a = lift(g.b1From), b = lift(g.b1To);
+    cvSterCyl(V, a, b, ink.b1, 0.04);
+    V.addSphere({ center: cvSterPt(b), radius: 0.09, color: ink.b1 });
+    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], h = Math.hypot(dx, dy, dz) || 1;
+    cvSterLab(V, [b[0] + dx / h * 0.4, b[1] + dy / h * 0.4, b[2] + dz / h * 0.4], cvSterTxt('B1', g.b1), ink.b1);
+  }
+  if (g.b5To) {
+    const a = lift(g.base), b = lift(g.b5To);
+    cvSterDash(V, a, b, ink.b5, 0.05);
+    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], h = Math.hypot(dx, dy, dz) || 1;
+    V.addSphere({ center: cvSterPt(b), radius: 0.09, color: ink.b5 });
+    cvSterLab(V, [b[0] + dx / h * 0.42, b[1] + dy / h * 0.42, b[2] + dz / h * 0.42], cvSterTxt('B5', g.b5), ink.b5);
+  }
+  if (g.ax0 && g.ax1 && g.b1To && g.b1From && (!V._phiAim || !opt.mono)) V._phiAim = {
+    axis: [g.ax1[0] - g.ax0[0], g.ax1[1] - g.ax0[1], g.ax1[2] - g.ax0[2]],
+    up: [g.b1To[0] - g.b1From[0], g.b1To[1] - g.b1From[1], g.b1To[2] - g.b1From[2]],
+  };
+  cvSterAngles(V, sheet, g, ink.th);
+}
+function cvBoltzPose(src, ref, refAtoms, cx, cy, cz, mode) {
+  const rows = cvConformers.filter(c => c.src === src && c.atoms.length === ref.atoms.length);     // folded copies too: the weights are the table's
+  const ok = rows.length && rows.every(c => c.energy != null);
+  const e0 = ok ? Math.min(...rows.map(c => c.energy)) : 0;
+  const raw = rows.map(c => ok ? Math.exp(-((c.energy - e0) * 627.5095) / CV_KT) : 1);
+  const z = raw.reduce((a, b) => a + b, 0) || 1;
+  let ranked = rows.map((c, i) => ({ c, w: raw[i] / z })).sort((a, b) => b.w - a.w);
+  let cum = 0; ranked = ranked.filter(r => { const take = cum < 0.999; cum += r.w; return take; });
+  if (!ranked.length) return null;
+  const key = [src, ref.src, ref.frame, cx.toFixed(4), cy.toFixed(4), cz.toFixed(4), mode, ($('cvAlignAtoms') || {}).value || '', ranked.map(r => r.c.frame + ':' + r.w.toFixed(5)).join(',')].join('|');
+  if (cvAvgCache.has(key)) return cvAvgCache.get(key);
+  const acc = ref.atoms.map(() => [0, 0, 0]); let wsum = 0;
+  ranked.forEach(({ c, w }) => {
+    let posed;
+    if (c === ref) posed = c.atoms.map(a => [a[1] - cx, a[2] - cy, a[3] - cz]);
+    else {
+      const indices = cvAlignIndices(refAtoms, c.atoms, mode);
+      if (!indices || indices.length < 3) return;
+      const aligned = kabschAlign(c.atoms, refAtoms, indices).aligned;
+      posed = aligned.map(a => [a[1] - cx, a[2] - cy, a[3] - cz]);
+    }
+    wsum += w; posed.forEach((p, i) => { acc[i][0] += w * p[0]; acc[i][1] += w * p[1]; acc[i][2] += w * p[2]; });
+  });
+  if (!(wsum > 0)) return null;
+  const atoms = acc.map((p, i) => [ref.atoms[i][0], p[0] / wsum, p[1] / wsum, p[2] / wsum]);
+  atoms._key = key;
+  cvAvgCache.set(key, atoms); return atoms;
+}
+function cvShiftGeom(g, dx) {
+  if (!g) return null;
+  const s = p => p && [p[0] + dx, p[1], p[2]];
+  return { base: s(g.base), b1From: s(g.b1From), b1To: s(g.b1To), b5To: s(g.b5To), ax0: s(g.ax0), ax1: s(g.ax1), Llen: g.Llen, b1: g.b1, b5: g.b5, theta: g.theta, ring: (g.ring || []).map(s), phi: g.phi };
+}
+function cvGrowArc(g, f) {
+  const o = g.base;
+  const s = p => [o[0] + (p[0] - o[0]) * f, o[1] + (p[1] - o[1]) * f, o[2] + (p[2] - o[2]) * f];
+  return { base: o.slice(), ring: g.ring.map(s), phi: g.phi, theta: g.theta };
+}
+function cvQuatNorm(q) { const h = Math.hypot(q[0], q[1], q[2], q[3]) || 1; return q.map(x => x / h); }
+function cvQuatMul(a, b) {
+  return [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1], a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0], a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3], a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]];
+}
+function cvQuatRot(q, v) {
+  const x = q[0], y = q[1], z = q[2], w = q[3], tx = 2 * (y * v[2] - z * v[1]), ty = 2 * (z * v[0] - x * v[2]), tz = 2 * (x * v[1] - y * v[0]);
+  return [v[0] + w * tx + (y * tz - z * ty), v[1] + w * ty + (z * tx - x * tz), v[2] + w * tz + (x * ty - y * tx)];
+}
+function cvQuatFromTo(a, b) {
+  const na = Math.hypot(a[0], a[1], a[2]) || 1, nb = Math.hypot(b[0], b[1], b[2]) || 1;
+  const u = [a[0] / na, a[1] / na, a[2] / na], v = [b[0] / nb, b[1] / nb, b[2] / nb];
+  const d = u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+  if (d > 0.999999) return [0, 0, 0, 1];
+  if (d < -0.999999) { const ax = Math.abs(u[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]; const c = [u[1] * ax[2] - u[2] * ax[1], u[2] * ax[0] - u[0] * ax[2], u[0] * ax[1] - u[1] * ax[0]]; const h = Math.hypot(c[0], c[1], c[2]) || 1; return [c[0] / h, c[1] / h, c[2] / h, 0]; }
+  const c = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  return cvQuatNorm([c[0], c[1], c[2], 1 + d]);
+}
+function cvQuatDot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]; }
+function cvQuatSlerp(a, b, t) {
+  let d = cvQuatDot(a, b);
+  if (d < 0) { b = [-b[0], -b[1], -b[2], -b[3]]; d = -d; }
+  if (d > 0.9995) return cvQuatNorm(a.map((x, i) => x + (b[i] - x) * t));
+  const th = Math.acos(Math.min(1, d)), s = Math.sin(th);
+  const w0 = Math.sin((1 - t) * th) / s, w1 = Math.sin(t * th) / s;
+  return [a[0] * w0 + b[0] * w1, a[1] * w0 + b[1] * w1, a[2] * w0 + b[2] * w1, a[3] * w0 + b[3] * w1];
+}
+function cvCamWatch(id) {
+  const el = $(id);
+  if (!el || el._cvCam) return;
+  el._cvCam = true;
+  const stop = () => { cvCamAnim++; };
+  el.addEventListener('pointerdown', stop);
+  el.addEventListener('wheel', stop, { passive: true });
+}
+function cvAimPhi(V, aim) {
+  if (!V || !aim || !aim.axis || !aim.up) return;
+  let q = cvQuatFromTo(aim.axis, [0, 0, 1]);
+  const up = cvQuatRot(q, aim.up), ang = Math.atan2(up[0], up[1]);
+  q = cvQuatNorm(cvQuatMul([0, 0, Math.sin(ang / 2), Math.cos(ang / 2)], q));
+  const split = $('cvSplit') && $('cvSplit').checked && cvViewerB;
+  const viewers = split ? [cvViewer3d, cvViewerB].filter(Boolean) : [V];
+  viewers.forEach(v => cvCamWatch(v === cvViewerB ? 'cvViewerB' : 'cvViewer3d'));
+  const from = viewers.map(v => v.getView());
+  // 3Dmol's view: [x, y, z, zoom, qx, qy, qz, qw] - the rotation is slots 4-7, slot 3 is the camera distance
+  const q0 = [from[0][4], from[0][5], from[0][6], from[0][7]];
+  let dot = Math.abs(cvQuatDot(q0, q));
+  const turn = 2 * Math.acos(Math.min(1, dot));
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const place = e => viewers.forEach((v, i) => {
+    const s = from[i], qq = cvQuatSlerp([s[4], s[5], s[6], s[7]], q, e);
+    v.setView([s[0], s[1], s[2], s[3], qq[0], qq[1], qq[2], qq[3]]);
+    v.render();
+  });
+  if (reduce || turn < 0.04) { place(1); return; }
+  const ms = 340 + 340 * (turn / Math.PI);
+  const t0 = performance.now(), token = ++cvCamAnim;
+  const step = now => {
+    if (token !== cvCamAnim) return;
+    const u = Math.min(1, (now - t0) / ms);
+    place(u * u * u * (u * (u * 6 - 15) + 10));
+    if (u < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+function cvApplyPhiAim() {
+  const host = (cvViewer3d && cvViewer3d._phiAim) ? cvViewer3d : (cvViewerB && cvViewerB._phiAim ? cvViewerB : null);
+  if (!host) return false;
+  cvAimPhi(host, host._phiAim);
+  return true;
+}
+function cvSterFace() {
+  const show = $('cvSterShow'), avg = $('cvSterAvg');
+  const on = (show && show.checked) || (avg && avg.checked);
+  if (on && cvApplyPhiAim()) return;
+  if (show && !show.checked) show.checked = true;
+  cvFaceNext = true;
+  cvRedrawKeep();
+}
+function cvDrawnFocus(list) {
+  if (cvPlayNow && list.indexOf(cvPlayNow) >= 0) return cvPlayNow;
+  if (cvSterFocus && list.indexOf(cvSterFocus) >= 0) return cvSterFocus;
+  return list[0];
+}
+function cvSterMiss() {
+  if (cvSterTold === 'fail') return;
+  cvSterTold = 'fail';
+  if (typeof setExtractStatus === 'function') setExtractStatus('Sterimol could not be drawn on that axis.', 'warn');
+}
+function cvPaintSterimols(draw, ref, refAtoms, cx, cy, cz, xOff, mode) {
+  if (cvViewer3d) cvViewer3d._phiAim = null;
+  if (cvViewerB) cvViewerB._phiAim = null;
+  const avg = !!($('cvSterAvg') && $('cvSterAvg').checked), each = !!($('cvSterShow') && $('cvSterShow').checked);
+  if (!avg && !each) return;
+  const pair = cvSterPair();
+  if (!pair) { if (cvSterTold !== 'axis') { cvSterTold = 'axis'; if (typeof setExtractStatus === 'function') setExtractStatus('Sterimol needs an axis: two atoms in the Sterimol box, or a pair picked above.', 'warn'); } return; }
+  const paint = api => {
+    if (!api) return;
+    cvSterTold = '';
+    const views = new Map();
+    draw.forEach(c => { if (!c._drawV) return; if (!views.has(c._drawV)) views.set(c._drawV, []); views.get(c._drawV).push(c); });
+    if (!views.size && ref._drawV) views.set(ref._drawV, [ref]);
+    views.forEach(cs => {
+      const V = cs[0]._drawV;
+      if (each) {
+        const focus = cvDrawnFocus(cs);
+        cs.forEach(c => {
+          const mkey = pair.join(',') + '|' + cvGeomKey(c.atoms) + '|' + cvGeomKey(c._drawAtoms);
+          let g;
+          if (c._moved && c._moved.key === mkey) g = c._moved.g;
+          else { g = cvMoveGeom(cvSterCached(api, c, pair), c.atoms, c._drawAtoms); c._moved = { key: mkey, g }; }
+          if (!g) { if (c === focus) cvSterMiss(); return; }
+          cvPaintSter(V, g, c === focus ? {} : { arcOnly: true, faint: true, color: c.color });
+        });
+      }
+      if (!avg) return;
+      const seen = new Set();
+      cs.forEach(c => {
+        if (seen.has(c.src)) return;
+        seen.add(c.src);
+        const pose = cvBoltzPose(c.src, ref, refAtoms, cx, cy, cz, mode);
+        if (!pose) return;
+        const gkey = pose._key + '|' + pair.join(',');
+        let raw = cvAvgGeom.get(gkey);
+        if (!raw) { raw = cvSterOn(api, pose, pair); if (raw) cvAvgGeom.set(gkey, raw); }
+        const g = cvShiftGeom(raw, xOff);
+        if (!g) { cvSterMiss(); return; }
+        if (each) cvPaintSter(V, cvGrowArc(g, 1.22), { mono: true, arcOnly: true });
+        else cvPaintSter(V, g, { mono: true });
+      });
+    });
+  };
+  if (cvSterApi) paint(cvSterApi);
+  else cvSterReady().then(api => { if (api && (($('cvSterShow') && $('cvSterShow').checked) || ($('cvSterAvg') && $('cvSterAvg').checked))) cvRenderStack(); });
+}
+/* the other hand of the reference, glass, on the far side of a plane */
+function cvPaintMirrorHand(V, ref, drawn, maxX, nIn, pan) {
+  if (!V || !drawn) return;
+  const color = ref.mirrorColor || '#0284c7';
+  const body = drawn.filter(a => String(a[0]).toUpperCase() !== 'H');
+  const src = body.length >= 3 ? body : drawn;
+  const planeX = maxX + 0.9;
+  const dx = (planeX - 0.25) - Math.max(...src.map(a => a[1]));
+  const ghost = src.map(a => [a[0], 2 * planeX - (a[1] + dx), a[2], a[3]]);
+  const ys = src.map(a => a[2]), zs = src.map(a => a[3]);
+  const y0 = Math.min(...ys) - 0.7, y1 = Math.max(...ys) + 0.7;
+  const z0 = Math.min(...zs) - 0.7, z1 = Math.max(...zs) + 0.7;
+  if (typeof V.addBox === 'function') V.addBox({
+    center: { x: planeX, y: (y0 + y1) / 2, z: (z0 + z1) / 2 },
+    dimensions: { w: 0.04, h: y1 - y0, d: z1 - z0 }, color, opacity: 0.18,
+  });
+  const frame = [[planeX, y0, z0], [planeX, y1, z0], [planeX, y1, z1], [planeX, y0, z1]];
+  for (let i = 0; i < 4; i++) {
+    const A = frame[i], B = frame[(i + 1) % 4];
+    V.addCylinder({ start: { x: A[0], y: A[1], z: A[2] }, end: { x: B[0], y: B[1], z: B[2] }, radius: 0.03, color, opacity: 1, fromCap: 1, toCap: 1 });
+  }
+  const vm = nIn[pan]++;
+  V._cvGhost = vm;                                  // its atoms are the heavy atoms only, renumbered: picking ignores it
+  V.addModel(atomsToPdb(ghost, 'M'), 'pdb', { keepH: true });
+  V.setStyle({ model: vm }, { stick: { color, radius: 0.07, opacity: 0.9 } });
+}
 /* ── Render ─────────────────────────────────────────────────────── */
 function cvRenderStack() {
-  const active=cvConformers.filter(c=>c.on);
+  cvCamAnim++;
+  cvPickLabs = []; cvPickMarks = [];
+  const active=cvConformers.filter(c=>c.on), split=!!(($('cvSplit')||{}).checked);
   if (!active.length) {
     if (cvViewer3d) { try{cvViewer3d.clear();cvViewer3d.render();}catch(e){} }
+    if (cvViewerB) { try{cvViewerB.clear();cvViewerB.render();}catch(e){} }
     $('cvStats').className='cv-stats';
+    cvUpdateList();
     return;
   }
 
@@ -5391,9 +6252,12 @@ function cvRenderStack() {
   } else {
     cvViewer3d.clear();
   }
+  if (split) cvEnsureB(); if (cvViewerB) cvViewerB.clear();
+  cvViewer3d._cvGhost = null; if (cvViewerB) cvViewerB._cvGhost = null;
+  const nIn = { A: 0, B: 0 };
 
   const mode = ($('cvAlignMode')||{value:'benzene'}).value;
-  const style = ($('cvStyle')||{value:'line'}).value;
+  const style = ($('cvStyle')||{value:'ball_stick'}).value;
   const spread = parseFloat(($('cvSpread')||{value:'0'}).value)||0;
 
   const ref=active[0];
@@ -5407,84 +6271,147 @@ function cvRenderStack() {
   const centeredRef=refAtoms.map(a=>[a[0],a[1]-cx,a[2]-cy,a[3]-cz]);
 
   const statsLines=[], ncLines=[];
-  active.forEach((c, mi)=>{
-    let displayAtoms;
-    if (mi===0) {
-      displayAtoms=centeredRef;
-    } else {
-      const indices = cvAlignIndices(refAtoms, c.atoms, mode);
-      if (indices && indices.length>=3) {
-        const {aligned,rmsd}=kabschAlign(c.atoms, refAtoms, indices);
-        c.rmsd=rmsd;
-        displayAtoms=aligned.map(a=>[a[0],a[1]-cx,a[2]-cy,a[3]-cz]);
-        statsLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: RMSD ${rmsd.toFixed(4)}&thinsp;Å (${indices.length} align atoms)`);
-      } else {
-        c.rmsd=null;
-        displayAtoms=c.atoms.map(a=>[a[0],a[1]-cx,a[2]-cy,a[3]-cz]);
-        statsLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: not aligned (atom count or element mismatch)`);
+  const pairOnly = !!(ref.mirror && active.every(c => c === ref || c === ref.mirror));
+  const draw = pairOnly ? active.filter(c => c !== ref.mirror) : active;
+  const alignSpec = (($('cvAlignAtoms') || {}).value) || '';
+  const alignKey = mode + '|' + alignSpec + '|' + cvGeomKey(refAtoms);
+  const cvPlaced = c => {
+    const key = alignKey + '|' + cvGeomKey(c.atoms);
+    if (c._pose && c._pose.key === key) return c._pose;
+    const indices = cvAlignIndices(refAtoms, c.atoms, mode);
+    if (!indices || indices.length < 3) {
+      const pose = { key, atoms: c.atoms.map(a => [a[0], a[1] - cx, a[2] - cy, a[3] - cz]), rmsd: null, disp: null, dispMax: null, nAlign: 0, ok: false };
+      c._pose = pose; return pose;
+    }
+    const hit = kabschAlign(c.atoms, refAtoms, indices);
+    const atoms = hit.aligned.map(a => [a[0], a[1] - cx, a[2] - cy, a[3] - cz]);
+    let disp = null, dispMax = null;
+    if (atoms.length === centeredRef.length) {
+      disp = new Array(atoms.length); let maxH = 0;
+      for (let i = 0; i < atoms.length; i++) {
+        const d = Math.hypot(atoms[i][1] - centeredRef[i][1], atoms[i][2] - centeredRef[i][2], atoms[i][3] - centeredRef[i][3]);
+        disp[i] = d;
+        if (String(c.atoms[i][0]).toUpperCase() !== 'H' && d > maxH) maxH = d;
       }
+      dispMax = Math.max(0.3, maxH);
+    }
+    const pose = { key, atoms, rmsd: hit.rmsd, disp, dispMax, nAlign: indices.length, ok: true };
+    c._pose = pose; return pose;
+  };
+  const focus = cvDrawnFocus(draw);
+  let focusPose = null;
+  if ($('cvMoved') && $('cvMoved').checked && draw.length > 1 && focus) {
+    if (focus === ref) focusPose = centeredRef;
+    else { const posed = cvPlaced(focus); if (posed.ok) focusPose = posed.atoms; }
+  }
+  const movedOnly = !!focusPose;
+  const cmode0 = ($('cvColour') || { value: 'conf' }).value, cmode = movedOnly && cmode0 === 'move' ? 'conf' : cmode0;
+  const ncMode = ($('cvNC') || { value: 'off' }).value, hMode = ($('cvH') || { value: 'all' }).value;
+  const showLab = $("cvShowLabels") && $("cvShowLabels").checked;
+  const picked = window._numberingPicked || [];
+  const elemBase = Object.assign({}, ($3Dmol.elementColors && $3Dmol.elementColors.Jmol) || {});
+  const elemCache = new Map();
+  let fileCol = null;
+  if (cmode === 'file') {
+    fileCol = new Map(); let i = 0;
+    cvConformers.forEach(x => { if (!fileCol.has(x.src)) fileCol.set(x.src, CV_COLORS[i++ % CV_COLORS.length]); });
+  }
+  if (cmode === 'fam' && draw.length) cvFamColour(draw[0]);
+  const whyAlign = mode === 'atoms' && cvParseAtoms(alignSpec).length < 3 ? 'pick at least 3 atoms' : 'atom count or element mismatch';
+  let stackMaxX = -Infinity;
+  let refDrawn = null, refPan = 'A';
+  draw.forEach((c, mi)=>{
+    let displayAtoms;
+    if (c === ref) {
+      displayAtoms = centeredRef; c.rmsd = null; c.disp = null;
+    } else {
+      const pose = cvPlaced(c);
+      displayAtoms = pose.atoms; c.rmsd = pose.rmsd; c.disp = pose.disp; c.dispMax = pose.dispMax;
+      if (pose.ok) statsLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: RMSD ${pose.rmsd.toFixed(4)}&thinsp;Å (${pose.nAlign} align atoms)`);
+      else statsLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: not aligned (${whyAlign})`);
     }
 
-    // X-spread offset
-    const n=active.length;
+    const n=draw.length;
     const xOff=(mi-(n-1)/2)*spread;
     const spreadAtoms=displayAtoms.map(a=>[a[0],a[1]+xOff,a[2],a[3]]);
+    const pan = split && c.panel==='B' ? 'B' : 'A', V = pan==='B' ? cvViewerB : cvViewer3d;
+    c._drawAtoms = spreadAtoms; c._drawV = V;
+    if (c === ref) { refDrawn = spreadAtoms; refPan = pan; }
+    for (let i = 0; i < spreadAtoms.length; i++) if (spreadAtoms[i][1] > stackMaxX) stackMaxX = spreadAtoms[i][1];
 
-    const chainId=CV_CHAINS[mi] || 'A';
-    const pdb=atomsToPdb(spreadAtoms, chainId);
-    cvViewer3d.addModel(pdb,'pdb',{keepH:true});
-
-    const col=c.color, cmode=($('cvColour')||{value:'conf'}).value;
-    // by element: 3Dmol's Jmol colours; carbons may keep the conformer's colour so the stack still tells them apart
-    const flex = cmode==='flex' ? cvFlexOf(c.src) : null, famc = cmode==='fam' ? cvFamColour(c) : null;
-    const paint = cmode==='conf' ? {color:col} : cmode==='file' ? {color:cvFileColour(c)} : famc ? {color:famc} :
-      flex ? {colorfunc: at => cvFlexColour(flex.rmsf[at.serial-1], flex.max)} : {colorscheme:{prop:'elem', map:Object.assign({}, $3Dmol.elementColors.Jmol, cmode==='elemC' ? {C:col} : {})}};
-    if (style==='line') {
-      cvViewer3d.setStyle({model:mi},{line:{...paint,linewidth:3}});
-    } else if (style==='stick') {
-      cvViewer3d.setStyle({model:mi},{stick:{...paint,radius:0.12}});
-    } else {
-      cvViewer3d.setStyle({model:mi},{stick:{...paint,radius:0.10},sphere:{...paint,scale:0.22}});
-    }
-    // hydrogens and non-covalent contacts, read on this conformer's own geometry and drawn on its displayed copy
-    const ncMode=($('cvNC')||{value:'off'}).value, hMode=($('cvH')||{value:'none'}).value;
     const NC = ncMode==='off' ? [] : cvContacts(c.atoms, ncMode);
     const keepH = new Set(NC.flatMap(x => x.h != null ? [x.h] : []));
-    const gH = cvGraphOf(c.atoms);
-    const hide = c.atoms.map((a,ai)=>ai).filter(ai => String(c.atoms[ai][0]).toUpperCase()==='H' && !keepH.has(ai) &&
-      (hMode==='none' || (hMode==='polar' && !gH[ai].some(j => CV_POLAR.has(String(c.atoms[j][0]).toUpperCase())))));
-    if (hide.length) cvViewer3d.setStyle({model:mi, serial:hide.map(ai=>ai+1)},{});
+    const gH = hMode==='polar' ? cvGraphOf(c.atoms) : null;
+    const hide = new Set();
+    if (hMode !== 'all') {
+      for (let ai = 0; ai < c.atoms.length; ai++) {
+        if (String(c.atoms[ai][0]).toUpperCase() !== 'H' || keepH.has(ai)) continue;
+        if (hMode === 'none' || (gH && !gH[ai].some(j => CV_POLAR.has(String(c.atoms[j][0]).toUpperCase())))) hide.add(ai);
+      }
+    }
+    if (movedOnly && c !== focus && displayAtoms.length === focusPose.length) {
+      for (let i = 0; i < displayAtoms.length; i++) {
+        if (hide.has(i)) continue;
+        const a = displayAtoms[i], b = focusPose[i], dx = a[1] - b[1], dy = a[2] - b[2], dz = a[3] - b[3];
+        if (dx * dx + dy * dy + dz * dz < 0.16) hide.add(i);
+      }
+    }
+    c._drawHide = hide.size ? [...hide] : [];
+    let vm = null, pdb = null;
+    if (!hide.size) pdb = atomsToPdb(spreadAtoms, CV_CHAINS[mi] || 'A');
+    else {
+      const kept = [], ids = [];
+      for (let i = 0; i < spreadAtoms.length; i++) if (!hide.has(i)) { kept.push(spreadAtoms[i]); ids.push(i); }
+      if (kept.length) pdb = atomsToPdb(kept, CV_CHAINS[mi] || 'A', ids);
+    }
+    if (pdb) {
+      vm = nIn[pan]++;
+      V.addModel(pdb, 'pdb', { keepH: true });
+      const col = c.color;
+      const flex = cmode==='flex' ? cvFlexOf(c.src) : null, famc = cmode==='fam' ? cvFamColour(c) : null;
+      let elemMap = elemBase;
+      if (cmode === 'elemC') { elemMap = elemCache.get(col); if (!elemMap) { elemMap = Object.assign({}, elemBase, { C: col }); elemCache.set(col, elemMap); } }
+      const paint = cmode==='conf' ? {color:col} : cmode==='file' ? {color:fileCol.get(c.src)} : famc ? {color:famc} :
+        cmode==='move' ? (c.disp ? {colorfunc: at => cvFlexColour(c.disp[at.serial - 1] || 0, c.dispMax || 1)} : {color:'#94a3b8'}) :
+        flex ? {colorfunc: at => cvFlexColour(flex.rmsf[at.serial - 1], flex.max)} : {colorscheme:{prop:'elem', map:elemMap}};
+      if (style==='line') V.setStyle({model:vm},{line:{...paint,linewidth:3}});
+      else if (style==='stick') V.setStyle({model:vm},{stick:{...paint,radius:0.12}});
+      else V.setStyle({model:vm},{stick:{...paint,radius:0.10},sphere:{...paint,scale:0.22}});
+      if (showLab) {
+        spreadAtoms.forEach((a, ai) => {
+          if (vm !== 0 && !picked.includes(ai + 1)) return;
+          if (hide.has(ai)) return;
+          V.addLabel(`${a[0]}${ai + 1}`, {
+            position: { x: a[1], y: a[2], z: a[3] },
+            fontSize: 10, fontColor: col, backgroundColor: "rgba(255,255,255,0.85)",
+            inFront: true, showBackground: true,
+          });
+        });
+      }
+    }
     NC.forEach(x => {
+      if (hide.has(x.i) || hide.has(x.j)) return;
       const A=spreadAtoms[x.i], B=spreadAtoms[x.j];
-      cvViewer3d.addCylinder({start:{x:A[1],y:A[2],z:A[3]}, end:{x:B[1],y:B[2],z:B[3]}, radius:x.kind==='hb'?0.045:0.03,
+      V.addCylinder({start:{x:A[1],y:A[2],z:A[3]}, end:{x:B[1],y:B[2],z:B[3]}, radius:x.kind==='hb'?0.045:0.03,
         color:x.kind==='hb'?'#0284c7':'#9ca3af', dashed:true, dashLength:0.14, gapLength:0.11, fromCap:1, toCap:1});
     });
     if (NC.length) ncLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: ` + NC.map(x =>
       `${x.kind==='hb'?'H-bond':'contact'} ${c.atoms[x.i][0]}${x.i+1}···${c.atoms[x.j][0]}${x.j+1} ${x.d.toFixed(2)}&thinsp;Å`).join(' · '));
     else if (ncMode!=='off') ncLines.push(`<span style="color:${c.color}">&#9679;</span> <b>${esc(c.name)}</b>: none found`);
-    const showLab = ($("cvShowLabels") && $("cvShowLabels").checked) || !!cvPickTarget;
-    const picked = window._numberingPicked || [];
-    if (mi === 0 && cvPickTarget) cvPickedNow().forEach((ai, k) => { const a = spreadAtoms[ai]; if (a) {
-      cvViewer3d.addSphere({ center: { x: a[1], y: a[2], z: a[3] }, radius: 0.42, color: '#f59e0b', opacity: 0.55 });
-      cvViewer3d.addLabel(String(k + 1), { position: { x: a[1], y: a[2], z: a[3] }, fontSize: 11, fontColor: '#fff', backgroundColor: '#b45309', showBackground: true, inFront: true, alignment: 'bottomLeft' }); } });
-    if (showLab) {
-      spreadAtoms.forEach((a, ai) => {
-        const idx = ai + 1;
-        if (mi !== 0 && !picked.includes(idx)) return;   // the others only at the picks: every atom of every conformer froze the view
-        if (hide.includes(ai)) return;                    // a hydrogen not drawn gets no number
-        cvViewer3d.addLabel(`${a[0]}${idx}`, {
-          position: { x: a[1], y: a[2], z: a[3] },
-          fontSize: 10, fontColor: col, backgroundColor: "rgba(255,255,255,0.85)",
-          inFront: true, showBackground: true,
-        });
-      });
-    }
   });
 
+  if (ref.mirror && refDrawn) cvPaintMirrorHand(refPan === 'B' && cvViewerB ? cvViewerB : cvViewer3d, ref, refDrawn, stackMaxX, nIn, refPan);
+  cvPaintSterimols(draw, ref, refAtoms, cx, cy, cz, (0 - (draw.length - 1) / 2) * spread, mode);
   cvPlayLabel();
-  if (cvKeepView) cvViewer3d.setView(cvKeepView); else cvViewer3d.zoomTo();      // a pick keeps the reader's view
-  cvViewer3d.setClickable({}, true, cvPickAtom);
-  cvViewer3d.render();
+  if (cvPickTarget && !($('cvShowLabels') && $('cvShowLabels').checked)) cvPickAddLabels();
+  if (cvPickTarget) cvPickAddMarks();
+  for (const V of split ? [cvViewer3d, cvViewerB] : [cvViewer3d]) {
+    if (cvKeepView) V.setView(cvKeepView); else V.zoomTo();      // a pick keeps the reader's view; both panels share it
+    V.setClickable({}, true, cvPickAtom);
+    V.render();
+  }
+  if (split && !cvKeepView) { cvViewerB.setView(cvViewer3d.getView()); cvViewerB.render(); }
+  if (cvFaceNext && cvApplyPhiAim()) cvFaceNext = false;
 
   cvUpdateList();
   if (window.cvEnsRedraw) cvEnsRedraw();      // the ensemble plot shows which conformers are drawn
