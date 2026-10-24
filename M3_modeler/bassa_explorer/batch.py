@@ -21,12 +21,12 @@ for f in tables:
     try:
         csv = f.read_text(encoding="utf-8-sig"); head = (csv.splitlines() or [""])[0]
         import pandas as pd, io
-        q = dict(csv=csv, response=a.response or pd.read_csv(io.StringIO(head)).columns[-1], iters=20000, name=f.stem, structures=str(sub if sub and sub.is_dir() else a.structures))
+        q = dict(csv=csv, response=a.response or S.read_table(csv).columns[-1], iters=20000, name=f.stem, structures=str(sub if sub and sub.is_dir() else a.structures))
         d = S.run(q)
         if a.checks:
-            X, y, _, _ = S.table(q); job = dict(done=0, total=0, chance=None, nested_q2=None, error=None); S.checks(job, X, y)
+            X, y, _, _, _ = S.table(q);       # table() also returns the external set job = dict(done=0, total=0, chance=None, nested_q2=None, error=None); S.checks(job, X, y)
             if job["error"]: raise RuntimeError(job["error"])
             d.update({k: job[k] for k in ("chance", "nested_q2", "fold_top", "n_folds", "fold_freq", "p_top", "chance_lo", "chance_hi", "n_shuffles")})
-        r = S.keep(dict(name=f.stem, case=dict(d, title=f.stem)))
+        r = S.keep(dict(name=f.stem, case=dict(d, title=f.stem), overwrite=True))      # a batch rerun replaces its own cases
         print("%-28s kept as %-20s %2d compounds, %3d descriptors, %d structures, %.0f s" % (f.name, r["name"], d["n"], len(d["names"]), len(d["mols"]), time.time() - t0), flush=True)
     except Exception as e: print("%-28s FAILED: %s" % (f.name, e), flush=True)

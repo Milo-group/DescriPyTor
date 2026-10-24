@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+### BASSA model explorer: review for publication and user testing (24 Oct 2026)
+
+- **Install.** `bassa-reg` pins NumPy 2 and DescriPyTor needs NumPy < 2, so the `bassa` extra could never install. It is
+  gone; `descripytor bassa_setup` makes the sampler its own environment once and remembers it. The start prints which
+  Python runs the sampler (`--bassa-python`, then `DESCRIPYTOR_BASSA_PYTHON`, then the remembered one). `engine.py` checks
+  the installed `bassa-reg` against the core its corrected copy replaces; `core_fixed.py` carries BASSA's MIT notice.
+- **The verdict.** It reads the lower of leave-one-out and the 5-fold mean (the headline stays leave-one-out), gives no
+  ✓ without a chance test, and fails a Q² of 0.1 or less. The help says the two numbers are quoted together.
+- **Wording.** "Predicted better with" for the drivers (a correlation, not a cause); the design-test rank names its test;
+  the chance line says what p 0.048 means; fewer than 5 external compounds show their typical miss against the mean's,
+  not an R²; leave-one-out interval coverage beside the 5-fold one; the waterfall heads with the left-out prediction.
+- **Where the data come from.** A case may carry `source` (citation, DOI, licence, status), shown under the verdict.
+- **Your table.** Commas, semicolons or tabs, a decimal comma, a byte-order mark and pandas' index column are read; a
+  split column takes train / test, external, validation and refuses any other label (it used to fit them silently);
+  duplicate column names are refused; a missing response lists the columns; the table is checked before the sampler is
+  asked for; rows and columns left out are listed after a run; the better end is asked when the table is run.
+- **Keep** asks before replacing a kept case, keeps the table so its checks can still run, and a case kept while its
+  check runs is kept again with the result. Checks can be stopped, and stop when the page closes.
+- **Structures.** A name that is a whole word in two molecules' files is not guessed.
+- **Server.** On the network every POST needs a token the page carries; its own `.py` files are not served; the
+  one-file export carries no paths of this computer; a server slow to answer is "busy", never "old" (users were told to
+  kill a healthy one). Kept cases default to `~/.descripytor/cases` when no other folder is known.
+- **Command line.** `--version`; the commands listed once; manuals linked on GitHub (a pip install has no docs folder).
+- `batch.py --checks` unpacked the table wrongly and failed every table.
+
 ## 0.4.5 — 2026-10-21
 
 - The BASSA explorer's **molecule window is taller by default** (47 % of the window height, 320–560 px; was 38 %, 250–460 px), so the

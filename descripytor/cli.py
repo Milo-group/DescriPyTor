@@ -297,6 +297,7 @@ Pages (each opens in the browser; the three link to each other):
   visual_extractor   pick atoms on a molecule, extract descriptors for a folder of structures, fit a model
   feature_explorer   draw any descriptor on the molecule: Sterimol, cone angle, %Vbur, dipole, charges, lengths, angles
   bassa_explorer     the models a BASSA run visited, beside the molecule
+  bassa_setup        once: an environment for BASSA's sampler, which new tables in bassa_explorer need
 
 Batch commands:
   extractor          descriptors for a folder of .feather files, from an input file of atom choices
@@ -311,7 +312,8 @@ Converters (they ask for their inputs):
 CLI_EPILOG = """examples:
   descripytor visual_extractor
   descripytor feature_explorer --mol FL_lig_13 --preset "theta construction"
-  descripytor bassa_explorer --cases my_cases --bassa-python C:/envs/bassa/python.exe
+  descripytor bassa_setup
+  descripytor bassa_explorer --cases my_cases
   descripytor extractor -i input.json -o features -f feathers/
   descripytor model -m regression -f features.csv -t targets.csv --min-features 2 --max-features 3
   descripytor pipeline status protocol.json
@@ -319,7 +321,10 @@ CLI_EPILOG = """examples:
 
 `descripytor <command> --help` lists the options of one command. Older names still work:
 visual = visual_extractor, theta = feature_explorer, bassa = bassa_explorer.
-Manuals: docs/WORKFLOW.md, docs/FEATURE_EXPLORER.md, docs/BASSA_EXPLORER.md, docs/PIPELINE.md."""
+Manuals: https://github.com/Milo-group/DescriPyTor/blob/main/docs/WORKFLOW.md, FEATURE_EXPLORER.md, BASSA_EXPLORER.md, PIPELINE.md (same folder)."""
+
+
+DOCS = "https://github.com/Milo-group/DescriPyTor/blob/main/docs/"
 
 
 def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bassa_python=None):
@@ -352,23 +357,31 @@ def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bass
     print(f"\n  BASSA model explorer\n  Open:  {url}\n  Press Ctrl+C to stop\n", flush=True)
     _ensure_project_on_path()
     from M3_modeler.bassa_explorer.settings import REMEMBERED_PY
+    # the sampler's Python, first found wins: --bassa-python (and remembered), DESCRIPYTOR_BASSA_PYTHON, the one remembered
+    # from an earlier --bassa-python or bassa_setup, this Python. The start says which, so a remembered one is never a surprise.
+    source = "--bassa-python"
     if bassa_python:                                        # remembered for starts without it (the visual extractor's link)
         try:
             REMEMBERED_PY.parent.mkdir(parents=True, exist_ok=True)
             REMEMBERED_PY.write_text(str(bassa_python), encoding="utf-8")
         except OSError:
             pass
+    elif os.environ.get("DESCRIPYTOR_BASSA_PYTHON"):
+        bassa_python, source = os.environ["DESCRIPYTOR_BASSA_PYTHON"], "DESCRIPYTOR_BASSA_PYTHON"
     else:
         try:
             kept = REMEMBERED_PY.read_text(encoding="utf-8").strip()
-            bassa_python = kept if Path(kept).is_file() else None
+            if Path(kept).is_file():
+                bassa_python, source = kept, "remembered in %s" % REMEMBERED_PY
         except OSError:
             pass
-    python = bassa_python or os.environ.get("DESCRIPYTOR_BASSA_PYTHON") or sys.executable
+    python = bassa_python or sys.executable
+    print("  Sampler Python: %s (%s)%s" % (python, source if bassa_python else "this one", chr(10)), flush=True)
     from M3_modeler.bassa_explorer import running
     already = running.state(port)
-    if already == "current":                                 # this version's server is up: use it
-        print("  It is already running; this process will not start a second server." + chr(10), flush=True)
+    if already in ("current", running.BUSY):                 # this version's server is up (or busy with a run): use it
+        print("  It is already running%s; this process will not start a second server.%s"
+              % (" (busy: it answered slowly)" if already == running.BUSY else "", chr(10)), flush=True)
         if open_browser:
             webbrowser.open(url)
         return 0
@@ -391,6 +404,43 @@ def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bass
         return subprocess.call([python, str(server), str(port), host], env=env)
     except KeyboardInterrupt:
         return 0
+
+
+def run_bassa_setup(where=None, python=None):
+    """Make the environment BASSA's sampler runs in, once, and remember it for bassa_explorer.
+
+    bassa-reg pins NumPy 2.0 and its other dependencies exactly, while DescriPyTor needs NumPy < 2 (its RDKit and PyArrow
+    builds), so the two cannot share one Python. This makes a virtual environment (default ~/.descripytor/bassa_env) with
+    bassa-reg alone, checks that the sampler imports, and writes its Python where bassa_explorer looks. Returns 0 on success.
+    """
+    import subprocess
+    import venv
+    from pathlib import Path
+
+    _ensure_project_on_path()
+    from M3_modeler.bassa_explorer.settings import REMEMBERED_PY
+    home = Path(where).expanduser().resolve() if where else REMEMBERED_PY.parent / "bassa_env"
+    py = home / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    if not py.is_file():
+        print("  Making %s ..." % home, flush=True)
+        if python:
+            subprocess.check_call([python, "-m", "venv", str(home)])
+        else:
+            venv.create(str(home), with_pip=True)
+    spec = "bassa-reg>=0.1.16,<0.2"
+    print("  Installing %s into it (a few minutes: it brings its own NumPy, SciPy and Numba) ..." % spec, flush=True)
+    if subprocess.call([str(py), "-m", "pip", "install", "--upgrade", spec]):
+        print("  pip failed: see the lines above. Nothing was remembered.", flush=True)
+        return 1
+    check = subprocess.run([str(py), "-c", "from bassa_reg.spike_and_slab.spike_and_slab import SpikeAndSlabConfigurations, SpikeAndSlabRegression; "
+                            "import importlib.metadata as m; print(m.version('bassa-reg'))"], capture_output=True, text=True)
+    if check.returncode:
+        print("  The sampler did not import:" + chr(10) + check.stderr.strip()[-800:], flush=True)
+        return 1
+    REMEMBERED_PY.parent.mkdir(parents=True, exist_ok=True)
+    REMEMBERED_PY.write_text(str(py), encoding="utf-8")
+    print("  Done: bassa-reg %s in %s. bassa_explorer uses it from now on (said at its start)." % (check.stdout.strip(), py), flush=True)
+    return 0
 
 
 def feature_explorer_page(mol=None, preset=None):
@@ -533,8 +583,9 @@ def main():
     from utils.console import make_console_safe
     make_console_safe()
     raw = argparse.RawDescriptionHelpFormatter
-    parser = argparse.ArgumentParser(prog="descripytor", formatter_class=raw, description=CLI_HELP, epilog=CLI_EPILOG)
-    subparsers = parser.add_subparsers(dest="command", metavar="<command>", title="commands")
+    parser = argparse.ArgumentParser(prog="descripytor", usage="descripytor [-h] [-V] <command> [options]", formatter_class=raw, description=CLI_HELP, epilog=CLI_EPILOG)
+    parser.add_argument("-V", "--version", action="version", version="descripytor " + __version__)
+    subparsers = parser.add_subparsers(dest="command", metavar="<command>", help=argparse.SUPPRESS)      # listed, grouped, in the description
 
     visual_parser = subparsers.add_parser(
         "visual_extractor", aliases=["visual"], help="Open the 3D atom picker in a browser", formatter_class=raw,
@@ -554,7 +605,7 @@ def main():
         help="Open the feature explorer (Sterimol, cone angle, %%Vbur, dipoles, charges) in a browser", formatter_class=raw,
         description="The feature explorer (until October 2026: the Sterimol theta explorer). Draws B1, B5, L, loc B5, theta, the cone\n"
                     "angle, %Vbur, dipole frames, charges, lengths and angles on the molecule, stacks aligned structures, and exports\n"
-                    "figures. Same server as visual_extractor, at /feature_explorer. Manual: docs/FEATURE_EXPLORER.md.",
+                    "figures. Same server as visual_extractor, at /feature_explorer. Manual: " + DOCS + "FEATURE_EXPLORER.md",
     )
     theta_parser.add_argument("--mol", default=None, help="Open this built-in structure, e.g. FL_lig_13")
     theta_parser.add_argument("--preset", default=None,
@@ -580,12 +631,20 @@ def main():
         help="Open the BASSA model explorer: the sampler's models beside the molecule", formatter_class=raw,
         description="The BASSA model explorer: columns are the models the spike-and-slab sampler visited, rows are descriptors, and the\n"
                     "feature explorer draws the selected descriptors on a compound. Opens http://127.0.0.1:8765/ with a bundled example.\n"
-                    "Running a new table needs bassa_reg (pip install bassa-reg) in the Python given by --bassa-python.\n"
-                    "Manual: docs/BASSA_EXPLORER.md.",
+                    "Running a new table needs BASSA's sampler in its own environment: run  descripytor bassa_setup  once.\n"
+                    "Manual: " + DOCS + "BASSA_EXPLORER.md",
     )
-    bassa_parser.add_argument("--cases", default=None, help="Folder where kept cases live (default ./bassa_cases)")
+    bassa_parser.add_argument("--cases", default=None, help="Folder where kept cases live (default: ./bassa_cases if it exists, else the last --cases, else ~/.descripytor/cases)")
     bassa_parser.add_argument("--bassa-python", default=None,
-                              help="The Python that has bassa_reg, for running new tables (default: this one, or DESCRIPYTOR_BASSA_PYTHON)")
+                              help="The Python that has bassa_reg, for new tables; remembered. Default: DESCRIPYTOR_BASSA_PYTHON, "
+                                   "else the one remembered (by bassa_setup or an earlier --bassa-python), else this one")
+    setup_parser = subparsers.add_parser(
+        "bassa_setup", help="Once: make the environment BASSA's sampler runs in, for new tables in bassa_explorer", formatter_class=raw,
+        description="bassa-reg pins NumPy 2 while DescriPyTor needs NumPy < 2, so the sampler gets its own virtual environment\n"
+                    "(default ~/.descripytor/bassa_env). This makes it, installs bassa-reg, checks the sampler imports and remembers\n"
+                    "its Python for bassa_explorer. Takes a few minutes.")
+    setup_parser.add_argument("--dir", default=None, help="Where to make the environment (default ~/.descripytor/bassa_env)")
+    setup_parser.add_argument("--python", default=None, help="The Python to make it with (default: this one)")
     bassa_parser.add_argument("--no-browser", action="store_true", help="Start the server without opening a browser tab")
     bassa_parser.add_argument("--host", default=None, help="Bind address (default 127.0.0.1)")
     bassa_parser.add_argument("--port", type=int, default=None, help="Port (default 8765, or BASSA_EXPLORER_PORT)")
@@ -654,6 +713,8 @@ def main():
     feature_extraction.add_argument("-f", "--feather_directory", default=".", help="Directory of feather files set to extract features from.")
 
     args = parser.parse_args()
+    if args.command == "bassa_setup":
+        return run_bassa_setup(args.dir, args.python)
     if args.command in ("bassa_explorer", "bassa"):
         return run_bassa_explorer(cases=args.cases, host=args.host, port=args.port,
                                   open_browser=not args.no_browser, bassa_python=args.bassa_python)

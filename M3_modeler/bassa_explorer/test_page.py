@@ -20,7 +20,7 @@ CHROME = S["chrome"]
 
 
 def title(url):
-    r = subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--virtual-time-budget=60000", "--dump-dom", url], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+    r = subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--virtual-time-budget=240000", "--dump-dom", url], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)      # a large case (688 rows) and a busy machine: 60 s of page time was not enough
     m = re.search(r"<title>(.*?)</title>", r.stdout, re.S); return m.group(1) if m else "no title: " + r.stderr[-300:]
 
 

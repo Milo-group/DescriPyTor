@@ -69,7 +69,7 @@ def test_a_new_table_says_what_it_needs_without_the_sampler(server):
     q = urllib.request.Request(url + "run", data=json.dumps(dict(csv=(TOOL / "example_small.csv").read_text(), response="ddG")).encode(), headers={"Content-Type": "application/json"})
     with pytest.raises(urllib.error.HTTPError) as e:
         urllib.request.urlopen(q, timeout=30)
-    assert "bassa-reg" in json.loads(e.value.read())["error"]
+    assert "bassa_setup" in json.loads(e.value.read())["error"]          # the one command that installs it
 
 
 def test_the_three_pages_have_one_address_each(server):
@@ -242,3 +242,75 @@ def test_the_other_server_starts_from_the_package_not_from_the_current_folder(tm
         assert launch in src.read_text(encoding="utf-8"), src.name           # the commands the two servers run are this one
     r = subprocess.run([sys.executable, "-c", launch, str(ROOT), "-h"], cwd=str(tmp_path), capture_output=True, text=True)
     assert r.returncode == 0 and "usage: descripytor" in r.stdout, r.stderr[-300:]
+
+
+def _post(url, path, body, headers=None):
+    q = urllib.request.Request(url + path, data=json.dumps(body).encode(), headers=dict({"Content-Type": "application/json"}, **(headers or {})))
+    try: return 200, json.loads(urllib.request.urlopen(q, timeout=30).read())
+    except urllib.error.HTTPError as e: return e.code, json.loads(e.read() or b"{}")
+
+
+def test_tables_as_excel_and_pandas_write_them_and_the_split_labels():
+    code = (
+        "import server as S\n"
+        "rows = ['L%d,%d,%d,%d,%d,%d,%.2f' % (i, i, i * i % 7, i * 3 % 5, i % 4, i * 7 % 11, 0.3 * i + i % 3) for i in range(1, 13)]\n"
+        "base = 'name,a,b,c,d,e,y\\n' + '\\n'.join(rows)\n"
+        "n = lambda text, r='y': S.table(dict(csv=text, response=r))\n"
+        "for text in (base, base.replace(',', ';').replace('.', ','), base.replace(',', '\\t'), '\\ufeff' + base,\n"
+        "             ',' + base.split('\\n')[0] + '\\n' + '\\n'.join('%d,%s' % (k, r) for k, r in enumerate(rows))):\n"
+        "    X, y, bad, skipped, ext = n(text); assert len(y) == 12 and list(X.columns) == ['a', 'b', 'c', 'd', 'e'], text[:40]\n"
+        "split = 'name,set,a,b,c,d,e,y\\n' + '\\n'.join(r.split(',')[0] + (',validation,' if k > 9 else ',train,') + ','.join(r.split(',')[1:]) for k, r in enumerate(rows))\n"
+        "X, y, bad, skipped, ext = n(split); assert len(y) == 10 and ext['names'] == ['L11', 'L12']          # validation: held out, never fitted\n"
+        "def refused(text, words, r='y'):\n"
+        "    try: n(text, r)\n"
+        "    except ValueError as e: assert all(w in str(e) for w in words), str(e); return\n"
+        "    raise AssertionError('accepted: ' + text[:40])\n"
+        "refused(split.replace('validation', 'dev'), ['dev', 'train'])          # an unknown label is refused, not fitted\n"
+        "refused(base.replace('name,a,b,', 'name,a,a,', 1), ['twice'])\n"
+        "refused(base, ['ddG', 'The columns are'], 'ddG')\n"
+        "refused('hello world\\nfoo bar\\n', ['1 column'])\n"
+    )
+    r = subprocess.run([sys.executable, "-c", code], cwd=str(TOOL), capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr[-800:]
+
+
+def test_keep_asks_before_replacing_and_the_source_is_not_served(server):
+    url, cases = server
+    t = (TOOL / "example.js").read_text(encoding="utf-8"); case = json.loads(t[t.index("] = ") + 4:-2])
+    assert _post(url, "keep", dict(name="mine", case=case))[0] == 200
+    code, out = _post(url, "keep", dict(name="mine", case=case))
+    assert code == 400 and "already kept" in out["error"]                    # the page asks, then sends overwrite
+    assert _post(url, "keep", dict(name="mine", case=case, overwrite=True))[0] == 200
+    for f in ("server.py", "settings.py", "engine.py"):
+        with pytest.raises(urllib.error.HTTPError) as e:
+            _get(url + f)
+        assert e.value.code == 404
+    assert _post(url, "cancel?job=nope", {})[1] == {"ok": False}          # stopping an unknown job is harmless
+
+
+def test_a_server_on_the_network_wants_its_token(tmp_path):
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]
+    env = dict(os.environ, BASSA_EXPLORER_CASES=str(tmp_path / "cases"))
+    p = subprocess.Popen([sys.executable, str(TOOL / "server.py"), str(port), "127.0.0.2"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    url = f"http://127.0.0.2:{port}/"
+    try:
+        for _ in range(60):
+            try: page = _get(url); break
+            except Exception: time.sleep(0.5)
+        token = page.split("window.BASSA_TOKEN = ", 1)[1].split(";", 1)[0].strip('"')
+        t = (TOOL / "example.js").read_text(encoding="utf-8"); case = json.loads(t[t.index("] = ") + 4:-2])
+        assert _post(url, "keep", dict(name="net", case=case))[0] == 403          # no token: refused
+        assert _post(url, "keep", dict(name="net", case=case), {"X-Bassa-Token": token})[0] == 200
+    finally:
+        p.kill()
+
+
+def test_a_name_that_fits_two_molecules_is_not_guessed(tmp_path):
+    for f in ("4-Cl-Ph.xyz", "2-F-4-Cl.xyz", "4-Me.xyz"):
+        (tmp_path / f).write_text("1\n\nC 0 0 0\n", encoding="utf-8")
+    r = subprocess.run([sys.executable, str(TOOL / "read_structures.py"), str(tmp_path)], input=json.dumps(["4-Cl", "4-Me"]),
+                       capture_output=True, text=True, cwd=str(TOOL))
+    assert r.returncode == 0, r.stderr[-600:]
+    out = json.loads(r.stdout)
+    assert list(out["found"]) == ["4-Me"] and "several files fit" in out["missing"][0]

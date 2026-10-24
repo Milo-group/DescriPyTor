@@ -15,18 +15,31 @@ The molecule view is the package's [feature explorer](FEATURE_EXPLORER.md), fram
 
 | option | |
 |---|---|
-| `--cases DIR` | the folder where kept cases live; default `./bassa_cases` if it exists, else the folder last given with `--cases` (remembered in `~/.descripytor/bassa_cases`). Nothing is written inside the package |
-| `--bassa-python PYTHON` | the Python that has `bassa_reg` (`pip install -U "bassa-reg>=0.1.16"`; an older one is reported by the page and left unused), for running new tables. Default: the Python last given here (remembered in `~/.descripytor/bassa_python`), else the environment variable `DESCRIPYTOR_BASSA_PYTHON`, else the Python that runs the command |
+| `--cases DIR` | the folder where kept cases live; default `./bassa_cases` if it exists, else the folder last given with `--cases` (remembered in `~/.descripytor/bassa_cases`), else `~/.descripytor/cases`. Nothing is written inside the package |
+| `--bassa-python PYTHON` | the Python that has `bassa_reg` (`bassa-reg>=0.1.16,<0.2`), for running new tables; remembered. Default, first found: the environment variable `DESCRIPYTOR_BASSA_PYTHON`, else the Python remembered in `~/.descripytor/bassa_python` (by `bassa_setup` or an earlier `--bassa-python`), else the Python that runs the command. The start prints which one it uses |
 | `--port`, `--host`, `--no-browser` | as for the other pages; the default port is 8765 |
 
-Without `bassa_reg` the page still opens the example and every kept case; **New case…** then says what is missing.
+**Installing the sampler.** `bassa-reg` pins NumPy 2 and its other dependencies exactly; DescriPyTor needs NumPy < 2
+(its RDKit and PyArrow builds), so the two cannot share a Python. Run once:
+
+    descripytor bassa_setup            # makes ~/.descripytor/bassa_env with bassa-reg, checks it, remembers it
+
+Without `bassa_reg` the page still opens the example and every kept case; **New case…** says so when it opens, and still
+checks your table. The first run of a server compiles the sampler (about a minute). Drawing molecules loads RDKit.js and
+fonts from the web.
+
+**Your table.** First column the compound name (or two, acid and amine). Commas, semicolons or tabs; a decimal comma is
+read beside semicolons or tabs. A text column named `set`, `split` or `role` marks rows `train` (fitted) or `test`,
+`external`, `validation` (held out: never fitted, predicted and scored as external); any other label is refused. Columns
+with text, a missing value or one value are dropped and named; rows without a response are left out and named.
+**Better compounds have** a higher or a lower response: say which when you run it (it can be turned round later).
 Structures (`.feather`, `.log`, `.xyz`) are always read by the Python that runs the command.
 
 The sampler set-up is in `M3_modeler/bassa_explorer/`: `engine.py` (priors, chains) and `core_fixed.py`, a corrected copy
 of the sampler core. The released core is wrong when descriptors are correlated; `BASSA_CORE=package` runs it anyway.
 
-The other tools of the folder are scripts, run with the Python that has `bassa_reg` and `BASSA_EXPLORER_CASES` set to
-the cases folder:
+The other tools of the folder are scripts for a clone of the repository, run with the Python that has `bassa_reg` and
+`BASSA_EXPLORER_CASES` set to the cases folder:
 
     python M3_modeler/bassa_explorer/batch.py <folder of csv> --response y [--structures FOLDER] [--checks]
     python M3_modeler/bassa_explorer/influence_check.py <case> [descriptor]
@@ -43,7 +56,7 @@ measured values, and press **Model in BASSA explorer**. The table, the target an
 this page opens in a new tab and the run starts.
 
 The **BASSA explorer** link in the extractor's header starts this server if it is not running, with the cases folder and
-the Python remembered from the last `--cases` / `--bassa-python` (so `start_explorer.bat` once is enough). The server runs
+the Python remembered from the last `--cases` / `--bassa-python` (so starting it once with them is enough). The server runs
 on its own: restarting or closing the extractor does not stop it. If the server is gone, the page says so on the next
 action instead of failing silently.
 

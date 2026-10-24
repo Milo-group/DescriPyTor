@@ -383,6 +383,8 @@ def standalone(cases):
     """the page, the explorer and the given cases in one HTML file that needs no server (and so cannot run new tables)"""
     page_ = (H / "index.html").read_text(encoding="utf-8"); ex = (EXPLORER / "feature_explorer.html").read_text(encoding="utf-8")
     a, b = '<script src="manifest.js"></script>', 'src="feature_explorer.html?embed=figure"'; assert page_.count(a) == 1 and page_.count(b) == 2
+    # a file to pass around: no paths of this computer (structures folder, recipe), no copy of the uploaded table
+    cases = {k: {f: v for f, v in d.items() if f not in ("structures_dir", "extraction", "request")} for k, d in cases.items()}
     data = "<script>window.STANDALONE = true; window.CASES = " + json.dumps(cases).replace("</", "<\\/") + ";</script>"
     return page_.replace(a, data).replace(b, 'srcdoc="' + ex.replace("&", "&amp;").replace('"', "&quot;") + '"')
 

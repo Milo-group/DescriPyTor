@@ -5,7 +5,8 @@
   bassa_python     the Python running the server; new tables need `bassa_reg` in it (`descripytor bassa_explorer --bassa-python`)
   reader_python    BASSA_EXPLORER_READER: the Python that has pyarrow and the package's readers (default: the one that started the command)
   cases            BASSA_EXPLORER_CASES: the folder where kept cases live (default: ./bassa_cases if it exists, else the folder
-                   last given with `--cases`, remembered in ~/.descripytor/bassa_cases); never inside the package
+                   last given with `--cases`, remembered in ~/.descripytor/bassa_cases, else ~/.descripytor/cases, one place
+                   whatever folder the explorer is started from); never inside the package
   paper, cs2_feathers   BASSA_EXPLORER_PAPER, BASSA_EXPLORER_CS2_FEATHERS: only for rebuilding the prepared cases of the DescriPyTor paper
   chrome           CHROME: only for test_page.py
 """
@@ -33,7 +34,7 @@ def _cases():
             return kept
     except OSError:
         pass
-    return here
+    return REMEMBERED.parent / "cases"          # one place per user: a case kept today is in the menu tomorrow, from any folder
 
 
 CASES_DIR = _cases().resolve()

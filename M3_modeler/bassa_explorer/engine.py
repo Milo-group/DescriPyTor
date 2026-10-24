@@ -2,7 +2,7 @@
 
 `fit` and `usable` are taken unchanged from the DescriPyTor paper's engine.py (notes/analysis/bassa); the comparison
 methods of that file (forward selection, Lasso, exhaustive search) are not needed here and are left out.
-Needs `bassa_reg` (pip install bassa-reg).
+Needs `bassa_reg` (pip install "bassa-reg>=0.1.16,<0.2"; see TESTED below).
 """
 import os, tempfile
 from collections import Counter
@@ -19,8 +19,25 @@ ITER, BURN, TMP = 20000, 0.2, os.path.join(tempfile.gettempdir(), "bassa_explore
 # matrix, which is the candidate's row only when the candidate is the first active column. The default here is the
 # corrected copy, core_fixed.py. BASSA_CORE=package runs the released core instead.
 CORE = os.environ.get("BASSA_CORE", "fixed"); assert CORE in ("fixed", "package"), CORE
+# The copy was made from that commit and checked with bassa-reg 0.1.15 and 0.1.16. Another release may change the core it
+# replaces: a release outside TESTED is reported, and one whose core lacks a method the copy provides is refused, rather
+# than mixing a new sampler with an old core and quietly giving other numbers than the paper's.
+TESTED = ("0.1.15", "0.1.16")
 if CORE == "fixed":
+    import sys
+    from importlib.metadata import PackageNotFoundError, version
     import bassa_reg.spike_and_slab.spike_and_slab as _SS, core_fixed
+    try: BASSA_VERSION = version("bassa-reg")
+    except PackageNotFoundError: BASSA_VERSION = "unknown"
+    _own = {m for m in dir(core_fixed.SpikeAndSlabCore) if not m.startswith("_")}
+    _theirs = {m for m in dir(_SS.SpikeAndSlabCore) if not m.startswith("_")}
+    if not _theirs <= _own:
+        raise RuntimeError("bassa-reg %s has a sampler core this explorer does not know (new: %s). Install a tested release: "
+                           "pip install \"bassa-reg>=0.1.16,<0.2\", or run the released core with BASSA_CORE=package"
+                           % (BASSA_VERSION, ", ".join(sorted(_theirs - _own))))
+    if BASSA_VERSION not in TESTED:
+        print("bassa-reg %s is not one of the releases the corrected core was checked with (%s); results may differ from the paper's"
+              % (BASSA_VERSION, ", ".join(TESTED)), file=sys.stderr, flush=True)
     _SS.SpikeAndSlabCore = core_fixed.SpikeAndSlabCore
 
 FLOOR = 0.25

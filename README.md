@@ -50,11 +50,10 @@ pip install -e ".[dev]"
 pytest tests -q
 ```
 
-Optional extras, added the same way (`pip install "descripytor[bassa]"`, or `pip install -e ".[bassa]"` from a clone):
+Optional extras, added the same way (`pip install "descripytor[align]"`, or `pip install -e ".[align]"` from a clone):
 
 | Extra | Unlocks |
 |---|---|
-| `bassa` | `bassa-reg`, the spike-and-slab sampler behind new tables in the BASSA model explorer |
 | `align` | `torch`, for atom renumbering with [Conformaty](https://github.com/Milo-group/Conformaty) (install it too: `pip install git+https://github.com/Milo-group/Conformaty`) |
 | `engines` | mordred, deepchem, ase: extra descriptor engines |
 | `explain` | SHAP model reports |
@@ -161,7 +160,8 @@ theta explorer; `descripytor theta` and `/theta` still work.
 
 ```bash
 descripytor bassa_explorer                                   # http://127.0.0.1:8765, opens a bundled example
-descripytor bassa_explorer --cases my_cases --bassa-python C:/envs/bassa/python.exe
+descripytor bassa_setup                                      # once: the sampler's own environment, for new tables
+descripytor bassa_explorer --cases my_cases                  # kept cases in my_cases
 ```
 
 BASSA is a spike-and-slab sampler: instead of one winning equation it visits many models and reports how often each
@@ -177,16 +177,22 @@ descriptors, and the feature explorer on the right draws the descriptors of the 
   optionally, a folder of `.feather`, `.log` or `.xyz` files named like the compounds. Or arrive from the visual
   extractor with one click.
 - **Add chance line and nested Q²** reruns the sampler on 100 shuffles of the response and once per compound left out.
-- **Keep this case** stores it in the cases folder (`--cases`, default `./bassa_cases`); **Save as one file** writes a
+- **Keep this case** stores it in the cases folder (`--cases`; default `./bassa_cases` if it exists, else the folder last
+  given, else `~/.descripytor/cases`); **Save as one file** writes a
   single HTML that opens without a server.
 - Shift-click compounds in the plot to stack them, each with its own values.
 
-Running a new table needs the sampler: `pip install "descripytor[bassa]"`, or point `--bassa-python` (or the
-environment variable `DESCRIPYTOR_BASSA_PYTHON`) at a Python that has `bassa-reg`. Without it the page still opens the
-example and every kept case. **The corrected sampler core is the default**: the released `bassa-reg` core is wrong
+Running a new table needs the sampler: run `descripytor bassa_setup` once (or point `--bassa-python`, or the environment
+variable `DESCRIPYTOR_BASSA_PYTHON`, at a Python that has `bassa-reg>=0.1.16,<0.2`). The start says which Python it uses.
+Without it the page still opens the example and every kept case. Drawing molecules loads RDKit.js and fonts from the
+web, so the explorers need an internet connection the first time a page opens. **The corrected sampler core is the default**: the released `bassa-reg` core is wrong
 when descriptors are correlated, and the package runs its own corrected copy
 (`M3_modeler/bassa_explorer/core_fixed.py`). `BASSA_CORE=package` runs the released one instead.
 Manual: [docs/BASSA_EXPLORER.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/BASSA_EXPLORER.md).
+
+BASSA's sampler (`bassa-reg`) pins NumPy 2 and its other dependencies exactly, while DescriPyTor needs NumPy < 2, so it
+cannot be an extra of this package: `descripytor bassa_setup` makes it its own environment once (a few minutes) and the
+explorer uses it from then on.
 
 ---
 
@@ -216,6 +222,7 @@ Converters (they ask for their inputs)
 | `visual_extractor` | `--port` (7432), `--host`, `--no-browser` |
 | `feature_explorer` | `--mol NAME`, `--preset NAME`, `--port`, `--host`, `--no-browser` |
 | `bassa_explorer` | `--cases DIR`, `--bassa-python PYTHON`, `--port` (8765), `--host`, `--no-browser` |
+| `bassa_setup` | `--dir DIR` (default `~/.descripytor/bassa_env`), `--python PYTHON` |
 | `extractor` | `-i input.json`, `-o output_name`, `-f feather_dir` |
 | `model` | `-m {regression,classification}`, `-f features.csv`, `-t targets.csv`, `-y name`, `-j cores`, `--min-features`, `--max-features`, `--top-n`, `--threshold`, `--leave-out`, `--bool-parallel` |
 | `pipeline` | `{build,adopt,submit,status,retry,reset,watch,fetch} protocol.json` and its flags ([docs/PIPELINE.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/PIPELINE.md)) |
@@ -223,7 +230,8 @@ Converters (they ask for their inputs)
 Examples:
 
 ```bash
-# descriptors for the bundled benzenes, from the bundled atom choices
+# descriptors for the bundled benzenes, from the bundled atom choices (paths of a clone of this repository;
+# after pip install, use your own input file and feather folder)
 descripytor extractor -i descripytor/examples/feather_example/input_example.json \
                       -o feature_set -f descripytor/examples/feather_example
 
