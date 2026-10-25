@@ -881,6 +881,36 @@ if (typeof $3Dmol === "undefined") {
   .cv-stats.visible { display:block; }
   .cv-views { display:grid; gap:10px; min-width:0; } .cv-views.split { grid-template-columns:1fr 1fr; } #cvViewerB[hidden] { display:none; }
   .cv-views .cv-viewer { min-width:0; }
+  /* the analysis dock: results beside the molecule, so a click on a dot shows its structure without scrolling */
+  .cv-views { position:relative; }
+  .cv-views.docked { grid-template-columns:minmax(0,1fr) var(--dockw, 470px); }
+  .cv-views.docked.split { grid-template-columns:minmax(0,1fr) minmax(0,1fr) var(--dockw, 470px); }
+  .cv-views.docked.mini { grid-template-columns:minmax(0,1fr) 38px; }
+  .cv-views.docked.split.mini { grid-template-columns:minmax(0,1fr) minmax(0,1fr) 38px; }
+  .cv-dock { position:relative; min-width:0; }
+  .cv-dock[hidden] { display:none; }
+  .cv-dock-in {
+    position:absolute; inset:0; display:flex; flex-direction:column; overflow:hidden; container-type:inline-size;
+    background:rgba(255,255,255,.92); border:1px solid rgba(0,0,0,.06); border-radius:22px;
+    box-shadow:0 16px 40px rgba(20,40,80,.08); backdrop-filter:blur(12px);
+  }
+  .cv-dock-bar { display:flex; align-items:center; gap:6px; padding:9px 10px 7px 16px; border-bottom:1px solid rgba(0,0,0,.05); }
+  .cv-dock-bar b { font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  #cviewBody .cv-dock-bar button { min-height:24px; padding:0 8px; font-size:13px; line-height:22px; border-radius:8px; background:transparent; border:1px solid transparent; box-shadow:none; color:#5b6878; }
+  #cviewBody .cv-dock-bar button:hover { background:rgba(11,99,206,.08); color:#0B63CE; }
+  #cvDock .cv-ens-out { flex:1; overflow:auto; margin:0; padding:2px 12px 14px; }
+  #cvDock .cv-ens-out:empty { display:block; }
+  #cvDock .cv-ens-card { margin-top:8px; box-shadow:none; background:#fff; }
+  .cv-dock-grip { position:absolute; left:-8px; top:24px; bottom:24px; width:10px; cursor:col-resize; z-index:4; border-radius:8px; }
+  .cv-dock-grip:hover, .cv-dock-grip.drag { background:rgba(11,99,206,.18); }
+  .cv-views.mini .cv-dock-grip, .cv-views.mini #cvEnsOut, .cv-views.mini .cv-dock-bar > :not(#cvDockMin) { display:none; }
+  .cv-views.mini .cv-dock-bar { padding:10px 0; justify-content:center; border:0; }
+  @container (max-width:640px) { #cvDock .cv-newman, #cvDock .cv-ens-grid { grid-template-columns:1fr; } }
+  @media (max-width:1000px) {
+    .cv-views.docked, .cv-views.docked.split, .cv-views.docked.mini, .cv-views.docked.split.mini { grid-template-columns:1fr; }
+    .cv-dock { height:560px; } .cv-views.mini .cv-dock { height:44px; } .cv-dock-grip { display:none; }
+  }
+  #cvViews > #cvPickHint { background:rgba(255,248,238,.96); position:absolute; left:14px; bottom:14px; z-index:6; margin:0; max-width:min(520px, 60%); box-shadow:0 8px 24px rgba(20,40,80,.12); backdrop-filter:blur(8px); }
   .cv-pan { position:absolute; left:12px; top:12px; z-index:5; font:700 11px/1 system-ui; letter-spacing:.08em; color:#fff; background:rgba(15,23,42,.72); border-radius:999px; padding:5px 9px; pointer-events:none; backdrop-filter:blur(8px); }
   #cvList .cv-pill, #cvList button.cv-pill, span.cv-pill {
     min-height:0; padding:2px 8px; font-size:10.5px; font-weight:700; line-height:1.35;
@@ -1578,13 +1608,24 @@ if (typeof $3Dmol === "undefined") {
           <div class="cv-empty">The ensemble will sit here,<br>aligned, once you load it.</div>
         </div>
         <div id="cvViewerB" class="cv-viewer" hidden></div>
+        <div id="cvPickHint" class="cv-ens-sum" style="display:none"></div>
+        <aside id="cvDock" class="cv-dock" hidden aria-label="analysis of the ensemble">
+          <div class="cv-dock-grip" id="cvDockGrip" title="drag to make the panel wider or narrower"></div>
+          <div class="cv-dock-in">
+            <div class="cv-dock-bar"><b>Across the ensemble</b><span style="flex:1"></span>
+              <button type="button" id="cvDockWide" onclick="cvDockWide()" title="wide panel / back to the width you set">&#8596;</button>
+              <button type="button" id="cvDockMin" onclick="cvDockMin()" title="fold the panel to the edge, to see the whole molecule; click again to open it">&#8250;</button>
+              <button type="button" onclick="cvDockClose()" title="close the result">&times;</button></div>
+            <div id="cvEnsOut" class="cv-ens-out"></div>
+          </div>
+        </aside>
       </div>
     </div>
 
     <!-- across the ensemble: every loaded conformer, drawn or not -->
     <div class="cv-ens" id="cvEns">
       <div class="cv-ens-head"><b>Across the ensemble</b>
-        <span class="small">every conformer loaded (drawn or not), Boltzmann-weighted at 298 K within its file. Atom numbers from 1, as in the picker.</span></div>
+        <span class="small">every conformer loaded (drawn or not), Boltzmann-weighted at 298 K within its file. Atom numbers from 1, as in the picker. Results open in the panel beside the molecule.</span></div>
       <div class="cv-ens-row">
         <span class="cv-ens-tool"><b>Measure</b>
           <input id="cvMeasAtoms" type="text" placeholder="2 atoms: distance · 3: angle · 4: dihedral · two with ; to plot one against the other" style="width:300px" onkeydown="if(event.key==='Enter')cvEnsMeasure()" />
@@ -1627,8 +1668,6 @@ if (typeof $3Dmol === "undefined") {
         <span class="cv-ens-tool"><b>Flexibility</b>
           <button type="button" class="ok" onclick="cvEnsFlex()" title="how far each atom moves across the ensemble (Boltzmann-weighted RMSF after superposing the heavy atoms on the lowest conformer); colours the view">Map it</button></span>
       </div>
-      <div id="cvPickHint" class="cv-ens-sum" style="display:none"></div>
-      <div id="cvEnsOut" class="cv-ens-out"></div>
     </div>
 
   </div>
@@ -5404,6 +5443,40 @@ function cvSplitToggle() {
   setTimeout(() => { try { cvViewer3d.resize(); if (cvViewerB) cvViewerB.resize(); cvViewer3d.render(); if (cvViewerB) cvViewerB.render(); } catch (e) {} }, 60);
 }
 
+/* ── The dock: every ensemble result opens beside the molecule ── */
+function cvViewsResize() { requestAnimationFrame(() => { try { [cvViewer3d, cvViewerB].forEach(v => { if (v) { v.resize(); v.render(); } }); } catch (e) {} }); }
+function cvDockSync() {            // shown while there is a result; the viewers give it room
+  const out = $('cvEnsOut'), on = out.childNodes.length > 0 && out.textContent.trim() !== '', views = $('cvViews');
+  if ($('cvDock').hidden === !on) return false;
+  $('cvDock').hidden = !on; views.classList.toggle('docked', on); if (!on) views.classList.remove('mini');
+  cvViewsResize(); return true;
+}
+function cvDockClose() { window.cvEnsRedraw = null; $('cvEnsOut').innerHTML = ''; }
+function cvDockMin() { const v = $('cvViews'), mini = v.classList.toggle('mini'); $('cvDockMin').innerHTML = mini ? '&#8249;' : '&#8250;'; cvViewsResize(); }
+function cvDockWide() {
+  const v = $('cvViews'), cur = parseFloat(getComputedStyle(v).getPropertyValue('--dockw')) || 470, wide = Math.round(v.clientWidth * 0.62);
+  v.style.setProperty('--dockw', (cur >= wide - 4 ? (cvStore('cvDockW') || 470) : wide) + 'px'); v.classList.remove('mini'); cvViewsResize();
+}
+function cvStore(k, v) { try { if (v === undefined) return +localStorage.getItem(k) || 0; localStorage.setItem(k, v); } catch (e) { return 0; } }
+(function cvDockWire() {
+  const out = $('cvEnsOut'), views = $('cvViews'), grip = $('cvDockGrip'); if (!out || !views) return;
+  const w0 = cvStore('cvDockW'); if (w0) views.style.setProperty('--dockw', w0 + 'px');
+  // a tool run from below brings the molecule and its result back into view; redraws after a click on a dot do not scroll
+  let reveal = 0; const arm = () => { reveal = performance.now(); };
+  $('cvEns').addEventListener('click', e => { if (e.target.closest('button')) arm(); }, true);
+  $('cvEns').addEventListener('keydown', e => { if (e.key === 'Enter') arm(); }, true);
+  new MutationObserver(() => { cvDockSync();
+    if (reveal && performance.now() - reveal < 3000) { reveal = 0; out.scrollTop = 0; views.classList.remove('mini'); $('cvDockMin').innerHTML = '&#8250;';
+      const r = views.getBoundingClientRect(); if (r.top < 0 || r.bottom > innerHeight) views.scrollIntoView({ behavior: 'smooth', block: r.height > innerHeight ? 'start' : 'center' }); }
+  }).observe(out, { childList: true });
+  let drag = null;
+  grip.addEventListener('pointerdown', e => { drag = views.getBoundingClientRect(); grip.setPointerCapture(e.pointerId); grip.classList.add('drag'); e.preventDefault(); });
+  grip.addEventListener('pointermove', e => { if (!drag) return;
+    const w = Math.max(300, Math.min(drag.width - 300, drag.right - e.clientX)); views.style.setProperty('--dockw', Math.round(w) + 'px'); cvViewsResize(); });
+  grip.addEventListener('pointerup', () => { if (!drag) return; drag = null; grip.classList.remove('drag');
+    cvStore('cvDockW', parseFloat(views.style.getPropertyValue('--dockw')) || 470); cvViewsResize(); });
+})();
+
 /* ── Arrow keys over the viewer: the next conformer over the lowest ── */
 function cvStep(d) {
   const L = cvPlayList(); if (L.length < 2) return;
@@ -5463,26 +5536,46 @@ function cvPca2(X) {                               // the top two principal comp
   const tot = C.reduce((s, row, i) => s + row[i], 0) || 1;
   return { Y: Z.map(r => vecs.map(u => r.reduce((s, x, j) => s + x * u[j], 0))), expl: vals.map(v => v / tot) };
 }
-async function cvTsne(X, progress) {               // exact t-SNE (van der Maaten 2008), seeded from PCA so it is the same every run
-  const n = X.length, perp = Math.max(2, Math.min(30, Math.floor((n - 1) / 3))), D = new Float64Array(n * n);
-  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { let s = 0; for (let k = 0; k < X[i].length; k++) s += (X[i][k] - X[j][k]) ** 2; D[i * n + j] = D[j * n + i] = s; }
+// exact t-SNE (van der Maaten 2008), seeded from PCA so it is the same every run; it runs in a worker (cvTsne) so the page stays live
+async function cvTsneCore(X, progress) {
+  const n = X.length, d = X[0].length, perp = Math.max(2, Math.min(30, Math.floor((n - 1) / 3))), D = new Float64Array(n * n), F = new Float64Array(n * d);
+  X.forEach((r, i) => F.set(r, i * d));
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { let s = 0; for (let k = 0, a = i * d, b = j * d; k < d; k++) { const t = F[a + k] - F[b + k]; s += t * t; } D[i * n + j] = D[j * n + i] = s; }
   const P = new Float64Array(n * n), H0 = Math.log(perp);
-  for (let i = 0; i < n; i++) { let lo = -Infinity, hi = Infinity, beta = 1;
-    for (let t = 0; t < 60; t++) { let sum = 0, hs = 0; for (let j = 0; j < n; j++) { if (j === i) continue; const p = Math.exp(-D[i * n + j] * beta); P[i * n + j] = p; sum += p; hs += D[i * n + j] * p; }
-      const H = Math.log(sum || 1e-300) + beta * hs / (sum || 1e-300); for (let j = 0; j < n; j++) P[i * n + j] /= sum || 1;
+  for (let i = 0; i < n; i++) { let lo = -Infinity, hi = Infinity, beta = 1; const row = i * n;
+    for (let t = 0; t < 60; t++) { let sum = 0, hs = 0; for (let j = 0; j < n; j++) { if (j === i) continue; const p = Math.exp(-D[row + j] * beta); P[row + j] = p; sum += p; hs += D[row + j] * p; }
+      const H = Math.log(sum || 1e-300) + beta * hs / (sum || 1e-300), z = sum || 1; for (let j = 0; j < n; j++) P[row + j] /= z;
       if (Math.abs(H - H0) < 1e-5) break; if (H > H0) { lo = beta; beta = hi === Infinity ? beta * 2 : (beta + hi) / 2; } else { hi = beta; beta = lo === -Infinity ? beta / 2 : (beta + lo) / 2; } } }
   for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const v = Math.max((P[i * n + j] + P[j * n + i]) / (2 * n), 1e-12); P[i * n + j] = P[j * n + i] = v; }
-  const Y0 = cvPca2(X).Y, sc = Math.max(1e-9, ...Y0.map(r => Math.abs(r[0]))) / 1e-2;
-  const Y = Y0.map(r => [r[0] / sc, (r[1] || 0) / sc]), G = Y.map(() => [0, 0]), U = Y.map(() => [0, 0]), gains = Y.map(() => [1, 1]), Q = new Float64Array(n * n), IT = 600, eta = Math.max(50, n / 12);
+  // flat x,y pairs; each pair visited once per sweep, its force added to one end and taken from the other
+  const Y0 = cvPca2(X).Y, sc = Math.max(1e-9, ...Y0.map(r => Math.abs(r[0]))) / 1e-2, Y = new Float64Array(2 * n), U = new Float64Array(2 * n), G = new Float64Array(2 * n), gains = new Float64Array(2 * n).fill(1);
+  Y0.forEach((r, i) => { Y[2 * i] = r[0] / sc; Y[2 * i + 1] = (r[1] || 0) / sc; });
+  const Q = new Float64Array(n * (n - 1) / 2), IT = 600, eta = Math.max(50, n / 12);
   for (let it = 0; it < IT; it++) {
-    const ex = it < 120 ? 12 : 1, mom = it < 250 ? 0.5 : 0.8; let qs = 0;
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const q = 1 / (1 + (Y[i][0] - Y[j][0]) ** 2 + (Y[i][1] - Y[j][1]) ** 2); Q[i * n + j] = Q[j * n + i] = q; qs += 2 * q; }
-    for (let i = 0; i < n; i++) { let gx = 0, gy = 0; for (let j = 0; j < n; j++) { if (j === i) continue; const q = Q[i * n + j], m = (ex * P[i * n + j] - q / qs) * q; gx += m * (Y[i][0] - Y[j][0]); gy += m * (Y[i][1] - Y[j][1]); } G[i][0] = 4 * gx; G[i][1] = 4 * gy; }
-    for (let i = 0; i < n; i++) for (let k = 0; k < 2; k++) { gains[i][k] = Math.sign(G[i][k]) !== Math.sign(U[i][k]) ? gains[i][k] + 0.2 : Math.max(0.01, gains[i][k] * 0.8);
-      U[i][k] = mom * U[i][k] - eta * gains[i][k] * G[i][k]; Y[i][k] += U[i][k]; }
-    if (it % 40 === 0) { progress(it / IT); await new Promise(r => setTimeout(r, 0)); }
+    const ex = it < 120 ? 12 : 1, mom = it < 250 ? 0.5 : 0.8; let qs = 0, p = 0;
+    for (let i = 0; i < n; i++) { const xi = Y[2 * i], yi = Y[2 * i + 1]; for (let j = i + 1; j < n; j++) { const dx = xi - Y[2 * j], dy = yi - Y[2 * j + 1], q = 1 / (1 + dx * dx + dy * dy); Q[p++] = q; qs += q; } }
+    qs *= 2; const iq = 1 / qs; G.fill(0); p = 0;
+    for (let i = 0; i < n; i++) { const xi = Y[2 * i], yi = Y[2 * i + 1], row = i * n; let gx = 0, gy = 0;
+      for (let j = i + 1; j < n; j++) { const q = Q[p++], m = (ex * P[row + j] - q * iq) * q, dx = xi - Y[2 * j], dy = yi - Y[2 * j + 1]; gx += m * dx; gy += m * dy; G[2 * j] -= m * dx; G[2 * j + 1] -= m * dy; }
+      G[2 * i] += gx; G[2 * i + 1] += gy; }
+    for (let k = 0; k < 2 * n; k++) { const g = 4 * G[k]; gains[k] = Math.sign(g) !== Math.sign(U[k]) ? gains[k] + 0.2 : Math.max(0.01, gains[k] * 0.8);
+      U[k] = mom * U[k] - eta * gains[k] * g; Y[k] += U[k]; }
+    if (it % 40 === 0) { progress(it / IT); if (typeof window !== 'undefined') await new Promise(r => setTimeout(r, 0)); }
   }
-  return Y;
+  return Array.from({ length: n }, (_, i) => [Y[2 * i], Y[2 * i + 1]]);
+}
+let cvTsneW = null;
+function cvTsne(X, progress) {       // the newest request wins: a map asked for again stops the run before it
+  if (cvTsneW) { cvTsneW.terminate(); cvTsneW.done && cvTsneW.done(null); cvTsneW = null; }
+  let w; try { w = new Worker(URL.createObjectURL(new Blob([`${cvPca2}
+${cvTsneCore}
+onmessage = async e => postMessage({ Y: await cvTsneCore(e.data, f => postMessage({ f })) });`], { type: 'text/javascript' }))); }
+  catch (e) { return cvTsneCore(X, progress); }         // no workers here (a locked-down page): the same code on this thread
+  cvTsneW = w;
+  return new Promise(ok => { w.done = ok;      // null when superseded: the caller's sequence check drops it
+    w.onmessage = e => { if (e.data.Y) { w.terminate(); if (cvTsneW === w) cvTsneW = null; ok(e.data.Y); } else progress(e.data.f); };
+    w.onerror = e => { w.terminate(); if (cvTsneW === w) cvTsneW = null; e.preventDefault(); ok(cvTsneCore(X, progress)); };
+    w.postMessage(X); });
 }
 let cvMapSeq = 0;
 async function cvEnsMap() {
@@ -5542,21 +5635,28 @@ function cvTorSet() {              // same numbering as the first file, duplicat
   files.forEach(g => { const z = g.reduce((a, c) => a + (c.w || 0), 0) || 1; g.forEach(c => ws.set(c, (c.w || 0) / z / files.length)); });
   return { cs: files.flat(), w: c => ws.get(c) || 0, files: files.length };
 }
-function cvVm(G, ang) {            // kernel weight of each of G bins on -180..180 for a value at ang
-  const r = Math.PI / 180; return Float64Array.from({ length: G }, (_, i) => Math.exp(CV_TOR_KAPPA * (Math.cos((-180 + (i + 0.5) * 360 / G - ang) * r) - 1)));
+const CV_VM_BINS = new Map();      // cos and sin of each bin centre, per bin count: cos(θ − a) = cos θ cos a + sin θ sin a, no cosine per bin
+function cvVm(G, ang, out) {       // kernel weight of each of G bins on -180..180 for a value at ang (into out when given)
+  let b = CV_VM_BINS.get(G);
+  if (!b) { b = [new Float64Array(G), new Float64Array(G)]; for (let i = 0; i < G; i++) { const t = (-180 + (i + 0.5) * 360 / G) * Math.PI / 180; b[0][i] = Math.cos(t); b[1][i] = Math.sin(t); } CV_VM_BINS.set(G, b); }
+  const r = ang * Math.PI / 180, ca = Math.cos(r), sa = Math.sin(r), C = b[0], S = b[1], o = out || new Float64Array(G);
+  for (let i = 0; i < G; i++) o[i] = Math.exp(CV_TOR_KAPPA * (C[i] * ca + S[i] * sa - 1));
+  return o;
 }
 function cvVmLine(vals, ws, G) {   // the weighted density along one dihedral, peak = 1
-  const m = new Float64Array(G); vals.forEach((a, k) => cvVm(G, a).forEach((v, i) => { m[i] += ws[k] * v; }));
-  let mx = 0; m.forEach(v => { if (v > mx) mx = v; }); return Array.from(m, v => v / (mx || 1));
+  const m = new Float64Array(G), buf = new Float64Array(G);
+  for (let k = 0; k < vals.length; k++) { cvVm(G, vals[k], buf); const w = ws[k]; for (let i = 0; i < G; i++) m[i] += w * buf[i]; }
+  let mx = 0; for (let i = 0; i < G; i++) if (m[i] > mx) mx = m[i]; return Array.from(m, v => v / (mx || 1));
 }
 function cvTorRamp(t) {            // white → sky → blue → navy
   const S = [[236, 244, 253], [160, 198, 242], [74, 128, 214], [27, 54, 128]], x = Math.min(0.999, Math.max(0, t)) * (S.length - 1), k = Math.floor(x), u = x - k;
   return S[k].map((v, j) => Math.round(v + (S[k + 1][j] - v) * u));
 }
 function cvTorImage(A, B, ws, G) { // the 2D density as a small picture; the browser smooths it when it is scaled up
-  const D = new Float64Array(G * G);
-  A.forEach((a, k) => { const ka = cvVm(G, a), kb = cvVm(G, B[k]); for (let j = 0; j < G; j++) { const f = ws[k] * kb[j]; if (f < 1e-9) continue; for (let i = 0; i < G; i++) D[j * G + i] += f * ka[i]; } });
-  let mx = 0; D.forEach(v => { if (v > mx) mx = v; });
+  const D = new Float64Array(G * G), ka = new Float64Array(G), kb = new Float64Array(G);
+  for (let k = 0; k < A.length; k++) { cvVm(G, A[k], ka); cvVm(G, B[k], kb); const w = ws[k];
+    for (let j = 0; j < G; j++) { const f = w * kb[j]; if (f < 1e-9) continue; for (let i = 0, o = j * G; i < G; i++) D[o + i] += f * ka[i]; } }
+  let mx = 0; for (let i = 0; i < D.length; i++) if (D[i] > mx) mx = D[i];
   const cv = document.createElement('canvas'); cv.width = cv.height = G; const ctx = cv.getContext('2d'), img = ctx.createImageData(G, G);
   for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) { const t = Math.sqrt(D[j * G + i] / (mx || 1)), o = ((G - 1 - j) * G + i) * 4;
     img.data.set([...cvTorRamp(t), Math.round(255 * Math.min(1, t * 1.3))], o); }
@@ -5597,7 +5697,12 @@ function cvEnsTorMap() {
   const order = cs.map((c, k) => k).sort((x, y) => ws[x] - ws[y] || (cs[x].on ? 1 : 0) - (cs[y].on ? 1 : 0));
   const rad = k => (2 + 6 * Math.sqrt(ws[k] * files)).toFixed(1);
   const tip = k => `${esc(cs[k].name)}${files > 1 ? ' · ' + esc(cs[k].src) : ''} · ${P.map((p, j) => 'τ' + (j + 1) + ' ' + V[j][k].toFixed(0) + '°').join(' · ')} · ΔE ${cs[k].dEg != null ? cs[k].dEg.toFixed(2) : '–'} · ${(100 * ws[k]).toFixed(1)} %${cs[k].fam != null ? ' · family ' + (cs[k].fam + 1) : ''}`;
-  const dot = (k, x, y) => { const c = cs[k]; return `<circle data-k="${cvConformers.indexOf(c)}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad(k)}" fill="${colour(c)}" fill-opacity="${c.on ? 1 : cvTorCol === 'one' ? 0.92 : 0.7}" stroke="${c.on ? '#0b1220' : cvTorCol === 'one' ? '#1d2733' : '#fff'}" stroke-width="${c.on ? 1.8 : cvTorCol === 'one' ? 0.9 : 0.8}"><title>${tip(k)}</title></circle>`; };
+  const look = c => [colour(c), c.on ? 1 : cvTorCol === 'one' ? 0.92 : 0.7, c.on ? '#0b1220' : cvTorCol === 'one' ? '#1d2733' : '#fff', c.on ? 1.8 : cvTorCol === 'one' ? 0.9 : 0.8];
+  const kOf = new Map(cs.map((c, k) => [c, k])), gIdx = cs.map(c => cvConformers.indexOf(c));
+  const dot = (k, x, y) => { const [f, fo, st, sw] = look(cs[k]); return `<circle data-k="${gIdx[k]}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad(k)}" fill="${f}" fill-opacity="${fo}" stroke="${st}" stroke-width="${sw}"><title>${tip(k)}</title></circle>`; };
+  const restyle = card => {        // a conformer drawn or hidden: recolour the dots in place (and lift the drawn ones), not the whole map
+    card.querySelectorAll('circle[data-k]').forEach(el => { const c = cvConformers[+el.dataset.k]; if (!kOf.has(c)) return; const [f, fo, st, sw] = look(c);
+      el.setAttribute('fill', f); el.setAttribute('fill-opacity', fo); el.setAttribute('stroke', st); el.setAttribute('stroke-width', sw); if (c.on) el.parentNode.appendChild(el); }); };
   const one = () => {               // a single dihedral: its density, and the conformers along it
     const H1 = 150, base = T + 70, path = `M${L},${base}` + lines[0].map((v, i) => `L${(L + (i + 0.5) / 120 * S * 1.6).toFixed(1)},${(base - 62 * v).toFixed(1)}`).join('') + `L${L + S * 1.6},${base}Z`, X1 = v => L + (v + 180) / 360 * S * 1.6;
     return `<svg viewBox="0 0 ${L + S * 1.6 + 16} ${H1 + 20}" width="100%" style="max-width:${L + S * 1.6 + 16}px" role="img" aria-label="density of one dihedral">
@@ -5606,18 +5711,19 @@ function cvEnsTorMap() {
       ${tick.map(v => `<text x="${X1(v)}" y="${base + 52}" text-anchor="middle" font-size="9.5" fill="#8a95a3">${v}</text>`).join('')}
       ${order.map(k => dot(k, X1(V[0][k]), base + 22)).join('')}
       <text x="${L + S * 0.8}" y="${H1 + 14}" text-anchor="middle" font-size="11" fill="#1d2733">${tau(0)}<tspan fill="#6b7482">${names[0]}</tspan></text></svg>`; };
-  const render = () => {
+  const render = (full) => {
     if (seq !== cvTorSeq) return;
+    const card = !full && $('cvEnsOut').querySelector(`.cv-tor[data-seq="${seq}"]`); if (card) return restyle(card);
     if (cvTorCol === 'fam' && !cs.some(c => c.fam != null)) cvFamilies(+(($('cvFamCut') || {}).value) || 1.0);
     const chips = [['one', 'one colour'], ['fam', 'family'], ['e', 'ΔE'], ...(srcs.length > 1 ? [['file', 'file']] : [])].map(([v, t]) =>
       `<button type="button" data-torcol="${v}" class="cv-chip${cvTorCol === v ? ' on' : ''}">${t}</button>`).join('');
     const key = cvTorCol === 'e' ? `<span style="color:#2563eb">lowest</span> → <span style="color:#dc2626">${eMax.toFixed(1)} kcal/mol</span>` : cvTorCol === 'fam' ? 'a colour per family (Families → Group, or Wells)' : cvTorCol === 'file' ? srcs.map((s, i) => `<span style="color:${CV_COLORS[i % CV_COLORS.length]}">&#9679;</span> ${esc(s)}`).join(' ') : `white, and <span style="color:#d97706">&#9679;</span> drawn`;
-    $('cvEnsOut').innerHTML = `<div class="cv-ens-card cv-tor"><h4>Torsion map · ${cs.length} conformer${cs.length > 1 ? 's' : ''}${files > 1 ? ' from ' + files + ' files' : ''}</h4>
+    $('cvEnsOut').innerHTML = `<div class="cv-ens-card cv-tor" data-seq="${seq}"><h4>Torsion map · ${cs.length} conformer${cs.length > 1 ? 's' : ''}${files > 1 ? ' from ' + files + ' files' : ''}</h4>
       <div class="cv-ens-sum">Shading: where the Boltzmann weight sits${files > 1 ? ' (each file counts equally)' : ''}, smoothed over about 20°; the curves on the edges are the same weight along each dihedral. Dots: one per conformer, size by weight · colour: ${key}. Hover a dot for its angles; click it to draw it.</div>
       <div class="cv-chips">${chips}</div>
       <div class="cv-tor-panels">${pairs.length ? pairs.map(([a, b], n) => `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px" role="img" aria-label="τ${a + 1} against τ${b + 1}">${frame[n]}${order.map(k => dot(k, X(V[a][k]), Y(V[b][k]))).join('')}</svg>`).join('') : one()}</div>
       <div class="cv-ens-sum" style="margin-top:6px">${'Most weight: ' + P.map((p, j) => `<b>τ${j + 1}</b> ${names[j]} near ${cvTorPeak(lines[j])}°`).join(' · ')}</div></div>`;
-    $('cvEnsOut').querySelectorAll('[data-torcol]').forEach(b => b.onclick = () => { cvTorCol = b.dataset.torcol; render(); });
+    $('cvEnsOut').querySelectorAll('[data-torcol]').forEach(b => b.onclick = () => { cvTorCol = b.dataset.torcol; render(true); });
   };
   cvEnsShow(render);
 }
