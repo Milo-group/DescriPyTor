@@ -302,6 +302,9 @@ Pages (each opens in the browser; the three link to each other):
 Batch commands:
   extractor          descriptors for a folder of .feather files, from an input file of atom choices
   model              search regression or classification models over a feature table
+  design             does a model find the best compounds, and which candidate to make next
+  joint              choose descriptors on related reactions together, each reaction with its own weights
+  forms              logistic link for yields, a GP / forest ceiling, threshold analysis
   pipeline           SMILES -> structures -> chained cluster stages (GOAT / UMA / xTB / ORCA / Gaussian)
   renumber           number every molecule of a folder like a reference (Conformaty)
 
@@ -316,6 +319,9 @@ CLI_EPILOG = """examples:
   descripytor bassa_explorer --cases my_cases
   descripytor extractor -i input.json -o features -f feathers/
   descripytor model -m regression -f features.csv -t targets.csv --min-features 2 --max-features 3
+  descripytor design table.csv -y ddG --columns B1 loc_B5 --lower --candidates new.csv --batch 3
+  descripytor joint features.csv outcomes.csv --columns q_Ni q_donor_mean B1 L
+  descripytor forms table.csv -y yield --columns cone vbur --logit
   descripytor pipeline status protocol.json
   descripytor renumber feathers/ -r basic
 
@@ -680,6 +686,56 @@ def main():
                     "  retry    resubmit failures               reset    forget a run\n"
                     "  fetch    bring the outputs back          adopt    take over calculations that already exist\n"
                     "Manual: docs/PIPELINE.md.")
+    design_parser = subparsers.add_parser(
+        "design", help="Does a model find the best compounds; rank candidates for the next round", formatter_class=raw,
+        description="OLS on the chosen columns of a table (first column: compound names; one column the response).\n"
+                    "Reports, leave-one-out: how many of the best quarter are predicted in the best quarter (hypergeometric p),\n"
+                    "how far the best are under-predicted, and a leave-the-best-out test against shuffled responses.\n"
+                    "With --candidates: ranks new compounds (same columns) by expected improvement, with a prediction\n"
+                    "interval and a flag for compounds outside the measured domain (picked last unless --allow-outside).\n"
+                    "Read the predictions for rank, not size: the best are usually under-predicted.")
+    design_parser.add_argument("table", help="CSV: names, the response, descriptor columns")
+    design_parser.add_argument("-y", required=True, help="Response column")
+    design_parser.add_argument("--columns", nargs="+", help="Descriptor columns of the model (default: all but -y)")
+    design_parser.add_argument("--lower", action="store_true", help="Lower is better (e.g. a ΔΔG‡ that favours the other product)")
+    design_parser.add_argument("--k", type=int, help="How many count as the best (default: a quarter, rounded up)")
+    design_parser.add_argument("--null", type=int, default=20, help="Shuffles for the leave-the-best-out null (default 20)")
+    design_parser.add_argument("--candidates", help="CSV of new compounds to rank (names, the same columns)")
+    design_parser.add_argument("--batch", type=int, default=1, help="Candidates to pick (default 1)")
+    design_parser.add_argument("--allow-outside", action="store_true", help="Rank by expected improvement alone, inside the domain or not")
+    design_parser.add_argument("-o", "--output", help="Ranked candidates CSV (default: <candidates>_ranked.csv)")
+    design_parser.add_argument("--json", help="Write the report to this JSON file")
+    joint_parser = subparsers.add_parser(
+        "joint", help="Choose descriptors on related reactions together", formatter_class=raw,
+        description="Separate against joint descriptor selection over reactions run on the same compounds, leave-one-compound-out\n"
+                    "with the selection redone in every fold. Joint: one set of 1 to --max-terms columns for all reactions, each\n"
+                    "reaction fitted with its own coefficients (a descriptor may change sign between reactions). Responses are\n"
+                    "never averaged over reactions. Passes when the mean gain is >= 0.05, p < 0.05 and above shuffled partners.\n"
+                    "Keep the column pool small and chosen before looking at the responses: every pair is a candidate.")
+    joint_parser.add_argument("features", help="CSV: compound names, descriptor columns")
+    joint_parser.add_argument("outcomes", help="CSV, one row per compound and reaction (long format)")
+    joint_parser.add_argument("--name-col", default="name", help="Compound column of the outcomes (default name)")
+    joint_parser.add_argument("--reaction-col", default="reaction", help="Reaction column of the outcomes (default reaction)")
+    joint_parser.add_argument("--y-col", default="y", help="Response column of the outcomes (default y)")
+    joint_parser.add_argument("--columns", nargs="+", help="Descriptor pool (default: every column of the features)")
+    joint_parser.add_argument("--max-terms", type=int, default=2, choices=[1, 2, 3], help="Columns per model (default 2)")
+    joint_parser.add_argument("--null", type=int, default=200, help="Shuffles of the partner reactions (default 200)")
+    joint_parser.add_argument("-o", "--output", help="Write the per-reaction coefficients to this CSV")
+    forms_parser = subparsers.add_parser(
+        "forms", help="Logistic link, flexible ceiling, threshold analysis", formatter_class=raw,
+        description="Other model forms, each against OLS on the same compounds, leave-one-out:\n"
+                    "  --logit           binomial GLM on y/scale (yields): passes only if it beats OLS and clipped OLS\n"
+                    "  --ceiling         a Gaussian process and a random forest on all the columns: is linear enough?\n"
+                    "  --threshold VALUE one column and one cut separating y >= VALUE (or <= with --lower), chosen in every fold")
+    forms_parser.add_argument("table", help="CSV: names, the response, descriptor columns")
+    forms_parser.add_argument("-y", required=True, help="Response column")
+    forms_parser.add_argument("--columns", nargs="+", help="Descriptor columns (default: all but -y)")
+    forms_parser.add_argument("--logit", action="store_true", help="Logistic link against OLS")
+    forms_parser.add_argument("--scale", type=float, default=100.0, help="Upper bound of the response for --logit (default 100)")
+    forms_parser.add_argument("--ceiling", action="store_true", help="Gaussian process and random forest against OLS")
+    forms_parser.add_argument("--threshold", type=float, help="Response value that separates good from bad")
+    forms_parser.add_argument("--lower", action="store_true", help="With --threshold: lower is good")
+    forms_parser.add_argument("--null", type=int, default=200, help="Permutations for the nulls (default 200)")
     pipeline_parser.add_argument("action", choices=["build", "adopt", "submit", "status", "retry", "reset", "watch", "fetch"])
     pipeline_parser.add_argument("protocol", help="Protocol JSON (see docs/PIPELINE.md)")
     pipeline_parser.add_argument("--dry-run", action="store_true", help="submit/retry: show what would be sent, send nothing")
@@ -720,6 +776,9 @@ def main():
                                   open_browser=not args.no_browser, bassa_python=args.bassa_python)
     if args.command == "pipeline":
         return run_pipeline(args)
+    if args.command in ("design", "joint", "forms"):
+        from M3_modeler import commands
+        return getattr(commands, f"run_{args.command}")(args)
     if args.command == "renumber":
         return run_renumber(args)
     if args.command in ("feature_explorer", "theta"):

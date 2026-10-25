@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **Several reactions, other model forms, design** (`M3_modeler/joint.py`, `forms.py`, `design.py`; commands `descripytor joint`,
+  `forms`, `design`). Joint descriptor selection over related reactions with per-reaction weights; a logistic link for yields;
+  a Gaussian-process / random-forest ceiling; threshold analysis; top-quarter recovery, leave-the-best-out and a ranking of
+  candidates by expected improvement with a prediction interval and a domain flag. Each ports a pre-registered test of the
+  paper notes and reproduces its numbers (BUNNY joint selection +0.283, p 0.024; Kraken logistic link 0.27 → 0.45; CS2 and
+  cyclopropanation top-quarter recovery). `tests/test_modeling_design.py`.
+- **Feature extraction vectorized, same numbers** (Sterimol scan and circles, fragment search, bond rules, vibrations; feathers
+  read once; loading serial by default). Checked bit for bit against the previous code on four feather sets.
+- **Conformer Viewer:** results open in a panel beside the molecule; t-SNE in a worker; an opacity slider; simpler controls.
+
 ## 0.4.7 — 2026-10-24
 
 - **Conformer Viewer: torsions.** The Wells box is now Torsions, with three views of 1–3 dihedrals (left empty, it takes the

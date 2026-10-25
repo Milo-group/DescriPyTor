@@ -232,6 +232,33 @@ controls for the search itself. Each is checked against a number the paper depos
 
 Worked example: [docs/WORKFLOW.md §6](../docs/WORKFLOW.md#6-validating-a-model).
 
+## Several reactions, other model forms, design
+
+Three modules for what a single-reaction OLS cannot answer. Each was first a pre-registered test in the paper notes and
+reproduces that test's numbers; each judges itself against OLS on the same compounds and passes only when the gain is ≥ 0.05,
+the sign-flip p < 0.05 and the gain is above a permutation null's 95th percentile.
+
+| function | what it answers | paper check |
+|---|---|---|
+| `joint.joint_selection(Y, F)` | related reactions on the same compounds: choose the columns on all of them, fit each with its own weights (a column may flip sign); leave-one-compound-out, selection redone in every fold, null = shuffled partner reactions | BUNNY ΔΔG‡: q_Ni + q_donor_mean, gain +0.283, p 0.024 |
+| `joint.fit_joint(Y, F, columns)` | the per-reaction coefficients (raw and standardised) on all compounds | |
+| `forms.logistic_link(X, y)` | yields bounded at 0–100: binomial GLM against OLS and clipped OLS | Kraken cone + %Vbur: 0.27 → 0.45, p 0.005 |
+| `forms.flexible_ceiling(X, y, ref)` | a Gaussian process (ARD) and a random forest on the pool: is linear enough? | wins only where the linear model is weak |
+| `forms.threshold_analysis(F, labels)` | one column and one cut for good/bad, chosen inside every fold, with a permutation null | |
+| `design.top_k_recovery(y, pred)` | of the best quarter measured, how many are predicted in the best quarter (hypergeometric p), and how far the best are under-predicted | CS2 4 of 5, p 0.010; cyclopropanation 6 of 8, p 0.001 |
+| `design.leave_best_out(X, y)` | fit without the best quarter: are they still predicted above the rest? | |
+| `design.suggest(X, y, candidates, batch=3)` | rank new compounds by expected improvement, with a prediction interval and a domain flag; inside the domain first | CS2: picks L12 and L16, the two best of the five later ligands |
+
+Read design predictions for rank, not size: on all nine paper cases the best quarter is under-predicted (0.2–1.2 sd).
+
+```bash
+descripytor design table.csv -y ddG --columns B1 loc_B5 --lower --candidates new.csv --batch 3
+descripytor joint features.csv outcomes.csv --columns q_Ni q_donor_mean B1 L      # outcomes: name, reaction, y
+descripytor forms table.csv -y yield --columns cone vbur --logit --threshold 30
+```
+
+Keep the pool of `joint` small and chosen before looking at the responses: every pair of columns is a candidate model.
+
 ## Core Classes
 
 ### `LinearRegressionModel`
