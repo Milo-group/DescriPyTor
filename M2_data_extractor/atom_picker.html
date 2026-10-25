@@ -1553,6 +1553,12 @@ if (typeof $3Dmol === "undefined") {
                style="vertical-align:middle;width:80px">
         <span id="cvSpreadVal">0.00</span>&thinsp;&#8491;
       </label>
+      <label class="small" style="display:flex;align-items:center;gap:4px;" title="how solid the drawn conformers are. With several drawn, the one in focus (the one you clicked, else the reference) stays solid, so it reads against the faded rest">Opacity
+        <input type="range" id="cvOpacity" min="0.1" max="1" step="0.05" value="1"
+               oninput="$('cvOpacityVal').textContent=Math.round(100*this.value)+' %';cvRenderSoon()"
+               style="vertical-align:middle;width:80px">
+        <span id="cvOpacityVal">100 %</span>
+      </label>
       <label class="small" style="display:flex;align-items:center;gap:4px;">
         <input type="checkbox" id="cvShowLabels" onchange="cvRenderStack()" /> atom labels
       </label>
@@ -6577,7 +6583,7 @@ function cvRenderStack() {
     const pose = { key, atoms, rmsd: hit.rmsd, disp, dispMax, nAlign: indices.length, ok: true };
     c._pose = pose; return pose;
   };
-  const focus = cvDrawnFocus(draw);
+  const focus = cvDrawnFocus(draw), opAll = +(($('cvOpacity') || { value: 1 }).value) || 1;
   let focusPose = null;
   if ($('cvMoved') && $('cvMoved').checked && draw.length > 1 && focus) {
     if (focus === ref) focusPose = centeredRef;
@@ -6653,9 +6659,11 @@ function cvRenderStack() {
       const paint = cmode==='conf' ? {color:col} : cmode==='file' ? {color:fileCol.get(c.src)} : famc ? {color:famc} :
         cmode==='move' ? (c.disp ? {colorfunc: at => cvFlexColour(c.disp[at.serial - 1] || 0, c.dispMax || 1)} : {color:'#94a3b8'}) :
         flex ? {colorfunc: at => cvFlexColour(flex.rmsf[at.serial - 1], flex.max)} : {colorscheme:{prop:'elem', map:elemMap}};
-      if (style==='line') V.setStyle({model:vm},{line:{...paint,linewidth:3}});
-      else if (style==='stick') V.setStyle({model:vm},{stick:{...paint,radius:0.12}});
-      else V.setStyle({model:vm},{stick:{...paint,radius:0.10},sphere:{...paint,scale:0.22}});
+      // Opacity fades the drawn conformers; with several drawn, the one in focus (clicked, or the reference) stays solid
+      const op = draw.length > 1 && c === focus ? 1 : opAll;
+      if (style==='line') V.setStyle({model:vm},{line:{...paint,linewidth:3,opacity:op}});
+      else if (style==='stick') V.setStyle({model:vm},{stick:{...paint,radius:0.12,opacity:op}});
+      else V.setStyle({model:vm},{stick:{...paint,radius:0.10,opacity:op},sphere:{...paint,scale:0.22,opacity:op}});
       if (showLab) {
         spreadAtoms.forEach((a, ai) => {
           if (vm !== 0 && !picked.includes(ai + 1)) return;
