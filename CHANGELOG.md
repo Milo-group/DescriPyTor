@@ -8,6 +8,12 @@
   candidates by expected improvement with a prediction interval and a domain flag. Each ports a pre-registered test of the
   paper notes and reproduces its numbers (BUNNY joint selection +0.283, p 0.024; Kraken logistic link 0.27 → 0.45; CS2 and
   cyclopropanation top-quarter recovery). `tests/test_modeling_design.py`.
+- **Pool audit and validation controls from the paper notes** (`M3_modeler/audit.py`, `validation.py`,
+  `bassa_explorer/protocol.py`; commands `descripytor audit`, `bassa_protocol`). z-audit (degenerate vs outlier columns),
+  pool reduction by correlation clusters, conformer ICC and the reliability gate; family and slot nulls, TOST equivalence,
+  interval calibration, the nearest-neighbour domain flag; a kept BASSA case's protocol, chance line, seed check and
+  drop-one. Each reproduces its stored paper output (equivalence, calibration and applicability tables on all nine cases;
+  the 50-column pools; Wu–Doyle protocol deals, chance and drop-one bit for bit). `tests/test_audit_validation.py`.
 - **Feature extraction vectorized, same numbers** (Sterimol scan and circles, fragment search, bond rules, vibrations; feathers
   read once; loading serial by default). Checked bit for bit against the previous code on four feather sets.
 - **Conformer Viewer:** results open in a panel beside the molecule; t-SNE in a worker; an opacity slider; simpler controls.

@@ -229,8 +229,36 @@ controls for the search itself. Each is checked against a number the paper depos
 | `ridge_search.constraint_null(X, y, combos)` | nested R² when a given descriptor pair is required, for every pair |
 | `validation.selection_null(X, y, combos, n_perm=1000)` | the best score of the same search on permuted y: noise floor (`p95`) and p |
 | `validation.paired_sign_flip(y, pred_a, pred_b)` | which of two models is closer, sample by sample, with a sign-flip p |
+| `validation.family_null(X, y, family)` | the family's LOO Q² against random column sets of the same size: percentile and p |
+| `validation.slot_null(X, y, slot, family, k=3)` | in a search that must use a `slot` column, how often chance fills it with a `family` member |
+| `validation.equivalence(y, pred_a, pred_b)`, `pooled_equivalence(sets)` | TOST on ΔQ²: equivalent within a margin / different / underpowered |
+| `validation.calibration(protocol)` | coverage of a BASSA protocol run's 90 % intervals (5-fold, LOO with Wilson CI), best quarter |
+| `validation.domain_flags(X, w)`, `nn_distance`, `rank_check` | nearest-neighbour out-of-domain flag, and whether it ranks the error |
 
 Worked example: [docs/WORKFLOW.md §6](../docs/WORKFLOW.md#6-validating-a-model).
+
+## Before the search: audit the pool
+
+`audit` never reads the response. Run it on every table before a model sees it.
+
+| function | what it returns | paper check |
+|---|---|---|
+| `audit.zaudit(X, zcut=6)` | columns where one compound sits beyond `zcut` leave-one-out SDs; `degenerate` when the column's SD collapses without it (ratio < 0.25), else `outlier` | cc: `sub_B5_asym` degenerate (073_lig), `MR_B1_asym` (091_lig) |
+| `audit.reduce_pool(X, 50, tier=...)` | clean, cluster on 1 − \|r\|, one medoid per cluster (lowest tier first) | the paper's 50-column pools, cluster for cluster |
+| `audit.icc1(groups)`, `icc_bootstrap` | ICC(1) of a quantity over each molecule's conformers | |
+| `audit.reliability_gate(columns, icc_of)` | which columns to drop for conformer ICC < 0.50 | |
+
+```bash
+descripytor audit wide.csv -y ddG                     # z-audit
+descripytor audit wide.csv -y ddG --reduce 50 --drop "Stretch|^energy$"   # and the reduced table + its clusters
+```
+
+A kept BASSA case gets its full validation (20 deals of 5-fold + LOO, chance line, seed check, drop-one) from
+`bassa_explorer/protocol.py`, run under the sampler's Python:
+
+```bash
+descripytor bassa_protocol protocol my_case          # protocol_my_case.json; then chance / seed / drop_one
+```
 
 ## Several reactions, other model forms, design
 

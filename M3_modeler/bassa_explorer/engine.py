@@ -67,7 +67,7 @@ def usable(x, full=None):
 
 def held(X, y, tr, te, iters=ITER, seed=7, k=3, sig=(3, 0.4), tau=(1, 1), prior=None):
     """mean and 90 % interval of BASSA's predictive draws for the rows te, the sampler run on the rows tr (fit's set-up). A draw:
-    at a kept step, that step's model applied to the compound plus noise with that step's sigma (bassa_cases/ensemble_protocol.py)."""
+    at a kept step, that step's model applied to the compound plus noise with that step's sigma (protocol.py)."""
     x = usable(X[tr], X); dd = x.shape[1]; yv = np.asarray(y, float); a, b = inclusion_prior(dd, int(np.sum(tr)), k, prior)
     pri = SpikeAndSlabPriors(a_alpha_prior=a, a_beta_prior=b, sigma_alpha_prior=sig[0], sigma_beta_prior=sig[1], tau_alpha_prior=tau[0], tau_beta_prior=tau[1])
     cfg = SpikeAndSlabConfigurations(sampler_iterations=iters, save_meta_data=False, save_samples=False, seed=seed, turn_on_convergence_tracking=False, dont_save_anything=True, verbose=False)

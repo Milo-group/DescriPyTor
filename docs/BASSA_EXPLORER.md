@@ -209,7 +209,7 @@ adds the rest (listed at the end of this section). A link made before the plain 
   and the pill beside the case name says "near chance". Then the share of held-out values inside the 90 % interval
   (not shown when the first-fold check failed: `cv.d_ok` false) and the compound furthest off, with Q² without it.
   The plot shows the same left-out predictions with their intervals. These come from the case file (`cv`;
-  `cv.chance` and `cv.d_ok` are added by `attach_checks.py` in the cases folder). Every small **?** opens a drawing of that number.
+  `cv.d_ok` by `descripytor bassa_protocol protocol <case>`, `cv.chance` by `bassa_protocol chance <case>`). Every small **?** opens a drawing of that number.
 - **Your families** (tab): make the families yourself, in three steps shown at the top (pick, add look-alikes, use them).
   The map places every descriptor so that look-alikes sit together (classical scaling of 1 − |r|): size is how often BASSA
   used it, colour your family (faint: the page's family, as a suggestion), lines from the one in hand to its look-alikes

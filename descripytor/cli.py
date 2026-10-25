@@ -305,7 +305,9 @@ Batch commands:
   design             does a model find the best compounds, and which candidate to make next
   joint              choose descriptors on related reactions together, each reaction with its own weights
   forms              logistic link for yields, a GP / forest ceiling, threshold analysis
-  pipeline           SMILES -> structures -> chained cluster stages (GOAT / UMA / xTB / ORCA / Gaussian)
+  audit              columns one compound dominates (z-audit); cut a wide table to one column per correlation cluster
+  bassa_protocol     a kept BASSA case's validation: 20 deals of 5-fold + LOO, chance line, seed check, drop-one
+  pipeline          SMILES -> structures -> chained cluster stages (GOAT / UMA / xTB / ORCA / Gaussian)
   renumber           number every molecule of a folder like a reference (Conformaty)
 
 Converters (they ask for their inputs):
@@ -322,6 +324,8 @@ CLI_EPILOG = """examples:
   descripytor design table.csv -y ddG --columns B1 loc_B5 --lower --candidates new.csv --batch 3
   descripytor joint features.csv outcomes.csv --columns q_Ni q_donor_mean B1 L
   descripytor forms table.csv -y yield --columns cone vbur --logit
+  descripytor audit wide.csv -y ddG --reduce 50
+  descripytor bassa_protocol protocol my_case
   descripytor pipeline status protocol.json
   descripytor renumber feathers/ -r basic
 
@@ -361,28 +365,7 @@ def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bass
     env["BASSA_EXPLORER_PORT"] = str(port)                   # so the other pages' links find this server
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '') else host}:{port}/"
     print(f"\n  BASSA model explorer\n  Open:  {url}\n  Press Ctrl+C to stop\n", flush=True)
-    _ensure_project_on_path()
-    from M3_modeler.bassa_explorer.settings import REMEMBERED_PY
-    # the sampler's Python, first found wins: --bassa-python (and remembered), DESCRIPYTOR_BASSA_PYTHON, the one remembered
-    # from an earlier --bassa-python or bassa_setup, this Python. The start says which, so a remembered one is never a surprise.
-    source = "--bassa-python"
-    if bassa_python:                                        # remembered for starts without it (the visual extractor's link)
-        try:
-            REMEMBERED_PY.parent.mkdir(parents=True, exist_ok=True)
-            REMEMBERED_PY.write_text(str(bassa_python), encoding="utf-8")
-        except OSError:
-            pass
-    elif os.environ.get("DESCRIPYTOR_BASSA_PYTHON"):
-        bassa_python, source = os.environ["DESCRIPYTOR_BASSA_PYTHON"], "DESCRIPYTOR_BASSA_PYTHON"
-    else:
-        try:
-            kept = REMEMBERED_PY.read_text(encoding="utf-8").strip()
-            if Path(kept).is_file():
-                bassa_python, source = kept, "remembered in %s" % REMEMBERED_PY
-        except OSError:
-            pass
-    python = bassa_python or sys.executable
-    print("  Sampler Python: %s (%s)%s" % (python, source if bassa_python else "this one", chr(10)), flush=True)
+    python = _sampler_python(bassa_python)
     from M3_modeler.bassa_explorer import running
     already = running.state(port)
     if already in ("current", running.BUSY):                 # this version's server is up (or busy with a run): use it
@@ -410,6 +393,55 @@ def run_bassa_explorer(cases=None, host=None, port=None, open_browser=True, bass
         return subprocess.call([python, str(server), str(port), host], env=env)
     except KeyboardInterrupt:
         return 0
+
+
+def run_bassa_protocol(args):
+    """Run M3_modeler/bassa_explorer/protocol.py (validation protocol, chance line, seed check, drop-one) under the
+    sampler's Python, the one bassa_explorer uses. Returns its exit code."""
+    import subprocess
+    from pathlib import Path
+
+    script = Path(__file__).resolve().parents[1] / "M3_modeler" / "bassa_explorer" / "protocol.py"
+    env = dict(os.environ)
+    if args.cases_dir:
+        env["BASSA_EXPLORER_CASES"] = str(Path(args.cases_dir).resolve())
+    python = _sampler_python(args.bassa_python, remember=False)
+    rest = [args.check, *args.cases, "--deals", str(args.deals), "--shuffles", str(args.shuffles), "--seed", str(args.seed)]
+    rest += ["--no-loo"] * args.no_loo + ["--dry"] * args.dry
+    try:
+        return subprocess.call([python, str(script), *rest], env=env)
+    except KeyboardInterrupt:
+        return 1
+
+
+def _sampler_python(bassa_python=None, remember=True):
+    """The Python with bassa_reg, first found wins: ``bassa_python`` (remembered when ``remember``),
+    DESCRIPYTOR_BASSA_PYTHON, the one remembered from an earlier --bassa-python or bassa_setup, this Python.
+    Prints which, so a remembered one is never a surprise."""
+    from pathlib import Path
+
+    _ensure_project_on_path()
+    from M3_modeler.bassa_explorer.settings import REMEMBERED_PY
+    source = "--bassa-python"
+    if bassa_python:                                        # remembered for starts without it (the visual extractor's link)
+        if remember:
+            try:
+                REMEMBERED_PY.parent.mkdir(parents=True, exist_ok=True)
+                REMEMBERED_PY.write_text(str(bassa_python), encoding="utf-8")
+            except OSError:
+                pass
+    elif os.environ.get("DESCRIPYTOR_BASSA_PYTHON"):
+        bassa_python, source = os.environ["DESCRIPYTOR_BASSA_PYTHON"], "DESCRIPYTOR_BASSA_PYTHON"
+    else:
+        try:
+            kept = REMEMBERED_PY.read_text(encoding="utf-8").strip()
+            if Path(kept).is_file():
+                bassa_python, source = kept, "remembered in %s" % REMEMBERED_PY
+        except OSError:
+            pass
+    python = bassa_python or sys.executable
+    print("  Sampler Python: %s (%s)%s" % (python, source if bassa_python else "this one", chr(10)), flush=True)
+    return python
 
 
 def run_bassa_setup(where=None, python=None):
@@ -736,6 +768,39 @@ def main():
     forms_parser.add_argument("--threshold", type=float, help="Response value that separates good from bad")
     forms_parser.add_argument("--lower", action="store_true", help="With --threshold: lower is good")
     forms_parser.add_argument("--null", type=int, default=200, help="Permutations for the nulls (default 200)")
+    audit_parser = subparsers.add_parser(
+        "audit", help="Columns one compound dominates; cut a wide table by correlation clusters", formatter_class=raw,
+        description="Checks on a descriptor table that never read the response:\n"
+                    "  z-audit    for each column, how far the most extreme compound sits from the others (in their SD). A column\n"
+                    "             beyond --zcut whose SD collapses without that compound (ratio < 0.25) is degenerate: drop it\n"
+                    "             before any search (the cc sub_B1_asym retraction). Otherwise the compound is a real outlier: look at it.\n"
+                    "  --reduce N clean (incomplete, constant, < 4 levels, duplicate), cluster on 1 - |r|, keep one medoid per cluster")
+    audit_parser.add_argument("table", help="CSV: names, descriptor columns (and any response columns, named with -y)")
+    audit_parser.add_argument("-y", nargs="+", help="Response or label columns to leave out of the audit (kept in --reduce's table)")
+    audit_parser.add_argument("--zcut", type=float, default=6.0, help="|z| that flags a column (default 6)")
+    audit_parser.add_argument("--show", type=int, default=20, help="Flagged columns to print (default 20)")
+    audit_parser.add_argument("--reduce", type=int, help="Cut to this many columns, one per correlation cluster")
+    audit_parser.add_argument("--min-levels", type=int, default=4, help="--reduce: drop columns with fewer distinct values (default 4)")
+    audit_parser.add_argument("--drop", help="--reduce: regex of column names to drop first (e.g. 'Stretch|^energy$')")
+    audit_parser.add_argument("-o", "--output", help="Prefix of the written files (default: the table's name)")
+    protocol_parser = subparsers.add_parser(
+        "bassa_protocol", help="Validation of a kept BASSA case: deals of 5-fold + LOO, chance, seed, drop-one", formatter_class=raw,
+        description="The validation protocol of a case kept by bassa_explorer, with the sampler rerun in every fold:\n"
+                    "  protocol   20 deals of stratified 5-fold and leave-one-out: Q2, MAE, 90 % interval coverage -> protocol_<case>.json\n"
+                    "  chance     the response shuffled, one deal each: the chance line and its p -> chance_<case>.json\n"
+                    "  seed       the deals again with another sampler seed -> seed_<case>.json\n"
+                    "  drop_one   BASSA refitted without each compound: which compounds carry the model -> dropone_<case>.json\n"
+                    "Runs under the sampler's Python (as bassa_explorer). Each sampler run takes seconds; protocol is ~100 + n runs.\n"
+                    "Manual: " + DOCS + "BASSA_EXPLORER.md")
+    protocol_parser.add_argument("check", choices=["protocol", "chance", "seed", "drop_one"])
+    protocol_parser.add_argument("cases", nargs="+", help="Case names in the cases folder, or paths to their .js files")
+    protocol_parser.add_argument("--cases-dir", help="The cases folder (default: the one bassa_explorer uses)")
+    protocol_parser.add_argument("--deals", type=int, default=20, help="protocol: deals of 5-fold (default 20)")
+    protocol_parser.add_argument("--no-loo", action="store_true", help="protocol: skip leave-one-out")
+    protocol_parser.add_argument("--shuffles", type=int, default=20, help="chance: shuffles (default 20)")
+    protocol_parser.add_argument("--seed", type=int, default=11, help="seed: the other sampler seed (default 11)")
+    protocol_parser.add_argument("--dry", action="store_true", help="Write nothing; print only")
+    protocol_parser.add_argument("--bassa-python", default=None, help="The Python that has bassa_reg (default: as bassa_explorer)")
     pipeline_parser.add_argument("action", choices=["build", "adopt", "submit", "status", "retry", "reset", "watch", "fetch"])
     pipeline_parser.add_argument("protocol", help="Protocol JSON (see docs/PIPELINE.md)")
     pipeline_parser.add_argument("--dry-run", action="store_true", help="submit/retry: show what would be sent, send nothing")
@@ -776,7 +841,9 @@ def main():
                                   open_browser=not args.no_browser, bassa_python=args.bassa_python)
     if args.command == "pipeline":
         return run_pipeline(args)
-    if args.command in ("design", "joint", "forms"):
+    if args.command == "bassa_protocol":
+        return run_bassa_protocol(args)
+    if args.command in ("design", "joint", "forms", "audit"):
         from M3_modeler import commands
         return getattr(commands, f"run_{args.command}")(args)
     if args.command == "renumber":

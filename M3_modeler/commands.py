@@ -1,6 +1,6 @@
 """
-The `descripytor design`, `joint` and `forms` commands: read the CSVs, call design.py / joint.py / forms.py, print a short
-report and write the tables. Tables are keyed by compound name (the first column, read as text: a compound called "NA"
+The `descripytor design`, `joint`, `forms` and `audit` commands: read the CSVs, call design.py / joint.py / forms.py /
+audit.py, print a short report and write the tables. Tables are keyed by compound name (the first column, read as text: a compound called "NA"
 stays "NA").
 """
 from __future__ import annotations
@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from . import design, forms, joint
+from . import audit, design, forms, joint
 
 
 def _table(path):
@@ -128,3 +128,29 @@ def run_forms(args):
               f"(chance 0.50, null 95th {r['null95']:.2f}, p {r['p']:.3f}); columns chosen in the folds: {r['column_share_in_folds']}")
     if not (args.logit or args.ceiling or args.threshold is not None):
         raise SystemExit("choose at least one of --logit, --ceiling, --threshold VALUE")
+
+
+def run_audit(args):
+    t = _table(args.table)
+    X = t.drop(columns=[c for c in (args.y or []) if c in t.columns]).select_dtypes("number")
+    print(f"\n  {args.table}: {X.shape[0]} compounds, {X.shape[1]} numeric columns")
+    Z = audit.zaudit(X, zcut=args.zcut)
+    if Z.empty:
+        print(f"  No column has a compound beyond |z| {args.zcut:g} of the others.")
+    else:
+        print(f"  {len(Z)} columns with a compound beyond |z| {args.zcut:g} of the others "
+              f"({int((Z.kind == 'degenerate').sum())} degenerate: that compound carries the column's variance):")
+        print(Z.head(args.show).round(3).to_string(index=False))
+        if len(Z) > args.show:
+            print(f"  ... and {len(Z) - args.show} more")
+    stem = Path(args.output or Path(args.table).with_suffix(""))
+    if args.output or args.reduce:
+        Z.to_csv(f"{stem}_zaudit.csv", index=False)
+        print(f"  Wrote {stem}_zaudit.csv")
+    if args.reduce:
+        kept, cl = audit.reduce_pool(X, args.reduce, min_levels=args.min_levels, drop=args.drop)
+        keep_y = [c for c in (args.y or []) if c in t.columns]
+        pd.concat([t[keep_y], kept], axis=1).to_csv(f"{stem}_reduced.csv")
+        cl.to_csv(f"{stem}_clusters.csv", index=False)
+        print(f"  Reduced to {kept.shape[1]} columns, one per correlation cluster (response not read): "
+              f"wrote {stem}_reduced.csv and {stem}_clusters.csv")

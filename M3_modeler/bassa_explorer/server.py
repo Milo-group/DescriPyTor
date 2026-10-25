@@ -151,7 +151,7 @@ def run(q):
 
 def quick(job, X, y, K=5):
     """the ensemble model (BASSA's weights on all compounds) and one deal of stratified 5-fold with the sampler rerun in every fold:
-    the folds of ensemble_protocol.py's first deal, chains of QUICK_ITERS. Fills the page's ensemble card, verdict and intervals."""
+    the folds of protocol.py's first deal, chains of QUICK_ITERS. Fills the page's ensemble card, verdict and intervals."""
     try:
         sys.path.insert(0, str(BC.BASSA)); import engine as E
         yv = y.to_numpy(float); n = len(yv)
