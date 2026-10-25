@@ -190,11 +190,10 @@ def vibrations_dict_to_list(vibration_dict: dict, vibration_atom_nums: list[int]
 
 
 def calc_vibration_dot_product(extended_vib_df, coordinates_vector):
-    vibration_dot_product_list=[]
-    for i in range (extended_vib_df.shape[0]):
-        vibration_dot_product_list.append(abs(np.dot(extended_vib_df[[0,1,2]].iloc[i], coordinates_vector)) + abs(np.dot(extended_vib_df[[3,4,5]].iloc[i], coordinates_vector)))
-    # vibration_dot_product=abs(np.dot(extended_vib_df[[0,1,2]], coordinates_vector)) + abs(np.dot(extended_vib_df[[3,4,5]], coordinates_vector))
-    return vibration_dot_product_list
+    # the same dot per mode, on numpy rows rather than one pandas row lookup per mode
+    first = extended_vib_df[[0, 1, 2]].to_numpy(float)
+    second = extended_vib_df[[3, 4, 5]].to_numpy(float)
+    return [abs(np.dot(a, coordinates_vector)) + abs(np.dot(b, coordinates_vector)) for a, b in zip(first, second)]
 
 def extended_df_for_stretch(vibration_dict: dict, info_df:pd.DataFrame,atom_pair,threshhold: int = 1400, upper_threshold: int = 3500):
     vibration_array_pairs,_= vibrations_dict_to_list(vibration_dict, atom_pair)

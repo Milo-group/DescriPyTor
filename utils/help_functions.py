@@ -1107,57 +1107,45 @@ def extract_connectivity(xyz_df, threshold_distance=None, metals=None,
     distances = pdist(coordinates)
     dist_matrix = squareform(distances)
 
-    dist_df = pd.DataFrame(dist_matrix).stack().reset_index()
-    dist_df.columns = ['a1', 'a2', 'value']
-    dist_df['first_atom'] = [atoms_symbol[i] for i in dist_df['a1']]
-    dist_df['second_atom'] = [atoms_symbol[i] for i in dist_df['a2']]
-
-    remove_list = []
-    dist_array = np.array(dist_df)
     special_atoms = {'Cl', 'Br', 'F', 'I'}
     if threshold_distance is None:
         threshold_distance = DEFAULT_BOND_THRESHOLD
     flat = threshold_distance is not None
     radii = GeneralConstants.PYYKKO_RADII.value
 
-    for idx, row in enumerate(dist_array):
-        i, j, dist, atom1, atom2 = row
-        remove_flag = False
+    # The rules on every ordered pair at once (row i = atom1, column j = atom2), in the
+    # row-major order the pairs were once looped over, so the bonds keep their order.
+    n = len(atoms_symbol)
+    d = dist_matrix
+    sym1, sym2 = atoms_symbol[:, None], atoms_symbol[None, :]
+    h1, h2 = sym1 == 'H', sym2 == 'H'
+    nof2 = np.isin(atoms_symbol, XYZConstants.NOF_ATOMS.value)[None, :]
+    metal = np.isin(atoms_symbol, list(active_metals))
+    involves_metal = metal[:, None] | metal[None, :]
+    r = np.array([radii.get(s, 0.77) for s in atoms_symbol], float)
+    cov = scale * (r[:, None] + r[None, :])
 
-        if i == j:
-            remove_flag = True
-
-        if ((atom1 == 'H') and (atom2 not in XYZConstants.NOF_ATOMS.value)) or \
-           ((atom1 == 'H') and (atom2 == 'H')) or \
-           (flat and (atom1 == 'H' or atom2 == 'H') and float(dist) >= 1.5):
-            remove_flag = True
-
-        involves_metal = atom1 in active_metals or atom2 in active_metals
-
-        if not involves_metal:
-            limit = threshold_distance if flat else \
-                scale * (radii.get(atom1, 0.77) + radii.get(atom2, 0.77))
-            if float(dist) >= limit or float(dist) == 0:
-                remove_flag = True
-        else:
-            if float(dist) > metal_threshold or float(dist) == 0:
-                remove_flag = True
-            # A metal-H pair has to be a hydride, not an agostic contact (Cu...H 2.5-2.7 A);
-            # the flat rule got that from its 1.5 A limit on every H.
-            if not flat and 'H' in (atom1, atom2) and \
-                    float(dist) >= scale * (radii.get(atom1, 0.77) + radii.get(atom2, 0.77)):
-                remove_flag = True
-
+    remove = np.eye(n, dtype=bool)
+    remove |= (h1 & ~nof2) | (h1 & h2)
+    if flat:
+        remove |= (h1 | h2) & (d >= 1.5)
+    limit = threshold_distance if flat else cov
+    remove |= ~involves_metal & ((d >= limit) | (d == 0))
+    remove |= involves_metal & ((d > metal_threshold) | (d == 0))
+    if not flat:
+        # A metal-H pair has to be a hydride, not an agostic contact (Cu...H 2.5-2.7 A);
+        # the flat rule got that from its 1.5 A limit on every H.
+        remove |= involves_metal & (h1 | h2) & (d >= cov)
+    else:
         # Flat rule only: halogens bonded between threshold and 2.6 Å are allowed
         # (C–Br, C–I); the covalent rule already reaches them.
-        if flat and (atom1 in special_atoms or atom2 in special_atoms) and \
-           (threshold_distance <= float(dist) < 2.6) and not involves_metal:
-            remove_flag = False
+        halo = np.isin(atoms_symbol, list(special_atoms))
+        remove &= ~((halo[:, None] | halo[None, :]) & (threshold_distance <= d) & (d < 2.6) & ~involves_metal)
 
-        if remove_flag:
-            remove_list.append(idx)
-
-    dist_df = dist_df.drop(remove_list)
+    kept = np.flatnonzero(~remove.ravel())
+    a1, a2 = kept // n, kept % n
+    dist_df = pd.DataFrame({'a1': a1, 'a2': a2, 'value': d.ravel()[kept],
+                            'first_atom': atoms_symbol[a1], 'second_atom': atoms_symbol[a2]}, index=kept)
     dist_df[['min_col', 'max_col']] = pd.DataFrame(
         np.sort(dist_df[['a1', 'a2']], axis=1), index=dist_df.index
     )
@@ -1165,19 +1153,19 @@ def extract_connectivity(xyz_df, threshold_distance=None, metals=None,
     dist_df = dist_df.drop_duplicates(subset=[0, 1])
 
     # Keep only the closest bond per halogen (terminal halogens bond to one atom)
-    special_atoms_idxs = {}
-    for idx, row in dist_df.iterrows():
-        if row['first_atom'] in special_atoms:
-            special_atoms_idxs.setdefault(row[0], []).append((idx, row['value']))
-        if row['second_atom'] in special_atoms:
-            special_atoms_idxs.setdefault(row[1], []).append((idx, row['value']))
-
-    special_atoms_to_remove = []
-    for atom_idx, bonds in special_atoms_idxs.items():
-        if len(bonds) > 1:
-            bonds.sort(key=lambda x: x[1])
-            special_atoms_to_remove.extend([i for i, _ in bonds[1:]])
-    dist_df = dist_df.drop(special_atoms_to_remove)
+    # each row files under column 0 when its first atom is a halogen and under column 1 when its second is;
+    # per key the shortest stays (ties: the earlier filing), the rest go
+    halo_1 = dist_df['first_atom'].isin(special_atoms).to_numpy()
+    halo_2 = dist_df['second_atom'].isin(special_atoms).to_numpy()
+    pos = np.arange(len(dist_df))
+    key = np.concatenate([dist_df[0].to_numpy()[halo_1], dist_df[1].to_numpy()[halo_2]])
+    filed = np.concatenate([2 * pos[halo_1], 2 * pos[halo_2] + 1])
+    row_of = np.concatenate([pos[halo_1], pos[halo_2]])
+    value = dist_df['value'].to_numpy()[row_of]
+    order = np.lexsort((filed, value, key))
+    later = np.zeros(len(order), bool)
+    later[1:] = key[order][1:] == key[order][:-1]
+    dist_df = dist_df.drop(dist_df.index[row_of[order][later]])
 
     # For each metal centre keep only the max_coordination shortest bonds
     metal_mask = dist_df['first_atom'].isin(active_metals) | dist_df['second_atom'].isin(active_metals)

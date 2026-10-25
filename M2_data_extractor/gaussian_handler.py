@@ -42,9 +42,13 @@ def feather_file_handler(feather_file: str) -> List[Any]:
         'atom', 'x', 'y', 'z', 'dip_x', 'dip_y', 'dip_z', 'total_dipole', 'aniso', 'iso',
         'nbo_hirshfeld', 'hirshfeld_charge', 'cm5_charge', 'Frequency', 'IR'
     ]
+    # read once: a table already in memory (a Gaussian log parsed by gauss_file_handler) is read the same way,
+    # and the positional fallback below reuses it instead of opening the file again
+    raw = feather_file if isinstance(feather_file, pd.DataFrame) else pd.read_feather(feather_file)
     try:
-        # a table already in memory (a Gaussian log parsed by gauss_file_handler) is read the same way
-        data = feather_file.copy() if isinstance(feather_file, pd.DataFrame) else pd.read_feather(feather_file)
+        if 'atom' not in [str(c).strip() for c in raw.columns]:
+            raise KeyError('numbered columns: read by position')
+        data = raw.copy()
         # Optionally, fix column names in case they are not matching exactly
         data.columns = [c.strip() for c in data.columns]
 
@@ -96,7 +100,7 @@ def feather_file_handler(feather_file: str) -> List[Any]:
 
         return [df_dict, vib_dict, charge_dict]
     except Exception as e:
-        data = pd.read_feather(feather_file)
+        data = raw.copy(deep=False)
         data.columns = range(len(data.columns))
 
         # Extract core DataFrames

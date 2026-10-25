@@ -7,17 +7,13 @@ plt.ion()
 from utils.help_functions import *
 try:
     from extractor_utils.bond_graph import (
-        all_simple_paths_from,
         diameter_vertex_path,
         graph_from_bonds_df,
-        unique_atoms_on_paths,
     )
 except ImportError:
     from bond_graph import (
-        all_simple_paths_from,
         diameter_vertex_path,
         graph_from_bonds_df,
-        unique_atoms_on_paths,
     )
 
 
@@ -351,72 +347,13 @@ def get_transfomed_plane_for_sterimol(plane, degree):
     return plane @ rot_matrix.T
 
 
-def calc_B1(transformed_plane,avs,edited_coordinates_df,column_index):
-    """
-    Parameters
-    ----------
-    transformed_plane : np.array
-        [x,z] plane of the molecule coordinates.
-        example:
-            [-0.6868 -0.4964]
-            [-0.7384 -0.5135]
-            [-0.3759 -0.271 ]
-            [-1.1046 -0.8966]
-            [ 0.6763  0.5885]
-    avs : list
-        the max & min of the [x,z] columns from the transformed_plane.
-        example:[0.6763, -1.1046, 0.5885, -0.8966
-                 ]
-    edited_coordinates_df : TYPE
-        DESCRIPTION.
-    column_index : int
-        0 or 1 depending- being used for transformed plane.
-    """
-    
-    ## get the index of the min value in the column compared to the avs.min
-    idx=np.where(np.isclose(np.abs(transformed_plane[:,column_index]),(avs.min())))[0][0]  ## .round(4)
-   
-    if transformed_plane[idx,column_index]<0:
-       
-        new_idx=np.where(np.isclose(transformed_plane[:,column_index],transformed_plane[:,column_index].min()))[0][0]
-        bool_list=np.logical_and(transformed_plane[:,column_index]>=transformed_plane[new_idx,column_index],
-                                 transformed_plane[:,column_index]<=transformed_plane[new_idx,column_index]+1)
-        
-        transformed_plane[:,column_index]=-transformed_plane[:,column_index]
-    else:
-     
-        bool_list=np.logical_and(transformed_plane[:,column_index]>=transformed_plane[idx,column_index]-1,
-                                 transformed_plane[:,column_index]<=transformed_plane[idx,column_index])
-        
-    against,against_loc=[],[]
-    B1,B1_loc=[],[]
-
-    ### return the part of the transformed plane that b1 is calculated from
-    ### convert it back with the inverse matrix to get the original coordinates of b1 location
-    
-    for i in range(0,transformed_plane.shape[0]): 
-        if bool_list[i]:
-            against.append(np.array(transformed_plane[i,column_index]+edited_coordinates_df['radius'].iloc[i]))
-            against_loc.append(edited_coordinates_df['L'].iloc[i])
-        
-
-        if len(against)>0:
-        
-            B1.append(max(against))
-            B1_loc.append(against_loc[against.index(max(against))])
-          
-        else:
-       
-            B1.append(np.abs(transformed_plane[idx,column_index]+edited_coordinates_df['radius'].iloc[idx]))
-            B1_loc.append(edited_coordinates_df['radius'].iloc[idx])
-            
-            
-      
-    return [B1,B1_loc] 
-
 def b1s_for_loop_function(degree_list, plane):
     """
     Scan rotated planes over a list of angles and compute B1-related metrics.
+
+    Every angle at once: the planes are rotated in one batched product (bit for bit the
+    per-angle ``plane @ R.T``), and each angle's extents, B5 point and angles are read off
+    along the angle axis.
 
     Parameters
     ----------
@@ -428,72 +365,51 @@ def b1s_for_loop_function(degree_list, plane):
     Returns
     -------
     pd.DataFrame
-        Columns:
-        - degree
-        - B1
-        - B1_B5_angle
-        - b1_coords
-        - b5_value
-        - plane
+        Columns: degree, B1, B1_B5_angle, b1_coords, b5_value, plane, b1_normal.
     """
-    results = []
+    degrees = list(degree_list)
+    if not degrees:
+        return pd.DataFrame(columns=["degree", "B1", "B1_B5_angle", "b1_coords", "b5_value", "plane", "b1_normal"])
+    theta = np.deg2rad(np.asarray(degrees, dtype=float))
+    c, s = np.cos(theta), np.sin(theta)
+    rot_t = np.stack([np.stack([c, s], axis=1), np.stack([-s, c], axis=1)], axis=1)     # R.T for each angle
+    planes = np.matmul(plane[None, :, :], rot_t)                                        # (angles, points, 2)
 
-    for degree in degree_list:
-        transformed_plane = get_transfomed_plane_for_sterimol(plane, degree)
+    max_x, min_x = planes[:, :, 0].max(axis=1), planes[:, :, 0].min(axis=1)
+    max_y, min_y = planes[:, :, 1].max(axis=1), planes[:, :, 1].min(axis=1)
+    extents = np.abs(np.stack([max_x, min_x, max_y, min_y], axis=1))
+    min_index = np.argmin(extents, axis=1)
+    b1_value = extents[np.arange(len(degrees)), min_index]
+    on_x = min_index < 2
+    b1_x = np.where(min_index == 0, max_x, np.where(min_index == 1, min_x, 0.0))
+    b1_y = np.where(min_index == 2, max_y, np.where(min_index == 3, min_y, 0.0))
 
-        max_x = np.max(transformed_plane[:, 0])
-        min_x = np.min(transformed_plane[:, 0])
-        max_y = np.max(transformed_plane[:, 1])
-        min_y = np.min(transformed_plane[:, 1])
+    norms_sq = np.sum(planes ** 2, axis=2)
+    b5_point = planes[np.arange(len(degrees)), np.argmax(norms_sq, axis=1)]
+    b5_value = np.linalg.norm(b5_point, axis=1)
 
-        extents = np.array([abs(max_x), abs(min_x), abs(max_y), abs(min_y)])
-        min_index = int(np.argmin(extents))
-        b1_value = float(extents[min_index])
+    angle_b1 = np.arctan2(b1_y, b1_x) % (2 * np.pi)
+    angle_b5 = np.arctan2(b5_point[:, 1], b5_point[:, 0]) % (2 * np.pi)
+    angle_diff = np.abs(angle_b5 - angle_b1)
+    angle_diff = np.where(angle_diff > np.pi, 2 * np.pi - angle_diff, angle_diff)
 
-        if min_index == 0:
-            b1_coords = (float(max_x), 0.0)
-        elif min_index == 1:
-            b1_coords = (float(min_x), 0.0)
-        elif min_index == 2:
-            b1_coords = (0.0, float(max_y))
-        else:
-            b1_coords = (0.0, float(min_y))
+    # B1 plane normal in the original (pre-rotation) xz frame.
+    # The scan rotates the plane, t = R p, so a rotated axis is the original
+    # direction R^T applied to it: rotated x is [cos θ, -sin θ], rotated z is
+    # [sin θ, cos θ]. (R x̂ = [cos θ, sin θ] is the mirror image across x, and
+    # makes B1_B5_angle depend on how the frame is turned about the axis.)
+    # B1 minimum falls along the rotated x-axis (min_index 0/1) or z-axis (2/3).
+    normals = np.where(on_x[:, None], np.stack([c, -s], axis=1), np.stack([s, c], axis=1))
 
-        norms_sq = np.sum(transformed_plane ** 2, axis=1)
-        b5_index = int(np.argmax(norms_sq))
-        b5_point = transformed_plane[b5_index]
-        b5_value = float(np.linalg.norm(b5_point))
-
-        angle_b1 = np.arctan2(b1_coords[1], b1_coords[0]) % (2 * np.pi)
-        angle_b5 = np.arctan2(b5_point[1], b5_point[0]) % (2 * np.pi)
-        angle_diff = abs(angle_b5 - angle_b1)
-        if angle_diff > np.pi:
-            angle_diff = 2 * np.pi - angle_diff
-
-        # B1 plane normal in the original (pre-rotation) xz frame.
-        # The scan rotates the plane, t = R p, so a rotated axis is the original
-        # direction R^T applied to it: rotated x is [cos θ, -sin θ], rotated z is
-        # [sin θ, cos θ]. (R x̂ = [cos θ, sin θ] is the mirror image across x, and
-        # makes B1_B5_angle depend on how the frame is turned about the axis.)
-        # B1 minimum falls along the rotated x-axis (min_index 0/1) or z-axis (2/3).
-        theta = np.deg2rad(degree)
-        if min_index in (0, 1):
-            b1_normal = np.array([np.cos(theta), -np.sin(theta)])
-        else:
-            b1_normal = np.array([np.sin(theta), np.cos(theta)])
-
-        results.append({
-            "degree": degree,
-            "B1": b1_value,
-            "B1_B5_angle": float(np.degrees(angle_diff)),
-            "b1_coords": b1_coords,
-            "b5_value": b5_value,
-            "plane": transformed_plane,
-            "b1_normal": b1_normal,
-        })
-
-    return pd.DataFrame(results)
-
+    return pd.DataFrame({
+        "degree": degrees,
+        "B1": b1_value,
+        "B1_B5_angle": np.degrees(angle_diff),
+        "b1_coords": list(zip(b1_x.tolist(), b1_y.tolist())),
+        "b5_value": b5_value,
+        "plane": list(planes),
+        "b1_normal": list(normals),
+    })
 
 def preform_coordination_transformation(xyz_df, indices=None, origin=None):
     """
@@ -619,26 +535,25 @@ def direction_atoms_for_sterimol(bonds_df, base_atoms) -> list:
     
 
 def get_molecule_connections(bonds_df, source, direction, mode='all'):
+    """The atoms on the direction side of the source-direction bond, with the source (sorted).
+
+    These are exactly the atoms on simple paths that leave ``source`` through ``direction``:
+    everything ``direction`` reaches without passing back through ``source``. One breadth-first
+    search finds them, where enumerating the paths grows exponentially with the rings.
+    ``mode='shortest'``: the shortest such path, the bond itself.
+    """
     source, direction = int(source), int(direction)
-    bonds_df = bonds_df.copy()
-    graph = graph_from_bonds_df(bonds_df, directed=False)
-    if not graph.has_edge(source, direction):
-        graph.add_edge(source, direction)
-
-    paths = all_simple_paths_from(graph, source)
-    paths_with_start = [
-        path for path in paths
-        if len(path) >= 2 and path[0] == source and path[1] == direction
-    ]
-
-    if mode == 'all':
-        return unique_atoms_on_paths(paths_with_start)
-
     if mode == 'shortest':
-        if paths_with_start:
-            return min(paths_with_start, key=len)
-        return []
-    return unique_atoms_on_paths(paths_with_start)
+        return [source, direction]
+    graph = graph_from_bonds_df(bonds_df, directed=False)
+    graph.add_edge(source, direction)
+    seen, queue = {source, direction}, [direction]
+    while queue:
+        atom = queue.pop()
+        for nxt in graph.adj[atom]:
+            if nxt not in seen:
+                seen.add(nxt); queue.append(nxt)
+    return np.array(sorted(seen), dtype=int)
 
 
 def find_longest_simple_path(bonds_df):
@@ -688,18 +603,8 @@ def get_specific_bonded_atoms_df(bonds_df, longest_path, coordinates_df):
 
     # 2) Build bonds_array (zero-based indices)
     bonds_array = (edited_bonds_df.values - 1).astype(int)
-    # 3) Lookup atom names for each bond
-    atom_bonds_list = []
-    for i, bond in enumerate(bonds_array):
-        try:
-            coords = coordinates_df.iloc[bond]['atom'].values
-            atom_bonds_list.append(coords)
-        except Exception as e:
-
-            print(f"Error retrieving atom names for bond {i}: {bond} - {e}")
-
-    # 4) Stack into shape (n_bonds, 2)
-    atom_bonds = np.vstack(atom_bonds_list).reshape(-1, 2)
+    # 3) Atom names of both ends of every bond, shape (n_bonds, 2)
+    atom_bonds = coordinates_df['atom'].to_numpy()[bonds_array]
 
     # 5) Concatenate with edited_bonds_df
     bonded_atoms_df = pd.concat([pd.DataFrame(atom_bonds), edited_bonds_df], axis=1)
@@ -707,78 +612,9 @@ def get_specific_bonded_atoms_df(bonds_df, longest_path, coordinates_df):
     return bonded_atoms_df
 
 def scan_b1_over_angles(plane, degree_list):
-    """
-    Scan rotated planes over a list of angles and compute B1-related metrics.
-    
-    Parameters
-    ----------
-    plane : np.ndarray, shape (n_points, 2)
-        The original 2D steric point cloud.
-    degree_list : iterable of float
-        Angles in degrees to scan.
-    
-    Returns
-    -------
-    pd.DataFrame
-        Columns:
-        - degree
-        - B1
-        - B1_B5_angle
-        - b1_coords
-        - b5_value
-        - plane
-    """
-    results = []
+    """b1s_for_loop_function with the arguments the other way round (kept for its callers)."""
+    return b1s_for_loop_function(degree_list, plane)
 
-    for degree in degree_list:
-        transformed_plane = get_transfomed_plane_for_sterimol(plane, degree)
-
-        max_x = np.max(transformed_plane[:, 0])
-        min_x = np.min(transformed_plane[:, 0])
-        max_y = np.max(transformed_plane[:, 1])
-        min_y = np.min(transformed_plane[:, 1])
-
-        extents = np.array([abs(max_x), abs(min_x), abs(max_y), abs(min_y)])
-        min_index = int(np.argmin(extents))
-        b1_value = float(extents[min_index])
-
-        if min_index == 0:
-            b1_coords = (max_x, 0.0)
-        elif min_index == 1:
-            b1_coords = (min_x, 0.0)
-        elif min_index == 2:
-            b1_coords = (0.0, max_y)
-        else:
-            b1_coords = (0.0, min_y)
-
-        norms_sq = np.sum(transformed_plane ** 2, axis=1)
-        b5_index = int(np.argmax(norms_sq))
-        b5_point = transformed_plane[b5_index]
-        b5_value = float(np.linalg.norm(b5_point))
-
-        angle_b1 = np.arctan2(b1_coords[1], b1_coords[0]) % (2 * np.pi)
-        angle_b5 = np.arctan2(b5_point[1], b5_point[0]) % (2 * np.pi)
-        angle_diff = abs(angle_b5 - angle_b1)
-        if angle_diff > np.pi:
-            angle_diff = 2 * np.pi - angle_diff
-
-        theta = np.deg2rad(degree)            # normal = R^T axis, as in b1s_for_loop_function
-        if min_index in (0, 1):
-            b1_normal = np.array([np.cos(theta), -np.sin(theta)])
-        else:
-            b1_normal = np.array([np.sin(theta), np.cos(theta)])
-
-        results.append({
-            "degree": degree,
-            "B1": b1_value,
-            "B1_B5_angle": float(np.degrees(angle_diff)),
-            "b1_coords": b1_coords,
-            "b5_value": b5_value,
-            "plane": transformed_plane,
-            "b1_normal": b1_normal,
-        })
-
-    return pd.DataFrame(results)
 
 def get_b1s_list(extended_df, scans=1, plot_result=False):
     """
@@ -804,14 +640,10 @@ def get_b1s_list(extended_df, scans=1, plot_result=False):
         when the two supporting planes are near-equidistant; the directed value
         is passed through as B1_B5_azimuth.
     """
-    circles = []
-
-    for _, row in extended_df.iterrows():
-        circle_points = generate_circle(row["x"], row["z"], row["radius"],
-                                        n_points=STERIMOL_CIRCLE_POINTS)
-        circles.append(circle_points)
-
-    original_plane_xz = np.vstack(circles)
+    # every atom's circle at once, point for point what generate_circle draws, atom after atom
+    theta = np.linspace(0, 2 * np.pi, STERIMOL_CIRCLE_POINTS)
+    cx, cz, r = (extended_df[k].to_numpy(float)[:, None] for k in ("x", "z", "radius"))
+    original_plane_xz = np.column_stack(((cx + r * np.cos(theta)).ravel(), (cz + r * np.sin(theta)).ravel()))
 
     # Coarse scan on original geometry
     degree_list = list(range(18, 108, scans))

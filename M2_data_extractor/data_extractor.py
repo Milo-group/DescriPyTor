@@ -1478,13 +1478,8 @@ class Molecule:
         if extended_df.empty:
             raise ValueError(f"[get_bend_vibration_single] No modes found above threshold {threshold} for {self.molecule_name}")
 
-        cross_list, cross_mag_list = [], []
-        for i in range(extended_df.shape[0]):
-            cross = np.cross(extended_df[[0, 1, 2]].iloc[i], extended_df[[3, 4, 5]].iloc[i])
-            cross_list.append(cross)
-            cross_mag_list.append(np.linalg.norm(cross))
-
-        extended_df['Cross_mag'] = cross_mag_list
+        cross = np.cross(extended_df[[0, 1, 2]].to_numpy(float), extended_df[[3, 4, 5]].to_numpy(float))
+        extended_df['Cross_mag'] = [np.linalg.norm(c) for c in cross]
         extended_df.reset_index(drop=True, inplace=True)
 
         if min_share is not None:
@@ -1701,8 +1696,9 @@ def _molecules_worker_count(n_files):
         requested = 0
     if requested > 0:
         return max(1, min(requested, n_files))
-    cpu = os.cpu_count() or 1
-    return max(1, min(8, n_files, cpu))
+    # serial by default: parsing a molecule is Python work, and threads only queue on the interpreter lock
+    # (the 26-molecule example loads in 1.6 s serially and 4.0 s on 8 threads)
+    return 1
 
 
 class Molecules():

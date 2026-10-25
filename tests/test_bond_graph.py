@@ -79,3 +79,23 @@ def test_importing_data_extractor_does_not_need_igraph():
     import data_extractor  # noqa: F401
 
     assert "igraph" not in sys.modules
+
+
+def test_sterimol_fragment_search_matches_the_path_definition():
+    """sterimol_utils finds the fragment with one search; it must equal the atoms on the simple paths that
+    leave source through direction, here on fused rings, a ring with a tail, and a bond into a ring."""
+    from extractor_utils.sterimol_utils import get_molecule_connections
+    rng = np.random.default_rng(3)
+    graphs = [
+        pd.DataFrame({0: [1, 2, 3, 4, 5, 6, 3, 7, 8, 9], 1: [2, 3, 4, 5, 6, 1, 7, 8, 9, 4]}),      # naphthalene-like
+        pd.DataFrame({0: [1, 2, 3, 4, 5, 6, 6, 7, 8], 1: [2, 3, 4, 5, 6, 1, 7, 8, 9]}),            # ring with a tail
+    ]
+    for _ in range(6):                                                                           # random graphs with cycles
+        n = 12
+        edges = {(i, int(rng.integers(1, i))) for i in range(2, n + 1)} | {tuple(sorted(rng.choice(np.arange(1, n + 1), 2, replace=False).tolist())) for _ in range(4)}
+        graphs.append(pd.DataFrame(sorted(edges)))
+    for bonds in graphs:
+        for a, b in bonds.to_numpy().tolist():
+            for s, d in ((a, b), (b, a)):
+                assert list(get_molecule_connections(bonds, s, d)) == list(_connections(bonds, s, d)), (s, d)
+                assert list(get_molecule_connections(bonds, s, d, mode="shortest")) == list(_connections(bonds, s, d, mode="shortest"))
