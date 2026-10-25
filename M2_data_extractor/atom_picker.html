@@ -881,6 +881,36 @@ if (typeof $3Dmol === "undefined") {
   .cv-stats.visible { display:block; }
   .cv-views { display:grid; gap:10px; min-width:0; } .cv-views.split { grid-template-columns:1fr 1fr; } #cvViewerB[hidden] { display:none; }
   .cv-views .cv-viewer { min-width:0; }
+  /* the controls: a top row (load, act), one view strip, More */
+  .cvctrl-bar { gap:10px; }
+  .cv-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; }
+  .cv-strip { padding:7px 14px; column-gap:14px !important; background:rgba(244,247,252,.92); border:1px solid rgba(20,40,80,.06); border-radius:14px; gap:8px 16px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9); }
+  .cv-spacer { flex:1 1 0; }
+  .cv-sep { width:1px; align-self:stretch; min-height:20px; background:rgba(20,40,80,.1); }
+  .cv-f { display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:600; color:var(--muted); white-space:nowrap; }
+  .cv-f.cv-chk { font-weight:500; color:#415165; gap:5px; cursor:pointer; }
+  .cv-f input[type="checkbox"] { accent-color:#0B63CE; margin:0; }
+  .cv-f input[type="range"] { width:84px; }
+  .cv-strip select, .cv-ens-tool select { field-sizing:content; max-width:220px; padding-right:24px; }   /* as wide as the choice shown, not the longest option */
+  .cv-val { min-width:38px; font-weight:500; color:#415165; font-variant-numeric:tabular-nums; }
+  .cv-note { font-size:11.5px; color:var(--muted); }
+  #cviewBody:not(.adv) .cv-adv { display:none !important; }
+  #cviewBody .cv-adv.cv-strip { background:rgba(255,248,238,.8); border-color:rgba(255,159,10,.18); }
+  #cviewBody #cvMoreBtn[aria-pressed="true"] { background:#1d2733; color:#fff; border-color:#1d2733; }
+  #cviewBody button.cv-link { min-height:0; padding:0 2px; border:0; background:none; box-shadow:none; color:#0B63CE; font-size:12px; font-weight:600; }
+  #cviewBody button.cv-link:hover { text-decoration:underline; }
+  .cv-menu { position:relative; }
+  .cv-menu > summary { list-style:none; cursor:pointer; min-height:28px; padding:3px 14px; font-size:12.5px; border-radius:999px; display:inline-flex; align-items:center; gap:6px;
+    border:1px solid rgba(0,0,0,.1); background:#fff; user-select:none; }
+  .cv-menu > summary::-webkit-details-marker { display:none; }
+  .cv-menu > summary::after { content:""; width:6px; height:6px; border:solid currentColor; border-width:0 1.5px 1.5px 0; transform:translateY(-2px) rotate(45deg); opacity:.6; }
+  .cv-menu[open] > summary { border-color:rgba(0,122,255,.45); box-shadow:0 0 0 3px rgba(0,122,255,.12); }
+  .cv-menu-pop { position:absolute; right:0; top:calc(100% + 6px); z-index:30; min-width:220px; padding:6px; display:flex; flex-direction:column; gap:2px;
+    background:rgba(255,255,255,.97); border:1px solid rgba(0,0,0,.08); border-radius:14px; box-shadow:0 18px 40px rgba(20,40,80,.16); backdrop-filter:blur(12px); }
+  #cviewBody .cv-menu-pop button { justify-content:space-between; display:flex; width:100%; border:0; background:transparent; box-shadow:none; border-radius:9px; padding:6px 10px; text-align:left; }
+  #cviewBody .cv-menu-pop button:hover { background:rgba(11,99,206,.08); color:#0B63CE; }
+  .cv-menu-pop i { font-style:normal; font-size:10.5px; font-weight:700; letter-spacing:.06em; color:var(--muted); }
   /* the analysis dock: results beside the molecule, so a click on a dot shows its structure without scrolling */
   .cv-views { position:relative; }
   .cv-views.docked { grid-template-columns:minmax(0,1fr) var(--dockw, 470px); }
@@ -929,7 +959,7 @@ if (typeof $3Dmol === "undefined") {
   .cv-ens-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:10px; }
   .cv-pickbtn[aria-pressed="true"] { background:#7a4300; color:#fff; border-color:#7a4300; }
   .cv-ens-tool {
-    display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+    display:flex; flex-wrap:wrap; gap:6px; align-items:center; align-content:flex-start;
     padding:10px 12px 12px;
     background:rgba(255,255,255,.7);
     border:1px solid rgba(0,0,0,.06);
@@ -1484,10 +1514,9 @@ if (typeof $3Dmol === "undefined") {
   </div>
   <div class="cview-body" id="cviewBody">
 
-    <!-- controls strip -->
+    <!-- controls: load and act on top, the view in one strip, the rarely used under More -->
     <div class="cvctrl-bar">
-     <div class="cv-group">
-      <span class="cv-k">Load</span>
+     <div class="cv-row">
       <div id="cvDropZone" onclick="$('cvFileIn').click()"
            ondragover="event.preventDefault();this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
@@ -1496,13 +1525,24 @@ if (typeof $3Dmol === "undefined") {
       </div>
       <input type="file" id="cvFileIn" multiple style="display:none"
              onchange="cvLoadFileList(Array.from(this.files)); this.value=''" />
-      <button onclick="cvLoadCurrent()" title="Load the molecule currently shown in the main picker as a conformer">Current molecule</button>
       <button onclick="$('cvDirIn').click()" title="a GOAT or CREST results folder, or a folder of .feather / Gaussian .log / ORCA .out files: each file's geometry is loaded">Folder…</button>
       <input type="file" id="cvDirIn" webkitdirectory multiple style="display:none" onchange="cvLoadFolder(Array.from(this.files)); this.value=''" />
+      <button onclick="cvLoadCurrent()" title="Load the molecule currently shown in the main picker as a conformer">Current molecule</button>
+      <span class="cv-spacer"></span>
+      <button id="cvPlayBtn" onclick="cvPlay()" title="each conformer in turn over the lowest, lowest energy first">&#9654; Play</button>
+      <button type="button" onclick="cvHideAll()" title="Take every structure off the view. They stay in the list; click one to draw it again">Hide all</button>
+      <details class="cv-menu" id="cvSaveMenu"><summary title="save the drawn conformers, the view, the unique set or a table">Save</summary>
+        <div class="cv-menu-pop">
+          <button onclick="cvSaveXyz()" title="the conformers drawn now, as one multi-structure XYZ (their own coordinates and energies)">Drawn conformers <i>XYZ</i></button>
+          <button onclick="cvSaveUnique()" title="every conformer not folded as a duplicate, lowest first, within the Draw window when it is an energy window: the set to send on to DFT">Unique set <i>XYZ</i></button>
+          <button onclick="cvSavePng()" title="the view as a PNG">The view <i>PNG</i></button>
+          <button onclick="cvSaveCsv()" title="one row per conformer: file, energy, ΔE, weight, duplicate of, family, map coordinates and every Sterimol computed">Table <i>CSV</i></button>
+        </div></details>
+      <button type="button" id="cvMoreBtn" aria-pressed="false" onclick="cvAdvToggle()" title="settings most work does not need: spread, only what moved, equivalent atoms, carbons per conformer, the average structure, one energy scale">More</button>
+      <button class="cv-quiet" onclick="cvClearAll()" title="Remove all loaded conformers">Clear</button>
      </div>
-     <div class="cv-group">
-      <span class="cv-k">Show</span>
-      <label class="small" style="display:flex;align-items:center;gap:4px;" title="which conformers of each file are drawn; a click in the list still adds or removes one">Draw
+     <div class="cv-row cv-strip">
+      <label class="cv-f" title="which conformers of each file are drawn; a click in the list still adds or removes one">Draw
         <select id="cvDraw" onchange="cvApplyDraw(cvConformers, true)">
           <option value="n3">3 lowest</option>
           <option value="n5">5 lowest</option>
@@ -1510,93 +1550,71 @@ if (typeof $3Dmol === "undefined") {
           <option value="w2">within 2 kcal/mol</option>
           <option value="w3">within 3 kcal/mol</option>
           <option value="all">all</option>
-        </select>
-      </label>
-      <label class="small" style="display:flex;align-items:center;gap:4px;">Style
+        </select></label>
+      <label class="cv-f">Style
         <select id="cvStyle" onchange="cvRenderStack()">
           <option value="line">Line</option>
           <option value="stick">Stick</option>
           <option value="ball_stick" selected>Ball &amp; Stick</option>
-        </select>
-      </label>
-      <label class="small" style="display:flex;align-items:center;gap:4px;">Hydrogens
+        </select></label>
+      <label class="cv-f" title="by element shows the groups; the conformer's colour stays on its dot in the list">Colour
+        <select id="cvColour" onchange="cvRenderStack()">
+          <option value="elem">by element</option>
+          <option value="conf">one per conformer</option>
+          <option value="file">one per file</option>
+          <option value="fam">by family</option>
+          <option value="elemC" class="cv-adv-opt" hidden>by element, carbons per conformer</option>
+          <option value="flex" hidden>by flexibility (RMSF)</option>
+          <option value="move" hidden>by motion vs first drawn</option>
+        </select></label>
+      <label class="cv-f" title="how solid the drawn conformers are. With several drawn, the one in focus (the one you clicked, else the reference) stays solid, so it reads against the faded rest">Opacity
+        <input type="range" id="cvOpacity" min="0.1" max="1" step="0.05" value="1"
+               oninput="$('cvOpacityVal').textContent=Math.round(100*this.value)+' %';cvRenderSoon()">
+        <span id="cvOpacityVal" class="cv-val">100 %</span></label>
+      <label class="cv-f">Hydrogens
         <select id="cvH" onchange="cvRenderStack()">
           <option value="none">none</option>
           <option value="polar">on N, O, S</option>
           <option value="all" selected>all</option>
-        </select>
-      </label>
-      <label class="small" style="display:flex;align-items:center;gap:4px;" title="geometric guesses, within each conformer. H-bond: D–H···A with D, A = N, O, F, S, H···A 1.5–2.6 Å (S 3.0), angle at H ≥ 120°. Close contact: atoms at least 4 bonds apart, closer than the sum of their van der Waals radii (H···H left out)">Contacts
-        <select id="cvNC" onchange="cvRenderStack()">
+        </select></label>
+      <label class="cv-f" title="geometric guesses, within each conformer. H-bond: D–H···A with D, A = N, O, F, S, H···A 1.5–2.6 Å (S 3.0), angle at H ≥ 120°. Close contact: atoms at least 4 bonds apart, closer than the sum of their van der Waals radii (H···H left out)">Contacts
+        <select id="cvNC" onchange="cvRenderStack(); $('cvNCHow').hidden = this.value === 'off'">
           <option value="off">off</option>
           <option value="hb">H-bonds</option>
           <option value="all">H-bonds + close contacts</option>
-        </select>
-      </label>
-      <label class="small" style="display:flex;align-items:center;gap:4px;">Colour
-        <select id="cvColour" onchange="cvRenderStack()" title="by element shows the groups; the conformer's colour stays on its dot in the list">
-          <option value="elem">by element</option>
-          <option value="elemC">by element, carbons per conformer</option>
-          <option value="conf">one per conformer</option>
-          <option value="file">one per file</option>
-          <option value="fam">by family</option>
-          <option value="flex">by flexibility (RMSF)</option>
-          <option value="move">by motion vs first drawn</option>
-        </select>
-      </label>
-      <label class="small" style="display:flex;align-items:center;gap:4px;" title="The conformer you clicked stays whole. The others keep these colours and draw only atoms that moved by more than 0.4 Å.">
-        <input type="checkbox" id="cvMoved" onchange="cvRenderStack()" /> only what moved
-      </label>
-      <label class="small" style="display:flex;align-items:center;gap:4px;">Spread
-        <input type="range" id="cvSpread" min="0" max="5" step="0.25" value="0"
-               oninput="$('cvSpreadVal').textContent=parseFloat(this.value).toFixed(2);cvRenderSoon()"
-               style="vertical-align:middle;width:80px">
-        <span id="cvSpreadVal">0.00</span>&thinsp;&#8491;
-      </label>
-      <label class="small" style="display:flex;align-items:center;gap:4px;" title="how solid the drawn conformers are. With several drawn, the one in focus (the one you clicked, else the reference) stays solid, so it reads against the faded rest">Opacity
-        <input type="range" id="cvOpacity" min="0.1" max="1" step="0.05" value="1"
-               oninput="$('cvOpacityVal').textContent=Math.round(100*this.value)+' %';cvRenderSoon()"
-               style="vertical-align:middle;width:80px">
-        <span id="cvOpacityVal">100 %</span>
-      </label>
-      <label class="small" style="display:flex;align-items:center;gap:4px;">
-        <input type="checkbox" id="cvShowLabels" onchange="cvRenderStack()" /> atom labels
-      </label>
-      <button class="ok" onclick="cvRenderStack()">Render</button>
-      <label class="small" style="display:flex;align-items:center;gap:4px;" title="two linked panels: each conformer goes to A or B with the A/B button in the list; both are superposed on the same reference and turn together">
-        <input type="checkbox" id="cvSplit" onchange="cvSplitToggle()" /> split A | B</label>
-      <button id="cvPlayBtn" onclick="cvPlay()" title="each conformer in turn over the lowest, lowest energy first">&#9654; Play</button>
-      <button type="button" onclick="cvHideAll()" title="Take every structure off the view. They stay in the list; click one to draw it again">Hide all</button>
-     </div>
-     <div class="cv-group">
-      <span class="cv-k">Fit</span>
-      <label class="small" style="display:flex;align-items:center;gap:4px;">Align by
+        </select></label>
+      <button type="button" id="cvNCHow" class="cv-link" hidden onclick="cvEnsContacts()" title="how much of the ensemble's weight has each H-bond (and, with close contacts, each close contact)">how often?</button>
+      <label class="cv-f" title="what each conformer is superposed on. A ring that a molecule lacks falls back to its heavy atoms">Align by
         <select id="cvAlignMode" onchange="cvAlignModeChanged()">
-          <option value="benzene">Benzene ring (if present)</option>
-          <option value="ring5">5-membered ring (if present)</option>
-          <option value="atoms">Chosen atoms…</option>
-          <option value="heavy">Heavy atoms</option>
-          <option value="all">All atoms</option>
-          <option value="none">No alignment</option>
-        </select>
-      </label>
-      <span id="cvAlignAtomsBox" class="small" style="display:none;align-items:center;gap:4px;">
+          <option value="benzene">benzene ring</option>
+          <option value="ring5">5-membered ring</option>
+          <option value="atoms">chosen atoms…</option>
+          <option value="heavy">heavy atoms</option>
+          <option value="all">all atoms</option>
+          <option value="none">no alignment</option>
+        </select></label>
+      <span id="cvAlignAtomsBox" class="cv-f" style="display:none;">
         <input id="cvAlignAtoms" type="text" placeholder="click atoms in the view" title="atom numbers (1-based), at least 3; ranges like 1-6 work" style="width:150px" onchange="cvRenderStack()" />
         <button type="button" class="cv-pickbtn" data-target="cvAlignAtoms" aria-pressed="false" onclick="cvPickToggle('cvAlignAtoms')" title="numbers appear on the first conformer; click the atoms to fit on, click one again to drop it">&#9757; pick in view</button>
         <button type="button" onclick="cvUsePicked('cvAlignAtoms')" title="the atoms picked in the 3D picker above">use picked</button>
       </span>
-      <label class="small" style="display:flex;align-items:center;gap:4px;" title="list each geometry once. Copies that overlay within 0.05 Å fold on their own. A close match (0.05–0.15 Å, torsions agreeing) stays in the list until you accept it">
+      <label class="cv-f cv-chk" title="list each geometry once. Copies that overlay within 0.05 Å fold on their own. A close match (0.05–0.15 Å, torsions agreeing) stays in the list until you accept it">
         <input type="checkbox" id="cvDedup" checked onchange="cvDupChanged()" /> merge duplicates</label>
-      <label class="small" style="display:flex;align-items:center;gap:4px;" title="let identical atoms trade labels (nitro oxygens, CF3 fluorines, the two faces of a symmetric ring) before the RMSD. Auto-fold only at or below 0.05 Å. Needs the DescriPyTor server. Off: the atom numbers in the file, 0.25 Å">
-        <input type="checkbox" id="cvSym" checked onchange="cvDupChanged()" /> equivalent atoms</label>
+      <label class="cv-f cv-chk"><input type="checkbox" id="cvShowLabels" onchange="cvRenderStack()" /> labels</label>
+      <label class="cv-f cv-chk" title="two linked panels: each conformer goes to A or B with the A/B button in the list; both are superposed on the same reference and turn together">
+        <input type="checkbox" id="cvSplit" onchange="cvSplitToggle()" /> split A | B</label>
      </div>
-     <div class="cv-group">
-      <span class="cv-k">Keep</span>
-      <button onclick="cvSaveXyz()" title="the conformers drawn now, as one multi-structure XYZ (their own coordinates and energies)">XYZ</button>
-      <button onclick="cvSavePng()" title="the view as a PNG">PNG</button>
-      <button onclick="cvSaveUnique()" title="every conformer not folded as a duplicate, lowest first, within the Draw window when it is an energy window: the set to send on to DFT">Unique set</button>
-      <button onclick="cvSaveCsv()" title="one row per conformer: file, energy, ΔE, weight, duplicate of, family, map coordinates and every Sterimol computed">CSV</button>
-      <button class="cv-quiet" onclick="cvClearAll()" title="Remove all loaded conformers">Clear</button>
+     <div class="cv-row cv-strip cv-adv">
+      <span class="cv-k">More</span>
+      <label class="cv-f" title="pull the drawn conformers apart sideways, so overlapping ones can be told apart">Spread
+        <input type="range" id="cvSpread" min="0" max="5" step="0.25" value="0"
+               oninput="$('cvSpreadVal').textContent=parseFloat(this.value).toFixed(2)+' Å';cvRenderSoon()">
+        <span id="cvSpreadVal" class="cv-val">0.00 Å</span></label>
+      <label class="cv-f cv-chk" title="The conformer you clicked stays whole. The others keep these colours and draw only atoms that moved by more than 0.4 Å.">
+        <input type="checkbox" id="cvMoved" onchange="cvRenderStack()" /> only what moved</label>
+      <label class="cv-f cv-chk" title="let identical atoms trade labels (nitro oxygens, CF3 fluorines, the two faces of a symmetric ring) before the RMSD. Auto-fold only at or below 0.05 Å. Needs the DescriPyTor server. Off: the atom numbers in the file, 0.25 Å">
+        <input type="checkbox" id="cvSym" checked onchange="cvDupChanged()" /> equivalent atoms</label>
+      <span class="cv-note">also: Colour → carbons per conformer, Sterimol → average structure, Compare files → on one scale</span>
      </div>
     </div>
 
@@ -1646,33 +1664,31 @@ if (typeof $3Dmol === "undefined") {
           <label class="small" style="display:inline-flex;align-items:center;gap:4px;" title="φ on the first structure of each panel: the blue wedge from B1 around to B5.">
             <input type="checkbox" id="cvSterShow" onchange="cvRedrawKeep()" /> on the structures
           </label>
-          <label class="small" style="display:inline-flex;align-items:center;gap:4px;" title="φ of the average structure, in black, on both panels: the conformers' coordinates averaged with their Boltzmann weights after superposition, then measured. Not the Boltzmann mean of φ in the Sterimol table: averaging coordinates pulls a freely turning group in, so B5 and φ come out smaller. With both on, the average is the outer arc.">
+          <label class="small cv-adv" style="display:inline-flex;align-items:center;gap:4px;" title="φ of the average structure, in black, on both panels: the conformers' coordinates averaged with their Boltzmann weights after superposition, then measured. Not the Boltzmann mean of φ in the Sterimol table: averaging coordinates pulls a freely turning group in, so B5 and φ come out smaller. With both on, the average is the outer arc.">
             <input type="checkbox" id="cvSterAvg" onchange="cvRedrawKeep()" /> average structure
           </label>
           <button type="button" onclick="cvSterFace()" title="Look down the axis, with B1 up, so the wedge is face on. Both panels turn together.">down the axis</button></span>
-        <span class="cv-ens-tool"><b>Contacts</b>
-          <button type="button" class="ok" onclick="cvEnsContacts()" title="how much of the ensemble's weight has each H-bond (and, with Contacts set to close contacts, each close contact)">How often</button></span>
-        <span class="cv-ens-tool"><b>Compare files</b>
-          <button type="button" class="ok" onclick="cvEnsCompare()" title="two ensembles of the same molecule (GOAT and CREST, say): which low-energy conformers of each the other also found">What each missed</button>
-          <button type="button" class="ok" onclick="cvEnsSources()" title="the same two files on one energy zero: BOTH where both found the geometry, otherwise CREST, GOAT, or the file name">On one scale</button></span>
-        <span class="cv-ens-tool"><b>This pair</b>
-          <button type="button" class="ok" onclick="cvEnsMoved()" title="the conformers drawn now, after the current alignment: which atoms moved, and the measurement in the box on each">What moved</button></span>
-        <span class="cv-ens-tool"><b>Families</b>
-          <input id="cvFamCut" type="number" value="1.0" min="0.2" max="3" step="0.1" style="width:58px" title="heavy-atom RMSD (Å) within which conformers count as one family" /> Å
-          <button type="button" class="ok" onclick="cvEnsFamilies()" title="the ensemble grouped into conformer families, each with its Boltzmann weight">Group</button></span>
         <span class="cv-ens-tool"><b>Torsions</b>
           <input id="cvWellAtoms" type="text" placeholder="dihedral ; dihedral (1–3) · empty: the rotors that move most" title="1 to 3 dihedrals, four atom numbers each, separated by ;. Left empty, Torsion map and Newman take the rotatable bonds that move most across the ensemble and write them here." style="width:210px" onkeydown="if(event.key==='Enter')cvEnsTorMap()" />
           <button type="button" class="cv-pickbtn" data-target="cvWellAtoms" aria-pressed="false" onclick="cvPickToggle('cvWellAtoms')" title="click four atoms for a dihedral; once those four are in, the next click starts another (up to 3)">&#9757; pick in view</button>
           <button type="button" class="ok" onclick="cvEnsTorMap()" title="each pair of dihedrals against each other: the Boltzmann-weighted density as shading, one dot per conformer, the weight along each axis on the edges">Torsion map</button>
-          <button type="button" class="ok" onclick="cvEnsNewman()" title="look down the middle bond of the first dihedral: the front bonds of the drawn conformer, the back bonds of every conformer fanned out behind by weight">Newman</button>
-          <button type="button" class="ok" onclick="cvEnsWells()" title="wells: knee, silhouette jump, density peaks, and the largest split that still puts every file in every well">Wells</button></span>
+          <button type="button" class="ok" onclick="cvEnsNewman()" title="look down the middle bond of the first dihedral: the front bonds of the drawn conformer, the back bonds of every conformer fanned out behind by weight">Newman</button></span>
+        <span class="cv-ens-tool"><b>Group</b>
+          <select id="cvGroupBy" onchange="$('cvFamCutBox').style.display = this.value === 'rmsd' ? '' : 'none'" title="RMSD: conformers within a heavy-atom RMSD of a family's lowest. Torsion wells: the dihedrals in the Torsions box, split where the ensemble votes (knee, silhouette jump, density peaks, every file in every well)">
+            <option value="rmsd">by RMSD</option><option value="wells">by torsion wells</option></select>
+          <span id="cvFamCutBox" class="cv-f">within <input id="cvFamCut" type="number" value="1.0" min="0.2" max="3" step="0.1" style="width:58px" title="heavy-atom RMSD (Å) within which conformers count as one family" /> Å</span>
+          <button type="button" class="ok" onclick="cvEnsGroup()" title="the ensemble grouped into families, each with its Boltzmann weight; Colour → by family colours the view">Group</button></span>
         <span class="cv-ens-tool"><b>Map</b>
           <select id="cvMapFeat" title="what places the conformers: the rotatable dihedrals (found on the bonds, as sin and cos), the last Sterimol computed, or both"><option value="tor">dihedrals</option><option value="st">Sterimol</option><option value="both">both</option></select>
           <select id="cvMapMeth"><option value="tsne">t-SNE</option><option value="pca">PCA</option></select>
           <select id="cvMapCol"><option value="e">colour: ΔE</option><option value="fam">colour: family</option><option value="file">colour: file</option></select>
           <button type="button" class="ok" onclick="cvEnsMap()" title="every loaded conformer on one map; near = alike. Files with the same numbering share it (GOAT and CREST together)">Map</button></span>
-        <span class="cv-ens-tool"><b>Flexibility</b>
-          <button type="button" class="ok" onclick="cvEnsFlex()" title="how far each atom moves across the ensemble (Boltzmann-weighted RMSF after superposing the heavy atoms on the lowest conformer); colours the view">Map it</button></span>
+        <span class="cv-ens-tool"><b>Compare files</b>
+          <button type="button" class="ok" onclick="cvEnsCompare()" title="two ensembles of the same molecule (GOAT and CREST, say): which low-energy conformers of each the other also found">What each missed</button>
+          <button type="button" class="ok cv-adv" onclick="cvEnsSources()" title="the same two files on one energy zero: BOTH where both found the geometry, otherwise CREST, GOAT, or the file name">On one scale</button></span>
+        <span class="cv-ens-tool"><b>At a glance</b>
+          <button type="button" class="ok" onclick="cvEnsMoved()" title="the conformers drawn now, after the current alignment: which atoms moved, and the measurement in the box on each">What moved</button>
+          <button type="button" class="ok" onclick="cvEnsFlex()" title="how far each atom moves across the ensemble (Boltzmann-weighted RMSF after superposing the heavy atoms on the lowest conformer); colours the view">Flexibility</button></span>
       </div>
     </div>
 
@@ -5201,7 +5217,7 @@ function cvPickHint() {
   else if (cvPickTarget === 'cvStAxis') h.textContent = n === 0 ? 'Click the atom the axis starts from (the attachment atom).' : n === 1 ? 'Now the first atom of the group: the axis points from the first to the second.' : 'Axis set. Compute, or click again to start a new axis.';
   else if (cvPickTarget === 'cvWellAtoms') {
     const parts = cvWellParts(), last = parts.length ? parts[parts.length - 1].length : 0;
-    h.textContent = parts.length >= 3 && last === 4 ? 'Three dihedrals: Torsion map, Newman or Wells. Click a highlighted atom to drop it.' : `Dihedral ${Math.max(parts.length, 1)}: ${last} of 4 atoms. After four, the next click starts another (up to 3).`;
+    h.textContent = parts.length >= 3 && last === 4 ? 'Three dihedrals: Torsion map, Newman, or Group → by torsion wells. Click a highlighted atom to drop it.' : `Dihedral ${Math.max(parts.length, 1)}: ${last} of 4 atoms. After four, the next click starts another (up to 3).`;
   }
   else h.textContent = n < 2 ? `Click atoms in order: 2 for a distance, 3 for an angle, 4 for a dihedral (${n} so far).` : n < 4 ? `${['', '', 'distance', 'angle'][n]} so far: Measure, or click more atoms.` : 'Dihedral set. Measure, or click again to start over.';
 }
@@ -5448,6 +5464,22 @@ function cvSplitToggle() {
   cvRenderStack();
   setTimeout(() => { try { cvViewer3d.resize(); if (cvViewerB) cvViewerB.resize(); cvViewer3d.render(); if (cvViewerB) cvViewerB.render(); } catch (e) {} }, 60);
 }
+
+/* ── Group (RMSD families or torsion wells), More, the Save menu ── */
+function cvEnsGroup() { if ($('cvGroupBy').value === 'wells') { if (cvConformers.length) cvTorParts(); return cvEnsWells(); } cvEnsFamilies(); }
+function cvAdvToggle(on) {         // the settings most work does not need; remembered per browser
+  const body = $('cviewBody'); on = on === undefined ? !body.classList.contains('adv') : on;
+  body.classList.toggle('adv', on); $('cvMoreBtn').setAttribute('aria-pressed', on);
+  document.querySelectorAll('#cvColour .cv-adv-opt').forEach(o => { o.hidden = !on; });
+  if (!on && $('cvColour').value === 'elemC') { $('cvColour').value = 'elem'; cvRenderStack(); }
+  cvStore('cvAdv', on ? 1 : 0);
+}
+(function cvMenusWire() {
+  if (cvStore('cvAdv')) cvAdvToggle(true);
+  const m = $('cvSaveMenu'); if (!m) return;
+  document.addEventListener('click', e => { if (m.open && !m.contains(e.target)) m.open = false; });
+  m.querySelectorAll('.cv-menu-pop button').forEach(b => b.addEventListener('click', () => { m.open = false; }));
+})();
 
 /* ── The dock: every ensemble result opens beside the molecule ── */
 function cvViewsResize() { requestAnimationFrame(() => { try { [cvViewer3d, cvViewerB].forEach(v => { if (v) { v.resize(); v.render(); } }); } catch (e) {} }); }
