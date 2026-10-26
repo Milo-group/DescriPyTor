@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.8 — 2026-10-26
 
 - **Several reactions, other model forms, design** (`M3_modeler/joint.py`, `forms.py`, `design.py`; commands `descripytor joint`,
   `forms`, `design`). Joint descriptor selection over related reactions with per-reaction weights; a logistic link for yields;
