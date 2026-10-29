@@ -104,3 +104,30 @@ def test_slot_null_matches_brute_force():
     best = combos[q2(loo_predictions(X.to_numpy(), y, combos, lam=0), y).argmax()]
     assert r["combo"] == [X.columns[i] for i in best] and r["real_has_family"]
     assert np.isclose(r["naive_rate"], 1 / 3) and 0 <= r["rate"] <= 1 and r["p"] is not None
+
+
+def test_bassa_bridge_refuses_missing_values_and_fits_when_the_sampler_is_there():
+    import subprocess
+    import pytest
+    from M3_modeler import bassa
+    t = pd.read_csv(ROOT / "M3_modeler" / "bassa_explorer" / "example_small.csv", index_col=0)
+    X, y = t.drop(columns="ddG"), t["ddG"]
+    with pytest.raises(ValueError):
+        bassa.fit(X.assign(B1_6=np.nan), y)
+    py = bassa.sampler_python()
+    if subprocess.run([py, "-c", "import bassa_reg"], capture_output=True).returncode:
+        pytest.skip("no Python with bassa_reg here (descripytor bassa_setup)")
+    r = bassa.fit(X, y, iters=2000)
+    assert set(r["table"].index) == set(X.columns) and r["table"].inclusion.between(0, 1).all()
+    assert r["table"].index[0] in ("B1_6-4", "q_cm5[C6]")      # the two leads of the CS2 example
+
+
+def test_load_table_finds_the_response_and_drops_what_cannot_be_modelled(tmp_path):
+    from M3_modeler import bassa
+    f = tmp_path / "t.csv"
+    f.write_text("name,a,label,output,b,c\nNA,1,x,0.5,2,1\nm2,2,y,,3,\nm3,3,z,1.5,1,2\nm4,4,w,2.5,5,3\n", encoding="utf-8")
+    X, y = bassa.load_table(f)
+    assert y.name == "output" and list(y.index) == ["NA", "m3", "m4"]      # "NA" is a name, not a missing value
+    assert list(X.columns) == ["a", "b", "c"]                              # m2 had no response, so c is complete
+    X, y = bassa.load_table(f, response="b")
+    assert y.name == "b" and list(X.columns) == ["a"]                     # m2 stays, so output and c have a gap

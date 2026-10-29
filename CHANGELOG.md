@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.9 — 2026-10-29
+
+- **BASSA from a notebook** (`M3_modeler/bassa.py`, `Getting_started_with_examples/Practical_Notebook_BASSA.ipynb`).
+  `bassa.load_table(csv)` splits a CSV into X and y (the response found by name, else the last column);
+  `bassa.fit(X, y)`, `bassa.figures(X, y, folder)` (BASSA's own figures: model arrangement, Markov chain, survival,
+  convergence) and `bassa.cross_validate(X, y)` run the sampler, with the explorer's set-up, in the Python made by
+  `descripytor bassa_setup`, so the usual DescriPyTor kernel can model with BASSA. The notebook goes through loading, the
+  audit, the fit, the figures, 5-fold cross-validation with the sampler rerun in every fold, and the next steps.
+
 ## 0.4.8 — 2026-10-26
 
 - **Several reactions, other model forms, design** (`M3_modeler/joint.py`, `forms.py`, `design.py`; commands `descripytor joint`,

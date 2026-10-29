@@ -253,6 +253,11 @@ descripytor audit wide.csv -y ddG                     # z-audit
 descripytor audit wide.csv -y ddG --reduce 50 --drop "Stretch|^energy$"   # and the reduced table + its clusters
 ```
 
+BASSA from Python: `bassa.load_table(csv)` (X and y, the response found by name), `bassa.fit(X, y)` (inclusion
+frequency, sign, coefficient, most visited models), `bassa.figures(X, y, folder)` (BASSA's own figures) and
+`bassa.cross_validate(X, y)` (5-fold with the sampler rerun in every fold) run the sampler in the environment
+`descripytor bassa_setup` makes. Walk-through: `Getting_started_with_examples/Practical_Notebook_BASSA.ipynb`.
+
 A kept BASSA case gets its full validation (20 deals of 5-fold + LOO, chance line, seed check, drop-one) from
 `bassa_explorer/protocol.py`, run under the sampler's Python:
 

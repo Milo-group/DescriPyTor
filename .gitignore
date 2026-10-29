@@ -74,3 +74,6 @@ MolFeatures/
 *.out
 *.gjf
 *.com
+
+# figures written by Practical_Notebook_BASSA.ipynb
+Getting_started_with_examples/bassa_figures/

@@ -15,6 +15,7 @@ jupyter notebook Getting_started_with_examples/Practical_Notebook_Features.ipynb
 |---|---|
 | `Practical_Notebook_Features.ipynb` | Load a molecule set, pick atoms, extract descriptors |
 | `Practical_Notebook_Modeling.ipynb` | Search models over a feature matrix, read the report |
+| `Practical_Notebook_BASSA.ipynb` | Model with BASSA: load a CSV, audit the pool, fit, BASSA's figures, cross-validate with the sampler rerun in every fold (run `descripytor bassa_setup` once first) |
 | bundled benzene set | 26 substituted-benzene `.feather` files (`descripytor.examples.feather_example_dir()`) |
 | bundled Baptiste set | 18 product `.feather` files plus outcomes (`descripytor.examples.baptiste_example_dir()`) |
 | `modeling_example/` | Two ready-made datasets, regression and classification |
