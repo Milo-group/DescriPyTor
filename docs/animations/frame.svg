@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 400" width="780" height="400" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif" role="img" aria-label="Animation: the origin is the centroid of the chosen atoms, y points at the y-atom, and x is what remains of the plane atom after its y-component is removed.">
+<title>Building a common reference frame</title>
+<desc>Animation: the origin is the centroid of the chosen atoms, y points at the y-atom, and x is what remains of the plane atom after its y-component is removed.</desc>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="context-stroke"/></marker></defs>
+<rect width="780" height="400" fill="none"/>
+<text x="28.0" y="40.0" font-size="17" fill="#7d8797" text-anchor="start" font-weight="600">A common reference frame</text>
+<text x="28.0" y="62.0" font-size="12.5" fill="#a7b0bd" text-anchor="start" font-weight="normal">Descriptors only compare across a series if every molecule sits in the same frame.</text>
+<g>
+<line x1="321.8" y1="213.8" x2="306.3" y2="151.8" stroke="#9aa4b4" stroke-width="2.6"/>
+<line x1="306.3" y1="151.8" x2="244.8" y2="134.2" stroke="#9aa4b4" stroke-width="2.6"/>
+<line x1="244.8" y1="134.2" x2="198.8" y2="178.6" stroke="#9aa4b4" stroke-width="2.6"/>
+<line x1="198.8" y1="178.6" x2="214.3" y2="240.6" stroke="#9aa4b4" stroke-width="2.6"/>
+<line x1="214.3" y1="240.6" x2="275.8" y2="258.2" stroke="#9aa4b4" stroke-width="2.6"/>
+<line x1="275.8" y1="258.2" x2="321.8" y2="213.8" stroke="#9aa4b4" stroke-width="2.6"/>
+<line x1="321.8" y1="213.8" x2="352.8" y2="77.8" stroke="#9aa4b4" stroke-width="2.6"/>
+<circle cx="321.8" cy="213.8" r="6.5" fill="#9b7bf0"/>
+<circle cx="306.3" cy="151.8" r="6.5" fill="#9aa4b4"/>
+<circle cx="244.8" cy="134.2" r="6.5" fill="#12a5a5"/>
+<circle cx="198.8" cy="178.6" r="6.5" fill="#12a5a5"/>
+<circle cx="214.3" cy="240.6" r="6.5" fill="#12a5a5"/>
+<circle cx="275.8" cy="258.2" r="6.5" fill="#9aa4b4"/>
+<circle cx="352.8" cy="77.8" r="7.5" fill="#e87d35"/>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.0000;0.0139;0.0333;0.2333;0.2528;1.0000" dur="18.0s" repeatCount="indefinite"/>
+<text x="28.0" y="336.0" font-size="13" fill="#12a5a5" text-anchor="start" font-weight="600">1.  pick three groups of atoms</text>
+<text x="28.0" y="356.0" font-size="12" fill="#a7b0bd" text-anchor="start" font-weight="normal">origin set (teal) · y-atom (violet) · plane atom (orange)</text>
+<circle cx="244.8" cy="134.2" r="13" fill="none" stroke="#12a5a5" stroke-width="1.6" opacity=".8"/>
+<circle cx="198.8" cy="178.6" r="13" fill="none" stroke="#12a5a5" stroke-width="1.6" opacity=".8"/>
+<circle cx="214.3" cy="240.6" r="13" fill="none" stroke="#12a5a5" stroke-width="1.6" opacity=".8"/>
+<circle cx="321.8" cy="213.8" r="13" fill="none" stroke="#9b7bf0" stroke-width="1.6" opacity=".8"/>
+<circle cx="352.8" cy="77.8" r="14" fill="none" stroke="#e87d35" stroke-width="1.6" opacity=".8"/>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.0000;0.2250;0.2444;0.4444;0.4639;1.0000" dur="18.0s" repeatCount="indefinite"/>
+<circle cx="219.3" cy="184.5" r="5" fill="none" stroke="#7d8797" stroke-width="2"/>
+<circle cx="219.3" cy="184.5" r="11" fill="none" stroke="#7d8797" stroke-width="1" opacity=".5"/>
+<text x="234.3" y="189.5" font-size="13" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#7d8797" text-anchor="start" font-weight="normal">o</text>
+<text x="28.0" y="336.0" font-size="13" fill="#12a5a5" text-anchor="start" font-weight="600">2.  origin = centroid of the origin set</text>
+<text x="28.0" y="358.0" font-size="12.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#a7b0bd" text-anchor="start" font-weight="normal">o = (r₂ + r₃ + r₄) / 3        rᵢ → rᵢ − o</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.0000;0.4361;0.4556;0.6333;0.6528;1.0000" dur="18.0s" repeatCount="indefinite"/>
+<line x1="219.3" y1="184.5" x2="303.3" y2="208.5" stroke="#9b7bf0" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round"/>
+<text x="311.3" y="204.5" font-size="14" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#9b7bf0" text-anchor="start" font-weight="600">ŷ</text>
+<text x="28.0" y="336.0" font-size="13" fill="#9b7bf0" text-anchor="start" font-weight="600">3.  the y axis points at the y-atom</text>
+<text x="28.0" y="358.0" font-size="12.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#a7b0bd" text-anchor="start" font-weight="normal">ŷ = (r_y − o) / ‖r_y − o‖</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.0000;0.6250;0.6444;0.8556;0.8750;1.0000" dur="18.0s" repeatCount="indefinite"/>
+<line x1="219.3" y1="184.5" x2="303.3" y2="208.5" stroke="#9b7bf0" stroke-width="2.0" marker-end="url(#ah)" stroke-linecap="round"/>
+<line x1="219.3" y1="184.5" x2="294.8" y2="124.2" stroke="#e87d35" stroke-width="2.2" marker-end="url(#ah)" stroke-linecap="round"/>
+<text x="302.8" y="126.2" font-size="13" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#e87d35" text-anchor="start" font-weight="600">c</text>
+<line x1="219.3" y1="184.5" x2="273.1" y2="199.9" stroke="#9b7bf0" stroke-width="6" opacity=".22" stroke-linecap="round"/>
+<line x1="273.1" y1="199.9" x2="294.8" y2="124.2" stroke="#c3cad4" stroke-width="1.4" stroke-dasharray="4 4"/>
+<line x1="219.3" y1="184.5" x2="238.3" y2="118.1" stroke="#12a5a5" stroke-width="2.6" marker-end="url(#ah)" stroke-linecap="round"/>
+<text x="234.3" y="138.1" font-size="14" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#12a5a5" text-anchor="start" font-weight="600">x̂</text>
+<text x="28.0" y="336.0" font-size="13" fill="#12a5a5" text-anchor="start" font-weight="600">4.  strip the y-component off c — what is left is x</text>
+<text x="28.0" y="358.0" font-size="12.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#a7b0bd" text-anchor="start" font-weight="normal">x̂ = normalize( c − (c·ŷ) ŷ )        ẑ = x̂ × ŷ</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.0000;0.8472;0.8667;0.9778;0.9972;1.0000" dur="18.0s" repeatCount="indefinite"/>
+<line x1="219.3" y1="184.5" x2="303.3" y2="208.5" stroke="#9b7bf0" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round"/>
+<line x1="219.3" y1="184.5" x2="238.3" y2="118.1" stroke="#12a5a5" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round"/>
+<circle cx="219.3" cy="184.5" r="5.5" fill="none" stroke="#2fa46a" stroke-width="2.2"/>
+<circle cx="219.3" cy="184.5" r="1.8" fill="#2fa46a"/>
+<text x="199.3" y="172.5" font-size="13" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#2fa46a" text-anchor="start" font-weight="600">ẑ</text>
+<text x="28.0" y="336.0" font-size="13" fill="#2fa46a" text-anchor="start" font-weight="600">5.  every atom re-expressed in that frame</text>
+<text x="28.0" y="358.0" font-size="12.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#a7b0bd" text-anchor="start" font-weight="normal">r′ = B (r − o),   B = [ x̂ ; ŷ ; ẑ ]</text>
+</g>
+<line x1="442" y1="96" x2="442" y2="330" stroke="#c3cad4" stroke-width="1"/>
+<text x="470.0" y="118.0" font-size="12.5" fill="#a7b0bd" text-anchor="start" font-weight="600">the frame, in full</text>
+<text x="470.0" y="150.0" font-size="15" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#7d8797" text-anchor="start" font-weight="600">o</text>
+<text x="500.0" y="150.0" font-size="13" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#c3cad4" text-anchor="start" font-weight="normal">=</text>
+<text x="518.0" y="150.0" font-size="12.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#a7b0bd" text-anchor="start" font-weight="normal">centroid of the origin set</text>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.0000;0.0167;0.0333;0.1611;0.1778;1.0000" dur="18.0s" repeatCount="indefinite"/><rect x="458" y="134" width="292" height="24" rx="5" fill="#7d8797" opacity=".10"/></g>
+<text x="470.0" y="180.0" font-size="15" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#9b7bf0" text-anchor="start" font-weight="600">ŷ</text>
+<text x="500.0" y="180.0" font-size="13" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#c3cad4" text-anchor="start" font-weight="normal">=</text>
+<text x="518.0" y="180.0" font-size="12.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#a7b0bd" text-anchor="start" font-weight="normal">(r_y − o) / ‖r_y − o‖</text>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.0000;0.1583;0.1750;0.3028;0.3194;1.0000" dur="18.0s" repeatCount="indefinite"/><rect x="458" y="164" width="292" height="24" rx="5" fill="#9b7bf0" opacity=".10"/></g>
+<text x="470.0" y="210.0" font-size="15" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#e87d35" text-anchor="start" font-weight="600">c</text>
+<text x="500.0" y="210.0" font-size="13" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#c3cad4" text-anchor="start" font-weight="normal">=</text>
+<text x="518.0" y="210.0" font-size="12.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#a7b0bd" text-anchor="start" font-weight="normal">(r_plane − o) / ‖r_plane − o‖</text>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.0000;0.3000;0.3167;0.4444;0.4611;1.0000" dur="18.0s" repeatCount="indefinite"/><rect x="458" y="194" width="292" height="24" rx="5" fill="#e87d35" opacity=".10"/></g>
+<text x="470.0" y="240.0" font-size="15" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#12a5a5" text-anchor="start" font-weight="600">x̂</text>
+<text x="500.0" y="240.0" font-size="13" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#c3cad4" text-anchor="start" font-weight="normal">=</text>
+<text x="518.0" y="240.0" font-size="12.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#a7b0bd" text-anchor="start" font-weight="normal">normalize( c − (c·ŷ) ŷ )</text>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.0000;0.4417;0.4583;0.5861;0.6028;1.0000" dur="18.0s" repeatCount="indefinite"/><rect x="458" y="224" width="292" height="24" rx="5" fill="#12a5a5" opacity=".10"/></g>
+<text x="470.0" y="270.0" font-size="15" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#2fa46a" text-anchor="start" font-weight="600">ẑ</text>
+<text x="500.0" y="270.0" font-size="13" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#c3cad4" text-anchor="start" font-weight="normal">=</text>
+<text x="518.0" y="270.0" font-size="12.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#a7b0bd" text-anchor="start" font-weight="normal">x̂ × ŷ</text>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.0000;0.5833;0.6000;0.7278;0.7444;1.0000" dur="18.0s" repeatCount="indefinite"/><rect x="458" y="254" width="292" height="24" rx="5" fill="#2fa46a" opacity=".10"/></g>
+<text x="470.0" y="300.0" font-size="15" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#7d8797" text-anchor="start" font-weight="600">r′</text>
+<text x="500.0" y="300.0" font-size="13" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#c3cad4" text-anchor="start" font-weight="normal">=</text>
+<text x="518.0" y="300.0" font-size="12.5" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" fill="#a7b0bd" text-anchor="start" font-weight="normal">B (r − o)</text>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0.0000;0.7250;0.7417;0.8694;0.8861;1.0000" dur="18.0s" repeatCount="indefinite"/><rect x="458" y="284" width="292" height="24" rx="5" fill="#7d8797" opacity=".10"/></g>
+</svg>

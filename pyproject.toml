@@ -1,0 +1,97 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "descripytor"
+version = "0.5.0"
+description = "Molecular feature extraction, alignment, and modeling tools."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Eden Specktor", email = "edenspec@post.bgu.ac.il" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# numpy<2 is required: the RDKit and PyArrow builds used here fail against 2.x.
+dependencies = [
+    "numpy<2",
+    "pandas",
+    "pyarrow<26",                 # 26 needs NumPy 2
+    "scipy",
+    "scikit-learn",
+    "statsmodels",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "adjustText",
+    "tqdm",
+    "joblib",
+    "psutil",
+    "chardet",
+    "networkx",
+    "rdkit",
+    "morfeus-ml",
+    "pillow",
+    "flask",
+    "flask-cors",
+]
+
+[project.optional-dependencies]
+dev = ["build>=1.2", "pytest>=7", "ruff>=0.5", "twine>=5"]
+# Extra descriptor engines in the extraction toolkit
+engines = ["mordred", "deepchem", "ase"]
+# Jupyter notebooks
+notebook = ["ipywidgets", "ipykernel", "dash"]
+
+[project.scripts]
+descripytor = "descripytor.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Milo-group/DescriPyTor"
+Repository = "https://github.com/Milo-group/DescriPyTor"
+
+[tool.setuptools]
+include-package-data = true
+
+# The package now lives at the repository root, so name the packages
+# explicitly rather than globbing - otherwise the example and doc folders
+# get swept into the distribution.
+[tool.setuptools.packages.find]
+include = [
+    "descripytor*",
+    "M1_pre_calculations*",
+    "M2_data_extractor*",
+    "utils*",
+]
+exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*", "tests*"]
+
+[tool.setuptools.package-data]
+"M2_data_extractor" = ["*.html", "static/*", "static/align_guide/*.svg", "static/align_guide/guide.json"]
+# the feature explorer (Sterimol / theta / cone / %Vbur / dipoles / charges), `descripytor feature_explorer`
+"M2_data_extractor.feature_explorer" = ["*.js", "*.html", "*.json", "fixtures/*", "rdkit/*"]
+# the folder name before the rename: forwarding modules and a copy of the built page
+"M2_data_extractor.theta_explorer" = ["*.js", "*.html"]
+# the standalone vibration-mode viewer (python utils/mode_viewer.py --serve)
+"utils" = ["*.html"]
+# example protocol for the cluster pipeline
+"M1_pre_calculations.pipeline" = ["examples/*.json", "examples/*.csv"]
+"descripytor.examples" = [
+    "*.json",
+    "feather_example/*.feather",
+    "feather_example/*.json",
+    "feather_example/README.md",
+    "baptiste_products/*.feather",
+    "baptiste_products/*.csv",
+    "baptiste_products/*.json",
+    "baptiste_products/README.md",
+]

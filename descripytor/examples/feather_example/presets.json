@@ -1,0 +1,11 @@
+{
+  "label": "Substituted benzenes",
+  "reference": "basic.feather",
+  "atoms": {
+    "sterimol": [[1, 4], [4, 1]],
+    "bond_length": [[1, 2], [4, 7]],
+    "bond_angle": [[8, 7, 4]],
+    "charges": [[1], [4], [7]],
+    "charge_diff": [[3, 5]]
+  }
+}

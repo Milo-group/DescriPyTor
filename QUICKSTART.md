@@ -1,0 +1,75 @@
+# DescriPyTor — install and GUI (one page)
+
+Install with **conda + pip**.
+
+**Visual version** (diagrams on GitHub, or open in a browser and print to PDF): [docs/visual-guide.md](docs/visual-guide.md) · [docs/visual-guide.html](docs/visual-guide.html)
+
+---
+
+## A. conda + pip (recommended)
+
+Needs conda and Python 3.10 or 3.11.
+
+```bash
+git clone https://github.com/Milo-group/DescriPyTor.git
+cd DescriPyTor
+conda create -n descripytor python=3.10
+conda activate descripytor
+pip install -e .
+descripytor visual_extractor
+```
+
+Then open **http://127.0.0.1:7432** (the 3D picker).
+
+In the picker: **Use example set** → **Apply example picks** → **Extract CSV**. If port 7432 is already in use, stop the old GUI (the command prints a PID) and retry, then hard-refresh (Ctrl+F5).
+
+If RDKit fails on pip:
+
+```bash
+conda install -c conda-forge rdkit
+```
+
+Then run the GUI server again.
+
+**The other page**: `descripytor feature_explorer` draws any descriptor on a molecule. The two link to each other, and `descripytor --help` lists every command.
+
+---
+
+## Use it in five minutes
+
+Example molecules ship with the package (10 substituted benzenes, including `basic.feather`). A second set of 18 Baptiste products is also bundled.
+
+**In the picker:** set the feather folder (or **Use example set**), click atoms, then **Extract CSV**. Atom numbers are **1-based** (Gaussian style). The viewer loads `basic.feather` from the example set.
+
+**Python**
+
+```python
+from M2_data_extractor import Molecules
+from descripytor.examples import feather_example_dir
+
+mols = Molecules(str(feather_example_dir()))
+print(mols.success_molecules)
+```
+
+**Command line** (from the clone):
+
+```bash
+descripytor extractor -i Getting_started_with_examples/input_example.json -o features -f descripytor/examples/feather_example
+```
+
+Gaussian `.log` files → feathers first:
+
+```bash
+descripytor logs_to_feather
+```
+
+---
+
+## If something fails
+
+| Symptom | Fix |
+|---|---|
+| RDKit / Morfeus import errors | `conda install -c conda-forge rdkit` |
+| Port 7432 already in use | Close the other app, or set `GUI_PORT` |
+
+Longer docs: [README.md](README.md).

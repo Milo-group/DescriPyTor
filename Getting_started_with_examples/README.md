@@ -1,0 +1,112 @@
+# Getting started
+
+Example data ships with the repo — no Gaussian job, nothing to download.
+
+```bash
+pip install -e .
+jupyter notebook Getting_started_with_examples/Practical_Notebook_Features.ipynb
+```
+
+---
+
+## What's in here
+
+| | |
+|---|---|
+| `Practical_Notebook_Features.ipynb` | Load a molecule set, pick atoms, extract descriptors |
+| bundled benzene set | 26 substituted-benzene `.feather` files (`descripytor.examples.feather_example_dir()`) |
+| bundled Baptiste set | 18 product `.feather` files plus outcomes (`descripytor.examples.baptiste_example_dir()`) |
+| `cube_example/` | Three electron-density cubes for cube Sterimol |
+| `input_example.json` | A saved extraction input — replayable from the CLI |
+| `descriptor_extraction_toolkit/` | The 3D atom picker, multi-engine extraction, web app |
+
+---
+
+## The example data
+
+**Substituted benzenes** — one `.feather` per molecule (geometry, connectivity, charges,
+dipoles, vibrations). 26 structures including `basic.feather`. Load with
+`descripytor.examples.feather_example_dir()`. This is the GUI default (**Use example set**).
+
+**Baptiste products** — 18 structures including `unsub.feather`, plus `outcomes.csv` for
+modeling. Load with `descripytor.examples.baptiste_example_dir()`.
+
+
+**`cube_example/`** — density cubes for `descripytor cube` (Sterimol from electron density).
+
+---
+
+## Two things to try
+
+### 1. Extract descriptors without writing code
+
+Start the 3D picker on the bundled benzene set:
+
+```bash
+descripytor visual
+```
+
+Open http://localhost:7432, click **Use example set**, pick atoms, then **Extract CSV**.
+To replay a saved JSON on the same molecules:
+
+```bash
+descripytor extractor \
+  --input Getting_started_with_examples/input_example.json \
+  --output feature_set \
+  --feather_directory descripytor/examples/feather_example
+```
+
+You get a CSV of vibrations, dipole, charges, Sterimol, bonds, and angles, plus a
+correlation table.
+
+Keys match extractors by name prefix (`Sterimol…`, `Bond_length…`, …). Values are 1-based
+atom indices. An unknown key is printed, not ignored.
+
+
+### 2. Pick atoms in 3D
+
+```bash
+descripytor visual_extractor
+```
+
+Opens the picker on an example molecule; **Use example set** points it at the bundled feathers. Click atoms, then **Extract CSV**. See
+[descriptor_extraction_toolkit/README.md](descriptor_extraction_toolkit/README.md).
+
+---
+
+## From the Python side
+
+```python
+from M2_data_extractor.data_extractor import Molecules
+from descripytor.examples import feather_example_dir
+
+molset = Molecules(str(feather_example_dir()))
+print(molset.success_molecules, molset.failed_molecules)
+
+features = molset.get_molecules_features_set(
+    entry_widgets={
+        'Sterimol':    '[[1,4],[4,1]]',
+        'Bond-Length': '[[1,2],[4,7]]',
+        'Dipole':      '[[1,2,19], 20, 19]',
+    },
+    parameters={'Radii': 'CPK', 'Isotropic': True},
+    save_as=True,
+    csv_file_name='my_features',
+)
+```
+
+Full API: [M2_data_extractor/README.md](../M2_data_extractor/README.md).
+
+---
+
+## If something goes wrong
+
+- **`failed_molecules` is not empty** — that file did not parse. Check the list before
+  trusting the matrix.
+- **Empty descriptor** — indices usually do not match what the extractor needs (a stretch
+  pair must be bonded; a bend pair must share a centre). Indices are 1-based.
+- **Wrong bonds** — check `mol.bonds_df`. Bonds come from covalent radii × 1.15 (metal–ligand up to 2.8 Å); pass `threshold=<Å>` to `Molecules` for a flat cutoff instead (`threshold=1.82` is the rule before September 2026).
+- **Import errors** — `pip install -e .` from the repo root; keep `numpy<2`.
+
+A guided walkthrough with more context:
+[DescriPyTor_Tutorial.md](descriptor_extraction_toolkit/DescriPyTor_Tutorial.md).

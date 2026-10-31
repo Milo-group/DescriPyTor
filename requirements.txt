@@ -1,0 +1,7 @@
+# Dependencies are declared once, in pyproject.toml.
+# This file exists so `pip install -r requirements.txt` keeps working;
+# it installs DescriPyTor in editable mode along with everything it needs.
+#
+# Optional extras, if you want them:
+#   pip install -e ".[engines]"   mordred, deepchem, ase
+-e .

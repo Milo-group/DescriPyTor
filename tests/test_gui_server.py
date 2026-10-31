@@ -1,0 +1,892 @@
+"""Flask GUI routes (`/status`, `/visual`, the explorers)."""
+from __future__ import annotations
+
+import importlib.util
+import json
+import sys
+import types
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+
+def _load_app():
+    try:
+        from flask import Flask  # noqa: F401
+    except ImportError:
+        pytest.skip("flask is not installed")
+    if importlib.util.find_spec("flask_cors") is None:
+        stub = types.ModuleType("flask_cors")
+        stub.CORS = lambda app, *a, **k: app
+        sys.modules["flask_cors"] = stub
+    from M2_data_extractor import gui_server
+
+    return gui_server.app
+
+
+@pytest.fixture(scope="module")
+def client():
+    app = _load_app()
+    app.config["TESTING"] = True
+    return app.test_client()
+
+
+def test_status(client):
+    response = client.get("/status")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["ok"] is True
+    from M2_data_extractor.gui_server import GUI_API
+    assert payload.get("api") == GUI_API
+    assert "example_feather_dir" in payload
+    assert "example_outcomes" in payload
+    assert "example_presets" in payload
+    directory = payload.get("example_feather_dir") or ""
+    if directory:
+        assert "feather_example" in directory.replace("\\", "/")
+        assert (payload.get("example_reference_name") or "") == "basic"
+        assert payload.get("example_presets")
+    outcomes = payload.get("example_outcomes") or []
+    if outcomes:
+        names = {str(row.get("name") or "") for row in outcomes}
+        assert "unsub" in names
+        assert any(row.get("name") == "unsub" and float(row.get("output")) == 0.1461 for row in outcomes)
+
+
+def test_only_pages_on_this_computer_are_answered(client):
+    """Every route reads or writes files here: another site's script, a rebinding Host name or a cross-site <img> or
+    <form> is refused; this computer's pages on any port, and opening a page by a link, are answered."""
+    assert client.get("/status").status_code == 200
+    local = client.get("/status", headers={"Origin": "http://127.0.0.1:8742"})       # the explorer served by http.server
+    assert local.status_code == 200
+    if importlib.util.find_spec("flask_cors") is not None:
+        assert local.headers.get("Access-Control-Allow-Origin") == "http://127.0.0.1:8742"
+    body = {"directory": str(ROOT)}
+    for headers in ({"Origin": "https://evil.example"}, {"Origin": "null"},
+                    {"Sec-Fetch-Site": "cross-site", "Sec-Fetch-Mode": "no-cors"}):
+        r = client.post("/folder/summary", json=body, headers=headers)
+        assert r.status_code == 403 and "Access-Control-Allow-Origin" not in r.headers, headers
+    assert client.post("/folder/summary", json=body, base_url="http://evil.example:7432").status_code == 403
+    assert client.get("/visual", headers={"Sec-Fetch-Site": "cross-site", "Sec-Fetch-Mode": "navigate"}).status_code == 200
+    for gone in ("/model/dataset", "/model/merge-outputs", "/theta/check"):      # read any CSV / wrote one anywhere
+        assert client.post(gone, json={}).status_code == 404
+
+
+def test_example_xyz_loads_basic(client):
+    from M2_data_extractor.gui_server import example_reference_feather
+
+    path = example_reference_feather()
+    if not path:
+        pytest.skip("example feathers are not installed")
+    try:
+        import pyarrow  # noqa: F401
+    except ImportError:
+        pytest.skip("pyarrow is not installed")
+    response = client.get("/example_xyz")
+    if response.status_code == 500:
+        pytest.skip("could not load the example feather in this environment")
+    assert response.status_code == 200, response.get_json()
+    body = response.get_json()
+    assert body.get("xyz")
+    assert body.get("name") == "basic"
+    assert str(body.get("filepath") or "").replace("\\", "/").endswith("basic.feather")
+    assert int(body.get("n_atoms") or 0) >= 6
+    assert "C " in body["xyz"] or body["xyz"].splitlines()[2].strip()[:1] in "CNOSHP"
+    dipole = ((body.get("mol_data") or {}).get("dipole") or {})
+    vec = dipole.get("vector") or []
+    assert len(vec) == 3
+    assert all(isinstance(x, (int, float)) for x in vec)
+    assert abs(float(dipole.get("total") or 0)) > 0.1
+    modes = (body.get("mol_data") or {}).get("modes") or []
+    assert modes, "expected vibration modes from basic.feather"
+    first = modes[0]
+    assert "freq" in first and "disp" in first
+    assert len(first["disp"]) == int(body["n_atoms"])
+    assert len(first["disp"][0]) == 3
+
+
+def test_dipole_from_named_and_positional_feather_columns():
+    import math
+
+    import pandas as pd
+
+    from M2_data_extractor.gui_server import _dipole_from_feather_df
+
+    named = pd.DataFrame({
+        "atom": [None, "C"],
+        "x": [None, 0.0],
+        "y": [None, 0.0],
+        "z": [None, 0.0],
+        "dip_x": [0.9783, None],
+        "dip_y": [-1.3102, None],
+        "dip_z": [0.2607, None],
+        "total_dipole": [1.6558, None],
+    })
+    got = _dipole_from_feather_df(named)
+    assert got is not None
+    assert got["vector"] == [0.9783, -1.3102, 0.2607]
+    assert abs(got["total"] - 1.6558) < 1e-6
+
+    positional = pd.DataFrame({
+        "0": ["29.0", "C"],
+        "1": [None, 0.1],
+        "2": [None, 0.2],
+        "3": [None, 0.3],
+        "4": [-1.2426, None],
+        "5": [-1.4114, None],
+        "6": [4.9682, None],
+        "7": [5.3122, None],
+    })
+    got = _dipole_from_feather_df(positional)
+    assert got is not None
+    assert got["vector"][0] == -1.2426
+    assert abs(got["total"] - 5.3122) < 1e-6
+    assert abs(got["total"] - math.sqrt(sum(x * x for x in got["vector"]))) < 0.02
+
+
+def test_fast_feather_xyz_reads_basic():
+    from M2_data_extractor.gui_server import example_reference_feather, _viewer_payload_from_feather
+
+    path = example_reference_feather()
+    if not path:
+        pytest.skip("example feathers are not installed")
+    try:
+        import pyarrow  # noqa: F401
+    except ImportError:
+        pytest.skip("pyarrow is not installed")
+    xyz, name, n_atoms, _overlay = _viewer_payload_from_feather(path, "basic")
+    assert name == "basic"
+    assert n_atoms >= 6
+    assert xyz.splitlines()[0].strip() == str(n_atoms)
+
+
+def test_electronic_energy_skips_an_orbital_gap_and_reads_the_log(tmp_path):
+    import pandas as pd
+
+    from M2_data_extractor.gui_server import (
+        _energy_for_path,
+        _energy_from_log_text,
+        _energy_from_table,
+        _xyz_text_from_coords,
+    )
+
+    gap = pd.DataFrame({"energy": [7.797]})
+    assert _energy_from_table(gap) is None
+    assert _energy_from_table(pd.DataFrame({"energy": [-287.5]})) == -287.5
+    log = (
+        "SCF Done:  E(RM062X) =  -287.100000000\n"
+        "SCF Done:  E(RM062X) =  -287.584813856\n"
+    )
+    assert _energy_from_log_text(log) == -287.584813856
+    assert _energy_from_log_text("FINAL SINGLE POINT ENERGY       -40.123456789\n") == -40.123456789
+    feather = tmp_path / "feather_files" / "H_c1.feather"
+    feather.parent.mkdir()
+    (tmp_path / "H_c1.log").write_text(log, encoding="utf-8")
+    assert _energy_for_path(str(feather), gap) == -287.584813856
+    xyz, _name, n_atoms = _xyz_text_from_coords(
+        pd.DataFrame({"atom": ["C"], "x": [0.0], "y": [0.0], "z": [1.0]}),
+        "H_c1",
+        -287.584813856,
+    )
+    assert "E -287.5848138560" in xyz.splitlines()[1]
+    assert n_atoms == 1
+
+
+def test_visual_serves_atom_picker(client):
+    response = client.get("/visual")
+    assert response.status_code == 200
+    assert response.headers.get("Cache-Control") == "no-cache"     # an updated page is not hidden by the browser's cache
+    body = response.get_data(as_text=True)
+    assert "3Dmol" in body
+    assert "DescriPyTor" in body
+    assert "Extract CSV" in body
+    assert "Download CSV" in body
+    assert "Save picks" in body
+    assert "1-based" in body
+    assert "Advanced" in body
+    assert "Conformer Viewer" in body          # the Conformer Search panel was removed
+    assert "Browse" in body
+    assert 'id="fileInput"' in body
+    assert 'id="loadFileBtn"' in body
+    assert "Load file" in body
+    assert 'accept=".xyz,.feather,.ftr"' not in body
+    assert "descripytor.visual.session.v2" in body
+    assert 'id="a11yStatus"' in body
+    assert 'id="clearPicksBtn"' in body
+    assert 'id="pickControlsFold"' in body
+    assert 'id="selTableFold" open' in body
+    assert 'id="numberingBanner"' in body
+    assert 'id="checkNumberingBtn"' in body
+    assert 'id="viewNumberingBtn"' in body
+    assert 'id="numberingProgress"' in body
+    assert 'id="extractProgress"' in body
+    assert 'id="presetProgress"' in body
+    viz = body.find('id="vizbar"')
+    adv = body.find('id="advancedPanel"')
+    assert viz != -1 and adv != -1
+    assert viz < adv
+    assert "pickerFrame" in body and "feature:session" in body      # the main view is the feature explorer, framed
+    assert "recenterViewer" in body
+    assert 'id="pickerStage"' in body
+    assert 'id="viewer"' not in body
+    assert 'onclick="if(viewer)' not in body
+    assert "Caffeine is the demo" not in body
+    assert "loadExampleMolecule({ silent: true })" in body
+    assert "Check numbering" in body
+    assert "JSON.stringify({ config: cfg, stream: true })" in body
+    assert "lastModelXYZ" in body
+    assert "Apply example picks" in body
+    assert "/static/3Dmol-min.js" in body
+    assert 'e.shiftKey ? "full"' in body
+
+
+def test_visual_trailing_slash(client):
+    response = client.get("/visual/")
+    assert response.status_code == 200
+    assert "3Dmol" in response.get_data(as_text=True)
+
+
+def test_conformer_duplicates_route_folds_a_rotated_copy(client):
+    pytest.importorskip("rdkit")
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    mol = Chem.AddHs(Chem.MolFromSmiles("CCO"))
+    assert AllChem.EmbedMolecule(mol, randomSeed=1) == 0
+    conf = mol.GetConformer()
+    rows = [(a.GetSymbol(), conf.GetAtomPosition(i).x, conf.GetAtomPosition(i).y, conf.GetAtomPosition(i).z) for i, a in enumerate(mol.GetAtoms())]
+    turned = [(el, z, x, y) for el, x, y, z in rows]
+    response = client.post("/conformers/duplicates", json={"groups": [{"frames": [
+        {"id": 3, "atoms": rows, "energy": -1.0},
+        {"id": 8, "atoms": turned, "energy": -0.5},
+    ]}]})
+    assert response.status_code == 200
+    pairs = response.get_json()["pairs"]
+    assert len(pairs) == 1
+    assert pairs[0]["child"] == 8 and pairs[0]["parent"] == 3
+    assert pairs[0]["reason"] == "tight" and pairs[0]["rmsd"] < 0.05
+    assert isinstance(pairs[0]["swaps"], list)
+
+
+def test_conformer_wells_route_reports_the_four_votes(client):
+    angles = [[0.0, 0.0]] * 6 + [[0.0, 180.0]] * 6 + [[180.0, 0.0]] * 6 + [[180.0, 180.0]] * 6
+    groups = ["A", "B"] * (len(angles) // 2)
+    response = client.post("/conformers/wells", json={"angles": angles, "groups": groups})
+    assert response.status_code == 200
+    body = response.get_json()
+    assert set(body["criteria"]) == {"knee", "silhouette_jump", "silhouette_max", "density", "coverage"}
+    assert body["criteria"]["density"] == 4
+    assert "4" in body["labels"]
+
+
+def test_packaged_picker_is_preferred():
+    from M2_data_extractor.gui_server import atom_picker_html
+
+    path = atom_picker_html()
+    assert path.endswith("atom_picker.html")
+    assert Path(path).is_file()
+
+
+def test_root_redirects_to_visual(client):
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code in (301, 302)
+    assert "/visual" in (response.headers.get("Location") or "")
+
+
+def test_the_removed_pages_are_gone(client):
+    """The form-based page and the mode viewer's route went in 0.3.3; nothing in the package serves or links to them."""
+    for path in ("/forms", "/modes"):
+        assert client.get(path).status_code == 404
+    for path in ("/sterimol", "/charges", "/dipole", "/vibrations", "/molecule_info", "/steriplot", "/batch_sterimol", "/features_set", "/api/parse-modes"):
+        assert client.post(path, json={}).status_code == 404
+    picker = (ROOT / "M2_data_extractor" / "atom_picker.html").read_text(encoding="utf-8")
+    assert '"/forms"' not in picker and "/modes" not in picker.split("FEATURE-EXPLORER:END")[-1]
+
+
+def test_xyz_from_feather_needs_input(client):
+    response = client.post("/xyz_from_feather", json={})
+    assert response.status_code == 400
+
+
+def test_extract_needs_config(client):
+    response = client.post("/extract", json={})
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_extract_needs_feather_dir(client):
+    response = client.post("/extract", json={"config": {"engines": {"descripytor_full": {"enabled": True}}}})
+    assert response.status_code == 400
+    body = response.get_json()
+    assert "feather" in body["error"].lower()
+
+
+def test_extract_stream_needs_feather_dir(client):
+    response = client.post("/extract", json={
+        "config": {"engines": {"descripytor_full": {"enabled": True}}},
+        "stream": True,
+    })
+    assert response.status_code == 400
+    body = response.get_json()
+    assert "feather" in body["error"].lower()
+
+
+def test_extract_stream_emits_start(client):
+    from M2_data_extractor.gui_server import example_feather_dir
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    response = client.post("/extract", json={
+        "config": {"engines": {}, "feather_dir": directory},
+        "stream": True,
+    })
+    assert response.status_code == 200
+    assert "ndjson" in (response.mimetype or "")
+    lines = [ln for ln in response.get_data(as_text=True).splitlines() if ln.strip()]
+    events = [json.loads(ln) for ln in lines]
+    assert events[0]["event"] == "start"
+    # the bundled example set (10 benzenes since 82742d0), counted rather than hard-coded
+    n_files = len(list(Path(directory).glob("*.feather")))
+    assert events[0]["n"] == n_files > 0
+    assert any(e.get("event") == "error" for e in events)
+
+
+def test_molecules_reports_load_progress(tmp_path, monkeypatch):
+    import os
+    from M2_data_extractor import data_extractor as de
+
+    de._MOLECULES_CACHE.clear()
+
+    class Dummy:
+        def __init__(self, data_file, threshold=1.82):
+            self.molecule_name = os.path.splitext(os.path.basename(data_file))[0]
+
+    monkeypatch.setattr(de, "Molecule", Dummy)
+    (tmp_path / "a.feather").write_bytes(b"x")
+    (tmp_path / "b.feather").write_bytes(b"x")
+    events = []
+    mols = de.Molecules(str(tmp_path), progress=events.append)
+    assert events[0]["event"] == "start"
+    assert events[0]["n"] == 2
+    assert events[0]["phase"] == "load"
+    progress = [e for e in events if e.get("event") == "progress"]
+    assert len(progress) == 2
+    assert {e["name"] for e in progress} == {"a", "b"}
+    assert progress[-1]["i"] == 2
+    assert len(mols.success_molecules) == 2
+
+
+def test_molecules_reuses_folder_cache(tmp_path, monkeypatch):
+    import os
+    from M2_data_extractor import data_extractor as de
+
+    de._MOLECULES_CACHE.clear()
+    calls = {"n": 0}
+
+    class Dummy:
+        def __init__(self, data_file, threshold=1.82):
+            calls["n"] += 1
+            self.molecule_name = os.path.splitext(os.path.basename(data_file))[0]
+
+    monkeypatch.setattr(de, "Molecule", Dummy)
+    (tmp_path / "a.feather").write_bytes(b"x")
+    (tmp_path / "b.feather").write_bytes(b"x")
+    first = de.Molecules(str(tmp_path))
+    assert calls["n"] == 2
+    second = de.Molecules(str(tmp_path))
+    assert calls["n"] == 2
+    assert second.success_molecules == first.success_molecules
+
+
+def test_molecules_skips_non_molecule_json(tmp_path, monkeypatch):
+    import os
+    from M2_data_extractor import data_extractor as de
+
+    de._MOLECULES_CACHE.clear()
+
+    class Dummy:
+        def __init__(self, data_file, threshold=1.82):
+            self.molecule_name = os.path.splitext(os.path.basename(data_file))[0]
+
+    monkeypatch.setattr(de, "Molecule", Dummy)
+    (tmp_path / "a.feather").write_bytes(b"x")
+    (tmp_path / "presets.json").write_text(
+        '{"label": "demo", "atoms": {"sterimol": [[1, 4]]}}', encoding="utf-8"
+    )
+    (tmp_path / "input_example.json").write_text('{"Sterimol atoms": "1,4"}', encoding="utf-8")
+    (tmp_path / "run_config.json").write_text('{"feather_dir": "x"}', encoding="utf-8")
+    (tmp_path / "notes.json").write_text('{"comment": "not a molecule"}', encoding="utf-8")
+    (tmp_path / "mol.json").write_text(
+        '{"molecule": {"atoms": [{"atom": "C", "x": 0, "y": 0, "z": 0}]}}',
+        encoding="utf-8",
+    )
+    events = []
+    mols = de.Molecules(str(tmp_path), progress=events.append)
+    assert events[0]["n"] == 2
+    assert set(mols.success_molecules) == {"a.feather", "mol.json"}
+
+
+def test_molecule_defers_vibration_frames():
+    from M2_data_extractor.data_extractor import Molecule, _MOLECULES_CACHE
+    from M2_data_extractor.gui_server import example_reference_feather
+
+    path = example_reference_feather()
+    if not path:
+        pytest.skip("example feathers are not installed")
+    try:
+        import pyarrow  # noqa: F401
+    except ImportError:
+        pytest.skip("pyarrow is not installed")
+    _MOLECULES_CACHE.clear()
+    mol = Molecule(path)
+    assert getattr(mol, "_dfs", None) is None
+    assert mol.vibration_dict
+    frames = mol.dfs
+    assert isinstance(frames, list)
+    assert frames
+    assert getattr(mol, "_dfs", None) is frames
+
+
+def test_nob_atype_counts_bonds_without_row_filters():
+    import pandas as pd
+    from utils.help_functions import nob_atype
+
+    xyz = pd.DataFrame({
+        "atom": ["C", "C", "H", "H", "H", "O"],
+        "x": [0, 1.5, -0.5, 0.5, 0, 2.5],
+        "y": [0, 0, 0.5, 0.5, -0.7, 0],
+        "z": [0, 0, 0, 0, 0, 0],
+    })
+    bonds = pd.DataFrame({0: [1, 1, 1, 1, 2], 1: [2, 3, 4, 5, 6]})
+    types = nob_atype(xyz, bonds)
+    assert types[0] == "C"
+    assert types[1] == "C3"
+    assert types[2] == "H"
+    assert types[5] == "O2"
+
+
+def test_3dmol_static_is_local_or_cdn(client):
+    response = client.get("/static/3Dmol-min.js", follow_redirects=False)
+    assert response.status_code in (200, 302)
+    if response.status_code == 302:
+        assert "3dmol" in (response.headers.get("Location") or "").lower()
+
+
+
+
+def test_browse_folder_returns_path(client, monkeypatch):
+    import M2_data_extractor.gui_server as gs
+
+    monkeypatch.setattr(gs, "ask_folder_dialog", lambda initial="": r"C:\data\feathers")
+    response = client.post("/browse/folder", json={"initial": ""})
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["cancelled"] is False
+    assert body["path"].endswith("feathers")
+
+
+def test_folder_dialog_helper_ships_with_package():
+    helper = ROOT / "M2_data_extractor" / "_folder_dialog.py"
+    assert helper.is_file()
+    text = helper.read_text(encoding="utf-8")
+    assert "askdirectory" in text
+
+
+def test_browse_folder_cancelled(client, monkeypatch):
+    import M2_data_extractor.gui_server as gs
+
+    monkeypatch.setattr(gs, "ask_folder_dialog", lambda initial="": "")
+    response = client.post("/browse/folder", json={})
+    assert response.status_code == 200
+    assert response.get_json()["cancelled"] is True
+
+
+def test_numbering_check_example_set(client):
+    from M2_data_extractor.gui_server import example_feather_dir, example_reference_feather
+
+    directory = example_feather_dir()
+    reference = example_reference_feather()
+    if not directory or not reference:
+        pytest.skip("example feather set is not installed")
+    try:
+        import pyarrow  # noqa: F401
+    except ImportError:
+        pytest.skip("pyarrow is not installed")
+    response = client.post("/numbering/check", json={
+        "directory": directory,
+        "reference": reference,
+        "picked": [1, 23, 8],
+        "include_xyz": False,
+        "limit": 2,
+    })
+    if response.status_code == 500:
+        pytest.skip("could not load example feathers in this environment")
+    assert response.status_code == 200, response.get_json()
+    body = response.get_json()
+    assert body["n_mols"] >= 1
+    assert "molecules" in body
+    assert "message" in body
+
+
+def test_numbering_check_streams_progress(client):
+    import json
+
+    from M2_data_extractor.gui_server import example_feather_dir, example_reference_feather
+
+    directory = example_feather_dir()
+    reference = example_reference_feather()
+    if not directory or not reference:
+        pytest.skip("example feather set is not installed")
+    try:
+        import pyarrow  # noqa: F401
+    except ImportError:
+        pytest.skip("pyarrow is not installed")
+    response = client.post("/numbering/check", json={
+        "directory": directory,
+        "reference": reference,
+        "picked": [1],
+        "include_xyz": False,
+        "limit": 2,
+        "stream": True,
+    })
+    if response.status_code == 500:
+        pytest.skip("could not load example feathers in this environment")
+    assert response.status_code == 200
+    assert "ndjson" in (response.mimetype or "")
+    events = [json.loads(line) for line in response.get_data(as_text=True).splitlines() if line.strip()]
+    kinds = [ev.get("event") for ev in events]
+    assert kinds[0] == "start"
+    assert "progress" in kinds
+    assert kinds[-1] == "done"
+    assert events[0]["n"] == 2
+    assert events[-1]["n_mols"] == 2
+
+
+def test_placeholder_path_ignores_double_underscore_in_real_paths():
+    from M2_data_extractor.gui_server import _is_placeholder_path
+
+    assert _is_placeholder_path("")
+    assert _is_placeholder_path(r"C:\path\to\your\feathers")
+    assert _is_placeholder_path("path/to/your/feathers")
+    assert _is_placeholder_path("__XYZ_DATA__")
+    assert not _is_placeholder_path(r"C:\Users\me\__backup__\mols")
+    assert not _is_placeholder_path(r"C:\Users\me\Documents\GitHub\DescriPyTor")
+
+
+def test_gui_payload_is_current():
+    from M2_data_extractor.gui_server import GUI_API, _gui_payload_is_current
+
+    assert not _gui_payload_is_current({"ok": True, "version": "1.0"})
+    assert _gui_payload_is_current({"ok": True, "api": GUI_API})
+    assert not _gui_payload_is_current({"ok": True, "api": GUI_API - 1})      # a server from before the last update
+    assert not _gui_payload_is_current(None)
+
+
+def test_folder_summary_example_set(client):
+    from M2_data_extractor.gui_server import example_feather_dir
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    response = client.post("/folder/summary", json={"directory": directory})
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["n"] == 10
+    assert "basic" in body["names"]
+
+
+def test_numbering_flags_out_of_range_index(client):
+    from M2_data_extractor.gui_server import example_feather_dir, example_reference_feather
+
+    directory = example_feather_dir()
+    reference = example_reference_feather()
+    if not directory or not reference:
+        pytest.skip("example feather set is not installed")
+    try:
+        import pyarrow  # noqa: F401
+    except ImportError:
+        pytest.skip("pyarrow is not installed")
+    response = client.post("/numbering/check", json={
+        "directory": directory,
+        "reference": reference,
+        "picked": [9999],
+        "include_xyz": False,
+        "limit": 2,
+    })
+    if response.status_code == 500:
+        pytest.skip("could not load example feathers in this environment")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["ok"] is False
+    assert body["n_flagged"] == body["n_mols"]
+
+
+def test_numbering_without_reference_uses_folder_basic(client):
+    from M2_data_extractor.gui_server import example_feather_dir
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    try:
+        import pyarrow  # noqa: F401
+    except ImportError:
+        pytest.skip("pyarrow is not installed")
+    response = client.post("/numbering/check", json={
+        "directory": directory,
+        "picked": [1],
+        "include_xyz": False,
+        "limit": 2,
+    })
+    if response.status_code == 500:
+        pytest.skip("could not load example feathers in this environment")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["reference"] == "basic"
+    assert body["n_mols"] == 2
+
+
+def test_feature_explorer_is_served_with_its_query():
+    """`descripytor feature_explorer` opens /feature_explorer; the page, and the live check it calls, are on the same server."""
+    app = _load_app()
+    client = app.test_client()
+    r = client.get("/feature_explorer?mol=FL_lig_13&preset=theta%20construction")
+    assert r.status_code == 200 and b"Feature explorer" in r.data and b"Sterimol" in r.data
+
+
+def test_the_old_theta_address_redirects_with_its_query():
+    """/theta was the explorer's address before the rename; bookmarks and scripts keep working."""
+    client = _load_app().test_client()
+    r = client.get("/theta?mol=FL_lig_13&preset=2")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/feature_explorer?mol=FL_lig_13&preset=2")
+
+
+def test_feature_explorer_command_builds_the_explorer_address():
+    from descripytor.cli import feature_explorer_page, theta_page
+
+    assert theta_page is feature_explorer_page
+    assert feature_explorer_page() == "/feature_explorer"
+    assert feature_explorer_page("FL_lig_13") == "/feature_explorer?mol=FL_lig_13"
+    assert feature_explorer_page("FL_lig_13", "theta construction") == "/feature_explorer?mol=FL_lig_13&preset=theta+construction"
+    assert feature_explorer_page(preset="2") == "/feature_explorer?preset=2"
+
+
+def test_the_old_explorer_folder_still_imports():
+    """Scripts outside the package put M2_data_extractor/theta_explorer on sys.path and import data."""
+    import subprocess, sys
+    old = Path(__file__).resolve().parents[1] / "M2_data_extractor" / "theta_explorer"
+    code = "import sys; sys.path.insert(0, %r); import data, build; assert data.payload and build.assemble" % str(old)
+    assert subprocess.run([sys.executable, "-c", code]).returncode == 0
+    same = lambda f: f.read_bytes().replace(bytes([13, 10]), bytes([10]))      # git may check the two copies out with different line ends
+    assert same(old / "theta_explorer.html") == same(old.parent / "feature_explorer" / "feature_explorer.html")
+
+
+def test_visual_extractor_address_is_the_picker():
+    r = _load_app().test_client().get("/visual_extractor")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/visual")
+
+
+
+
+def test_the_extraction_engine_is_inside_the_package():
+    """Extract CSV runs descriptor_extractor; an installed package has no examples folder, so it must sit in M2_data_extractor."""
+    app = _load_app()
+    import M2_data_extractor.gui_server as gs
+    dx = gs._load_descriptor_extractor()
+    assert Path(dx.__file__).resolve().parent == ROOT / "M2_data_extractor"
+    assert (ROOT / "M2_data_extractor" / "feature_packages.py").is_file()
+    import subprocess, sys
+    old = ROOT / "Getting_started_with_examples" / "descriptor_extraction_toolkit"
+    code = "import sys; sys.path.insert(0, %r); import descriptor_extractor as d, feature_packages as f; assert d.run_from_config and f" % str(old)
+    assert subprocess.run([sys.executable, "-c", code]).returncode == 0      # the toolkit's old import path still works
+
+
+def test_a_server_from_before_the_update_is_not_reused():
+    """Its pages are read from disk (new) while its routes are old: the header links gave Not Found."""
+    _load_app()
+    import M2_data_extractor.gui_server as gs
+    old = {"ok": True, "api": 2, "example_presets": {}, "example_reference_name": "basic"}
+    assert not gs._gui_payload_is_current(old)
+    assert gs._gui_payload_is_current({"ok": True, "api": gs.GUI_API})
+    assert _load_app().test_client().get("/status").get_json()["api"] == gs.GUI_API
+
+
+
+
+def test_outcomes_come_only_from_the_folder_they_sit_in():
+    """Another set's measured outputs were offered for the example and joined onto any table with matching names."""
+    import M2_data_extractor.gui_server as gs
+    import pandas as pd
+
+    assert gs.example_outcomes_payload()["rows"] == []            # the benzene example has no outcomes.csv
+    assert _load_app().test_client().get("/status").get_json()["example_outcomes"] == []
+    table = pd.DataFrame({"f": [1.0, 2.0]}, index=["p-Cl", "m_Br"])    # the extractor's table: names are the index
+    out, n = gs._join_outcomes_into_df(table, [{"name": "P_cl", "output": 0.3}])
+    assert n == 1 and out.loc["p-Cl", "output"] == 0.3
+    payload = gs._extract_success_payload(table, {"feather_dir": str(ROOT / "descripytor" / "examples" / "feather_example")}, "[error] engine 'x' failed: boom")
+    assert payload["n_outcomes"] == 0 and "output" not in payload["columns"]
+    assert payload["engine_errors"] == ["[error] engine 'x' failed: boom"]
+
+
+def _extract(client, directory, atoms):
+    r = client.post("/extract", json={"config": {"feather_dir": str(directory),
+                                                 "engines": {"descripytor_full": {"enabled": True, "atoms": atoms}}}})
+    assert r.status_code == 200, r.get_json()
+    return r.get_json()
+
+
+def test_a_descriptor_that_fails_is_reported_not_dropped(client):
+    """Sterimol on an atom the molecules do not have failed on all ten and its columns were silently missing."""
+    from M2_data_extractor.gui_server import example_feather_dir, _failed_descriptors
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    got = _extract(client, directory, {"sterimol": [[1, 99]], "charges": [1]})
+    assert not any(c.startswith("B1_") for c in got["columns"])
+    n = len(list(Path(directory).glob("*.feather")))
+    assert any("sterimol" in w and f"({n} of {n} molecules)" in w for w in got["warnings"]), got["warnings"]
+    assert _extract(client, directory, {"charges": [1]})["warnings"] == []
+    # names are folded whole: m_Br's message is not split by m, and a message naming no molecule is kept as it is
+    log = "Error: m_Br sterimol could not be processed: 0\nError: m sterimol could not be processed: 0\nError processing x: y"
+    assert _failed_descriptors(log, ["m", "m_Br"]) == ["Error: sterimol could not be processed: 0 (2 of 2 molecules)",
+                                                       "Error processing x: y"]
+
+
+def test_ring_picks_extract_one_ring_each(client):
+    """The page now sends [[9], [10]]; the old flat [9, 10] was read as one ring through both atoms."""
+    from M2_data_extractor.gui_server import example_feather_dir
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    cols = _extract(client, directory, {"ring_vibration": [[9], [10]]})["columns"]
+    assert {"para_9_0", "para_10_0"} <= set(cols) and "para_9-10_0" not in cols
+
+
+def test_outcomes_csv_saved_by_excel_or_in_cp1252(client, tmp_path):
+    """Excel's CSV UTF-8 starts with a BOM: the header read '\ufeffname' and no row joined. A cp1252 file raised after
+    the extraction had finished and lost the table."""
+    import shutil
+    from M2_data_extractor.gui_server import example_feather_dir
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    for name in ("basic", "m_Br"):
+        shutil.copy(Path(directory) / f"{name}.feather", tmp_path)
+    (tmp_path / "outcomes.csv").write_text("name,output\nbasic,0.5\nm_Br,1.5\n", encoding="utf-8-sig")
+    got = _extract(client, tmp_path, {"charges": [1]})
+    assert got["n_outcomes"] == 2 and got["warnings"] == []
+    (tmp_path / "outcomes.csv").write_bytes("name,output\nbasic,0.5\nm_Br,1.5\nr\xe9f,2\n".encode("cp1252"))
+    got = _extract(client, tmp_path, {"charges": [1]})
+    assert got["n_mols"] == 2 and got["n_outcomes"] == 0 and "outcomes.csv was not read" in got["warnings"][0]
+
+
+def test_numbering_check_compares_with_the_picked_molecule(client):
+    """The page sends the molecule the picks were made on; the check used basic.feather or the first file instead."""
+    from M2_data_extractor.gui_server import example_feather_dir
+
+    directory = example_feather_dir()
+    if not directory:
+        pytest.skip("example feather set is not installed")
+    sent = "2\npicked here\nXe 0 0 0\nXe 0 0 1.5\n"           # no example molecule has xenon at atom 1
+    got = client.post("/numbering/check", json={"directory": directory, "picked": [1],
+                                                "reference_xyz": sent, "reference_name": "mine"}).get_json()
+    assert got["reference"] == "mine" and got["reference_n_atoms"] == 2
+    assert all(not m["ok"] for m in got["molecules"])
+
+
+def test_post_scf_energies_read_from_real_gaussian_lines():
+    from M2_data_extractor.gui_server import _energy_from_log_text
+
+    scf = " SCF Done:  E(RB2PLYPD3) =  -385.123456789     A.U. after   12 cycles\n"
+    dh = " E2(B2PLYPD3) =    -0.1234567890D+00 E(B2PLYPD3) =    -0.38553583000D+03\n"
+    assert _energy_from_log_text(scf) == -385.123456789
+    assert _energy_from_log_text(scf + dh) == pytest.approx(-385.53583)
+    mp2 = " SCF Done:  E(RHF) =  -384.9     A.U. after   9 cycles\n E2 =    -0.3D+00 EUMP2 =    -0.38512345678D+03\n"
+    assert _energy_from_log_text(mp2) == pytest.approx(-385.12345678)
+    oniom = scf + " ONIOM: extrapolated energy =    -385.987654321\n"
+    assert _energy_from_log_text(oniom) == -385.987654321
+    orca = "FINAL SINGLE POINT ENERGY      -40.123456789 (Wavefunction not fully converged!)\n"
+    assert _energy_from_log_text(orca) == -40.123456789
+
+
+def _cf3_rows():
+    import math
+
+    rows = [["C", 0.0, 0.0, 0.0], ["C", 1.52, 0.0, 0.0]]
+    for k in range(3):        # three fluorines on the second carbon
+        t = 2 * math.pi * k / 3
+        rows.append(["F", 1.97, 1.27 * math.cos(t), 1.27 * math.sin(t)])
+    rows.append(["O", -0.6, 1.2, 0.3])
+    return rows
+
+
+def test_conformer_duplicates_fold_a_relabelled_cf3(client):
+    pytest.importorskip("rdkit")
+    a = _cf3_rows()
+    b = [r[:] for r in a]
+    b[2], b[3] = [b[3][0]] + b[3][1:], [b[2][0]] + b[2][1:]     # two fluorines trade labels: same shape, other numbering
+    response = client.post("/conformers/duplicates", json={"groups": [{"frames": [
+        {"id": 0, "atoms": a, "energy": -1.0}, {"id": 1, "atoms": b, "energy": -0.9}]}]})
+    assert response.status_code == 200
+    pairs = response.get_json()["pairs"]
+    assert len(pairs) == 1 and pairs[0]["child"] == 1 and pairs[0]["parent"] == 0
+    assert pairs[0]["rmsd"] < 0.05 and pairs[0]["swaps"]          # matched only by the swap
+
+
+def test_cross_tags_matches_one_to_one_by_assignment(monkeypatch):
+    pytest.importorskip("rdkit")
+    import M2_data_extractor.conformer_duplicates as cd
+
+    # left L1 is close to R1 (0.10) and R2 (0.12); L2 is close to R1 only (0.02). Greedy in file order gave
+    # L1-R1 and left L2 unmatched; the assignment gives L1-R2 and L2-R1.
+    table = {(0, 10): 0.10, (0, 11): 0.12, (1, 10): 0.02}
+
+    def frame(fid):           # the same shape everywhere; the id rides on a translation the judge reads back
+        return {"id": fid, "energy": -1.0, "atoms": [[r[0], r[1] + 100 * fid, r[2], r[3]] for r in _cf3_rows()]}
+
+    def judge(probe, other, *args, **kwargs):
+        pid = round(probe.GetConformer().GetAtomPosition(0).x / 100)
+        oid = round(other.GetConformer().GetAtomPosition(0).x / 100)
+        r = table.get((pid, oid))
+        return {"kind": "tight" if r is not None else "apart", "rmsd": r if r is not None else 1.0, "amap": None, "torsion": 0.0}
+
+    monkeypatch.setattr(cd, "judge_pair", judge)
+    out = cd.cross_tags([{"name": "GOAT", "frames": [frame(0), frame(1)]}, {"name": "CREST", "frames": [frame(10), frame(11)]}])
+    pairs = {(t["id"], t["with"]) for t in out["tags"] if t["tag"] == "BOTH"}
+    assert (0, 11) in pairs and (1, 10) in pairs and len(pairs) == 4
+
+
+def test_conformer_sources_route_tags_both_and_own(client):
+    pytest.importorskip("rdkit")
+    a = _cf3_rows()
+    far = [r[:] for r in a]
+    far[-1] = ["O", -0.6, -1.2, -0.3]                         # the OH on the other side: another conformer
+    files = [{"name": "o_nitro GOAT", "frames": [{"id": 0, "atoms": a, "energy": -1.0}, {"id": 1, "atoms": far, "energy": -0.999}]},
+             {"name": "o_nitro CREST", "frames": [{"id": 2, "atoms": a, "energy": -1.0005}]}]
+    response = client.post("/conformers/sources", json={"files": files})
+    assert response.status_code == 200
+    tags = {t["id"]: t["tag"] for t in response.get_json()["tags"]}
+    assert tags[0] == "BOTH" and tags[2] == "BOTH" and tags[1] == "GOAT"
+
+
+def test_conformer_routes_refuse_bad_input_clearly(client):
+    many = [{"id": k, "atoms": [["C", 0, 0, k], ["C", 1, 0, k], ["O", 0, 1, k]], "energy": -1.0} for k in range(801)]
+    body = client.post("/conformers/duplicates", json={"groups": [{"frames": many}]}).get_json()
+    assert body["pairs"] == [] and "800" in body["warning"]   # over the budget: left unmatched, said why
+    r = client.post("/conformers/wells", json={"angles": [[0.0], [None], [180.0]]})
+    assert r.status_code == 400 and "finite" in r.get_json()["error"]
+    r = client.post("/conformers/duplicates", data="{not json", content_type="application/json")
+    assert r.status_code == 400 and "JSON" in r.get_json()["error"]
+
+
+def test_xyz_from_feather_refuses_a_same_named_other_file(client, tmp_path):
+    xyz = tmp_path / "mol1.xyz"
+    xyz.write_text("2\n\nC 0 0 0\nO 0 0 1.2\n", encoding="utf-8")
+    r = client.post("/xyz_from_feather", json={"filepath": str(xyz), "name": "mol1", "expect_size": xyz.stat().st_size + 5})
+    assert r.status_code == 409

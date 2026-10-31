@@ -1,0 +1,2557 @@
+try:
+    from utils.console import make_console_safe as _mcs; _mcs()
+except ImportError:
+    pass
+import pandas as pd
+import numpy as np
+import os
+import re
+import sys
+import math
+from enum import Enum
+from typing import *
+import warnings
+import networkx as nx
+import numpy.typing as npt
+# Add the parent directory to the sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# NOTE: utils.visualize (needs dash/ipywidgets) are NOT imported here:
+# only the visualize_*/get_dipole_gaussian_df_single methods use them, and importing them
+# eagerly made dash/ipywidgets hard requirements just to open a feather file. See _import_visualize() below.
+from gaussian_handler import feather_file_handler, save_to_feather
+from utils.help_functions import *
+from utils.help_functions import json_file_handler, json_payload_handler  # structured-JSON loaders
+from extractor_utils.sterimol_utils import *
+from extractor_utils.bond_angle_length_utils import *
+from extractor_utils.dipole_utils import *
+from extractor_utils.vibrations_utils import *
+
+
+def _import_visualize():
+    """
+    Lazy import of utils.visualize - only needed by the visualize_* / optional
+    dipole-visualization methods. Isolated here so basic feather loading and
+    descriptor extraction never need dash/ipywidgets.
+    """
+    from utils import visualize
+    return visualize
+
+
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+
+
+def show_highly_correlated_pairs(df, corr_thresh=0.8):
+    """
+    Display all feature pairs with |correlation| above corr_thresh,
+    and highlight those with perfect correlation (|corr|=1).
+    """
+    corr = df.corr()
+    pairs = []
+    features = corr.columns
+    for i in range(len(features)):
+        for j in range(i+1, len(features)):
+            cval = corr.iloc[i, j]
+            if abs(cval) > corr_thresh:
+                is_perfect = abs(cval) == 1.0
+                pairs.append((features[i], features[j], cval))
+    # Sort: perfect correlations first, then by absolute correlation
+    pairs_sorted = sorted(pairs, key=lambda x: -abs(x[2]))
+    if pairs_sorted:
+        import pandas as pd
+        table = pd.DataFrame(pairs_sorted, columns=["Feature 1", "Feature 2", "Correlation"])
+    
+        return table
+    else:
+      
+        return None
+
+
+from typing import Dict, Iterable, Optional, Union, Literal
+
+
+import numpy as np
+from typing import Dict, Tuple
+
+def _validate_and_build_maps(
+    n: int,
+    renumbering_dict: Dict[int, int],
+    debug: bool = False,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Validate a 1-based renumbering dictionary and build:
+      - old_to_new (0-based): index i (old) → new index
+      - new_to_old (0-based): index j (new) → old index
+
+    Key improvements:
+      • Removes self-maps.
+      • Automatically detects and closes open renumbering chains.
+      • Prevents duplicate targets (enforces bijection).
+      • Fills missing indices as identity.
+    """
+    import numpy as np
+
+    def log(message: str) -> None:
+        if debug:
+            print(message)
+
+    # --- unwrap nested dicts (if {mol_name: {..}}) ---
+    if len(renumbering_dict) == 1 and isinstance(next(iter(renumbering_dict.values())), dict):
+        mol_name, inner = next(iter(renumbering_dict.items()))
+        log(f"[DEBUG] Nested renumbering detected for molecule: {mol_name}")
+        renumbering_dict = inner
+
+    log(f"\n[DEBUG] Raw renumbering_dict (1-based): {renumbering_dict}")
+
+    # --- remove self-maps ---
+    renumbering_dict = {k: v for k, v in renumbering_dict.items() if k != v}
+    log(f"[DEBUG] Removed self-maps: {renumbering_dict}")
+
+    # --- validate numeric range ---
+    valid = {}
+    for k, v in renumbering_dict.items():
+        if not (isinstance(k, int) and isinstance(v, int)):
+            log(f"[WARN] Skipping non-int map {k}->{v}")
+            continue
+        if not (1 <= k <= n and 1 <= v <= n):
+            log(f"[WARN] Out-of-range map {k}->{v} (n={n})")
+            continue
+        valid[k] = v
+    renumbering_dict = valid
+
+    # --- detect and close open chains ---
+    visited = set()
+    closed_pairs = {}
+    for start in list(renumbering_dict.keys()):
+        if start in visited:
+            continue
+        chain = [start]
+        current = start
+        while current in renumbering_dict and renumbering_dict[current] not in chain:
+            nxt = renumbering_dict[current]
+            chain.append(nxt)
+            current = nxt
+        for node in chain:
+            visited.add(node)
+        if len(chain) > 1:
+            head, tail = chain[0], chain[-1]
+            if tail not in renumbering_dict and head != tail:
+                log(f"[FIX] Closing open chain {chain} with {tail}->{head}")
+                renumbering_dict[tail] = head
+            # pairwise connect the chain symmetrically
+            for i in range(len(chain) - 1):
+                closed_pairs[chain[i]] = chain[i + 1]
+            if chain[-1] not in closed_pairs:
+                closed_pairs[chain[-1]] = chain[0]
+    renumbering_dict = closed_pairs or renumbering_dict
+    log(f"[DEBUG] After chain closure: {renumbering_dict}")
+
+    # --- enforce bijection (unique targets) ---
+    seen = set()
+    clean = {}
+    for k, v in renumbering_dict.items():
+        if v in seen:
+            log(f"[WARN] Duplicate target {v}, skipping {k}->{v}")
+            continue
+        seen.add(v)
+        clean[k] = v
+    renumbering_dict = clean
+    log(f"[DEBUG] Cleaned to unique targets: {renumbering_dict}")
+
+    # --- fill missing indices as identity ---
+    for i in range(1, n + 1):
+        if i not in renumbering_dict and i not in renumbering_dict.values():
+            renumbering_dict[i] = i
+    log(f"[DEBUG] Added identity for unused indices")
+
+    # --- build arrays ---
+    old_to_new = np.arange(n, dtype=int)
+    for old1, new1 in renumbering_dict.items():
+        old_to_new[old1 - 1] = new1 - 1
+
+    # --- ensure bijection (no missing/duplicate targets) ---
+    unique, counts = np.unique(old_to_new, return_counts=True)
+    dupes = unique[counts > 1]
+    missing = np.setdiff1d(np.arange(n), unique)
+    if len(dupes) or len(missing):
+        log(f"[WARN] Fixing non-bijective mapping: duplicates={dupes.tolist()} missing={missing.tolist()}")
+        free = list(missing)
+        for i, val in enumerate(old_to_new):
+            if val in dupes and free:
+                replacement = free.pop(0)
+                log(f"[FIX] old_to_new[{i}]={val} replaced by {replacement}")
+                old_to_new[i] = replacement
+
+    # --- build inverse safely ---
+    new_to_old = np.full(n, -1, dtype=int)
+    for old0, new0 in enumerate(old_to_new):
+        if new_to_old[new0] != -1:
+            log(f"[WARN] Two atoms map to same new index {new0+1}; keeping first")
+            continue
+        new_to_old[new0] = old0
+    mask = new_to_old < 0
+    if np.any(mask):
+        new_to_old[mask] = np.arange(n)[mask]
+
+    log(f"[DEBUG] old_to_new (0-based): {old_to_new}")
+    log(f"[DEBUG] new_to_old (0-based): {new_to_old}\n")
+
+    return old_to_new, new_to_old
+
+
+
+# Field labels carry their own help text ("Bond_length - Atom pairs to
+# calculate difference: \n example: 1,2 4,5"), so a label is matched by the
+# longest alias it starts with. Matching on the first word alone is not enough:
+# "charge values" and "charge difference" both start with "charge", and
+# "Bond length" and "Bond Angle" both start with "bond".
+FEATURE_SET_ALIASES = {
+    'ring vibration': 'ring',
+    'ring': 'ring',
+    'stretching vibration': 'stretching',
+    'stretching': 'stretching',
+    'strech vibration': 'stretching',        # historical typo in saved inputs
+    'strech': 'stretching',
+    'stretch threshold': 'stretch',
+    'stretch': 'stretch',
+    'upper stretch': 'upper_stretch',
+    'bending vibration': 'bending',
+    'bending': 'bending',
+    'bend threshold': 'bend',
+    'bend': 'bend',
+    'dipole': 'dipole',
+    'charges values': 'charges',
+    'charge values': 'charges',
+    'charges': 'charges',
+    'charge difference': 'charge_diff',
+    'charge diff': 'charge_diff',
+    'sterimol': 'sterimol',
+    'bond angle': 'bond_angle',
+    'bond length': 'bond_length',
+    'drop atoms': 'drop_atoms',
+    'center atoms': 'center_atoms',
+    'indices to move center': 'center_atoms',   # older desktop-GUI wording
+}
+
+
+def resolve_feature_key(label: str) -> Optional[str]:
+    """
+    Map a feature-set entry label onto its canonical key.
+
+    Returns None when nothing matches, so the caller can say so rather than
+    dropping the field. See FEATURE_SET_ALIASES for why this is prefix-based.
+    """
+    normalized = re.sub(r'[^a-z0-9]+', ' ', str(label).lower()).strip()
+    for alias in sorted(FEATURE_SET_ALIASES, key=len, reverse=True):
+        if normalized == alias or normalized.startswith(alias + ' '):
+            return FEATURE_SET_ALIASES[alias]
+    return None
+
+
+def _reindex_like(obj: Union[pd.Series, pd.DataFrame], order: np.ndarray) -> Union[pd.Series, pd.DataFrame]:
+    """Reindex a Series/DataFrame (row-wise) by an integer order vector (0-based).
+
+    If ``obj`` has fewer rows than ``order`` (e.g. charge DataFrames that were
+    dropna'd during loading), only the in-bounds indices are used so that the
+    reordering is applied to however many rows actually exist.
+    """
+    if hasattr(obj, "iloc"):
+        valid = order[order < len(obj)]
+        out = obj.iloc[valid].copy()
+        out.index = range(len(out))  # normalize to 0..n-1
+        return out
+    raise TypeError(f"Unsupported type for reindexing: {type(obj)}")
+
+
+def _remap_bonds_df(bonds_df: pd.DataFrame, old_to_new: np.ndarray, assume_0_based: bool = True) -> pd.DataFrame:
+    """
+    Remap bonds (two integer columns) using old_to_new (0-based map).
+    If your bonds are 1-based, set assume_0_based=False.
+    """
+    out = bonds_df.copy()
+    cols = out.columns[:2]
+    if not assume_0_based:
+        # convert 1-based to 0-based, map, then back to 1-based
+        out[cols] = out[cols].astype(int) - 1
+        out[cols] = out[cols].applymap(lambda idx: int(old_to_new[idx]))
+        out[cols] = out[cols] + 1
+    else:
+        out[cols] = out[cols].astype(int)
+        out[cols] = out[cols].applymap(lambda idx: int(old_to_new[idx]))
+    return out
+
+
+
+class Molecule:
+    def __init__(self, molecule_feather_filename, parameter_list=None, new_xyz_df=None , threshold: Optional[float] = None):
+        """
+        Initialize a Molecule object with structural and computational data.
+        
+        Args:
+            molecule_feather_filename (str): Path to Feather file containing molecular data
+            parameter_list (list, optional): Precomputed parameters list. Defaults to None.
+            new_xyz_df (DataFrame, optional): Alternative coordinates DataFrame. Defaults to None.
+        """
+        self.threshold = threshold  # Distance threshold for connectivity
+        # Initialize core properties first
+        self._initialize_core_properties(molecule_feather_filename, new_xyz_df)
+        
+        # Handle parameters and file loading
+        self._load_parameters(molecule_feather_filename, parameter_list)
+        
+        # Initialize derived structural properties
+        self._initialize_structural_properties()
+        
+        # Initialize computational results
+        self._initialize_computational_data()
+
+
+    def _initialize_core_properties(self, filename, new_xyz_df):
+        """Set basic molecule identification and path properties"""
+        self.molecule_name = os.path.splitext(os.path.basename(filename))[0]
+        self.molecule_path = os.path.abspath(os.path.dirname(filename))
+        self.new_index_order = new_xyz_df.index.tolist() if new_xyz_df is not None else None
+
+    def _load_parameters(self, filename, parameter_list):
+        """Handle parameter loading from file or existing list.
+
+        Dispatches by file extension so both the legacy Feather format and the
+        structured JSON format (Gaussian or ORCA derived) are supported.
+        """
+        if parameter_list is None:
+            path = filename
+            if not os.path.isabs(path):
+                path = os.path.join(self.molecule_path, filename)
+            self.parameter_list = read_molecule_file(path)
+        else:
+            self.parameter_list = parameter_list
+
+    def _initialize_structural_properties(self):
+        """Set up structural components"""
+        # XYZ coordinates
+        try:
+            self.xyz_df = self.parameter_list[0]['standard_orientation_df']
+            self.coordinates_array = np.array(self.xyz_df[['x', 'y', 'z']].astype(float))
+            
+            # Connectivity and atom typing
+            self.bonds_df = extract_connectivity(self.xyz_df, threshold_distance=self.threshold)
+            self.atype_list = nob_atype(self.xyz_df, self.bonds_df)
+            
+            
+        except Exception as e:
+            print(f"Warning: Error initializing structural properties for {getattr(self, 'molecule_name', 'Unknown')}: {e}")
+            # Set default values for missing properties
+            self.xyz_df = pd.DataFrame(columns=['atom', 'x', 'y', 'z'])
+            self.coordinates_array = np.array([])
+            self.bonds_df = pd.DataFrame(columns=['atom1', 'atom2'])
+            self.atype_list = []
+
+    def _sanitize_vibration_dict(self):
+        """Drop all-NaN vibration rows without building per-frequency DataFrames."""
+        vib = getattr(self, "vibration_dict", None) or {}
+        cleaned = {}
+        for key, value in vib.items():
+            arr = np.asarray(value, dtype=float)
+            if arr.ndim == 2 and arr.size:
+                cleaned[key] = arr[~np.isnan(arr).any(axis=1)]
+            else:
+                cleaned[key] = arr
+        self.vibration_dict = cleaned
+
+    def _initialize_computational_data(self):
+        """Initialize computed properties from calculations"""
+        try:
+            self.gauss_dipole_df = self.parameter_list[0].get('dipole_df', pd.DataFrame())
+            self.polarizability_df = self.parameter_list[0].get('pol_df', pd.DataFrame())
+            
+            # General information
+            self.info_df = self.parameter_list[0].get('info_df', pd.DataFrame())
+            
+            # Charge and vibrational data
+            self.charge_dict = self.parameter_list[2] if len(self.parameter_list) > 2 else {}
+            self.vibration_dict = self.parameter_list[1] if len(self.parameter_list) > 1 else {}
+            self._sanitize_vibration_dict()
+            self._dfs = None
+            if self.vibration_dict and isinstance(self.info_df, pd.DataFrame) and not self.info_df.empty:
+                self.vibration_mode_dict = build_vibration_mode_dict(self.vibration_dict, self.info_df)
+            else:
+                self.vibration_mode_dict = {}
+            # Energy values
+            self.energy_value = self.parameter_list[0].get('energy_df', pd.DataFrame()) if len(self.parameter_list) > 2 else pd.DataFrame()
+        
+        except Exception as e:
+            print(f"Warning: Error initializing computational data for {getattr(self, 'molecule_name', 'Unknown')}: {e}")
+            # Set default values for missing properties
+            if not hasattr(self, 'gauss_dipole_df'): self.gauss_dipole_df = pd.DataFrame()
+            if not hasattr(self, 'polarizability_df'): self.polarizability_df = pd.DataFrame()
+            if not hasattr(self, 'charge_dict'): self.charge_dict = {}
+            if not hasattr(self, 'vibration_dict'): self.vibration_dict = {}
+            if not hasattr(self, 'info_df'): self.info_df = pd.DataFrame()
+            if not hasattr(self, 'energy_value'): self.energy_value = pd.DataFrame()
+            if not hasattr(self, 'vibration_mode_dict'): self.vibration_mode_dict = {}
+            self._dfs = None
+
+
+
+
+    def renumber_atoms(
+        self,
+        renumbering_dict: Dict[int, int],
+        *,
+        rebuild_connectivity: bool = False,
+        bonds_are_0_based: bool = True,
+        verbose: bool = True,
+        debug: bool = False,
+        save_feather: bool = True, out_file: Optional[str] = None
+    ) -> None:
+        """
+        Renumber atoms according to a 1-based mapping and update relevant data.
+        - Robust validation (range, duplicates)
+        - Vectorized reindexing for xyz_df and charge_dict entries
+        - Vibration keys 'vibration_atom_X' remapped to new indices
+        - Connectivity can be preserved by remapping bonds_df, or recomputed
+
+        Parameters
+        ----------
+        renumbering_dict : dict
+            1-based dictionary: {old_atom_num: new_atom_num}.
+            Unspecified atoms keep their original numbers (identity).
+        rebuild_connectivity : bool, default False
+            If True: recompute connectivity via `extract_connectivity(self.xyz_df)`.
+            If False: preserve original `self.bonds_df` by remapping indices.
+        bonds_are_0_based : bool, default True
+            Set False if your `self.bonds_df` stores atom numbers 1-based.
+        verbose : bool, default True
+            Print a short success message and summary.
+        debug : bool, default False
+            Print detailed intermediate renumbering maps and DataFrames.
+
+        Notes
+        -----
+        - Stores the following helpers:
+            self.old_to_new (np.ndarray, 0-based)
+            self.new_to_old (np.ndarray, 0-based permutation)
+            self.new_index_order (list[int], 1-based new numbers in old-order for backward compat)
+        - Assumes self.xyz_df has columns ['x','y','z'] (floats) and one row per atom.
+        """
+        if not hasattr(self, "xyz_df"):
+            raise AttributeError("self.xyz_df is required before renumbering.")
+
+        n = len(self.xyz_df)
+        if debug:
+            print(f"\n[DEBUG] Starting renumbering for molecule '{self.molecule_name}' with {n} atoms. {renumbering_dict}")
+        try:
+            old_to_new, new_to_old = _validate_and_build_maps(n, renumbering_dict, debug=debug)
+        except Exception as e:
+            # print error and return without making changes so it continues to work in batch mode
+            print(f"[ERROR] Renumbering validation failed for molecule '{self.molecule_name}': {e}")
+            return
+        # Save maps for downstream use
+        self.old_to_new = old_to_new              # old idx -> new idx (0-based)
+        self.new_to_old = new_to_old              # new idx -> old idx (0-based)
+        self.new_index_order = (old_to_new + 1).tolist()  # 1-based, for compatibility
+
+        # --- Reorder XYZ (vectorized) ---
+        old_xyz_df = self.xyz_df.copy()
+        if debug:
+            print(f"[DEBUG] old_xyz_df before renumbering:\n{old_xyz_df}")
+        self.xyz_df = old_xyz_df.iloc[new_to_old].reset_index(drop=True)
+        if debug:
+            print(f"[DEBUG] new_xyz_df after renumbering:\n{self.xyz_df}")
+        # Ensure numeric coordinate dtypes
+        for c in ("x", "y", "z"):
+            if c in self.xyz_df.columns:
+                self.xyz_df[c] = pd.to_numeric(self.xyz_df[c], errors="coerce")
+        self.coordinates_array = self.xyz_df[["x", "y", "z"]].to_numpy(dtype=float)
+
+        # --- Connectivity & atom types ---
+        if hasattr(self, "bonds_df") and isinstance(self.bonds_df, pd.DataFrame) and not rebuild_connectivity:
+            # Preserve original bonds by remapping indices
+            self.bonds_df = _remap_bonds_df(self.bonds_df, old_to_new=self.old_to_new, assume_0_based=False)
+        else:
+            # Recompute from geometry (may differ from original)
+            if "extract_connectivity" not in globals() and not hasattr(self, "extract_connectivity"):
+                raise NameError("extract_connectivity is not available to recompute bonds. Set rebuild_connectivity=False or provide it.")
+            # Support bound method or global function
+            _extract = getattr(self, "extract_connectivity", globals().get("extract_connectivity"))
+            self.bonds_df = _extract(self.xyz_df)
+
+        # Atom types (depends on your implementation)
+        if "nob_atype" not in globals() and not hasattr(self, "nob_atype"):
+            # Skip silently if not available
+            self.atype_list = getattr(self, "atype_list", None)
+        else:
+            _atype = getattr(self, "nob_atype", globals().get("nob_atype"))
+            self.atype_list = _atype(self.xyz_df, self.bonds_df)
+
+        # --- Renumber charges (vectorized) ---
+        if hasattr(self, "charge_dict") and self.charge_dict:
+            new_charge_dict: Dict[str, Any] = {}
+            for charge_type, charge_data in self.charge_dict.items():
+                if isinstance(charge_data, dict):
+                    new_sub = {}
+                    for subkey, subdata in charge_data.items():
+                        if hasattr(subdata, "iloc"):
+                            new_sub[subkey] = _reindex_like(subdata, new_to_old)
+                        else:
+                            raise TypeError(f"Unsupported nested type in charge_dict[{charge_type}][{subkey}]: {type(subdata)}")
+                    new_charge_dict[charge_type] = new_sub
+                elif hasattr(charge_data, "iloc"):
+                    new_charge_dict[charge_type] = _reindex_like(charge_data, new_to_old)
+                else:
+                    raise TypeError(f"Unsupported type in charge_dict[{charge_type}]: {type(charge_data)}")
+            self.charge_dict = new_charge_dict
+
+        # --- Renumber vibration dict keys like 'vibration_atom_{i}' ---
+        if hasattr(self, "vibration_dict") and self.vibration_dict:
+            if debug:
+                print(f"[DEBUG] Starting vibration_dict renumbering with {len(self.vibration_dict)} entries")
+                print(f"[DEBUG] Number of atoms (n): {n}")
+                print(f"[DEBUG] old_to_new : {list(old_to_new) if hasattr(old_to_new, '__len__') else old_to_new}")
+
+            new_vib_dict: Dict[str, Any] = {}
+            for key, val in self.vibration_dict.items():
+                if key.startswith("vibration_atom_"):
+                    try:
+                        old_atom_1b = int(key.split("_")[-1])
+                        if debug:
+                            print(f"[DEBUG] Key '{key}' parsed old_atom_1b={old_atom_1b}")
+                    except ValueError:
+                        print(f"[WARN] Key '{key}' has unexpected format, keeping as-is")
+                        new_vib_dict[key] = val
+                        continue
+
+                    # Range check
+                    if not (1 <= old_atom_1b <= n):
+                        print(f"[WARN] old_atom_1b={old_atom_1b} out of valid range 1-{n}, keeping as-is")
+                        new_vib_dict[key] = val
+                        continue
+
+                    # Map 1-based old → 0-based → 1-based new
+                    try:
+                        new_atom_1b = int(old_to_new[old_atom_1b - 1] + 1)
+                    except Exception as e:
+                        print(f"[ERROR] Failed mapping old_atom_1b={old_atom_1b}: {e}")
+                        new_vib_dict[key] = val
+                        continue
+
+                    new_key = f"vibration_atom_{new_atom_1b}"
+                    if debug:
+                        print(f"[DEBUG] Mapping {key} -> {new_key}")
+
+                    if new_key in new_vib_dict:
+                        print(f"[ERROR] Collision detected! {key} and another map to {new_key}")
+                        raise ValueError(f"Collision in vibration_dict keys after renumbering: {new_key}")
+
+                    new_vib_dict[new_key] = val
+                else:
+                    # Non-vibration_atom_ keys copied as-is
+                    new_vib_dict[key] = val
+                    if debug:
+                        print(f"[DEBUG] Key '{key}' copied as-is (not vibration_atom_)")
+
+            if debug:
+                print(f"[DEBUG] Renumbering finished: {len(new_vib_dict)} keys total "
+                    f"({len(self.vibration_dict)} before)")
+            self.vibration_dict = new_vib_dict
+
+        # Note: self.vibration_mode_dict may need similar treatment if it uses atom indices in keys
+        if hasattr(self, "vibration_mode_dict") and self.vibration_mode_dict:
+            new_mode_dict: Dict[str, Any] = {}
+            for key, val in self.vibration_mode_dict.items():
+                # key is frequency, np.float value is array of shape (n, 3)
+                if isinstance(val, np.ndarray) and val.shape[0] == n and val.shape[1] == 3:
+                    new_array = val[old_to_new, :]
+                    new_mode_dict[key] = new_array
+                else:
+                    new_mode_dict[key] = val  # leave untouched if unexpected format
+                    continue
+                    
+            self.vibration_mode_dict = new_mode_dict
+        if verbose:
+            moved = {k: v for k, v in renumbering_dict.items() if k != v}
+            msg = "Atoms successfully renumbered."
+            if moved:
+                msg += f" Moved: {moved} (1-based)."
+            print(msg)
+        
+        if save_feather:
+            if out_file is None:
+                ren_dir = os.path.join(self.molecule_path, 'renumbered')
+                os.makedirs(ren_dir,  exist_ok=True)  # just os.makedirs(ren_dir, exist_ok=True) is fine
+                out_file = os.path.join(ren_dir, f"{self.molecule_name}_renumbered.feather")
+            save_to_feather(
+                df_dict={
+                    "xyz": self.xyz_df,
+                    "dipole": self.gauss_dipole_df,
+                    "polarizability": self.polarizability_df,
+                    "info": self.info_df
+                },
+                vib_dict=self.vibration_dict,
+                charge_dict=self.charge_dict,
+                ev_df=self.energy_value,
+                out_file=out_file
+            )
+            if verbose:
+                print(f"Renumbered data saved to {out_file}\n Saved to path: {os.getcwd()}")
+
+
+
+    def get_molecule_descriptors_df(self) -> pd.DataFrame:
+        """
+        Returns a DataFrame with various descriptors calculated for the molecule.
+
+        Returns:
+            pd.DataFrame: A DataFrame with the calculated descriptors.
+        """
+        descriptors_df = pd.concat(
+            [self.energy_value, self.gauss_dipole_df, self.get_sterimol()], axis=1)
+        descriptors_df = descriptors_df.sort_values(by=['energy_value'])
+        return descriptors_df
+
+
+    def write_xyz_file(self) -> None:
+        """
+        Writes the molecule's coordinates to an XYZ file.
+        """
+        data_to_xyz(self.xyz_df, self.molecule_name+'.xyz')
+    
+    def write_csv_files(self) -> None:
+        """
+        Writes all class variables to CSV files with the variable name as the file 
+        """
+        for var_name, var_value in vars(self).items():
+            if isinstance(var_value, pd.DataFrame):
+                var_value.to_csv(f"{var_name}.csv", index=False)
+
+
+    @property
+    def dfs(self):
+        """Per-frequency vibration frames. Built on first use, not at load."""
+        if getattr(self, "_dfs", None) is None:
+            self.vibration_dict_to_dfs()
+        return self._dfs
+
+    @dfs.setter
+    def dfs(self, value):
+        self._dfs = value
+
+    def vibration_dict_to_dfs(self, debug: bool = False):
+        """
+        Converts the vibration dictionary to a DataFrame for easier handling.
+
+        Args:
+            debug (bool): If True, prints debugging information.
+
+        Returns:
+            list[pd.DataFrame]: A list of DataFrames grouped by frequency.
+        """
+        
+        self.vib_df_list = []
+        self.bonds_df_vib = self.bonds_df
+        frames = []
+        freqs = self.info_df["Frequency"].values if isinstance(self.info_df, pd.DataFrame) and not self.info_df.empty else np.array([])
+
+        if debug:
+            print(f"[DEBUG] Starting vibration_dict_to_dfs")
+            print(f"[DEBUG] vibration_dict contains {len(self.vibration_dict)} entries")
+
+        for key, value in (self.vibration_dict or {}).items():
+            if debug:
+                print(f"\n[DEBUG] Processing key: {key}")
+                print(f"[DEBUG] Raw value shape: {getattr(value, 'shape', None)}")
+
+            idx = int(key.split('_')[-1]) - 1
+            arr = np.asarray(value, dtype=float)
+            if arr.ndim != 2 or arr.shape[1] < 3:
+                continue
+            arr = arr[~np.isnan(arr).any(axis=1)]
+            if arr.size == 0:
+                self.vibration_dict[key] = arr
+                continue
+            n_rows = arr.shape[0]
+            df = pd.DataFrame(arr[:, :3], columns=['x', 'y', 'z'])
+            if len(freqs) == n_rows:
+                df['frequency'] = freqs
+            elif len(freqs) > n_rows:
+                df['frequency'] = freqs[:n_rows]
+            else:
+                df['frequency'] = np.pad(freqs.astype(float), (0, n_rows - len(freqs)), constant_values=np.nan)
+            atom = self.xyz_df['atom'].iloc[idx] if idx < len(self.xyz_df) else 'X'
+            df.insert(0, 'atom', atom)
+            frames.append(df)
+            self.vibration_dict[key] = arr
+            if debug:
+                print(f"[DEBUG] DataFrame built for {key}: shape {df.shape}")
+
+        self.vib_df_list = frames
+        if not frames:
+            self._dfs = []
+            return self._dfs
+        xyz_df = pd.concat(frames, axis=0, ignore_index=True)
+        self._dfs = [group.reset_index(drop=True) for _, group in xyz_df.groupby('frequency', sort=False)]
+        if debug:
+            print(f"\n[DEBUG] Finished building dfs: {len(self._dfs)} groups")
+        return self._dfs
+
+
+    def visualize_molecule(self, vector=None) -> None:
+        """
+        Visualizes the molecule using the `visualize` module.
+        """
+        visualize = _import_visualize()
+        if vector is not None:
+            visualize.show_single_molecule(molecule_name=self.molecule_name, xyz_df=self.xyz_df, dipole_df=vector,origin=[0,0,0])
+        else:
+            visualize.show_single_molecule(molecule_name=self.molecule_name, xyz_df=self.xyz_df, dipole_df=self.gauss_dipole_df,origin=[0,0,0])
+
+
+    def process_sterimol_atom_group(self, atoms, radii, sub_structure=True, drop_atoms=None,visualize_bool=None, mode='all') -> pd.DataFrame:
+
+        # connected = get_molecule_connections(self.bonds_df, atoms[0], atoms[1], mode=mode)
+        connected = None
+
+        return get_sterimol_df(self.xyz_df, self.bonds_df, atoms, connected, radii, sub_structure=sub_structure, drop_atoms=drop_atoms, visualize_bool=visualize_bool, mode=mode)
+
+    def get_sterimol(self, base_atoms: Union[None, Tuple[int, int]] = None, radii: str = 'CPK', sub_structure=True, drop_atoms=None, visualize_bool=None, mode='all') -> pd.DataFrame:
+        """
+        Returns a DataFrame with the Sterimol parameters calculated based on the specified base atoms and radii.
+
+        Args:
+            base_atoms (Union[None, Tuple[int, int]], optional): The indices of the base atoms to use for the Sterimol calculation. Defaults to None.
+            radii (str, optional): The radii to use for the Sterimol calculation. Defaults to 'bondi'.
+
+        Returns:
+            pd.DataFrame: A DataFrame with the Sterimol parameters.
+            
+            to add
+            - only_sub- sterimol of only one part.
+            - drop some atoms.
+        """
+        if base_atoms is None:
+            base_atoms = get_sterimol_indices(self.xyz_df, self.bonds_df)
+        
+        if isinstance(base_atoms[0], list):
+            # If base_atoms is a list of lists, process each group individually and concatenate the results
+            sterimol_list = [self.process_sterimol_atom_group(atoms, radii, sub_structure=sub_structure, drop_atoms=drop_atoms,visualize_bool=visualize_bool, mode=mode) for atoms in base_atoms]
+            sterimol_df = pd.concat(sterimol_list, axis=0)
+
+        else:
+            # If base_atoms is a single group, just process that group
+            sterimol_df = self.process_sterimol_atom_group(base_atoms, radii,sub_structure=sub_structure, drop_atoms=drop_atoms,visualize_bool=visualize_bool, mode=mode)
+        return sterimol_df
+
+
+    def swap_atom_pair(self, pair_indices: Tuple[int, int]) -> pd.DataFrame:
+        """
+        Swaps the positions of two atoms in the molecule and returns a new DataFrame with the updated coordinates.
+
+        Args:
+            pair_indices (Tuple[int, int]): The indices of the atoms to swap.
+
+        Returns:
+            pd.DataFrame: A new DataFrame with the updated coordinates.
+        """
+        pairs = adjust_indices(pair_indices)
+        xyz_df = self.xyz_df
+        temp = xyz_df.iloc[pairs[0]].copy()
+        xyz_df.iloc[pairs[0]] = self.coordinates_array[pairs[1]]
+        xyz_df.iloc[pairs[1]] = temp
+        return xyz_df
+
+    
+    def get_charge_df(self, atoms_indices: List[int], 
+                  type: Union[str, List[str]] = 'all'
+                 ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+        """
+        Returns a DataFrame with the charges for the specified atoms for the requested type(s).
+
+        Args:
+            atoms_indices (List[int]): Indices of atoms to include.
+            type (str or List[str], optional): Charge type to extract (e.g., 'nbo', 'hirshfeld', 'cm5').
+                                            Use 'all' or a list of types to extract multiple types.
+                                            Defaults to 'nbo'.
+
+        Returns:
+            pd.DataFrame or Dict[str, pd.DataFrame]: A DataFrame for a single type, or a dictionary 
+            of DataFrames if multiple types are requested. If 'all' is specified, any missing/invalid 
+            types are skipped instead of raising an error.
+        """
+        atoms_indices = adjust_indices(atoms_indices)
+
+        def extract_charge(df: pd.DataFrame) -> pd.DataFrame:
+            # Extract specified rows, rename indices, and transpose
+            return df.iloc[atoms_indices].rename(index=lambda x: f'atom_{x + 1}').T
+
+        # Handle different input cases for 'type'
+        if isinstance(type, str):
+            if type.lower() == 'all':
+                # Instead of raising an error on missing types,
+                # we iterate through every type in self.charge_dict
+                # and skip any that fail.
+                results = {}
+                for t, df in self.charge_dict.items():
+                    try:
+                        results[t] = extract_charge(df)
+                    except Exception as e:
+                        pass
+                return results
+
+            else:
+                # Single specific type
+
+                return extract_charge(self.charge_dict[type])
+
+        elif isinstance(type, list):
+            # Multiple types, specified by name
+            result = {}
+            for t in type:
+         
+                result[t] = extract_charge(self.charge_dict[t])
+            return result
+
+        else:
+            raise TypeError("Parameter 'type' must be a string or a list of strings.")
+
+
+    def get_charge_diff_df(self, diff_indices: Union[List[List[int]], List[int]], 
+                       type: Union[str, List[str]] = 'all'
+                      ) -> Union[pd.DataFrame, Dict[str, pd.DataFrame]]:
+        """
+        Returns a DataFrame with the charge differences for specified atom pairs for the requested type(s).
+
+        Args:
+            diff_indices (List[List[int]] or List[int]):
+                - For multiple pairs: a list of lists (e.g., [[atom1, atom2], [atom3, atom4]]).
+                - For a single pair: a list (e.g., [atom1, atom2]).
+            type (str or List[str], optional): Charge type to extract (e.g., 'nbo', 'hirshfeld', 'cm5').
+                                            Use 'all' or a list of types to extract multiple types.
+                                            Defaults to 'nbo'.
+
+        Returns:
+            pd.DataFrame or Dict[str, pd.DataFrame]: A DataFrame for a single type, or a dictionary of DataFrames if multiple types are requested.
+            When using 'all' (or a list), any type that fails to compute will be skipped.
+        """
+        def compute_diff(df: pd.DataFrame) -> pd.DataFrame:
+            # If the first element of diff_indices is a list, assume multiple pairs are provided.
+            try:
+                
+                if isinstance(diff_indices[0], (list, tuple, np.ndarray)):
+                    diff_list = []
+                    for atoms in diff_indices:
+                        atoms = adjust_indices(list(atoms))
+                        # Calculate difference between the two specified atoms.
+                        diff = pd.DataFrame(
+                            [df.iloc[atoms[0]].values - df.iloc[atoms[1]].values],
+                            columns=[f'diff_{atoms[0]+1}-{atoms[1]+1}']
+                        )
+                        diff_list.append(diff)
+                        # print(f"Difference for atoms {atoms[0]+1} and {atoms[1]+1}: {diff.values}")
+                    return pd.concat(diff_list, axis=1)
+                else:
+                    diff_indices_adj = adjust_indices(diff_indices)
+                    diff_df=pd.DataFrame(
+                        [df.iloc[diff_indices_adj[0]].values - df.iloc[diff_indices_adj[1]].values],
+                        columns=[f'diff_{diff_indices_adj[0]+1}-{diff_indices_adj[1]+1}']
+                    )
+        
+                    return diff_df  
+            except Exception as e:
+                raise ValueError(f"Error in computing charge difference: {e}")
+
+        # Handle different input cases for 'type'
+        if isinstance(type, str):
+            if type.lower() == 'all':
+                results = {}
+                for t, df in self.charge_dict.items():
+                    try:
+                        results[t] = compute_diff(df)
+                    except Exception as e:
+                        pass
+
+                return results
+            else:
+
+                return compute_diff(self.charge_dict[type])
+        elif isinstance(type, list):
+            result = {}
+            for t in type:
+
+                try:
+                    result[t] = compute_diff(self.charge_dict[t])
+                except Exception as e:
+                    pass
+
+            return result
+        else:
+            raise TypeError("Parameter 'type' must be a string or a list of strings.")
+
+    def get_coordinates_mean_point(self, atoms_indices: List[int]) -> np.ndarray:
+        """
+        Returns the mean point of the specified atoms.
+
+        Args:
+            atoms_indices (List[int]): The indices of the atoms to calculate the mean point for.
+
+        Returns:
+            np.ndarray: The mean point of the specified atoms.
+        """
+        atoms_indices = adjust_indices(atoms_indices)
+        return np.mean(self.coordinates_array[atoms_indices], axis=0)
+ 
+    def get_coordination_transformation_df(self, base_atoms_indices: List[int],origin=None) -> pd.DataFrame:
+        """
+        Returns a new DataFrame with the coordinates transformed based on the specified base atoms.
+
+        Args:
+            base_atoms_indices (List[int]): The indices of the base atoms to use for the transformation.
+            origin (List[int], optional): Atom indices whose centroid becomes the
+                new origin. Defaults to the first base atom.
+
+        Returns:
+            pd.DataFrame: A new DataFrame with the transformed coordinates.
+        """
+        new_coordinates_df = preform_coordination_transformation(self.xyz_df, base_atoms_indices,origin)
+        return new_coordinates_df
+
+    ## not working after renumbering for some reason
+    
+    
+    # def get_dipole_gaussian_df_single(self, atoms, visualize_bool: bool = False) -> pd.DataFrame:
+    #     """
+    #     atoms can be any of:
+    #     - [o, y, p]                         # single-origin, single-plane atom
+    #     - [o, y, [p1, p2, ...]]             # single-origin, multi-plane set
+    #     - [[o1, o2, ...], y, p]             # multi-origin set, single-plane atom
+    #     - [[o1, o2, ...], y, [p1, p2, ...]] # multi-origin set, multi-plane set
+
+    #     All indices may be 1-based or 0-based (auto-detected per array).
+    #     Origin point used for viz is the centroid of the origin set.
+    #     """
+
+    #     # --- helpers (local) ---
+    #     def _as_int_list(x):
+    #         if isinstance(x, (list, tuple, set)):
+    #             return [int(i) for i in x]
+    #         return [int(x)]
+
+    #     def _parse_origin_y_plane(group):
+    #         # group: [origin, y, plane]
+    #         if len(group) < 3:
+    #             raise ValueError("atoms must be [origin, y, plane] where origin/plane can be scalars or lists")
+    #         origin_set = _as_int_list(group[0])
+    #         y_idx      = int(group[1])
+    #         plane_set  = _as_int_list(group[2])
+    #         return origin_set, y_idx, plane_set
+
+    #     def _to0(idx_list):
+    #         arr = np.asarray(idx_list, dtype=int)
+    #         # If any are 0, assume already 0-based
+    #         return arr if (arr == 0).any() else (arr - 1)
+
+    #     # ---- parse input ----
+    #     origin_set, y_idx, plane_set = _parse_origin_y_plane(atoms)
+
+    #     # ---- compute dipole ----
+    #     # Normalize the atoms spec we pass to the calculator: [origin_set, y, plane_set]
+    #     atoms_norm = [origin_set, y_idx, plane_set]
+    #     dipole_df = calc_dipole_gaussian(
+    #         self.coordinates_array,
+    #         np.array(self.gauss_dipole_df),
+    #         atoms_norm
+    #     )
+
+    #     # ---- build a descriptive label ----
+    #     def _fmt_set(xs):
+    #         return f"{{{','.join(map(str, xs))}}}" if len(xs) > 1 else f"{xs[0]}"
+    #     label = f"dipole_{_fmt_set(origin_set)}-{y_idx}-{_fmt_set(plane_set)}"
+    #     try:
+    #         dipole_df = dipole_df.rename(index={0: label})
+    #     except Exception:
+    #         dipole_df = dipole_df.rename(index={0: "dipole_gaussian_base"})
+
+    #     # ---- optional visualization ----
+    #     if visualize_bool:
+    #         try:
+    #             coords = np.asarray(self.coordinates_array, dtype=float)
+    #             origin0 = _to0(origin_set)
+    #             origin_point = coords[origin0].mean(axis=0)
+
+    #             # If your transformer expects a flat list [origin..., y, plane...], provide that
+    #             flat_spec = [*origin_set, y_idx, *plane_set]
+    #             try:
+    #                 xyz_df = self.get_coordination_transformation_df(flat_spec)
+    #             except Exception:
+    #                 xyz_df = getattr(self, "xyz_df", None)
+
+    #             visualize.show_single_molecule(
+    #                 molecule_name=self.molecule_name,
+    #                 xyz_df=xyz_df,
+    #                 dipole_df=dipole_df,
+    #                 origin=origin_point
+    #             )
+    #         except Exception as e:
+    #             print(f"[visualize] Skipping visualization due to: {e}")
+
+    #     return dipole_df
+
+    def get_dipole_gaussian_df_single(self, atoms, visualize_bool: bool = False,
+                                      center_atoms=None) -> pd.DataFrame:
+        """
+        atoms can be:
+        - [o, y, plane]
+        - [o1, o2, ..., y, plane]
+        - [[o1, o2, ...], y, plane]
+        - [[o1, o2, ...], [y1, y2, ...], [p1, p2, ...]]
+
+        center_atoms, if given, moves the frame origin to the centroid of those
+        atoms while the axes keep their directions from `atoms`.
+        """
+        # --- helpers (local) ---
+        def _parse_base(group):
+            # Returns origin_set (list[int]), y selector, plane selector
+            if isinstance(group[0], (list, tuple)):           # [[o...], y, plane]
+                origin_set = list(group[0]); y = group[1]; plane = group[2]
+            elif len(group) >= 4:                              # [o..., y, plane]
+                origin_set = list(group[:-2]); y = group[-2]; plane = group[-1]
+            else:                                              # [o, y, plane]
+                origin_set = [int(group[0])]; y = group[1]; plane = group[2]
+            return origin_set, y, plane
+
+        def _label_part(v):
+            if isinstance(v, (list, tuple)):
+                return "{" + ",".join(map(str, v)) + "}"
+            return str(v)
+
+        def _to0(idx_list):
+            arr = np.asarray(idx_list, dtype=int)
+            return arr if (arr == 0).any() else (arr - 1)
+
+        origin_set, y_idx, plane_idx = _parse_base(atoms)
+
+        dipole_df = calc_dipole_gaussian(self.coordinates_array,
+                                        np.array(self.gauss_dipole_df),
+                                        atoms,
+                                        center_atoms=center_atoms)
+
+        # Nice index label (support origin-set)
+        if len(origin_set) == 1:
+            label = f"dipole_{origin_set[0]}-{_label_part(y_idx)}-{_label_part(plane_idx)}"
+        else:
+            label = f"dipole_{{{','.join(map(str, origin_set))}}}-{_label_part(y_idx)}-{_label_part(plane_idx)}"
+        # Distinguish columns that used a different centre, otherwise two runs
+        # over the same base atoms collide when concatenated side by side.
+        if center_atoms is not None and len(np.atleast_1d(center_atoms)) > 0:
+            label += f"_c{_label_part(list(np.atleast_1d(center_atoms)))}"
+
+        try:
+            dipole_df = dipole_df.rename(index={0: label})
+        except Exception:
+            dipole_df = dipole_df.rename(index={0: "dipole_gaussian_base"})
+
+        # Optional visualization
+        if visualize_bool:
+            try:
+                # 1) Build the preview frame on the SAME origin the numbers
+                # used, so the drawn arrow and the reported components agree.
+                # calc_new_base_atoms reads a list in slot 0 as "origin =
+                # centroid of these atoms" and indexes coordinates 0-based,
+                # hence _to0 on every selector - the same convention
+                # calc_dipole_gaussian applies.
+                # Grouped y/plane selectors collapse to their first atom for the
+                # preview only; the numbers above use the full centroids.
+                y_vis = y_idx[0] if isinstance(y_idx, (list, tuple)) else y_idx
+                plane_vis = plane_idx[0] if isinstance(plane_idx, (list, tuple)) else plane_idx
+
+                if center_atoms is not None and len(np.atleast_1d(center_atoms)) > 0:
+                    origin_grp = [int(i) for i in np.atleast_1d(_to0(center_atoms))]
+                else:
+                    origin_grp = [int(i) for i in np.atleast_1d(_to0(origin_set))]
+                origin_world = np.asarray(self.coordinates_array)[origin_grp].mean(axis=0)
+
+                transformed = calc_coordinates_transformation(
+                    np.asarray(self.coordinates_array),
+                    [origin_grp, int(_to0([y_vis])[0]), int(_to0([plane_vis])[0])],
+                    origin=origin_world,
+                )
+                xyz_df = self.xyz_df.copy()
+                xyz_df[["x", "y", "z"]] = transformed
+
+                # 2) That frame is centred on origin_grp by construction.
+                origin_point = np.zeros(3)
+
+                # 3) (Nice-to-have) attach coords for auto-scaling downstream
+                try:
+                    dipole_df.mol_coords = xyz_df[["x", "y", "z"]].to_numpy()
+                except Exception:
+                    pass
+
+                # 4) Visualize: dipole_df is already in the same LOCAL frame → no basis needed
+                visualize = _import_visualize()
+                visualize.show_single_molecule(
+                    molecule_name=self.molecule_name,
+                    xyz_df=xyz_df,
+                    dipole_df=dipole_df,
+                    origin=origin_point
+                )
+
+            except Exception as e:
+                # Fallback disabled to avoid frame mismatches (local vs world)
+                print(f"[visualize] Skipping visualization (frame mismatch likely): {e}")
+                
+        return dipole_df
+
+
+    def get_dipole_gaussian_df(self, base_atoms_indices, visualize_bool: bool = False,
+                               center_atoms=None) -> pd.DataFrame:
+        """
+        Accepts either a single group:       [[1,2,3], 5, 6]  or  [1,2,3, 5, 6]  or  [1, 5, 6]
+        Or multiple groups:                  [ [[1,2,3],5,6], [ [4,7],10,11 ], [2,8,9,12] ]
+
+        center_atoms applies to every group.
+        """
+        def _is_group_like(x):
+            return isinstance(x, (list, tuple)) and len(x) >= 3
+
+        # Multiple groups if the top-level contains only group-like items
+        if isinstance(base_atoms_indices, (list, tuple)) and all(_is_group_like(g) for g in base_atoms_indices):
+            dipole_list = [
+                self.get_dipole_gaussian_df_single(g, visualize_bool=visualize_bool,
+                                                   center_atoms=center_atoms)
+                for g in base_atoms_indices
+            ]
+            return pd.concat(dipole_list, axis=0)
+
+        # Otherwise treat as a single group (including [[1,2,3],5,6])
+        return self.get_dipole_gaussian_df_single(base_atoms_indices, visualize_bool=visualize_bool,
+                                                  center_atoms=center_atoms)
+
+
+
+    def get_bond_angle(self, atom_indices: List[int]) -> pd.DataFrame:
+        """
+        Returns a DataFrame with the bond angles calculated based on the specified atom indices.
+
+        Args:
+            atom_indices (List[int]): The indices of the atoms to use for the bond angle calculation.
+
+        Returns:
+            pd.DataFrame: A DataFrame with the bond angles.
+        """
+        return get_angle_df(self.coordinates_array, atom_indices)
+    
+    def get_bond_length_single(self, atom_pair):
+        bond_length = calc_single_bond_length(self.coordinates_array, atom_pair)
+        bond_length_df = pd.DataFrame([bond_length], index=[f'bond_length_{atom_pair[0]}-{atom_pair[1]}'])
+        return bond_length_df
+
+    def get_bond_length(self, atom_pairs):
+        """
+            Returns a DataFrame with the bond lengths calculated based on the specified atom pairs.
+
+            Args:
+                atom_pairs (Union[List[Tuple[int, int]], Tuple[int, int]]): The pairs of atoms to use for the bond length calculation.
+
+            Returns:
+                pd.DataFrame: A DataFrame with the bond lengths.
+            """
+        if isinstance(atom_pairs[0], (list, tuple, np.ndarray)):
+            # If atom_pairs is a list of pairs, process each pair individually and concatenate the results
+            bond_length_list = [self.get_bond_length_single(list(pair)) for pair in atom_pairs]
+            bond_df = pd.concat(bond_length_list, axis=0)
+        else:
+            # If atom_pairs is a single pair, just process that pair
+            bond_df = self.get_bond_length_single(atom_pairs)
+        return bond_df
+
+
+    def get_vibration_max_frequency(self, vibration_atom_num: int) -> float:
+        """
+        Returns the maximum frequency magnitude for the vibration data of the specified atom number.
+
+        Args:
+            vibration_atom_num (int): The atom number for which to retrieve the vibration data.
+
+        Returns:
+            float: The maximum frequency magnitude for the vibration data of the specified atom number.
+        """
+        vibration_array: Union[List[float], None] = self.vibration_dict.get('vibration_atom_{}'.format(str(vibration_atom_num)))
+        return calc_max_frequency_magnitude(vibration_array, self.info_df.T)
+
+    def get_stretch_vibration_single(self, atom_pair: List[int], threshold=None, upper_threshold=None) -> pd.DataFrame:
+        threshold = STRETCH_WINDOW[0] if threshold is None else threshold
+        upper_threshold = STRETCH_WINDOW[1] if upper_threshold is None else upper_threshold
+        
+       
+        if check_pair_in_bonds(atom_pair, self.bonds_df) == True:
+            try:
+                extended_vib_df = calc_vibration_dot_product_from_pairs(
+                    self.coordinates_array, self.vibration_dict, atom_pair, self.info_df,threshold=threshold,upper_threshold=upper_threshold,vibration_mode_dict=self.vibration_mode_dict
+                )
+            except TypeError:
+                print(f'Strech Vibration Error: no vibration array for the molecule {self.molecule_name} for {atom_pair} - check atom numbering in molecule')
+                return None
+            # print(extended_vib_df)
+            vibration_df, idx = calc_max_frequency_gen_vibration(extended_vib_df) ## remove for later versions
+            return vibration_df.rename(index={idx: f'Stretch_{atom_pair[0]}_{atom_pair[1]}'})
+            # return extended_vib_df
+        else:
+            print(f'Strech Vibration Error: the following bonds do not exist-check atom numbering in molecule: \n {self.molecule_name} for {atom_pair} \n')
+            
+            df=pd.DataFrame([[np.nan,np.nan]],columns=['Frequency','Amplitude'])
+            df.rename(index={0: f'Stretch_{atom_pair[0]}_{atom_pair[1]}'},inplace=True)
+            
+            return df
+    
+    ### check if all frequencies are the same for different vibrations and remove, check what atoms are moving the most
+    ## return what atoms are moving the most 
+    ### split all the vibrations to symmetric and asymmetric
+    ## if you found symmetric look for the asymmetric
+
+    def get_stretch_vibration(self, atom_pairs: List[int], threshold=None, upper_threshold=None) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        atom_pairs : molecule_1.get_stretch_vibration([[1,6],[3,4]])
+            atom pairs must have a corresponding vibration file and appear in bonds_df.
+
+        Returns
+        -------
+        dataframe
+
+        [                   0
+         IR            0.7310
+         Frequency  1655.5756,
+                             0
+         IR            0.35906
+         Frequency  1689.59450]
+
+        """
+        if isinstance(atom_pairs[0], (list, tuple, np.ndarray)):
+            # If atom_pairs is a list of pairs, process each pair individually and concatenate the results
+            vibration_list = [self.get_stretch_vibration_single(list(pair),threshold,upper_threshold) for pair in atom_pairs]
+            # Filter out None results
+            vibration_list = [vib for vib in vibration_list if vib is not None]
+            vibration_df = pd.concat(vibration_list, axis=0)
+            
+        else:
+            # If atom_pairs is a single pair, just process that pair
+            vibration_df=self.get_stretch_vibration_single(atom_pairs,threshold,upper_threshold)
+        
+        # go over df to check if there are equal frequencies and remove them, saving the
+        return vibration_df
+        
+    
+    def get_ring_vibrations(
+        self,
+        ring_atom_indices: List[List[int]],
+        *,
+        # NEW: thresholds (all optional, applied post-filter)
+        freq_min = None,
+        freq_max = None,
+        inten_min = None,
+        inten_max = None,
+        return_nan_on_empty: bool = True,   # if True -> return a NaN row when filters empty
+        verbose: bool = True,
+        min_ring_share: Optional[float] = 0.5,
+        **filter_kwargs,                    # still passed to get_filtered_ring_df
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        ring_atom_indices : list
+            Either a single list like [1] or [1,4], or a list of such lists, e.g. [[1],[2,5],...].
+            Example: molecule_1.get_ring_vibrations([6])
+
+        freq_min/freq_max : float or None
+            Optional min/max threshold for vibrational frequency (cm^-1).
+
+        min_ring_share : float or None
+            A mode is considered only if at least this share of its heavy-atom motion sits on
+            the requested ring. Without it, a molecule with a second ring can return that other
+            ring's mode. ``None`` restores the behaviour before October 2026.
+
+        A five-membered ring has no para position; for one, ``cross`` is the higher and
+        ``para`` the lower of its two ring C-C stretching modes (``ring_stretch_pair``), and
+        both angles are NaN.
+
+        inten_min/inten_max : float or None
+            Optional min/max threshold for vibrational intensity (a.u. or km/mol).
+
+        Returns
+        -------
+        pd.DataFrame or None
+            If multiple inputs: stacked rows per atom-set. Index is labeled (e.g., 'cross_[1, 4]').
+            Columns: cross, cross_angle, para, para_angle (from calc_min_max_ring_vibration).
+            If filters (including thresholds) produce no data and `return_nan_on_empty=True`,
+            returns a single NaN row; otherwise returns None.
+        """
+        import numpy as np
+        import pandas as pd
+
+        def _pick_col(df: pd.DataFrame, candidates: list[str]) -> str :
+            """Return the first column name present in df from candidates (or None)."""
+            for c in candidates:
+                if c in df.columns:
+                    return c
+            return None
+
+        def _apply_thresholds(df: pd.DataFrame) -> pd.DataFrame:
+            """Apply freq/intensity thresholds if provided; return filtered df."""
+            if df is None or getattr(df, "empty", False):
+                return df
+
+            # Try common column names
+            freq_col = _pick_col(df, ["frequency", "freq", "wavenumber", "wn"])
+            inten_col = _pick_col(df, ["intensity", "inten", "IR_intensity", "IR", "I"])
+
+            out = df
+            if freq_col is not None:
+                if freq_min is not None:
+                    out = out[out[freq_col] >= float(freq_min)]
+                if freq_max is not None:
+                    out = out[out[freq_col] <= float(freq_max)]
+
+            if inten_col is not None:
+                if inten_min is not None:
+                    out = out[out[inten_col] >= float(inten_min)]
+                if inten_max is not None:
+                    out = out[out[inten_col] <= float(inten_max)]
+
+            return out
+
+        def _nan_row(atom_set):
+            nan_row = pd.DataFrame(
+                [[np.nan, np.nan, np.nan, np.nan]],
+                columns=["cross", "cross_angle", "para", "para_angle"]
+            )
+            nan_row.rename(index={0: f"empty_{atom_set}"}, inplace=True)
+            return nan_row
+
+        def _process_one(atom_set):
+            # Resolve benzene partner indices
+            symbols = list(self.xyz_df["atom"])
+            if get_benzene_ring_indices(self.bonds_df, atom_set) is None:
+                five = rings_through(self.bonds_df, atom_set[0], 5)
+                if len(atom_set) > 1:
+                    five = [r for r in five if int(atom_set[1]) in r]
+                if five:
+                    pair = ring_stretch_pair(self.info_df, self.coordinates_array, self.vibration_dict,
+                                             self.bonds_df, symbols, five[0])
+                    if pair is None:
+                        return _nan_row(atom_set) if return_nan_on_empty else None
+                    return pd.DataFrame([[pair[0], np.nan, pair[1], np.nan]],
+                                        columns=["cross", "cross_angle", "para", "para_angle"])
+            try:
+                z, x, c, v, b, n = get_benzene_ring_indices(self.bonds_df, atom_set)
+                ring_atom_indices_group = [[z, x], [c, v], [b, n]]
+            except Exception as e:
+                if verbose:
+                    print(f"[ERROR] get_benzene_ring_indices failed for {atom_set}: {e}")
+                return None
+
+            # Filter vibrations (pre-existing filters via filter_kwargs)
+            try:
+                filtered_df = get_filtered_ring_df(
+                    self.info_df, self.coordinates_array, self.vibration_dict, ring_atom_indices_group,
+                    **filter_kwargs
+                )
+            except FileNotFoundError:
+                if verbose:
+                    print(f"[ERROR] No vibration - check atom numbering in molecule {getattr(self, 'molecule_name', 'Unknown')}")
+                return None
+            except Exception as e:
+                if verbose:
+                    print(f"[ERROR] get_filtered_ring_df failed for {atom_set}: {e}")
+                return None
+
+            # keep only modes that live on this ring
+            if min_ring_share is not None and filtered_df is not None and not filtered_df.empty:
+                share = mode_share(self.vibration_dict, [z, x, c, v, b, n], symbols)
+                on_ring = share[filtered_df["index"].astype(int).to_numpy()] >= float(min_ring_share)
+                filtered_df = filtered_df[on_ring].reset_index(drop=True)
+
+            # NEW: apply min/max thresholds (freq/intensity)
+            filtered_df = _apply_thresholds(filtered_df)
+
+            # Handle empty after thresholds
+            if filtered_df is None or getattr(filtered_df, "empty", False):
+                if verbose:
+                    print("No Vibration data found within the specified thresholds. Adjust your thresholds.")
+                return _nan_row(atom_set) if return_nan_on_empty else None
+
+            # Safe compute min/max summarization
+            try:
+                df = calc_min_max_ring_vibration(filtered_df, ring_atom_indices)
+            except ValueError as e:
+                if verbose:
+                    print(f"[WARN] Summary failed for {atom_set}: {e}")
+                return _nan_row(atom_set) if return_nan_on_empty else None
+            except Exception as e:
+                if verbose:
+                    print(f"[ERROR] calc_min_max_ring_vibration failed for {atom_set}: {e}")
+                return None
+
+            return df
+
+        try:
+            # Normalize input shape to a list of lists
+            if not isinstance(ring_atom_indices, list):
+                ring_atom_indices = [ring_atom_indices]
+            if ring_atom_indices and not isinstance(ring_atom_indices[0], list):
+                ring_atom_indices = [ring_atom_indices]
+
+            out = []
+            for atoms in ring_atom_indices:
+                res = _process_one(atoms)
+                if res is not None:
+                    out.append(res)
+
+            if out:
+                return pd.concat(out, axis=0)
+            else:
+                if verbose:
+                    print(f"[INFO] No ring vibration data produced for {getattr(self, 'molecule_name', 'Unknown')}.")
+                return None
+
+        except Exception as e:
+            print(f"[ERROR] Unexpected error in get_ring_vibrations for molecule {getattr(self, 'molecule_name', 'Unknown')}: {e}")
+            return None
+
+ 
+    
+    # def get_bend_vibration_single(self, atom_pair: List[int], threshold: float = 1300)-> pd.DataFrame:
+    #     # Create the adjacency dictionary for the pair of atoms
+    #     atom_pair = [a - 1 for a in atom_pair]
+    #     adjacency_dict = create_adjacency_dict_for_pair(self.bonds_df, atom_pair)
+  
+    #     center_atom_exists = find_center_atom(atom_pair[0], atom_pair[1], adjacency_dict)
+    #     if not center_atom_exists:
+    #         raise ValueError(f'Bend Vibration - Atoms do not share a center in molecule {self.molecule_name} - for atoms {atom_pair} check atom numbering in molecule')
+    #     else:
+    #         # Create the extended DataFrame for the vibration modes
+    #         extended_df = extended_df_for_stretch(self.vibration_dict, self.info_df, atom_pair, threshold)
+    #         # Calculate the cross product and magnitude for each row in the extended DataFrame
+    #         cross_list = []
+    #         cross_mag_list = []
+    #         for i in range(extended_df.shape[0]):
+    #             cross_list.append(np.cross(extended_df[[0, 1, 2]].iloc[i], extended_df[[3, 4, 5]].iloc[i]))
+    #             cross_mag_list.append(np.linalg.norm(cross_list[-1]))
+    #         # Add the cross magnitude column to the extended DataFrame
+    #         extended_df['Cross_mag'] = cross_mag_list
+    #         extended_df.reset_index(drop=True, inplace=True)
+    #         # Find the row with the maximum cross magnitude and extract the bending frequency and cross magnitude
+
+    #         index_max = extended_df['Cross_mag'].idxmax()
+    #         max_frequency_vibration = (pd.DataFrame(extended_df.iloc[index_max]).T)[['Frequency', 'Cross_mag']]
+    #         max_frequency_vibration = max_frequency_vibration.rename(index={index_max: f'Bending_{atom_pair[0]}-{atom_pair[1]}'})
+    #         return max_frequency_vibration
+
+    def get_bend_vibration_single(self, atom_pair: List[int], threshold: Optional[float] = None,
+                                  min_share: Optional[float] = 0.3) -> pd.DataFrame:
+        """The bending mode of the two end atoms about their shared centre.
+
+        ``min_share``: a mode is considered only if at least this share of its motion sits on the
+        two ends and their common neighbours; otherwise the largest cross product can belong to
+        an unrelated mode. ``None`` restores the behaviour before October 2026. When no mode
+        qualifies the row is NaN.
+        """
+        threshold = BEND_MIN_FREQUENCY if threshold is None else threshold
+        atom_pair = [int(a) for a in atom_pair]
+        if len(atom_pair) == 3:          # an angle a-b-c (the forms GUI picks triplets): bend its two ends
+            atom_pair = [atom_pair[0], atom_pair[2]]
+
+        # bonds_df is 1-based
+        adjacency_dict = create_adjacency_dict_for_pair(self.bonds_df, atom_pair)
+        center_atom_exists = find_center_atom(atom_pair[0], atom_pair[1], adjacency_dict)
+
+        if not center_atom_exists:
+            raise ValueError(
+                f'Bend Vibration - Atoms do not share a center in molecule {self.molecule_name} '
+                f'- for atoms {atom_pair} check atom numbering in molecule'
+            )
+
+        # vibration_dict keys are 1-based (vibration_atom_<n>), like atom_pair
+        extended_df = extended_df_for_stretch(self.vibration_dict, self.info_df, atom_pair, threshold)
+
+        if extended_df.empty:
+            raise ValueError(f"[get_bend_vibration_single] No modes found above threshold {threshold} for {self.molecule_name}")
+
+        cross = np.cross(extended_df[[0, 1, 2]].to_numpy(float), extended_df[[3, 4, 5]].to_numpy(float))
+        extended_df['Cross_mag'] = [np.linalg.norm(c) for c in cross]
+        extended_df.reset_index(drop=True, inplace=True)
+
+        if min_share is not None:
+            centres = set(adjacency_dict.get(atom_pair[0], [])) & set(adjacency_dict.get(atom_pair[1], []))
+            share = mode_share(self.vibration_dict, list(atom_pair) + [int(c) for c in centres])
+            freqs = np.asarray(self.info_df['Frequency'], float)
+            mode = [int(np.argmin(np.abs(freqs - f))) for f in extended_df['Frequency'].astype(float)]
+            extended_df = extended_df[share[mode] >= float(min_share)].reset_index(drop=True)
+            if extended_df.empty:
+                return pd.DataFrame([[np.nan, np.nan]], columns=['Frequency', 'Cross_mag'],
+                                    index=[f'Bending_{atom_pair[0]}-{atom_pair[1]}'])
+
+        index_max = extended_df['Cross_mag'].idxmax()
+
+        max_frequency_vibration = pd.DataFrame(extended_df.iloc[index_max]).T[['Frequency', 'Cross_mag']]
+        max_frequency_vibration = max_frequency_vibration.rename(
+            index={index_max: f'Bending_{atom_pair[0]}-{atom_pair[1]}'}
+        )
+        return max_frequency_vibration
+
+    def get_bend_vibration(self, atom_pairs: List[str], threshold: Optional[float] = None) -> pd.DataFrame:
+        """"
+
+        Finds the bending frequency for a pair of atoms in a molecule.
+
+        Args from self:
+            atom_pair (list): A list of two atom symbols representing the pair of atoms to find the bending frequency for.
+            vibration_dict (dict): A dictionary that maps each vibration mode to a list of its frequencies.
+            bonds_df (pd.DataFrame): A DataFrame that contains the bond information for the molecule.
+            info_df (pd.DataFrame): A DataFrame that contains the information for each vibration mode in the molecule.
+            threshold (float): The frequency threshold for selecting vibration modes.
+
+        Returns:
+            pd.DataFrame: If the atoms do not share a center, returns a string indicating this. Otherwise, returns a DataFrame that contains the bending frequency and cross magnitude for the pair of atoms.
+
+        """
+        
+        if isinstance(atom_pairs[0], (list, tuple, np.ndarray)):
+            # If atom_pairs is a list of pairs, process each pair individually and concatenate the results
+            vibration_list = [self.get_bend_vibration_single(list(pair), threshold) for pair in atom_pairs]
+            vibration_df = pd.concat(vibration_list, axis=0)
+            return vibration_df
+        else:
+            # If atom_pairs is a single pair, just process that pair
+            return self.get_bend_vibration_single(atom_pairs, threshold)
+
+
+
+_MOLECULES_CACHE = {}
+_MOLECULES_CACHE_MAX = 2
+
+# Sidecar JSON that lives next to molecule files and must never be loaded as one.
+_NON_MOLECULE_JSON_NAMES = frozenset({
+    "presets.json",
+    "input_example.json",
+    "config_example.json",
+    "run_config.json",
+})
+
+
+# What each input carries. A folder of one kind gets the descriptors its files can give (the page disables the rest).
+MOLECULE_FILE_KINDS = {
+    "feather": "Gaussian, converted (.feather): geometry, NBO/Hirshfeld/CM5 charges, dipole, polarizability, vibrations",
+    "json": "structured JSON: what the converter wrote",
+    "gaussian_log": "Gaussian output (.log): geometry, NBO/Hirshfeld/CM5 charges, dipole, polarizability, vibrations",
+    "orca_out": "ORCA output (.out): geometry, Mulliken/Loewdin (Hirshfeld if printed) charges, dipole, vibrations of a frequency job",
+    "xyz": "coordinates (.xyz): geometry only (Sterimol, lengths, angles, %Vbur)",
+}
+_KIND_ORDER = ("feather", "json", "gaussian_log", "orca_out", "xyz")      # one file per name: the richest kind wins
+
+
+def _head(path, n=20000):
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            return fh.read(n)
+    except OSError:
+        return ""
+
+
+def molecule_file_kind(path):
+    """feather, json, gaussian_log, orca_out or xyz; None for anything else (a cluster job log, a config JSON)."""
+    lower = os.path.basename(path).lower()
+    if lower.endswith((".feather", ".ftr")):
+        return "feather"
+    if lower.endswith(".json"):
+        return "json" if lower not in _NON_MOLECULE_JSON_NAMES and _json_looks_like_molecule(path) else None
+    if lower.endswith(".xyz"):
+        return "xyz"
+    if lower.endswith((".log", ".out")):
+        head = _head(path)
+        if "Gaussian, Inc." in head or "Entering Gaussian System" in head:
+            return "gaussian_log"
+        if "O   R   C   A" in head:
+            return "orca_out"
+    return None
+
+
+def folder_inputs(directory):
+    """Which kinds of molecule file a folder holds and what they carry (read from the first file of each kind), and
+    what every molecule can give: a descriptor needs it in all of them."""
+    path, files = _molecules_folder_files(directory)
+    kinds = {}
+    for name, _stamp, _size in files:
+        kinds.setdefault(molecule_file_kind(os.path.join(path, name)), []).append(name)
+    carries = {}
+    for kind, names in kinds.items():
+        try:
+            params = read_molecule_file(os.path.join(path, names[0]))      # [tables, vibrations, charges, (energy)]
+            df, vib, charges = params[0], params[1], params[2]
+        except Exception as exc:
+            carries[kind] = {"error": f"{names[0]}: {exc}", "charges": [], "dipole": False, "polarizability": False,
+                             "vibrations": False}
+            continue
+        carries[kind] = {"charges": sorted(t for t, c in charges.items() if not c.dropna().empty),
+                         "dipole": not df["dipole_df"].dropna().empty,
+                         "polarizability": not df["pol_df"].dropna(how="all").empty,
+                         "vibrations": bool(vib) and not df["info_df"].dropna(how="all").empty}
+    shared = {k: bool(carries) and all(c[k] for c in carries.values()) for k in ("dipole", "polarizability", "vibrations")}
+    shared["charges"] = sorted(set.intersection(*[set(c["charges"]) for c in carries.values()])) if carries else []
+    return {"kinds": {k: len(v) for k, v in kinds.items()}, "carries": carries, "shared": shared,
+            "about": {k: MOLECULE_FILE_KINDS[k] for k in kinds}}
+
+
+def read_molecule_file(path):
+    """[df_dict, vib_dict, charge_dict, ev] from any molecule file: .feather, structured .json, Gaussian .log, ORCA .out,
+    or .xyz (geometry only: no charges, dipole or vibrations)."""
+    kind = molecule_file_kind(path)
+    if kind == "json":
+        return json_file_handler(path)
+    if kind == "orca_out":
+        from orca_reader import read_orca
+        return json_payload_handler(read_orca(path))
+    if kind == "gaussian_log":
+        from feather_extractor import gauss_file_handler
+        table, _report = gauss_file_handler(path)
+        table["atom"] = table["atom"].astype(str)
+        return feather_file_handler(table)
+    if kind == "xyz":
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()
+        rows = [ln.split()[:4] for ln in lines[2:2 + int(lines[0].split()[0])]]      # the first frame (GOAT: the lowest)
+        return json_payload_handler({"molecule": {"atoms": [
+            {"atom": a, "x": float(x), "y": float(y), "z": float(z)} for a, x, y, z in rows]}})
+    return feather_file_handler(path)
+
+
+def _json_looks_like_molecule(path):
+    """True when the file is structured converter JSON (molecule.atoms), not a config."""
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            head = fh.read(8192)
+    except OSError:
+        return False
+    return '"molecule"' in head and '"atoms"' in head
+
+
+def _is_molecule_folder_file(name, directory):
+    return molecule_file_kind(os.path.join(directory, name)) is not None
+
+
+def _molecules_folder_files(path, file_limit=None):
+    path = os.path.abspath(path)
+    try:
+        names = os.listdir(path)
+    except OSError:
+        return path, []
+    kinds = {name: molecule_file_kind(os.path.join(path, name)) for name in names}
+    best = {}                                  # name.log beside name.feather: the feather is read, once
+    for name, kind in kinds.items():
+        if kind is not None:
+            stem = os.path.splitext(name)[0]
+            if stem not in best or _KIND_ORDER.index(kind) < _KIND_ORDER.index(kinds[best[stem]]):
+                best[stem] = name
+    files = []
+    for name in sorted(best.values()):
+        fp = os.path.join(path, name)
+        try:
+            st = os.stat(fp)
+            stamp = int(getattr(st, "st_mtime_ns", int(st.st_mtime * 1e9)))
+            files.append((name, stamp, int(st.st_size)))
+        except OSError:
+            files.append((name, 0, 0))
+    if file_limit is not None:
+        try:
+            files = files[: max(1, int(file_limit))]
+        except (TypeError, ValueError):
+            pass
+    return path, files
+
+
+def _molecules_cache_key(path, threshold, file_limit):
+    folder, files = _molecules_folder_files(path, file_limit)
+    limit = None if file_limit is None else int(file_limit)
+    return (folder, None if threshold is None else float(threshold), tuple(files), limit)
+
+
+def _molecules_cache_put(key, mols):
+    if key in _MOLECULES_CACHE:
+        _MOLECULES_CACHE.pop(key, None)
+    _MOLECULES_CACHE[key] = mols
+    while len(_MOLECULES_CACHE) > _MOLECULES_CACHE_MAX:
+        oldest = next(iter(_MOLECULES_CACHE))
+        if oldest == key:
+            break
+        _MOLECULES_CACHE.pop(oldest, None)
+
+
+def _molecules_worker_count(n_files):
+    if n_files <= 1:
+        return 1
+    try:
+        requested = int(os.environ.get("DESCRIPYTOR_MOL_JOBS") or 0)
+    except (TypeError, ValueError):
+        requested = 0
+    if requested > 0:
+        return max(1, min(requested, n_files))
+    # serial by default: parsing a molecule is Python work, and threads only queue on the interpreter lock
+    # (the 26-molecule example loads in 1.6 s serially and 4.0 s on 8 threads)
+    return 1
+
+
+class Molecules():
+
+    def __init__(self, molecules_dir_name, renumber=False, threshold=None, progress=None, file_limit=None):
+        """
+        Load Molecule objects from a directory, or from several directories at once.
+
+        Parameters
+        ----------
+        molecules_dir_name : str | os.PathLike | dict[str, str]
+            - str / os.PathLike: a single directory containing .feather/.json files.
+            - dict[str, str]: a mapping of ``{source_label: directory_path}``.
+              Every directory is scanned and all molecules are pooled into this
+              one ``Molecules`` object. Each loaded ``Molecule`` gets a
+              ``.source`` attribute set to its label, and
+              ``self.molecule_sources`` maps ``molecule_name -> label``. A
+              directory that doesn't exist is skipped with a warning.
+        threshold : float
+            Distance threshold (Angstrom) used for connectivity/bond detection.
+        progress : callable, optional
+            Receives ``{"event", "i", "n", "name", "ok", "phase"}`` dicts while
+            loading (single-directory form only).
+        file_limit : int, optional
+            Load at most this many files (single-directory form only).
+        """
+        self.molecule_sources = {}  # molecule_name -> source label (dict form only)
+        if isinstance(molecules_dir_name, dict):
+            self._load_from_sources(molecules_dir_name, threshold)
+            return
+        self.source_dirs = {molecules_dir_name: os.path.abspath(molecules_dir_name)}
+
+        self.molecules_path=os.path.abspath(molecules_dir_name)
+        cache_key = None
+        if file_limit is None:
+            cache_key = _molecules_cache_key(self.molecules_path, threshold, None)
+            cached = _MOLECULES_CACHE.get(cache_key)
+            if cached is not None:
+                self.__dict__ = cached.__dict__
+                n = len(getattr(self, "molecules", []) or [])
+                if progress:
+                    progress({"event": "start", "n": n, "phase": "load", "i": 0, "cached": True})
+                    for i, mol in enumerate(self.molecules, 1):
+                        progress({
+                            "event": "progress",
+                            "i": i,
+                            "n": n,
+                            "name": getattr(mol, "molecule_name", ""),
+                            "ok": True,
+                            "phase": "load",
+                            "cached": True,
+                        })
+                return
+
+        self.molecules=[]
+        self.failed_molecules=[]
+        self.success_molecules=[]
+        _folder, file_rows = _molecules_folder_files(self.molecules_path, file_limit)
+        data_files = [row[0] for row in file_rows]
+        n_files = len(data_files)
+        if progress:
+            progress({"event": "start", "n": n_files, "phase": "load", "i": 0})
+
+        def _load_one(data_file):
+            abs_path = os.path.join(self.molecules_path, data_file)
+            try:
+                return data_file, Molecule(abs_path, threshold=threshold), None
+            except Exception as exc:
+                return data_file, None, exc
+
+        n_jobs = _molecules_worker_count(n_files)
+        if n_jobs == 1:
+            ordered = []
+            for data_file in data_files:
+                ordered.append(_load_one(data_file))
+        else:
+            import threading
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            ordered = [None] * n_files
+            done = 0
+            lock = threading.Lock()
+            with ThreadPoolExecutor(max_workers=n_jobs) as pool:
+                futs = {pool.submit(_load_one, data_file): idx for idx, data_file in enumerate(data_files)}
+                for fut in as_completed(futs):
+                    idx = futs[fut]
+                    data_file, mol, err = fut.result()
+                    ordered[idx] = (data_file, mol, err)
+                    name = os.path.splitext(data_file)[0]
+                    ok = mol is not None
+                    if not ok:
+                        print(f'Error: {data_file} could not be processed : {err}')
+                    with lock:
+                        done += 1
+                        i = done
+                    if progress:
+                        progress({
+                            "event": "progress",
+                            "i": i,
+                            "n": n_files,
+                            "name": name,
+                            "ok": ok,
+                            "phase": "load",
+                        })
+
+        if n_jobs == 1:
+            for i, (data_file, mol, err) in enumerate(ordered, 1):
+                name = os.path.splitext(data_file)[0]
+                ok = mol is not None
+                if not ok:
+                    print(f'Error: {data_file} could not be processed : {err}')
+                if progress:
+                    progress({
+                        "event": "progress",
+                        "i": i,
+                        "n": n_files,
+                        "name": name,
+                        "ok": ok,
+                        "phase": "load",
+                    })
+
+        for data_file, mol, err in ordered:
+            if mol is not None:
+                self.molecules.append(mol)
+                self.success_molecules.append(data_file)
+            else:
+                self.failed_molecules.append(data_file)
+
+        n_ok = len(self.success_molecules)
+        n_fail = len(self.failed_molecules)
+        print(f'Molecules Loaded: {n_ok}  Failed Molecules: {n_fail}')
+        if n_fail:
+            print(f'Failed Molecules: {self.failed_molecules}')
+
+        self.molecule_names=[molecule.molecule_name for molecule in self.molecules]
+        self.old_molecules=self.molecules
+        self.old_molecule_names=self.molecule_names
+        if cache_key is not None:
+            _molecules_cache_put(cache_key, self)
+
+    def _load_from_sources(self, sources, threshold):
+        """The dict form of __init__: pool several labelled directories into one set."""
+        self.molecules, self.failed_molecules, self.success_molecules = [], [], []
+        self.source_dirs = {label: os.path.abspath(path) for label, path in sources.items()}
+        # Methods that assume one self.molecules_path (extract_all_dfs, extract_all_xyz,
+        # get_renumbering_dict, ...) default to the first directory supplied.
+        self.molecules_path = next(iter(self.source_dirs.values()), None)
+        for label, dir_path in self.source_dirs.items():
+            if not os.path.isdir(dir_path):
+                print(f"[skip] source '{label}': directory not found -> {dir_path}")
+                continue
+            for data_file, _stamp, _size in _molecules_folder_files(dir_path)[1]:
+                if True:
+                    full_path = os.path.join(dir_path, data_file)
+                    try:
+                        mol = Molecule(full_path, threshold=threshold)
+                        mol.source = label
+                        self.molecules.append(mol)
+                        self.success_molecules.append(full_path)
+                        self.molecule_sources[mol.molecule_name] = label
+                    except Exception as e:
+                        self.failed_molecules.append(full_path)
+                        print(f'Error: {full_path} could not be processed : {e}')
+        print(f'Molecules Loaded: {len(self.success_molecules)}  Failed Molecules: {len(self.failed_molecules)}')
+        self.molecule_names = [molecule.molecule_name for molecule in self.molecules]
+        self.old_molecules = self.molecules
+        self.old_molecule_names = self.molecule_names
+
+    def export_all_xyz(self):
+        os.makedirs('xyz_files', exist_ok=True)
+        os.chdir('xyz_files')
+        for mol in self.molecules:
+            xyz_df=mol.xyz_df
+            mol_name=mol.molecule_name
+            data_to_xyz(xyz_df, f'{mol_name}.xyz')
+        os.chdir('../')
+    
+    def renumber_all_molecules(self,renumbering_list, target_idx=None):
+        import copy
+        # if len(renumbering_list) != len(self.molecules):
+        #     raise ValueError("Renumbering list length must match the number of molecules.")
+        # if target_idx is -1 translate to 0
+        if target_idx is not None and target_idx == -1:
+            target_idx = 0
+        
+        for i, (renumbering_dict, molecule) in enumerate(zip(renumbering_list, self.molecules)):
+            if target_idx == i:
+                if i + 1 < len(renumbering_list):
+                    merged = copy.deepcopy(renumbering_list[i])
+                    merged.update(copy.deepcopy(renumbering_dict))  # current has priority
+                    renumbering_list[i + 1] = merged
+                print(f'Skipping renumbering for molecule {molecule.molecule_name} at index {i}. dict : {renumbering_dict}')
+                continue
+            # try:
+            molecule.renumber_atoms(renumbering_dict, bonds_are_0_based=True)
+            print(f'Molecule {molecule.molecule_name} renumbered successfully.')
+            # except Exception as e:
+            #     print(f'Error renumbering molecule {molecule.molecule_name}: {e}')
+            #     log_exception("renumber_all_molecules")
+        print('All molecules renumbered.')
+    
+    def show_ring_atoms(self, n: int = 5) -> pd.DataFrame:
+        """
+        Print the first ``n`` atoms of every molecule side-by-side so you can
+        spot inconsistent ring numbering at a glance.
+
+        Parameters
+        ----------
+        n : int
+            How many atoms to inspect (default 5 = the 5-membered ring).
+
+        Returns
+        -------
+        pd.DataFrame
+            Rows = atom positions 1..n, columns = molecule names,
+            values = element symbol.
+
+        Example
+        -------
+        mols.show_ring_atoms()          # check positions 1-5
+        mols.show_ring_atoms(n=7)       # check positions 1-7
+        """
+        records = {}
+        for mol in self.molecules:
+            xyz = mol.xyz_df if hasattr(mol, "xyz_df") else None
+            if xyz is None or xyz.empty:
+                records[mol.molecule_name] = ["?"] * n
+                continue
+            atoms = xyz["atom"].tolist()[:n]
+            atoms += ["—"] * (n - len(atoms))   # pad if molecule has < n atoms
+            records[mol.molecule_name] = atoms
+
+        df = pd.DataFrame(records, index=[f"atom_{i+1}" for i in range(n)])
+        print(df.to_string())
+        return df
+
+    def swap_atoms(self, swaps: Dict[str, Dict[int, int]], save_feather: bool = True) -> None:
+        """
+        Manually fix atom numbering for specific molecules by swapping pairs.
+
+        Parameters
+        ----------
+        swaps : dict
+            ``{molecule_name: {old_1based: new_1based, ...}}``
+            Each inner dict is a 1-based renumbering dict passed directly to
+            ``Molecule.renumber_atoms``.  Only the listed molecules are touched.
+        save_feather : bool
+            Whether to save the updated feather file (default True).
+
+        Example
+        -------
+        # L5 has N at position 7 instead of 2 — swap them:
+        mols.swap_atoms({"L5": {2: 7, 7: 2}})
+
+        # Multiple molecules at once:
+        mols.swap_atoms({
+            "L5":  {2: 7, 7: 2},
+            "L12": {2: 5, 5: 2},
+        })
+        """
+        mol_map = {mol.molecule_name: mol for mol in self.molecules}
+        for mol_name, renumbering_dict in swaps.items():
+            if mol_name not in mol_map:
+                print(f"[swap_atoms] '{mol_name}' not found. Available: {list(mol_map)}")
+                continue
+            mol = mol_map[mol_name]
+            # Save back to the original file location (overwrite in place) so
+            # calling swap_atoms on already-renumbered molecules doesn't nest
+            # another 'renumbered' subdirectory.
+            out_file = os.path.join(mol.molecule_path, f"{mol.molecule_name}.feather") if save_feather else None
+            mol.renumber_atoms(renumbering_dict, bonds_are_0_based=False,
+                               save_feather=save_feather, out_file=out_file)
+            print(f"[swap_atoms] '{mol_name}' updated: {renumbering_dict}")
+
+    def filter_molecules(self, indices):
+        self.molecules = [self.molecules[i] for i in indices]
+        self.molecule_names = [self.molecule_names[i] for i in indices]
+
+    def get_sterimol_dict(self,atom_indices, radii='CPK',sub_structure=True, drop_atoms=None,visualize_bool=None,mode='all'):
+        """
+        Returns a dictionary with the Sterimol parameters calculated based on the specified base atoms.
+
+        Args:
+            base_atoms (Union[None, List[int, int], List[List[int, int]]]): The indices of the base atoms to use for the Sterimol calculation.
+            radii (str, optional): The radii to use for the Sterimol calculation. Defaults to 'CPK'.
+        Returns:
+            Dict[str, pd.DataFrame]: A dictionary where each key is a molecule name and each value is a DataFrame with the Sterimol parameters.
+        
+        input example: molecules.get_sterimol_dict([[1,6],[3,4]])
+        output example: 
+        Results for LS1716_optimized:
+            B1    B5     L  loc_B1  loc_B5
+        1-2  1.91  8.12  8.89    5.35    6.51
+        3-4  1.70  5.25  9.44    1.70   -1.65
+
+
+        Results for LS1717_optimized:
+            B1    B5     L  loc_B1  loc_B5
+        1-2  1.9  7.98  9.02    3.64    6.68
+        3-4  1.7  6.45  9.45    1.70   -1.97
+        """
+        sterimol_dict={}
+        
+        for molecule in self.molecules:
+            try:
+                
+                sterimol_dict[molecule.molecule_name]=molecule.get_sterimol(atom_indices, radii, sub_structure=sub_structure, drop_atoms=drop_atoms, visualize_bool=visualize_bool, mode=mode)
+            except Exception as e:
+                print(f'Error: {molecule.molecule_name} sterimol could not be processed: {e}')
+                log_exception("get_sterimol_dict")
+                pass
+        return dict_to_horizontal_df(sterimol_dict)
+    
+    def get_ring_vibration_dict(self, ring_atom_indices, freq_min=1550, freq_max=1700):
+        """
+        Parameters
+        ----------
+        ring_atom_indices : list
+            Can be a single list of indices [a, b] or a list of lists like [[a, b], [c, d]].
+            Example:
+                molecule_1.get_ring_vibrations([[8,11],[9,12]])
+
+        For example – for a ring of atoms 1–6 where atom 4 is connected to the main group
+        and 1 is para to it (ortho would be 3 & 5, meta would be 2 & 6),
+        you’d enter [1,4].
+
+        Returns
+        -------
+        pd.DataFrame
+            Each molecule’s ring vibration data combined horizontally into one table.
+        """
+        import traceback
+        import pandas as pd
+
+        ring_dict = {}
+
+        # normalize to list-of-lists
+        if not isinstance(ring_atom_indices, list):
+            ring_atom_indices = [ring_atom_indices]
+        if ring_atom_indices and not isinstance(ring_atom_indices[0], list):
+            ring_atom_indices = [ring_atom_indices]
+
+        for molecule in self.molecules:
+            try:
+                combined_df_list = []
+
+                # iterate over multiple ring atom sets if given
+                for atom_set in ring_atom_indices:
+                    res = molecule.get_ring_vibrations(atom_set, freq_min=freq_min, freq_max=freq_max)
+                    if res is not None and not getattr(res, "empty", False):
+                        # name each subset by atom indices
+                        label = "-".join(map(str, atom_set))
+                        res.columns = [f"{col}_{label}" for col in res.columns]
+                        combined_df_list.append(res)
+
+                # concatenate all ring results for this molecule
+                if combined_df_list:
+                    ring_dict[molecule.molecule_name] = pd.concat(combined_df_list, axis=1)
+                else:
+                    ring_dict[molecule.molecule_name] = pd.DataFrame()
+
+            except Exception as e:
+                print(f"Error: {molecule.molecule_name} ring vibration could not be processed: {e}")
+                traceback.print_exc()
+                continue
+
+        return dict_to_horizontal_df(ring_dict)
+    
+
+    def get_dipole_dict(self, atom_indices, visualize_bool: bool = False, center_atoms=None):
+        """
+        Returns a wide (horizontal) DataFrame aggregating dipole results for each molecule.
+
+        Parameters
+        ----------
+        atom_indices : sequence
+            Base-atom spec (R-style):
+            - [o, y, plane]
+            - [o1, o2, ..., y, plane]
+            - [[o1, o2, ...], y, plane]
+            Or a list of such groups: [ [...], [...], ... ]
+        visualize_bool : bool
+            Whether to visualize per-molecule dipole.
+        center_atoms : sequence, optional
+            Atoms whose centroid becomes the frame origin, in place of the origin
+            implied by atom_indices. Applied to every molecule in the set.
+
+        Returns
+        -------
+        pd.DataFrame
+            A horizontally concatenated DataFrame; each molecule's dipole DataFrame is a block.
+        """
+        dipole_dict = {}
+        for molecule in self.molecules:
+            try:
+                df = molecule.get_dipole_gaussian_df(atom_indices, visualize_bool=visualize_bool,
+                                                     center_atoms=center_atoms)
+                # If you want to match older prints that used 'total_dipole', uncomment next line:
+                # df = df.rename(columns={'total': 'total_dipole'})
+                dipole_dict[molecule.molecule_name] = df
+            except Exception as e:
+                print(f"Error: {molecule.molecule_name} dipole could not be processed: {e}")
+                log_exception("get_dipole_dict")
+
+        return dict_to_horizontal_df(dipole_dict)
+
+    
+    def get_bond_angle_dict(self,atom_indices):
+        """
+        Returns a dictionary with the bond angles calculated for the specified atom indices.
+
+        Args:
+            atom_indices (List[List[int, int]]) or : The indices of the atoms to use for the bond angle calculation.
+        
+        Returns:
+            Dict[str, pd.DataFrame]: A dictionary where each key is a molecule name and each value is a DataFrame with the bond angle data.
+        
+        input example: molecules.get_bond_angle_dict([1, 2, 3])
+        output example: 
+        Results for LS1716_optimized:
+                        Angle
+            Angle_1-2-3  109.5
+
+        Results for LS1717_optimized:
+                        Angle
+            Angle_1-2-3  108.7
+        """
+
+        bond_angle_dict={}
+        for molecule in self.molecules:
+            try:
+                bond_angle_dict[molecule.molecule_name]=molecule.get_bond_angle(atom_indices)
+            except Exception as e:
+                print(f'Error: {molecule.molecule_name} Angle could not be processed: {e}')
+                log_exception("get_bond_angle_dict")
+                pass
+        return dict_to_horizontal_df(bond_angle_dict)
+    
+    def get_bond_length_dict(self,atom_pairs):
+        """
+        Returns a dictionary with the bond lengths calculated for the specified atom pairs.
+
+        Args:
+            atom_pairs  (List[List[int, int]]) : The pairs of atoms to use for the bond length calculation.
+        
+        Returns:
+            Dict[str, pd.DataFrame]: A dictionary where each key is a molecule name and each value is a DataFrame with the bond length data.
+        
+        input example: molecules.get_bond_length_dict([[1, 2], [3, 4]])
+        output example: 
+        Results for LS1716_optimized:
+                        0
+        bond_length_1-2  1.529754
+        bond_length_3-4  1.466212
+
+
+        Results for LS1717_optimized:
+                                0
+        bond_length_1-2  1.511003
+        bond_length_3-4  1.466089
+        """
+
+        bond_length_dict={}
+        for molecule in self.molecules:
+            try:
+                bond_length_dict[molecule.molecule_name]=molecule.get_bond_length(atom_pairs)
+            except Exception as e:
+                print(f'Error: {molecule.molecule_name} Bond Length could not be processed: {e}')
+                
+                pass
+        return dict_to_horizontal_df(bond_length_dict)
+    
+    def get_stretch_vibration_dict(self, atom_pairs, threshold=None, upper_threshold=None):
+        """
+        Returns a dictionary with the stretch vibrations calculated for the specified atom pairs.
+
+        Args:
+            atom_pairs (List[Tuple[int, int]]): The pairs of atoms to use for the stretch vibration calculation.
+        
+        Returns:
+            Dict[str, pd.DataFrame]: A dictionary where each key is a molecule name and each value is a DataFrame with the stretch vibration data.
+        
+        input example: molecules.get_stretch_vibration_dict([[1, 2], [3, 4]])
+        output example: 
+        Results for LS1716_optimized:
+                        Frequency  Amplitude
+            Stretch_1_2  3174.3565   0.330304
+            Stretch_3_4  3242.4530   0.170556
+
+        Results for LS1717_optimized:
+                        Frequency  Amplitude
+            Stretch_1_2  3242.4465   0.252313
+            Stretch_3_4  3175.4029   0.443073
+    """
+        stretch_vibration_dict={}
+        print(f'Calculating stretch vibration for atoms {atom_pairs} with threshold {threshold} \n Remember : ALWAYS LOOK AT THE RESULTING VIBRATION')
+        for molecule in self.molecules:
+            try:
+                stretch_vibration_dict[molecule.molecule_name]=molecule.get_stretch_vibration(atom_pairs,threshold,upper_threshold)
+            except Exception as e:
+                print(f'Error: could not calculate strech vibration for {molecule.molecule_name}: {e} ')
+                log_exception("get_stretch_vibration_dict")
+                pass
+
+        return dict_to_horizontal_df(stretch_vibration_dict)
+    
+    def get_charge_df_dict(self,atom_indices):
+        """
+        Returns a dictionary with the Natural Bond Orbital (NBO) charges for the specified atoms.
+
+        Args:
+            atoms_indices (List[int]): The indices of the atoms to include in the NBO charge calculation.
+        
+        Returns:
+            Dict[str, pd.DataFrame]: A dictionary where each key is a molecule name and each value is a DataFrame with the NBO charges.
+        
+        input example: molecules.get_charge_df_dict([3, 5, 7, 9])
+        output example: 
+        Results for LS1716_optimized:
+                    atom_3   atom_5   atom_7   atom_9
+            charge -0.12768 -0.39006  0.14877 -0.00656
+
+        Results for LS1717_optimized:
+                    atom_3   atom_5   atom_7   atom_9
+            charge -0.12255 -0.38581  0.14691 -0.00681
+        """
+
+        nbo_dict={}
+        for molecule in self.molecules:
+            try:
+                nbo_dict[molecule.molecule_name]=molecule.get_charge_df(atom_indices,type='all')
+            except Exception as e:
+                print(f'Error: could not calculate nbo value for {molecule.molecule_name}: {e} ')
+                log_exception("get_charge_df_dict")
+                pass
+        return charge_dict_to_horizontal_df(nbo_dict)
+    
+    def get_charge_diff_df_dict(self,atom_indices,type='all'):
+        """
+        Returns a dictionary with the differences in Natural Bond Orbital (NBO) charges for the specified pairs of atoms.
+
+        Args:
+            diff_indices (List[List[int]]): The indices of the atom pairs to calculate the NBO charge differences for.
+        
+        Returns:
+            Dict[str, pd.DataFrame]: A dictionary where each key is a molecule name and each value is a DataFrame with the NBO charge differences.
+        
+        input example: molecules.get_charge_diff_df_dict([[1, 2], [3, 4]])
+        output example: 
+        Results for LS1716_optimized:
+                        diff_1-2  diff_3-4
+            charge -0.12768 -0.39006  0.14877 -0.00656
+
+
+            Results for LS1717_optimized:
+                        diff_1-2  diff_3-4
+            charge -0.12255 -0.38581  0.14691 -0.00681
+        """
+        charge_diff_dict={}
+        for molecule in self.molecules:
+            try:
+                charge_diff_dict[molecule.molecule_name]=molecule.get_charge_diff_df(atom_indices,type)
+            except Exception as e:
+                print(f'Error: could not calculate nbo difference for {molecule.molecule_name}: {e} ')
+                log_exception("get_charge_diff_df_dict")
+                pass
+        return charge_dict_to_horizontal_df(charge_diff_dict)
+    
+    def get_bend_vibration_dict(self, atom_pairs, threshold=None):
+        bending_dict = {}
+
+        for molecule in self.molecules:
+            molecule_results = []
+            
+            for pair in as_pairs(atom_pairs):
+                try:
+                    # Call a version that handles a SINGLE pair
+                    res = molecule.get_bend_vibration_single(pair, threshold)
+                    molecule_results.append(res)
+                except Exception as e:
+                    # Log that this specific pair failed, but keep going
+                    print(f"Skipping pair {pair} for {molecule.molecule_name}: {e}")
+                    continue
+            
+            # Only add to the dictionary if at least one pair succeeded
+            if molecule_results:
+                bending_dict[molecule.molecule_name] = pd.concat(molecule_results)
+
+        
+        return dict_to_horizontal_df(bending_dict)
+    
+    def visualize_molecules(self,indices=None):
+        if indices is not None:
+            for idx in indices:
+                self.molecules[idx].visualize_molecule()
+        else:
+            for molecule in self.molecules:
+                molecule.visualize_molecule()
+        
+    def visualize_smallest_molecule(self):
+        """
+        Visualizes the smallest molecule based on the number of atoms.
+
+        Args:
+            None
+        
+        Returns:
+            None
+        
+        input example: molecules.visualize_smallest_molecule()
+        output example: 
+        # This will open a visualization window or generate a visualization file for the smallest molecule.
+
+        """
+        idx = 0
+        smallest = len(self.molecules[0].xyz_df)
+        for i, molecule in enumerate(self.molecules):
+            n = len(molecule.xyz_df)
+            if n < smallest:
+                smallest = n
+                idx = i
+        return self.molecules[idx].visualize_molecule()
+    
+    def visualize_smallest_molecule_morfeus(self, indices=None):
+        idx=0
+        mol=self.molecules[0]
+        smallest= len(mol.xyz_df)
+        for id, molecule in enumerate(self.molecules[1:]):
+            if len(molecule.xyz_df)<smallest:
+                smallest=len(molecule.xyz_df)
+                idx=id
+        mol=self.molecules[idx]
+        mol.get_sterimol(indices,visualize_bool=True)
+        
+    def get_molecules_features_set(self, entry_widgets, parameters=None, answers_list=None, save_as=False, csv_file_name='features_output'):
+        """
+        Gathers user input from entry_widgets, applies parameters,
+        extracts features, and optionally saves results to a file.
+        Includes NaN and duplicate-value diagnostics.
+        """
+        import pandas as pd
+        import datetime
+        import numpy as np
+        import re
+        import os
+
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        if save_as:
+            csv_file_name = f"{csv_file_name}_{timestamp}"
+
+        # --- 1. GUI answers ---
+        answers = {}
+        if parameters is None:
+            parameters = {'Radii': 'CPK', 'Isotropic': True}
+
+        seen_labels = {}
+        for param_name, entry in entry_widgets.items():
+            key = resolve_feature_key(param_name)
+            try:
+                value = entry.get()
+            except AttributeError:
+                value = entry
+
+            if key is None:
+                print(f"Warning: ignoring unrecognized feature-set entry {param_name!r} "
+                      f"- no descriptor matches it. Recognized prefixes: "
+                      f"{', '.join(sorted(set(FEATURE_SET_ALIASES.values())))}")
+                continue
+
+            # Two labels resolving to the same descriptor used to overwrite each
+            # other silently; keep the one that actually carries atoms and say so.
+            if key in answers and answers[key] not in ('', None, []):
+                if value in ('', None, []):
+                    continue
+                print(f"Warning: {param_name!r} and {seen_labels[key]!r} both map to "
+                      f"'{key}'; using {param_name!r}.")
+
+            answers[key] = value
+            seen_labels[key] = param_name
+
+        if answers_list is not None:
+            answers_list = answers_list  # placeholder
+
+        radii = parameters.get('Radii', 'CPK')
+        iso = parameters.get('Isotropic', True)
+
+        for k, v in answers.items():
+            if v != '':
+                if isinstance(v, str):
+                    answers[k] = convert_to_list_or_nested_list(v)
+                elif isinstance(v, int):
+                    answers[k] = [v]
+                else:
+                    answers[k] = v
+            else:
+                answers[k] = []
+
+        res_df = pd.DataFrame()
+
+        def safe_concat(res_df, new_df):
+            if res_df.empty:
+                return new_df
+            else:
+                return pd.concat([res_df, new_df], axis=1)
+
+        # --- 2. Feature extraction steps ---
+        feature_steps = [
+            ('ring', lambda a: self.get_ring_vibration_dict(a)),
+            ('stretching', lambda a: self.get_stretch_vibration_dict(a, (answers.get('stretch') or [None])[0], (answers.get('upper_stretch') or [None])[0])),
+            ('bending', lambda a: self.get_bend_vibration_dict(a, (answers.get('bend') or [None])[0])),
+            ('dipole', lambda a: self.get_dipole_dict(a, center_atoms=answers.get('center_atoms') or None)),
+            ('charges', lambda a: self.get_charge_df_dict(a)),
+            ('charge_diff', lambda a: self.get_charge_diff_df_dict(a)),
+            ('sterimol', lambda a: self.get_sterimol_dict(a, radii=radii, drop_atoms=answers.get('drop_atoms', []))),
+            ('bond_angle', lambda a: self.get_bond_angle_dict(a)),
+            ('bond_length', lambda a: self.get_bond_length_dict(a)),
+        ]
+
+        # --- 3. Apply all extraction steps ---
+        for key, handler in feature_steps:
+            if answers.get(key):
+                try:
+                    new_df = handler(answers[key])
+                    res_df = safe_concat(res_df, new_df)
+                except Exception as e:
+                    print(f"Error processing {key} for {getattr(self.molecules[0], 'molecule_name', 'unknown')}: {e}")
+                    log_exception(f"get_molecules_comp_set_app – {key}")
+                    continue
+
+        # --- 4. Polarizability & energy block ---
+        if iso:
+            try:
+                rows = []
+                for molecule in self.molecules:
+                    info = pd.DataFrame(index=[molecule.molecule_name])
+                    try:
+                        polar = molecule.polarizability_df.copy().iloc[[0]]
+                        polar.index = [molecule.molecule_name]
+                        info = polar
+                    except Exception:
+                        pass
+                    try:
+                        info["energy"] = molecule.energy_value.values
+                    except Exception:
+                        pass
+                    rows.append(info)
+
+                if rows:
+                    polar_energy_concat = pd.concat(rows, axis=0)
+                    polar_energy_concat = polar_energy_concat.dropna(axis=1, how='all')
+                    polar_energy_concat = polar_energy_concat.reset_index().set_index('index')
+                    res_df = safe_concat(res_df, polar_energy_concat)
+            except Exception as e:
+                print(f"Error processing polarizability/Energy: {e}")
+                log_exception("get_molecules_comp_set_app – polarizability/energy")
+
+        # --- 5. Correlation analysis (optional visualization) ---
+        # interactive_corr_heatmap_with_highlights(res_df)
+        correlation_table = show_highly_correlated_pairs(res_df, corr_thresh=0.8)
+
+        # --- 6. Post-processing diagnostics ---
+        print("\n===== Feature Integrity Diagnostics =====")
+
+        # (a) Check columns with NaN values
+        nan_cols = res_df.columns[res_df.isna().any()].tolist()
+        if nan_cols:
+            print(f"[!] Columns with missing (NaN) values ({len(nan_cols)}):")
+            for c in nan_cols:
+                missing_pct = res_df[c].isna().mean() * 100
+                print(f"    - {c} ({missing_pct:.1f}% missing)")
+        else:
+            print("[ok] No columns with NaN values.")
+
+        # (b) Check for identical or nearly identical columns
+        numeric_df = res_df.select_dtypes(include=[np.number])
+        duplicate_groups = []
+        corr = numeric_df.corr().abs()
+
+        corr_arr = corr.to_numpy(copy=True)
+        corr_arr[np.tril_indices_from(corr_arr)] = np.nan
+        corr = pd.DataFrame(corr_arr, index=corr.index, columns=corr.columns)
+
+        near_dupes = corr.stack()[corr.stack() > 0.999].index.tolist()
+                
+        if near_dupes:
+            print(f"[!] Columns with nearly identical values (>0.999 correlation):")
+            for (a, b) in near_dupes:
+                print(f"    - {a}  ~  {b}")
+        else:
+            print("[ok] No nearly identical numeric columns detected.")
+
+        print("========================================\n")
+
+        # --- 7. Save results if requested ---
+        res_df = res_df.sort_index(ascending=False)
+        if save_as:
+            try:
+                res_df = res_df.sort_index(
+                    key=lambda idx: idx.map(
+                        lambda x: int(re.search(r"\d+", x).group()) if re.search(r"\d+", x) else x
+                    )
+                )
+            except Exception:
+                pass
+
+            res_df.to_csv(f"{csv_file_name}.csv", index=True)
+            correlation_table.to_csv(f"{csv_file_name}_correlation_table.csv", index=True)
+            print(f"Features saved to {csv_file_name}.csv and correlation table to {csv_file_name}_correlation_table.csv in {os.getcwd()}")
+
+        return res_df
+
+
+
+    def extract_all_dfs(self):
+        os.chdir(self.molecules_path)
+        for molecule in self.molecules:
+            try:
+                os.mkdir(molecule.molecule_name)
+            except FileExistsError:
+                pass
+            os.chdir(molecule.molecule_name)
+            molecule.write_xyz_file()
+            molecule.write_csv_files()
+            os.chdir('../')
+        
+    
+    def extract_all_xyz(self):
+        os.chdir(self.molecules_path)
+        try:
+            os.mkdir('xyz_files')
+        except FileExistsError:
+            pass
+        os.chdir('xyz_files')
+        for molecule in self.molecules:
+            data_to_xyz(molecule.xyz_df,(molecule.molecule_name+'.xyz'))
+        os.chdir('../')
+
+
+
+    # def mols_to_rdkit_mols(self):
+    #     mols=[mol for mol in self.molecules]
+    #     xyz_list=[xyz.xyz_df for xyz in mols]
+    #     molss=xyz_list_to_mols(xyz_list, mol_names=self..molecule_names)
+    #     img = visualize_mols(molss)
+    #     # display(img) 
+    #     fps = mols_to_fingerprint_df(molss, fp_type="morgan", nBits=1024)
+
+    #     fp_df, pca_df, var_ratio = mols_to_fingerprint_df(
+    #     mols,
+    #     fp_type="morgan",
+    #     nBits=2048,
+    #     radius=2,
+    #     do_pca=True,
+    #     n_components=20,
+    #     scale_before_pca=True
+    # )
