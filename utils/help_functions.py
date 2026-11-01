@@ -552,7 +552,7 @@ def flatten_list(nested_list_arg: List[list]) -> List:
 
 
 
-def submit_to_gaussian_calculation(queue='milo'):
+def submit_to_gaussian_calculation(queue='your_queue'):
     # Copy file from source to destination
     os.system(LinuxCommands.COPY.value +' '+ LinuxCommands.GAUSS_SUFIX.value+ ' .')
     # Loop over all files in current directory with .com extension
@@ -1312,106 +1312,6 @@ def interactive_corr_heatmap_with_highlights(
     return fig
 
 import matplotlib.pyplot as plt
-from scipy.stats import ks_2samp
-
-def pick_samples_to_remove_for_distribution(y, n_remove, metric='ks', bins=20, plot=True):
-    """
-    Picks indices of n_remove samples to remove from y such that the distribution
-    of the remaining y is as close as possible to the original.
-    Plots before/after histograms, marks removed bins, and uses count (not density).
-
-    Args:
-        y (array-like): Target values.
-        n_remove (int): Number of samples to remove.
-        metric (str): Metric to use ('ks', 'mean', or 'std').
-        bins (int or array): Number of bins or explicit bin edges for the histogram plot.
-        plot (bool): If True, show the before/after plot.
-
-    Returns:
-        List[int]: indices_to_remove in y.
-    """
-    y = np.asarray(y).ravel()
-    if n_remove < 0:
-        raise ValueError("n_remove must be >= 0")
-    if n_remove > len(y) - 1:
-        raise ValueError("n_remove cannot be >= len(y)")
-
-    indices_to_remove = []
-    all_indices = set(range(len(y)))
-    y_orig = y.copy()
-
-    # --- Greedy selection: at each step remove the point that minimizes the chosen metric ---
-    for _ in range(n_remove):
-        best_score = None
-        best_idx = None
-        remaining = list(all_indices - set(indices_to_remove))
-        # short-circuit: nothing left to test
-        if not remaining:
-            break
-
-        for idx in remaining:
-            y_test = np.delete(y, indices_to_remove + [idx])
-            if metric == 'ks':
-                score = ks_2samp(y_orig, y_test).statistic
-            elif metric == 'mean':
-                score = abs(np.mean(y_orig) - np.mean(y_test))
-            elif metric == 'std':
-                score = abs(np.std(y_orig, ddof=0) - np.std(y_test, ddof=0))
-            else:
-                raise ValueError("metric must be one of {'ks','mean','std'}")
-
-            if best_score is None or score < best_score:
-                best_score = score
-                best_idx = idx
-
-        indices_to_remove.append(best_idx)
-
-    y_remaining = np.delete(y, indices_to_remove)
-
-    if plot:
-        # --- Histograms using shared bin edges (so bars line up exactly) ---
-        counts, bin_edges = np.histogram(y, bins=bins)
-        counts_remain, _ = np.histogram(y_remaining, bins=bin_edges)
-        bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-        widths = np.diff(bin_edges)
-
-        plt.figure(figsize=(8, 4))
-        plt.bar(bin_centers, counts,        width=widths, alpha=0.5, color='tab:blue', edgecolor='k', label='Original')
-        plt.bar(bin_centers, counts_remain, width=widths, alpha=0.5, color='tab:red',  edgecolor='k', label='After removal')
-
-        # --- Mark bins from which samples were removed (robust to edge cases) ---
-        removed_y = y[indices_to_remove]
-        # right=True ensures max values fall into the last bin
-        removed_bins = np.digitize(removed_y, bin_edges, right=True) - 1
-        # clip to valid range [0, n_bins-1]
-        removed_bins = np.clip(removed_bins, 0, len(bin_centers) - 1)
-
-        unique_bins, removed_per_bin = np.unique(removed_bins, return_counts=True)
-        # vertical offset for annotations (5% of max height, at least 1)
-        y_offset = max(1, int(0.05 * (counts.max() if counts.size else 1)))
-
-        for b, count in zip(unique_bins, removed_per_bin):
-            x_ = float(bin_centers[b])
-            y_ = int(counts[b]) if counts.size else 0
-            plt.annotate(
-                f'{count} removed',
-                xy=(x_, y_),
-                xytext=(x_, y_ + y_offset),
-                ha='center', fontsize=10, color='black',
-                arrowprops=dict(facecolor='black', arrowstyle='->', lw=1.2, shrinkA=0.5)
-            )
-
-        plt.xlabel('y value')
-        plt.ylabel('Count')
-        plt.title(f'Distribution Before (blue) and After (red) removal of {len(indices_to_remove)} sample(s)')
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
-
-    return indices_to_remove
-
-
-
 def add_output_column_csv(csv_filepath, output_column_name, output_values):
     """
     Adds an output column to a CSV file and saves it.

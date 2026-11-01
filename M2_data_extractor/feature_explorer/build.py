@@ -81,14 +81,14 @@ FIXTURES = [
         _group('phenyl', 9, 12),
         _theta(1, 23),
     ]),
-    dict(file='FL_lig_13_str_target.xyz', name='FL_lig_13', sub='ligand', a=6, b=7, presets=[
+    dict(file='ligand_1.xyz', name='ligand_1', sub='ligand', a=6, b=7, presets=[
         _theta(6, 7),
     ]),
-    dict(file='045_lig.xyz', name='045_lig', sub='CuCl complex (tBu-BOX)', a=8, b=12, presets=[
+    dict(file='box_1.xyz', name='box_1', sub='CuCl complex (tBu-BOX)', a=8, b=12, presets=[
         _group('tert-butyl', 8, 12),
         _theta(8, 12),
     ]),
-    dict(file='041_lig.xyz', name='041_lig', sub='Cu complex', a=7, b=6,
+    dict(file='box_2.xyz', name='box_2', sub='Cu complex', a=7, b=6,
          note='MetalComplex measures from the same stereocentre but excludes it and starts its scan from a different '
               'frame, so its values differ slightly from the ones shown here.', presets=[
         _group('isopropyl', 7, 6),
@@ -102,7 +102,7 @@ def _read(*parts):
         return f.read()
 
 
-# The same panel on more members of each set. The arenes and the FL ligands are built in one atom order, so the
+# The same panel on more members of each set. The arenes and the ligands are built in one atom order, so the
 # panel's numbers carry across them; the BOX arms are found by substructure, [#8]1[#6][#6]([!#1])[#7]~[#6]1.
 _ARENE_PANEL = dict(view=dict(right=[27, 25], up=[23, 26], perA=PANEL_SCALE), style=_PANEL,
                   layers=_L(dip=dict(_DIP, show=dict(frame=False, mu=True, u=True, v=False, w=False), colors=dict(mu='#98A0AB', u='#7A3E9D')),
@@ -128,18 +128,17 @@ _POS_PANEL = dict(style=dict(_PANEL, values=True, labelScale=1.3),
 # P-C runs 1.83-1.87 A. The package's covalent-radius bond rule keeps it; the old flat 1.82 A cutoff
 # did not, which is why these fixtures used to carry thr=1.95.
 MORE = [
-    ('026_box_CuCl.xyz', 'Cu-BOX', 'bis(oxazoline) complex', 1, 3, _POS_PANEL),
-    # a %Vbur ladder on one scaffold, 48 to 77 % at the metal, over two metals: something to
-    # push the cone and the sphere against. All xTB single structures.
-    ('Ni_BOX_072.xyz', 'Ni-BOX 072', 'bis(oxazoline), smallest', 1, 4, _POS_PANEL),
-    ('Ni_BOX_078.xyz', 'Ni-BOX 078', 'bis(oxazoline)', 1, 4, _POS_PANEL),
-    ('Cu_PyOx_041.xyz', 'Cu-PyOx 041', 'pyridine-oxazoline', 1, 3, _POS_PANEL),
-    ('Cu_BOX_018.xyz', 'Cu-BOX 018', 'bis(oxazoline)', 1, 3, _POS_PANEL),
-    ('Cu_BOX_047.xyz', 'Cu-BOX 047', 'iPr-bis(oxazoline)', 1, 3, _POS_PANEL),
-    ('Cu_BOX_020.xyz', 'Cu-BOX 020', 'bis(oxazoline)', 1, 3, _POS_PANEL),
-    ('Cu_BOX_008.xyz', 'Cu-BOX 008', 'bis(oxazoline), bulkiest', 1, 3, _POS_PANEL),
-    ('045_box_CuCl.xyz', 'Cu-tBuBOX', 'bis(oxazoline) complex', 1, 3, _POS_PANEL),
-    # the Hammett benzoic acids, staged from Gaussian feathers, so each carries its
+    ('box_3_CuCl.xyz', 'Cu-BOX', 'bis(oxazoline) complex', 1, 3, _POS_PANEL),
+    # several ligands on one scaffold: something to push the cone and the sphere against
+    ('Ni_BOX_a.xyz', 'Ni-BOX a', 'bis(oxazoline)', 1, 4, _POS_PANEL),
+    ('Ni_BOX_b.xyz', 'Ni-BOX b', 'bis(oxazoline)', 1, 4, _POS_PANEL),
+    ('Cu_PyOx_a.xyz', 'Cu-PyOx a', 'pyridine-oxazoline', 1, 3, _POS_PANEL),
+    ('Cu_BOX_a.xyz', 'Cu-BOX a', 'bis(oxazoline)', 1, 3, _POS_PANEL),
+    ('Cu_BOX_b.xyz', 'Cu-BOX b', 'iPr-bis(oxazoline)', 1, 3, _POS_PANEL),
+    ('Cu_BOX_c.xyz', 'Cu-BOX c', 'bis(oxazoline)', 1, 3, _POS_PANEL),
+    ('Cu_BOX_d.xyz', 'Cu-BOX d', 'bis(oxazoline)', 1, 3, _POS_PANEL),
+    ('box_1_CuCl.xyz', 'Cu-tBuBOX', 'bis(oxazoline) complex', 1, 3, _POS_PANEL),
+    # benzoic acids from Gaussian feathers, so each carries its
     # dipole and three charge sets as well: the axis is ring -> substituent
     ('p-H_BA.xyz', 'benzoic acid', 'benzoic acid', 1, 7, _POS_PANEL),
     ('p-F_BA.xyz', 'p-F benzoic acid', 'benzoic acid', 4, 11, _POS_PANEL),
@@ -153,18 +152,18 @@ MORE = [
     ('m-SO2Me_BA.xyz', 'm-SO2Me benzoic acid', 'benzoic acid', 3, 12, _POS_PANEL),
     ('o-Me_BA.xyz', 'o-Me benzoic acid', 'benzoic acid', 2, 11, _POS_PANEL),
     ('naphthyl_BA.xyz', '2-naphthoic acid', 'benzoic acid', 5, 11, _POS_PANEL),
-    ('009_phos_CuCl.xyz', 'Cu-PHOX', 'phosphine complex', 1, 3, _POS_PANEL),
-    ('009_phos.xyz', 'PHOX (free)', 'phosphine ligand', 15, 19, _POS_PANEL),
-    ('055_phos.xyz', 'PCy-PHOX (free)', 'phosphine ligand', 10, 11, _POS_PANEL),
+    ('phos_1_CuCl.xyz', 'Cu-PHOX', 'phosphine complex', 1, 3, _POS_PANEL),
+    ('phos_1.xyz', 'PHOX (free)', 'phosphine ligand', 15, 19, _POS_PANEL),
+    ('phos_2.xyz', 'PCy-PHOX (free)', 'phosphine ligand', 10, 11, _POS_PANEL),
     ('p-NO2.xyz', 'p-NO2', 'substituted arene', 1, 23, _ARENE_PANEL),
     ('m-OMe.xyz', 'm-OMe', 'substituted arene', 1, 23, _ARENE_PANEL),
     ('p-CF3.xyz', 'p-CF3', 'substituted arene', 1, 23, _ARENE_PANEL),
-    ('FL_lig_1.xyz', 'FL_lig_1', 'ligand', 6, 7, _LIGAND_PANEL),
-    ('FL_lig_7.xyz', 'FL_lig_7', 'ligand', 6, 7, _LIGAND_PANEL),
-    ('FL_lig_12.xyz', 'FL_lig_12', 'ligand', 6, 7, _LIGAND_PANEL),
-    ('026_lig.xyz', '026_lig', 'CuCl complex (Me-BOX)', 6, 5, _box_panel((6, 5), (17, 19))),
-    ('032_lig.xyz', '032_lig', 'CuCl complex (iPr-BOX)', 7, 6, _box_panel((7, 6), (17, 19))),
-    ('046_lig.xyz', '046_lig', 'CuCl complex (aryl-BOX)', 8, 12, _box_panel((8, 12), (22, 24))),
+    ('ligand_2.xyz', 'ligand_2', 'ligand', 6, 7, _LIGAND_PANEL),
+    ('ligand_3.xyz', 'ligand_3', 'ligand', 6, 7, _LIGAND_PANEL),
+    ('ligand_4.xyz', 'ligand_4', 'ligand', 6, 7, _LIGAND_PANEL),
+    ('box_3.xyz', 'box_3', 'CuCl complex (Me-BOX)', 6, 5, _box_panel((6, 5), (17, 19))),
+    ('box_4.xyz', 'box_4', 'CuCl complex (iPr-BOX)', 7, 6, _box_panel((7, 6), (17, 19))),
+    ('box_5.xyz', 'box_5', 'CuCl complex (aryl-BOX)', 8, 12, _box_panel((8, 12), (22, 24))),
 ]
 FIXTURES += [dict(file=f, name=n, sub=s, a=a, b=b,
                   presets=[dict(panel, name='panel on %s' % n),

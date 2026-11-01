@@ -1,10 +1,9 @@
 # Extraction protocol: from structures to a feature table you can trust
 
 [WORKFLOW.md](WORKFLOW.md) says how to run each step. This page says what to decide and what to
-check at each step, so the feature table is correct. Every rule below comes
-from an error found in a real dataset. Atom numbers are **1-based** throughout.
+check at each step, so the feature table is correct. Atom numbers are **1-based** throughout.
 
-- [0. Decide before you compute](#0-decide-before-you-compute)
+- [0. Before you compute](#0-before-you-compute)
 - [1. Pick the route](#1-pick-the-route)
 - [2. Structures](#2-structures)
 - [3. Bonds](#3-bonds)
@@ -14,21 +13,9 @@ from an error found in a real dataset. Atom numbers are **1-based** throughout.
 - [7. Check the table](#7-check-the-table)
 - [8. Hand-off](#8-hand-off)
 
-## 0. Decide before you compute
+## 0. Before you compute
 
-**Write the plan down and date it before any response value is used.** It should fix:
-
-- the rows;
-- the response and its transform;
-- the descriptor pool, as a fixed list;
-- the structure protocol;
-- the estimator;
-- what counts as success.
-
-A pool chosen after seeing the response cannot be validated afterwards.
-
-**Build structures from names or SMILES**, written down before the fit, not from figures or image
-recognition.
+**Build structures from names or SMILES**, not from figures or image recognition.
 
 **Check every SMILES with RDKit against the source:**
 
@@ -37,8 +24,7 @@ recognition.
   mass, 0.00055 away from the ion.
 
 **Read the source publication's computational method before building anything:** which metal, which
-complex, which level of theory. Rebuilding a guessed structure is the most expensive mistake on
-this list.
+complex, which level of theory.
 
 ## 1. Pick the route
 
@@ -47,22 +33,15 @@ this list.
 | Gaussian logs (NBO / Hirshfeld / CM5 charges, dipole, polarizability, frequencies) | `descripytor logs_to_feather`, then `Molecules(folder)` | organic substrates and ligands |
 | xyz files, atoms chosen by you | `Molecules_xyz`, `descripytor sterimol` | steric descriptors only |
 | metal-complex xyz (atom 1 = metal, then ancillary ligands, then the two donors) | `MetalComplex`, `MetalComplexEnsemble`, `MetalComplexSet`, `XtbSinglePoint` | chelating ligands on a metal |
-| free-ligand SMILES | `LigandTopology` (`tf_*`: graph indices divided by heavy-atom count) | cheap, conformer-free baseline |
+| free-ligand SMILES | `LigandTopology` (`tf_*`: graph indices divided by heavy-atom count) | topology indices |
 
 ## 2. Structures
 
-**One structure per molecule is the simplest defensible default.** A cheap, reproducible ladder:
+Read every descriptor on the final geometry, and keep every intermediate file.
 
-1. conformer search (ORCA GOAT or CREST, GFN2-xTB), keeping the lowest structure;
-2. a machine-learned potential reoptimisation (e.g. UMA);
-3. a final GFN2-xTB or DFT optimisation.
-
-Read every descriptor on the last geometry, and keep every intermediate file.
-
-**Conformer ensembles only when declared in advance.**
+**Conformer ensembles:**
 
 - Report which conformer sampler you used.
-- Boltzmann-average by default, and say so.
 - The energy on the comment line differs by program:
   - GOAT writes it as the **last** number;
   - CREST writes it as the **first**.
@@ -83,7 +62,7 @@ dissociate the complex.
 - the element sequence of every file matches the manifest;
 - no imaginary frequencies in DFT minima;
 - for chelates, the bite angle is inside `BITE_WINDOW` (65–105°). A complex whose donor came
-  off the metal is removed from the set, not modelled.
+  off the metal is removed from the set.
 
 ## 3. Bonds
 
@@ -138,8 +117,6 @@ to 0.09 Å.
 
 - θ is 0 for a lone-H substituent.
 - When the attachment atom lies on the axis, the B1 minimum is flat: report θ as a range.
-- θ is close to the complement of the in-plane azimuth φ (sin θ = |cos φ|·ρ). Do not put both in
-  one descriptor pool.
 
 **B1 resolution is about ±0.01 Å.** Smaller differences are not signal.
 
@@ -150,8 +127,6 @@ to 0.09 Å.
 **Components along an axis whose sign depends on atom order are reported as magnitudes.** In a
 metal complex these are `mu_desym` and `mu_outofplane`, whose axes flip with the order of the two
 donors (`DIPOLE_ABS`).
-
-**The choice of frame changes the result.** Declare it before fitting.
 
 ### Charges and xTB properties
 
@@ -192,7 +167,6 @@ The `tf_*` columns are the graph indices divided by heavy-atom count.
   `Molecules(folder).get_molecules_features_set(json_dict)`.
 - Metal complexes: `MetalComplexSet.from_xyz_dir(...).geometric_dataframe()`, plus the electronic
   block per molecule.
-- Boltzmann averages over thousands of conformers belong on a cluster, not a laptop.
 
 **Record next to the table:**
 
@@ -223,5 +197,5 @@ The `tf_*` columns are the graph indices divided by heavy-atom count.
 
 ## 8. Hand-off
 
-1. Save the table with a README next to the plan from step 0: source, structures, settings, and
+1. Save the table with a README: source, structures, settings, and
    the checks it passed.

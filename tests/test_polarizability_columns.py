@@ -6,7 +6,7 @@ import pandas as pd
 from M2_data_extractor import feather_extractor as FE
 from M2_data_extractor import gaussian_handler as GH
 
-ISO, ANISO = 180.521, 118.05                            # L15 H-bonded: the log prints iso 0.180521D+03, aniso 0.118050D+03
+ISO, ANISO = 180.521, 118.05                            # the log prints iso 0.180521D+03, aniso 0.118050D+03
 
 
 def old_style_frame(n=3):

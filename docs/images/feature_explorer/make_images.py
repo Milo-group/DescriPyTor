@@ -138,7 +138,7 @@ class Shots:
             sel.dispatchEvent(new Event('change', { bubbles: true })); }""", [label_text, option_text])
         pg.wait_for_timeout(500)
 
-    def theta_view(self, mol="FL_lig_13", values=False):
+    def theta_view(self, mol="ligand_1", values=False):
         """The explorer's own teaching preset, with values on the labels."""
         pg = self.page(f"?mol={mol}&preset=" + quote("theta construction"))
         if values:
@@ -266,7 +266,7 @@ def side_panel(s):
 def stack(s):
     pg = s.theta_view()
     s.open_section(pg, "Structures")
-    pg.select_option("#stAddSel", label="FL_lig_7")
+    pg.select_option("#stAddSel", label="ligand_3")
     pg.click("#stAdd")
     pg.wait_for_timeout(900)
     pg.select_option("#alMode", "atoms")
@@ -281,7 +281,7 @@ def stack(s):
 
 
 def sheet(s):
-    q = "?sheet=" + quote("m-CN::theta;FL_lig_13::theta;045_lig::theta") + "&cols=3"
+    q = "?sheet=" + quote("m-CN::theta;ligand_1::theta;box_1::theta") + "&cols=3"
     pg = s.page(q)
     s.open_section(pg, "Sheet")
     s.badges(pg, [(1, "#shAdd", "tl", -4, -4, None), (2, "#shList", "tl", -4, -4, None), (3, "#shCols", "tl", -4, -4, None),
@@ -319,7 +319,7 @@ def paste(s):
 
 
 def substructure(s):
-    pg = s.page("?mol=045_lig")
+    pg = s.page("?mol=box_1")
     s.open_section(pg, "Substructure")
     s.save(pg, "13_substructure", locator="#layers")
     pg.close()
@@ -341,7 +341,7 @@ def live_check(s):
                 time.sleep(0.5)
         else:
             raise RuntimeError("descripytor visual did not start")
-        for mol, name in (("FL_lig_13", "14_live_check"), ("p-OTf", "15_live_check_otf")):
+        for mol, name in (("ligand_1", "14_live_check"), ("p-OTf", "15_live_check_otf")):
             pg = s.b.new_page(viewport={"width": W, "height": H}, device_scale_factor=DPR)
             pg.goto(f"http://127.0.0.1:{port}/feature_explorer?mol={mol}&preset=" + quote("theta construction"), wait_until="domcontentloaded")
             pg.wait_for_selector("#fig circle.hit", state="attached", timeout=20000)

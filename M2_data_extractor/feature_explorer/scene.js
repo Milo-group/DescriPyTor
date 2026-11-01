@@ -1079,7 +1079,7 @@
 .scene .pickring.hi{stroke-width:2.6;stroke-dasharray:4 3}`;
 
   // a figure file that stands on its own: no hit targets, its own styles, a white page unless transparent.
-  // mm gives it a real physical size (so it lands in a manuscript at the intended column width);
+  // mm gives it a real physical size (so it prints at the intended width);
   // state embeds the session that drew it, which the page can read back.
   function standalone(svg, { bg = 'white', scale = 2, mm = 0, state = null } = {}) {
     svg = svg.replace(/<circle class="hit"[\s\S]*?<\/circle>/g, '').replace(/<circle class="pickring[^>]*?(?:\/>|><\/circle>)/g, '');   // written either way, as a string or re-serialized by the page

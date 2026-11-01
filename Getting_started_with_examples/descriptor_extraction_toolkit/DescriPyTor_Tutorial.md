@@ -119,10 +119,6 @@ Once your atom selections are defined, the notebook workflow uses `get_molecules
 
 DescriPyTor also includes viewer-oriented utilities for comparing related structures and checking how conformers align in 3D. That is especially helpful when you are validating atom numbering, ring alignment, or ensemble consistency before extracting descriptors.
 
-Conformer comparison view:
-
-![Conformer viewer](../../docs/images/conformer-viewer.png)
-
 
 ## Example notebooks
 

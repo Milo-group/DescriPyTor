@@ -9,7 +9,7 @@ Uses the same `Molecules` / `Molecules_xyz` API as `Practical_Notebook_Features.
 | File | Purpose |
 |------|---------|
 | `descriptor_extractor.py` | Main runner. Loads a set, runs the enabled engines, merges everything into one CSV. CLI + importable. |
-| `feature_packages.py` | The external descriptor packages ported from `feature_extraction_and_regression.ipynb` (rdkit, mordred, deepchem, rafbl/moltop, qm, aqme_qdescp, morfeus suite). |
+| `feature_packages.py` | The external descriptor packages ported from `feature_extraction.ipynb` (rdkit, mordred, deepchem, rafbl/moltop, qm, aqme_qdescp, morfeus suite). |
 | `config_example.json` | A starter run config with every engine block. |
 
 ## 1. Pick atoms visually
@@ -55,7 +55,7 @@ has `"enabled"` plus its own settings:
 | `xyz_buried_volume` | `Molecules_xyz.get_buried_volume_df` | xyz | `metal_index`, `radius` |
 | `morfeus_sterimol` | `morfeus.Sterimol` | xyz | `pairs` (independent cross-check) |
 
-### Expanded packages (from `feature_extraction_and_regression.ipynb`)
+### Expanded packages (from `feature_extraction.ipynb`)
 
 These run on `.xyz` (SMILES is perceived once) or `.log` files. A missing package is skipped
 with a one-line message.

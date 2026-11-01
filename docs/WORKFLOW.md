@@ -136,10 +136,10 @@ stereocentres itself and returns arm-averaged (`_sym`) and arm-difference (`_asy
 ```python
 from M2_data_extractor.metal_complex import MetalComplex, MetalComplexEnsemble
 
-geo = MetalComplex.from_xyz("026_lig_CuCl.xyz").geometric_features()
+geo = MetalComplex.from_xyz("box_3_CuCl.xyz").geometric_features()
 # fromM_* : Sterimol B1/B5/L/theta read from the metal; sub_* : from the stereocentre
 # bite, M-D distances, %Vbur at 3 / 3.5 / 5 A, ...
-ens = MetalComplexEnsemble.from_xyz("081_lig.finalensemble.xyz").geometric_features()   # Boltzmann-averaged
+ens = MetalComplexEnsemble.from_xyz("box_6.finalensemble.xyz").geometric_features()   # Boltzmann-averaged
 ```
 
 | setting | default | meaning |

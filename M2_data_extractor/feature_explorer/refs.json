@@ -52,7 +52,7 @@
   "phi": 95.4391
  },
  {
-  "file": "FL_lig_13_str_target.xyz",
+  "file": "ligand_1.xyz",
   "a": 6,
   "b": 7,
   "ref": {
@@ -65,7 +65,7 @@
   "phi": 179.7228
  },
  {
-  "file": "FL_lig_13_str_target.xyz",
+  "file": "ligand_1.xyz",
   "a": 7,
   "b": 6,
   "ref": {
@@ -78,7 +78,7 @@
   "phi": 169.0977
  },
  {
-  "file": "FL_lig_13_str_target.xyz",
+  "file": "ligand_1.xyz",
   "a": 6,
   "b": 4,
   "ref": {
@@ -91,7 +91,7 @@
   "phi": 94.1638
  },
  {
-  "file": "FL_lig_13_str_target.xyz",
+  "file": "ligand_1.xyz",
   "a": 4,
   "b": 6,
   "ref": {
@@ -104,7 +104,7 @@
   "phi": 114.6961
  },
  {
-  "file": "041_lig.xyz",
+  "file": "box_2.xyz",
   "a": 7,
   "b": 6,
   "ref": {
@@ -117,7 +117,7 @@
   "phi": 125.6472
  },
  {
-  "file": "041_lig.xyz",
+  "file": "box_2.xyz",
   "a": 6,
   "b": 7,
   "ref": {
@@ -169,7 +169,7 @@
   "phi": 103.5082
  },
  {
-  "file": "045_lig.xyz",
+  "file": "box_1.xyz",
   "a": 8,
   "b": 12,
   "ref": {
@@ -182,7 +182,7 @@
   "phi": 37.3882
  },
  {
-  "file": "045_lig.xyz",
+  "file": "box_1.xyz",
   "a": 12,
   "b": 8,
   "ref": {
@@ -195,7 +195,7 @@
   "phi": 123.8698
  },
  {
-  "file": "045_lig.xyz",
+  "file": "box_1.xyz",
   "a": 19,
   "b": 21,
   "ref": {
@@ -208,7 +208,7 @@
   "phi": 37.3882
  },
  {
-  "file": "045_lig.xyz",
+  "file": "box_1.xyz",
   "a": 21,
   "b": 19,
   "ref": {

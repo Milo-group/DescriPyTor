@@ -681,9 +681,7 @@ def calc_loc_b1(best_plane, edited_coordinates_df, tol=B1_TANGENT_TOL):
 
     The set almost never has one member. A minimum-width supporting plane is
     minimal precisely because it lies flush against two atoms; if it touched
-    only one, rotating would narrow it further. Measured on the Ackermann set
-    the contact is a single atom in 0% of cases (median 2, up to 5), and on a set of
-    bis(oxazoline) ligands in 16%. Picking "the" tangent atom is therefore an
+    only one, rotating would narrow it further. Picking "the" tangent atom is therefore an
     arbitrary tiebreak, and the y is averaged over the contact set instead,
     weighted by how much of each atom lies on the plane. B1_tangent_atoms is
     returned alongside so callers can see how sharp the contact was.
@@ -756,17 +754,11 @@ def calc_sterimol(bonded_atoms_df, extended_df, visualize_bool=False):
     # so v.n = p.n for the perpendicular part p, giving
     #     sin(B1_B5_angle) = |cos(azimuth)| * (|p| / |v|)
     # -- the in-plane angle scaled by how far along the axis the B5 atom sits,
-    # which loc_B5 already reports. The scale factor runs down to 0.46 in
-    # practice, so B1_B5_angle is partly confounded with loc_B5 and the two
-    # in-plane forms are not.
+    # which loc_B5 already reports.
     #
-    # Which of the in-plane forms is safe depends on the ligands. B1 is the
-    # closer of two supporting planes, so its normal points to whichever side
+    # B1 is the closer of two supporting planes, so its normal points to whichever side
     # is nearer; where the two sides are near-equidistant that choice flips and
-    # the directed value jumps to its supplement. Measuring the gap
-    # |d_far - d_near|: below 0.5 A in 23 of 44 arms on the Ackermann set, but
-    # in only 23 of 1178 arm-conformers on a set of bidentates. Prefer
-    # B1_B5_acute unless the gap has been checked for the set in hand.
+    # the directed value jumps to its supplement.
     best_azimuth = float(b1_b5_angle[best_idx])
     best_acute = float(min(best_azimuth, 180.0 - best_azimuth))
 

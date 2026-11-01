@@ -1950,13 +1950,13 @@ class Molecules():
 
         Example
         -------
-        # L5 has N at position 7 instead of 2 — swap them:
-        mols.swap_atoms({"L5": {2: 7, 7: 2}})
+        # mol_a has N at position 7 instead of 2 — swap them:
+        mols.swap_atoms({"mol_a": {2: 7, 7: 2}})
 
         # Multiple molecules at once:
         mols.swap_atoms({
-            "L5":  {2: 7, 7: 2},
-            "L12": {2: 5, 5: 2},
+            "mol_a":  {2: 7, 7: 2},
+            "mol_b": {2: 5, 5: 2},
         })
         """
         mol_map = {mol.molecule_name: mol for mol in self.molecules}

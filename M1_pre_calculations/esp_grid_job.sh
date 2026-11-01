@@ -29,7 +29,7 @@
 #
 # Usage:
 #   mkdir -p logs
-#   qsub -t 1-4477 M1_pre_calculations/esp_grid_job.sh structures.list
+#   qsub -t 1-N M1_pre_calculations/esp_grid_job.sh structures.list
 
 set -euo pipefail
 

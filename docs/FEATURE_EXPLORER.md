@@ -48,7 +48,7 @@ Atom numbers are **1-based**, as in Gaussian, throughout.
 
 ```bash
 descripytor feature_explorer                                     # opens the explorer in your browser
-descripytor feature_explorer --mol FL_lig_13 --preset "theta construction"      # straight to a structure and a preset
+descripytor feature_explorer --mol ligand_1 --preset "theta construction"      # straight to a structure and a preset
 ```
 
 `descripytor feature_explorer` starts the same local server as `descripytor visual` (default port 7432, `--port` to
@@ -73,14 +73,14 @@ python -m http.server 8742 --directory M2_data_extractor/feature_explorer
 Without the Flask server there is no live check against the Python; everything else works.
 
 The page opens on a built-in structure. Add `?mol=<name>` to open another one, for example
-`feature_explorer.html?mol=FL_lig_13`; the full list of parameters is in [section 14](#14-keyboard-mouse-and-url-reference).
+`feature_explorer.html?mol=ligand_1`; the full list of parameters is in [section 14](#14-keyboard-mouse-and-url-reference).
 
 ## 2. The screen
 
 The numbers below are the numbers in the picture at the top of this page.
 
 1. **Molecule menu.** 38 built-in structures: substituted arenes (`m-CN`, `p-OTf`, …), the
-   `FL_lig_*` ligands, CuCl bis(oxazoline) complexes (`045_lig`, …), bis(oxazoline),
+   `ligand_*` structures, CuCl bis(oxazoline) complexes (`box_1`, …), bis(oxazoline),
    pyridine-oxazoline and phosphine-oxazoline complexes, and a benzoic-acid series. **Open files**
    loads your own ([section 11](#11-your-own-molecules)).
 2. **Base and Axis.** The two atoms that define the Sterimol axis. Type atom numbers, or click atoms
@@ -117,7 +117,7 @@ The numbers below are the numbers in the picture at the top of this page.
 Open any molecule and pick the preset **theta construction** in the *Figure* section, or add
 `&preset=theta%20construction` to the URL. It switches on every part of the Sterimol construction.
 
-![Every part of the construction, on the ligand FL_lig_13, axis C6→C7](images/feature_explorer/03_anatomy.png)
+![Every part of the construction, on the ligand ligand_1, axis C6→C7](images/feature_explorer/03_anatomy.png)
 
 1. **L.** The arrow along the axis: the length of the fragment along it, atom radii included.
 2. **B₁ and its plane.** B₁ is the narrowest width of the fragment, measured perpendicular to the
@@ -162,7 +162,7 @@ The axis runs **from the base atom to the axis atom**.
 - **Swap** (key **S**) reverses the direction. Measuring C1→C23 and C23→C1 gives different numbers,
   because the fragment is the part beyond the axis atom.
 - To measure several axes at once, open **Sterimol axes** in the side panel and press **+ New axis**.
-  Each axis gets a row in the numbers strip. In the CuCl complex `045_lig`, the two oxazoline
+  Each axis gets a row in the numbers strip. In the CuCl complex `box_1`, the two oxazoline
   arms are two axes.
 - **Substructure** finds the same fragment across a series by SMARTS and can send the first atom of
   the match to the axis base or tip ([section 8](#8-the-side-panel)).
@@ -245,7 +245,7 @@ to match through aromatic and double bonds alike. A match can be sent to **axis 
 **dipole origin**, **charges** or **fade**, which makes the same selection on every molecule in a
 series without typing atom numbers.
 
-![The Substructure section on the CuCl complex 045_lig](images/feature_explorer/13_substructure.png)
+![The Substructure section on the CuCl complex box_1](images/feature_explorer/13_substructure.png)
 
 **Figure: fading.** *fade atoms* takes numbers (`1-5, 30`). **Brush** fades atoms as the pointer runs
 over them (hold **Alt** to bring them back), **Clear** brings every atom back, *fade what no axis
@@ -257,7 +257,7 @@ those atoms from the drawing.
 To compare conformers, a series, or a ligand in two complexes, draw several structures on top of one
 another, each aligned to the measured one.
 
-![Two structures superposed: FL_lig_13 (measured, grey) and FL_lig_7 (orange), aligned on atoms 6, 7 and 4](images/feature_explorer/08_stack.png)
+![Two structures superposed: ligand_1 (measured, grey) and ligand_3 (orange), aligned on atoms 6, 7 and 4](images/feature_explorer/08_stack.png)
 
 1. **Add a structure.** Pick one in the menu and press **+ Add**, or load files with **Add files**
    (a multi-frame xyz becomes one structure per frame).
@@ -336,7 +336,7 @@ remade exactly. Adding `&figure=1` strips the page down to the exported figure:
 
 ![?mol=m-CN&preset=theta&figure=1](images/feature_explorer/10_figure_mode.png)
 
-Several panels at once: `?sheet=m-CN::theta;FL_lig_13::theta&cols=2&figure=1`. A full
+Several panels at once: `?sheet=m-CN::theta;ligand_1::theta&cols=2&figure=1`. A full
 list of parameters is in [section 14](#14-keyboard-mouse-and-url-reference).
 
 ## 11. Your own molecules
@@ -380,19 +380,19 @@ sends the coordinates to the package and compares five values: B₁, B₅, L, lo
 the numbers says *"✓ DescriPyTor's Python gives the same five values (checked live)."*, or names the
 value that differs.
 
-![The live check, on FL_lig_13: the Python agrees](images/feature_explorer/14_live_check.png)
+![The live check, on ligand_1: the Python agrees](images/feature_explorer/14_live_check.png)
 
 φ end-on and ρ are not part of this check. The explorer's φ is not numerically the package's
-`B1_B5_azimuth` column (for `FL_lig_13` C6→C7: 179.45° against 179.72°).
+`B1_B5_azimuth` column (for `ligand_1` C6→C7: 179.45° against 179.72°).
 
 **Copy Python.** Press **Copy Python** for the calls that reproduce the numbers on the current
-structure and axis. For `FL_lig_13`, axis C6→C7, it gives:
+structure and axis. For `ligand_1`, axis C6→C7, it gives:
 
 ```python
 import pandas as pd
 import data_extractor as de                       # MolFeatures/M2_data_extractor
 
-xyz = pd.read_csv('FL_lig_13.xyz', sep=r'\s+', skiprows=2, names=['atom', 'x', 'y', 'z'])
+xyz = pd.read_csv('ligand_1.xyz', sep=r'\s+', skiprows=2, names=['atom', 'x', 'y', 'z'])
 bonds = de.extract_connectivity(xyz)             # threshold_distance=1.82 gives the pre-2026-09-27 bonds
 
 r = de.get_sterimol_df(xyz, bonds, [6, 7], None, radii='CPK').iloc[0]   # C6→C7
@@ -401,7 +401,7 @@ assert [round(float(r[k]), 4) for k in ('B1', 'B5', 'L', 'loc_B5', 'B1_B5_angle'
 
 The first import line is for a source checkout. With the package installed, use
 `from M2_data_extractor import data_extractor as de`. With that import and the fixture
-`M2_data_extractor/feature_explorer/fixtures/FL_lig_13_str_target.xyz`, the assertion holds under
+`M2_data_extractor/feature_explorer/fixtures/ligand_1.xyz`, the assertion holds under
 DescriPyTor 0.2.1.
 
 ## 13. Known differences from the package
@@ -416,7 +416,7 @@ The page still draws a bond dashed, and says so, when a pair sits inside 1.15 ×
 but the package's connectivity leaves it out.
 
 **Metal-complex arms.** Numbers from `MetalComplex`, which measures each arm in its own frame and fragment, so they differ slightly from the
-page's: by a few thousandths of an Å and a few tenths of a degree. For `045_lig`: sub_B1_sym 2.751 Å and sub_theta_sym 38.7° from `MetalComplex`, against 2.754 Å and 38.3° on the page.
+page's: by a few thousandths of an Å and a few tenths of a degree. For `box_1`: sub_B1_sym 2.751 Å and sub_theta_sym 38.7° from `MetalComplex`, against 2.754 Å and 38.3° on the page.
 
 **B₁ resolution.** B₁ is a minimum that usually sits on a kink where two atoms tie, so it is good to
 about ±0.01 Å. θ at a flat minimum can move by tens of degrees; the B₁ scan ([section 7](#7-the-b1-scan))
@@ -449,7 +449,7 @@ shows when that is the case.
 
 | parameter | value | does |
 |---|---|---|
-| `mol` | a molecule name, such as `FL_lig_13` | opens that structure |
+| `mol` | a molecule name, such as `ligand_1` | opens that structure |
 | `preset` | a number, or the start of a preset's name | applies that preset |
 | `style` | `key:value,key:value` | overrides look settings for this render |
 | `figure` | `1` | strips the page to the exported figure |

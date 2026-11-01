@@ -4,8 +4,7 @@ The scan rotates the projected cloud, t = R p, and reads extents along the
 rotated axes, so a rotated axis is the original direction R^T applied to it.
 Storing R x̂ instead gives its mirror image across the frame x-axis. Nothing
 errors: B1_B5_angle is still a number in [0, 90], it just depends on how the
-frame happens to be turned about the Sterimol axis. On a set of bis(oxazoline) arms
-the mirrored angle moved by a median 46 deg under such turns.
+frame happens to be turned about the Sterimol axis.
 
 Two properties pin it, neither of which the mirrored normal has:
   - the cloud's extent along the stored normal IS the row's B1;

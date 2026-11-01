@@ -116,7 +116,7 @@ and dihedrals with their values. Atom numbers are **1-based**, as in Gaussian.
 
 ```bash
 descripytor feature_explorer                                         # http://127.0.0.1:7432/feature_explorer
-descripytor feature_explorer --mol FL_lig_13 --preset "theta construction"
+descripytor feature_explorer --mol ligand_1 --preset "theta construction"
 ```
 
 Every construction on the molecule itself: the Sterimol axis, the B<sub>1</sub> plane and its scan, loc B<sub>5</sub>,
@@ -219,9 +219,9 @@ Metal complexes, from a single structure or a conformer ensemble ([docs/METAL_CO
 ```python
 from M2_data_extractor.metal_complex import MetalComplex, MetalComplexEnsemble
 
-geo = MetalComplex.from_xyz("026_lig_CuCl.xyz").geometric_features()
+geo = MetalComplex.from_xyz("box_3_CuCl.xyz").geometric_features()
 # fromM_* : Sterimol read from the metal; sub_* : from the stereocentre; bite, M-D distances, %Vbur, ...
-ens = MetalComplexEnsemble.from_xyz("081_lig.finalensemble.xyz").geometric_features()   # Boltzmann-averaged
+ens = MetalComplexEnsemble.from_xyz("box_6.finalensemble.xyz").geometric_features()   # Boltzmann-averaged
 ```
 
 Class reference: [M2_data_extractor/README.md](https://github.com/Milo-group/DescriPyTor/blob/main/M2_data_extractor/README.md).
@@ -232,11 +232,6 @@ Class reference: [M2_data_extractor/README.md](https://github.com/Milo-group/Des
 
 Most descriptor packages return thousands of columns. DescriPyTor asks which atoms matter and returns a few
 descriptors you already understand, each read in a frame you define.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/feature-concept-blackboard.png" width="720" alt="Three panels: trimming a symmetric molecule to its unique fragment, aligning conformers, and labelling the chosen descriptors."><br>
-  <em>Trim by symmetry, align to a shared frame, pick the descriptors that mean something.</em>
-</p>
 
 | Family | What you give it | What you get |
 |---|---|---|

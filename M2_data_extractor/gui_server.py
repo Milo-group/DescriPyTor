@@ -972,7 +972,7 @@ def _iter_numbering_check(files, reference, picked, include_xyz, limit_xyz, refe
             if n_ok == len(molecules)
             else (
                 f"{len(molecules) - n_ok} of {len(molecules)} molecules differ "
-                f"from {ref_name} at a picked atom index. Align & renumber (below) numbers them like it; "
+                f"from {ref_name} at a picked atom index. "
                 "Conformer Viewer overlays them."
             )
         ),

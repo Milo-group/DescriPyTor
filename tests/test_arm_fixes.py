@@ -10,8 +10,8 @@ import pytest
 from M2_data_extractor import metal_complex as mc
 
 HERE = Path(__file__).resolve().parent
-LEAKY = HERE / "data" / "metal" / "024_lig_CuCl_xtbopt.xyz"          # fused substituent, leaked on both arms
-TBU = HERE.parent / "M2_data_extractor" / "feature_explorer" / "fixtures" / "045_box_CuCl.xyz"
+LEAKY = HERE / "data" / "metal" / "box_8_CuCl_xtbopt.xyz"          # fused substituent, leaked on both arms
+TBU = HERE.parent / "M2_data_extractor" / "feature_explorer" / "fixtures" / "box_1_CuCl.xyz"
 
 
 def _sub_atoms(m, bound, arm=0):

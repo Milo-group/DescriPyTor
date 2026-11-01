@@ -8,8 +8,7 @@ Three build types:
   lone-pair direction. Order: metal, donor, then the rest.
 - ``metal_chelate``: one metal on a bidentate ligand, plus ``n_ancillary`` ancillary ligands
   (H or Cl). Order: metal, ancillaries, donor 1, donor 2, then the rest: the order
-  ``MetalComplex`` expects. The placement is ``build_general.py`` (validated against
-  DFT-optimised Ni complexes); donors come from ``donor_smarts`` (atom maps 1 and 2) or from its
+  ``MetalComplex`` expects. Donors come from ``donor_smarts`` (atom maps 1 and 2) or from its
   graph heuristic.
 
 Each molecule: ``n_conformers`` ETKDG embeds (``seed``), MMFF (UFF where MMFF has no parameters),
@@ -33,7 +32,7 @@ from rdkit.Chem import AllChem, rdMolDescriptors
 from .checks import write_refs
 from .protocol import Protocol
 
-# M-donor and M-ancillary distances, as in build_general.py
+# M-donor and M-ancillary distances
 MD_BY_METAL = {
     "Ni": {"N": 2.09, "P": 2.20, "S": 2.25, "O": 2.05},
     "Cu": {"N": 2.00, "P": 2.20, "S": 2.30, "O": 2.00},
@@ -41,7 +40,7 @@ MD_BY_METAL = {
 }
 M_ANC = {("Ni", "H"): 1.48, ("Cu", "Cl"): 2.20, ("Ni", "Cl"): 2.24, ("Pd", "Cl"): 2.30}
 CLEAR_HEAVY, CLEAR_H = 2.2, 1.8        # A, metal to any ligand atom other than the donors
-ANC_CLEAR = 1.45                         # A, ancillary to ligand, as build_general
+ANC_CLEAR = 1.45                         # A, ancillary to ligand
 
 
 class BuildError(RuntimeError):
@@ -162,7 +161,7 @@ def _match(mol, smarts, what):
     return q, hits
 
 
-# ---------------------------------------------------------------- chelate placement (build_general)
+# ---------------------------------------------------------------- chelate placement
 def _place_chelate_metal(X, i, j, li, lj, ri, rj):
     from scipy.optimize import minimize
 

@@ -1,7 +1,7 @@
 """Metal-complex geometric and electronic descriptors from XYZ + xTB.
 
 The metal-complex extractor, as classes. Canonical atom order
-(the layout ``build_general.py`` writes, and that GOAT/xTB then preserve)::
+(the layout that GOAT/xTB then preserve)::
 
     0 = metal
     1 .. n_ancillary-1 = H / Cl / F / Br
@@ -17,11 +17,11 @@ Typical use::
         MetalComplex, MetalComplexEnsemble, XtbSinglePoint, parse_props_file,
     )
 
-    ens = MetalComplexEnsemble.from_xyz("081_lig.finalensemble.xyz")
+    ens = MetalComplexEnsemble.from_xyz("box_6.finalensemble.xyz")
     geom = ens.geometric_features()          # Boltzmann-averaged at 298.15 K
 
-    sp = XtbSinglePoint.from_xtb_dir("chg_ni", "081_lig", props=props["081_lig"])
-    mc = MetalComplex.from_xyz("081_lig.xyz")
+    sp = XtbSinglePoint.from_xtb_dir("chg_ni", "box_6", props=props["box_6"])
+    mc = MetalComplex.from_xyz("box_6.xyz")
     elec = mc.electronic_features(sp)
 """
 
@@ -38,7 +38,7 @@ import pandas as pd
 from .xyz_io import XYZEnsemble, XYZFrame, boltzmann_average, parse_xyz_ensemble
 from .xtb_singlepoint import XtbSinglePoint
 
-# Connectivity radii (build_general.py). Used for donor/stereocentre walks.
+# Connectivity radii. Used for donor/stereocentre walks.
 CONNECT_COV = {
     "H": 0.31, "C": 0.76, "N": 0.71, "O": 0.66, "F": 0.57, "P": 1.07,
     "S": 1.05, "Cl": 1.02, "Br": 1.20, "I": 1.39, "Ni": 1.24, "Cu": 1.32,   # I: Cordero 2008, as STERIMOL_COV (C-I was unbonded at the 0.77 fallback)
@@ -98,7 +98,7 @@ THETA_SOFT_STEP = 0.05         # deg, direction grid for the soft rule
 
 # Where the substituent fragment (C* -> R) stops. "donor_ring" (the default) blocks every atom
 # of the donor's own ring, so a substituent fused to that ring cannot walk into the chelate
-# backbone and the other arm (7 of 60 arms in one benchmark set did). "donor" blocks
+# backbone and the other arm. "donor" blocks
 # only the donor and the metal, as earlier versions did.
 SUB_FRAGMENT_BOUND = "donor_ring"
 
@@ -115,9 +115,8 @@ STEREOCENTRE_RULE = "alpha"
 # meaningful part; False reports the earlier signed values.
 DIPOLE_ABS = True
 
-# build_general.py rejects a metal placement whose bite falls outside this window,
-# but only before relaxation; a donor can still come off during it (009_lig in an
-# oxy-alkynylation set: 87 deg placed, 58 deg relaxed). geometric_features
+# A builder should reject a metal placement whose bite falls outside this window,
+# but only before relaxation; a donor can still come off during it. geometric_features
 # re-checks the structure it is given.
 BITE_WINDOW = (65.0, 105.0)
 ELECTRONIC_COLUMNS = (

@@ -733,8 +733,8 @@ def get_benzene_ring_indices(bonds_df, ring_atoms):
     direction, and {r1, r3, r5} / {r0, r2, r4} are the alternating halves of the ring.
 
     The previous version took the atom order of ``networkx.cycle_basis``, which neither starts
-    at the given atom nor follows the ring, so on 181 of 216 queries over a set of substituted arenes
-    the positions were measured from another atom.
+    at the given atom nor follows the ring, so the positions
+    could be measured from another atom.
     """
     G = nx.Graph()
     for _, row in bonds_df.iterrows():

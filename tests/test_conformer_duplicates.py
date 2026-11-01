@@ -47,7 +47,7 @@ def test_a_rotated_copy_is_the_same_conformer():
 
 
 def test_a_para_ring_flip_is_one_conformer_and_names_the_atoms():
-    mol = _embed("Fc1ccc(F)cc1", 2)
+    mol = _embed("CCc1ccc(F)cc1", 2)       # the ethyl stays put, so only the relabelling overlays the flipped ring
     rows = _rows(mol)
     heavy = [a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() > 1]
     flip = next(

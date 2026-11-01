@@ -3,7 +3,7 @@ feature_packages.py
 ====================
 
 Open-access / external descriptor *packages*, ported from
-`feature_extraction_and_regression.ipynb` (and `xyz_feature_extraction.ipynb`)
+`feature_extraction.ipynb` (and `xyz_feature_extraction.ipynb`)
 so the toolkit can mix DescriPytor's own descriptors with:
 
     rafbl         - moltop topological graph descriptors (from .xyz)

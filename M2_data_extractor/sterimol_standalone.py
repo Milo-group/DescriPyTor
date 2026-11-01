@@ -1975,7 +1975,7 @@ class _ConformerFrame:
         but on some geometries that particular direction is exactly collinear
         with the coplane vector `calc_basis_vector` builds against, which
         makes its `np.linalg.lstsq` singular ("SVD did not converge"). Seen
-        on ligand L25, where the default pick was a stray C-H bond.
+        when the default pick was a stray C-H bond.
 
         This tries the standard pick first (so normal behavior/results don't
         change), then every other neighbor of that same center atom -- heavy
@@ -2004,9 +2004,7 @@ class _ConformerFrame:
         # NOTE: deliberately a single attempt at the default auto-pick here,
         # not a per-conformer retry loop -- that turned out to multiply the
         # cost of every failing conformer by the number of candidates (fine
-        # for a 6-conformer ensemble like L25, but on a 138-conformer one
-        # like L_10 with ~27 failures it pushed a ~34s ligand well past a
-        # minute). `ConformerEnsemble.get_sterimol` retries with an alternate
+        # for a small ensemble, not for a large one with many failures). `ConformerEnsemble.get_sterimol` retries with an alternate
         # atom pair at the ensemble level instead, and only when the DEFAULT
         # pick fails for literally every conformer -- see there.
         if base_atoms is None:
@@ -2170,7 +2168,7 @@ class ConformerEnsemble:
         files) into ONE ensemble and Boltzmann-weight across the union.
 
         For merging duplicate/rerun CREST jobs for what's chemically the same
-        ligand (e.g. `L12` and a redone `L12_T`, or `L20`/`L20b`) into a single
+        ligand (e.g. `L1` and a redone `L1_T`) into a single
         result -- this re-derives one Boltzmann weighting over every conformer
         from every source, which is the statistically correct way to combine
         them (as opposed to averaging two already-Boltzmann-averaged numbers,
@@ -2184,7 +2182,7 @@ class ConformerEnsemble:
             same priority order as the normal constructor) or explicit
             ensemble .xyz file paths -- may mix both.
         molecule_name : str
-            Name for the merged result (e.g. 'L12').
+            Name for the merged result (e.g. 'L1').
 
         Raises
         ------
@@ -2279,14 +2277,14 @@ class ConformerEnsemble:
         )
 
         # If auto-detection picked an atom pair that's degenerate for EVERY
-        # conformer (seen on ligand L25 -- a stray C-H bond exactly collinear
+        # conformer (a stray C-H bond exactly collinear
         # with the coplane vector, singular `np.linalg.lstsq` every time),
         # retry with the next candidate neighbor of that same center atom
         # instead of reporting a flat NaN row. Retrying at the ensemble level
         # (one atom pair applied to every conformer) rather than per-conformer
         # keeps this cheap: it only fires when the WHOLE ensemble came back
         # empty, not on the far more common case of a handful of individual
-        # conformers failing (e.g. L_10, 27/138 conformers) where the default
+        # conformers failing where the default
         # pick already gives a perfectly good weighted average.
         if base_atoms is None and boltzmann_row['n_conformers_used'].iloc[0] == 0 and self.conformers:
             candidates = self.conformers[0]._auto_base_atom_candidates()[1:]
@@ -2384,8 +2382,7 @@ class ConformerEnsemble:
     # Same weighting/failure-handling logic as `_get_sterimol_once`, factored
     # out so angle/dihedral/bond-length/buried-volume can reuse it instead of
     # re-deriving the NaN-poisoning-fix, cutoff handling, and total-failure
-    # bookkeeping each time. `_get_sterimol_once` is left untouched (it
-    # predates this and is already verified against the real dataset).
+    # bookkeeping each time. `_get_sterimol_once` is left untouched.
 
     def _boltzmann_average_descriptor(self, descriptor_name, expected_cols, per_conformer_calc,
                                        energy_cutoff_kcal=None, min_weight=None):

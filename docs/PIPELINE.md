@@ -74,7 +74,7 @@ All types take `n_conformers` (default 10) and `seed` (default 0).
 - The two donors are held 2.5–3.0 Å apart while embedding, because a free ligand such as
   bipyridine otherwise comes out anti.
 - The ligand is then relaxed around the fixed metal, so a methyl or tBu hydrogen turns out of
-  the pocket. The metal placement and ancillary positions follow `build_general.py`.
+  the pocket.
 - A monodentate ligand gets the same relaxation only when no conformer leaves room for the metal.
 
 **Outputs, in `<name>_pipeline/`:**

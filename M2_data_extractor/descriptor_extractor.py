@@ -360,7 +360,7 @@ def engine_morfeus_sterimol(ctx: ExtractionContext, ecfg: dict) -> pd.DataFrame:
 
 # --------------------------------------------------------------------------- #
 # 2b.  External descriptor packages (ported from
-#      feature_extraction_and_regression.ipynb -> feature_packages.py).
+#      feature_extraction.ipynb -> feature_packages.py).
 #      These operate on the xyz set (and SMILES derived from it), or .log files.
 # --------------------------------------------------------------------------- #
 def engine_rafbl(ctx, ecfg):
@@ -433,7 +433,7 @@ ENGINES = {
     "xyz_geometry":        (engine_xyz_geometry,        "xyz"),
     "xyz_buried_volume":   (engine_xyz_buried_volume,   "xyz"),
     "morfeus_sterimol":    (engine_morfeus_sterimol,    "xyz"),
-    # External packages (feature_extraction_and_regression.ipynb)
+    # External packages (feature_extraction.ipynb)
     "rafbl":               (engine_rafbl,               "xyz"),
     "rdkit":               (engine_rdkit,               "xyz"),
     "rdkit_fp":            (engine_rdkit_fp,            "xyz"),

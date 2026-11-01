@@ -208,7 +208,7 @@ Converters (they ask for their inputs):
   cube               Sterimol from Gaussian cube files"""
 CLI_EPILOG = """examples:
   descripytor visual_extractor
-  descripytor feature_explorer --mol FL_lig_13 --preset "theta construction"
+  descripytor feature_explorer --mol ligand_1 --preset "theta construction"
   descripytor extractor -i input.json -o features -f feathers/
   descripytor pipeline status protocol.json
 
@@ -332,7 +332,7 @@ def main():
                     "angle, %Vbur, dipole frames, charges, lengths and angles on the molecule, stacks aligned structures, and exports\n"
                     "figures. Same server as visual_extractor, at /feature_explorer. Manual: " + DOCS + "FEATURE_EXPLORER.md",
     )
-    theta_parser.add_argument("--mol", default=None, help="Open this built-in structure, e.g. FL_lig_13")
+    theta_parser.add_argument("--mol", default=None, help="Open this built-in structure, e.g. ligand_1")
     theta_parser.add_argument("--preset", default=None,
                               help="Apply this preset (a number, or the start of its name), e.g. 'theta construction'")
     theta_parser.add_argument("--no-browser", action="store_true", help="Start the server without opening a browser tab")

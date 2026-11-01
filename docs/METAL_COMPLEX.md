@@ -100,7 +100,7 @@ GOAT ensemble geometry:
 ```python
 from M2_data_extractor import MetalComplexEnsemble
 
-ens = MetalComplexEnsemble.from_xyz("081_lig.finalensemble.xyz")
+ens = MetalComplexEnsemble.from_xyz("box_6.finalensemble.xyz")
 row = ens.geometric_features()
 # row['fromM_theta_sym'], row['n_conformers'], ...
 ```
@@ -112,9 +112,9 @@ from M2_data_extractor import (
     MetalComplex, XtbSinglePoint, parse_props_file,
 )
 
-props = parse_props_file("props.txt")["081_lig"]
-sp = XtbSinglePoint.from_xtb_dir("chg_ni", "081_lig", props=props)
-mc = MetalComplex.from_xyz("081_lig.xyz")
+props = parse_props_file("props.txt")["box_6"]
+sp = XtbSinglePoint.from_xtb_dir("chg_ni", "box_6", props=props)
+mc = MetalComplex.from_xyz("box_6.xyz")
 elec = mc.electronic_features(sp)
 ```
 
@@ -123,8 +123,8 @@ Cheap GFN2 structure + compact dump:
 ```python
 from M2_data_extractor import MetalComplex, XtbSinglePoint
 
-mc = MetalComplex.from_xyz("ni_081_lig.xyz")
-dump = XtbSinglePoint.parse_dump("ni_081_lig.txt")
+mc = MetalComplex.from_xyz("ni_box_6.xyz")
+dump = XtbSinglePoint.parse_dump("ni_box_6.txt")
 elec = mc.electronic_features(dump["cheap"][0])
 geom = mc.geometric_features()
 ```
@@ -150,7 +150,7 @@ geom = s.geometric_dataframe()
 ## What this package still does not do
 
 - Run GOAT, CREST, or xtb. Point the classes at the files those programs write.
-- Place the metal on a free ligand. That builder (`build_general.py`) is a
+- Place the metal on a free ligand. That is a
   separate geometry step; extraction assumes the complex XYZ already exists.
 - NBO / Gaussian charges. Those still go through `Molecules` and feathers.
 

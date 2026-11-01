@@ -80,9 +80,9 @@ class TestDonorIndices:
 
 
 def test_default_scan_finds_the_plane_the_18_degree_grid_misses(monkeypatch):
-    path = FIXTURES / "072_lig.finalensemble.xyz"
+    path = FIXTURES / "box_7.finalensemble.xyz"
     if path is None:
-        pytest.skip("072_lig GOAT ensemble not available")
+        pytest.skip("box_7 GOAT ensemble not available")
     conformer = MetalComplexEnsemble.from_xyz(path).complexes[0]
     coarse = conformer.geometric_features()["sub_B1_sym"]
     monkeypatch.undo()                          # back to the module default
@@ -117,9 +117,9 @@ def test_theta_of_a_lone_hydrogen_is_zero():
 
 def test_theta_does_not_depend_on_how_the_molecule_is_oriented(monkeypatch):
     """theta must use the B1 normal the scan measured along (R^T, not R)."""
-    path = FIXTURES / "081_lig.finalensemble.xyz"
+    path = FIXTURES / "box_6.finalensemble.xyz"
     if path is None:
-        pytest.skip("081_lig GOAT ensemble not available")
+        pytest.skip("box_6 GOAT ensemble not available")
     monkeypatch.undo()                          # module defaults: 1° scan, theta
     conformer = MetalComplexEnsemble.from_xyz(path).complexes[0]
     axis = np.array([1.0, 2.0, 3.0]) / np.sqrt(14.0)
@@ -137,11 +137,11 @@ def test_theta_does_not_depend_on_how_the_molecule_is_oriented(monkeypatch):
 class TestXtbParsers:
     def test_parse_props_file(self, tmp_path):
         path = tmp_path / "props.txt"
-        path.write_text("081_lig 0.10 -0.20 0.30 -8.9532 -8.1422\n", encoding="utf-8")
+        path.write_text("box_6 0.10 -0.20 0.30 -8.9532 -8.1422\n", encoding="utf-8")
         out = parse_props_file(path)
-        assert out["081_lig"]["homo"] == pytest.approx(-8.9532)
-        assert out["081_lig"]["lumo"] == pytest.approx(-8.1422)
-        assert out["081_lig"]["dipole"][0] == pytest.approx(0.10)
+        assert out["box_6"]["homo"] == pytest.approx(-8.9532)
+        assert out["box_6"]["lumo"] == pytest.approx(-8.1422)
+        assert out["box_6"]["dipole"][0] == pytest.approx(0.10)
 
     def test_parse_dump_and_map_onto_tiny_ni(self, tmp_path):
         dump = tmp_path / "ni.txt"

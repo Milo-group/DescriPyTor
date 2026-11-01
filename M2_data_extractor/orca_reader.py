@@ -72,7 +72,7 @@ def _number(lines, title, field=-1):
 
 def read_orca(path):
     """The payload json_payload_handler reads; raises ValueError when the file has no geometry."""
-    from utils.mode_viewer import parse_orca_out_text
+    from utils.orca_text import parse_orca_out_text
 
     with open(path, "r", encoding="utf-8", errors="replace") as fh:
         text = fh.read()

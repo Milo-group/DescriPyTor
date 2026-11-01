@@ -316,7 +316,7 @@
   // ---------- calc_dipole_gaussian (dipole_utils.py): the dipole in a declared frame ----------
   // Selections are 1-based atoms or arrays of them (centroid), as in the package:
   // origin -> centroid, Y toward the axis selection, X from the plane selection made
-  // perpendicular to Y, Z = X x Y. Paper names: u = Y, v = X, w = Z.
+  // perpendicular to Y, Z = X x Y. Names: u = Y, v = X, w = Z.
   function dipoleFrame(X, dipole, origin, ySel, planeSel) {
     const cen = (sel) => {
       const ids = (Array.isArray(sel) ? sel : [sel]).map((i) => i - 1);

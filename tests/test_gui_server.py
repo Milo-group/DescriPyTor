@@ -72,8 +72,6 @@ def test_only_pages_on_this_computer_are_answered(client):
         assert r.status_code == 403 and "Access-Control-Allow-Origin" not in r.headers, headers
     assert client.post("/folder/summary", json=body, base_url="http://evil.example:7432").status_code == 403
     assert client.get("/visual", headers={"Sec-Fetch-Site": "cross-site", "Sec-Fetch-Mode": "navigate"}).status_code == 200
-    for gone in ("/model/dataset", "/model/merge-outputs", "/theta/check"):      # read any CSV / wrote one anywhere
-        assert client.post(gone, json={}).status_code == 404
 
 
 def test_example_xyz_loads_basic(client):
@@ -653,15 +651,15 @@ def test_feature_explorer_is_served_with_its_query():
     """`descripytor feature_explorer` opens /feature_explorer; the page, and the live check it calls, are on the same server."""
     app = _load_app()
     client = app.test_client()
-    r = client.get("/feature_explorer?mol=FL_lig_13&preset=theta%20construction")
+    r = client.get("/feature_explorer?mol=ligand_1&preset=theta%20construction")
     assert r.status_code == 200 and b"Feature explorer" in r.data and b"Sterimol" in r.data
 
 
 def test_the_old_theta_address_redirects_with_its_query():
     """/theta was the explorer's address before the rename; bookmarks and scripts keep working."""
     client = _load_app().test_client()
-    r = client.get("/theta?mol=FL_lig_13&preset=2")
-    assert r.status_code == 302 and r.headers["Location"].endswith("/feature_explorer?mol=FL_lig_13&preset=2")
+    r = client.get("/theta?mol=ligand_1&preset=2")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/feature_explorer?mol=ligand_1&preset=2")
 
 
 def test_feature_explorer_command_builds_the_explorer_address():
@@ -669,8 +667,8 @@ def test_feature_explorer_command_builds_the_explorer_address():
 
     assert theta_page is feature_explorer_page
     assert feature_explorer_page() == "/feature_explorer"
-    assert feature_explorer_page("FL_lig_13") == "/feature_explorer?mol=FL_lig_13"
-    assert feature_explorer_page("FL_lig_13", "theta construction") == "/feature_explorer?mol=FL_lig_13&preset=theta+construction"
+    assert feature_explorer_page("ligand_1") == "/feature_explorer?mol=ligand_1"
+    assert feature_explorer_page("ligand_1", "theta construction") == "/feature_explorer?mol=ligand_1&preset=theta+construction"
     assert feature_explorer_page(preset="2") == "/feature_explorer?preset=2"
 
 

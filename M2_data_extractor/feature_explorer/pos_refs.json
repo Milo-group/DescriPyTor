@@ -1,34 +1,34 @@
 [
  {
-  "file": "009_phos_CuCl.xyz",
+  "file": "phos_1_CuCl.xyz",
   "kind": "vbur",
   "atom": 1,
   "radius": 3.0,
   "ref": 63.262656
  },
  {
-  "file": "009_phos_CuCl.xyz",
+  "file": "phos_1_CuCl.xyz",
   "kind": "vbur",
   "atom": 1,
   "radius": 3.5,
   "ref": 59.560214
  },
  {
-  "file": "009_phos_CuCl.xyz",
+  "file": "phos_1_CuCl.xyz",
   "kind": "vbur",
   "atom": 1,
   "radius": 5.0,
   "ref": 46.33811
  },
  {
-  "file": "009_phos_CuCl.xyz",
+  "file": "phos_1_CuCl.xyz",
   "kind": "vbur",
   "atom": 3,
   "radius": 3.5,
   "ref": 83.313215
  },
  {
-  "file": "009_phos_CuCl.xyz",
+  "file": "phos_1_CuCl.xyz",
   "kind": "cone",
   "atom": 1,
   "ref": 284.444039,
@@ -39,7 +39,7 @@
   ]
  },
  {
-  "file": "009_phos_CuCl.xyz",
+  "file": "phos_1_CuCl.xyz",
   "kind": "cone",
   "atom": 3,
   "ref": 349.79232,
@@ -50,21 +50,21 @@
   ]
  },
  {
-  "file": "009_phos.xyz",
+  "file": "phos_1.xyz",
   "kind": "vbur",
   "atom": 15,
   "radius": 3.5,
   "ref": 75.401196
  },
  {
-  "file": "009_phos.xyz",
+  "file": "phos_1.xyz",
   "kind": "vbur",
   "atom": 15,
   "radius": 5.0,
   "ref": 54.973112
  },
  {
-  "file": "009_phos.xyz",
+  "file": "phos_1.xyz",
   "kind": "cone",
   "atom": 15,
   "ref": 295.560558,
@@ -75,21 +75,21 @@
   ]
  },
  {
-  "file": "055_phos.xyz",
+  "file": "phos_2.xyz",
   "kind": "vbur",
   "atom": 10,
   "radius": 3.5,
   "ref": 85.975538
  },
  {
-  "file": "055_phos.xyz",
+  "file": "phos_2.xyz",
   "kind": "vbur",
   "atom": 10,
   "radius": 5.0,
   "ref": 65.631442
  },
  {
-  "file": "055_phos.xyz",
+  "file": "phos_2.xyz",
   "kind": "cone",
   "atom": 10,
   "ref": 307.548523,
@@ -100,14 +100,14 @@
   ]
  },
  {
-  "file": "045_lig.xyz",
+  "file": "box_1.xyz",
   "kind": "vbur",
   "atom": 8,
   "radius": 3.5,
   "ref": 75.913148
  },
  {
-  "file": "045_lig.xyz",
+  "file": "box_1.xyz",
   "kind": "vbur",
   "atom": 12,
   "radius": 3.5,

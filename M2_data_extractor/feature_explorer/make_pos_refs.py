@@ -17,10 +17,10 @@ warnings.filterwarnings("ignore")
 
 # fixture -> (vbur centres as 1-based atom indices with radii, cone apices)
 CASES = {
-    '009_phos_CuCl.xyz': dict(vbur=[(1, 3.0), (1, 3.5), (1, 5.0), (3, 3.5)], cone=[1, 3]),
-    '009_phos.xyz': dict(vbur=[(15, 3.5), (15, 5.0)], cone=[15]),
-    '055_phos.xyz': dict(vbur=[(10, 3.5), (10, 5.0)], cone=[10]),
-    '045_lig.xyz': dict(vbur=[(8, 3.5), (12, 3.5)], cone=[]),   # a carbon apex has its neighbours inside
+    'phos_1_CuCl.xyz': dict(vbur=[(1, 3.0), (1, 3.5), (1, 5.0), (3, 3.5)], cone=[1, 3]),
+    'phos_1.xyz': dict(vbur=[(15, 3.5), (15, 5.0)], cone=[15]),
+    'phos_2.xyz': dict(vbur=[(10, 3.5), (10, 5.0)], cone=[10]),
+    'box_1.xyz': dict(vbur=[(8, 3.5), (12, 3.5)], cone=[]),   # a carbon apex has its neighbours inside
 }
 
 

@@ -28,7 +28,7 @@ def test_long_single_bonds_are_kept():
 
 
 def test_phosphine_p_c_bonds_are_kept():
-    x = _xyz("009_phos.xyz")
+    x = _xyz("phos_1.xyz")
     p = [i + 1 for i, e in enumerate(x.atom) if e == "P"]
     new = sum(1 for b in _bonds(x) if p[0] in b)
     old = sum(1 for b in _bonds(x, threshold_distance=1.82) if p[0] in b)
@@ -36,8 +36,8 @@ def test_phosphine_p_c_bonds_are_kept():
 
 
 def test_agostic_metal_h_contact_is_not_a_bond():
-    """Cu...H at 2.68 A in 045_lig is inside the 2.8 A metal cutoff but is not a hydride."""
-    x = _xyz("045_lig.xyz")
+    """Cu...H at 2.68 A in box_1 is inside the 2.8 A metal cutoff but is not a hydride."""
+    x = _xyz("box_1.xyz")
     cu = [i + 1 for i, e in enumerate(x.atom) if e == "Cu"][0]
     h = {i + 1 for i, e in enumerate(x.atom) if e == "H"}
     assert not any(cu in b and (set(b) & h) for b in _bonds(x))

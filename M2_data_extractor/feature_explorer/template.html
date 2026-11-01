@@ -1916,7 +1916,7 @@ load(MOLS[0]);
     });
     styleChanged(); draw();
   }
-  // &sheet=m-CN::theta;FL_lig_13::theta builds the sheet from those presets
+  // &sheet=m-CN::theta;ligand_1::theta builds the sheet from those presets
   const sh = fromHash ? null : Q.get('sheet');
   if (sh) {
     Object.assign(st.sheet, { panels: [], at: null, cols: +(Q.get('cols') || st.sheet.cols), letters: Q.get('letters') ?? st.sheet.letters,

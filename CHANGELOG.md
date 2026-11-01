@@ -3,6 +3,7 @@
 ## 0.5.1 — 2026-11-01
 
 - Package description and documentation wording.
+- Built-in structures renamed; the example run script and the mode viewer removed (ORCA reading stays, in `utils/orca_text.py`).
 
 ## 0.5.0 — 2026-10-31
 
