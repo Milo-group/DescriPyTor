@@ -4,8 +4,8 @@ Run from the repository root::
 
     python tests/data/small_set/extract.py
 
-Writes ``modeling_table.csv`` next to this file (name, Sterimol, bonds, %Vbur,
-optional topology, boiling point). That table is what the modeling tests load.
+Writes ``small_set_table.csv`` next to this file (name, Sterimol, bonds, %Vbur,
+optional topology, boiling point).
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ from M2_data_extractor.xyz_io import XYZEnsemble
 HERE = Path(__file__).resolve().parent
 XYZ_DIR = HERE / "xyz"
 TARGETS = HERE / "targets.csv"
-TABLE = HERE / "modeling_table.csv"
+TABLE = HERE / "small_set_table.csv"
 
 
 def _angle(a, b, c) -> float:

@@ -1,7 +1,7 @@
 # Extraction protocol: from structures to a feature table you can trust
 
 [WORKFLOW.md](WORKFLOW.md) says how to run each step. This page says what to decide and what to
-check at each step, so the table that reaches a model search is correct. Every rule below comes
+check at each step, so the feature table is correct. Every rule below comes
 from an error found in a real dataset. Atom numbers are **1-based** throughout.
 
 - [0. Decide before you compute](#0-decide-before-you-compute)
@@ -12,7 +12,7 @@ from an error found in a real dataset. Atom numbers are **1-based** throughout.
 - [5. Descriptor rules](#5-descriptor-rules)
 - [6. Extract and record](#6-extract-and-record)
 - [7. Check the table](#7-check-the-table)
-- [8. Hand-off to modelling](#8-hand-off-to-modelling)
+- [8. Hand-off](#8-hand-off)
 
 ## 0. Decide before you compute
 
@@ -61,9 +61,7 @@ Read every descriptor on the last geometry, and keep every intermediate file.
 
 **Conformer ensembles only when declared in advance.**
 
-- The conformer sampler can change a model's cross-validated score more than any descriptor
-  does. Report which sampler you used.
-- About five conformers is usually enough.
+- Report which conformer sampler you used.
 - Boltzmann-average by default, and say so.
 - The energy on the comment line differs by program:
   - GOAT writes it as the **last** number;
@@ -184,7 +182,7 @@ State all four settings:
 
 ### Topology
 
-Use the `tf_*` columns in model searches. They are the graph indices divided by heavy-atom count.
+The `tf_*` columns are the graph indices divided by heavy-atom count.
 
 ## 6. Extract and record
 
@@ -213,7 +211,7 @@ Use the `tf_*` columns in model searches. They are the graph indices divided by 
    - No missing values and no constant columns.
    - Near-duplicate pairs (r > 0.999) are flagged; the extractor prints both.
 3. **Symmetric sets.** For C2-symmetric ligands every `_asym` column is about 0 by construction.
-   Drop those columns: a column of noise-level values can dominate a model search.
+   Drop those columns: they hold only noise.
 4. **Outliers.** Standardise each column. For any |z| > 6, open that molecule and look at the
    structure, not just the number.
 5. **Spot-checks.**
@@ -223,7 +221,7 @@ Use the `tf_*` columns in model searches. They are the graph indices divided by 
 6. **Column map.** Write down which physical quantity each column is (for example, `iso`/`aniso`
    are polarizability, not NMR shielding).
 
-## 8. Hand-off to modelling
+## 8. Hand-off
 
 1. Save the table with a README next to the plan from step 0: source, structures, settings, and
    the checks it passed.

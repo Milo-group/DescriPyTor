@@ -5,8 +5,7 @@ This tutorial is a guided path through the most common DescriPyTor workflow:
 1. prepare molecular data
 2. extract descriptors
 3. assemble a feature matrix
-4. run regression or classification
-5. inspect and reuse the saved results
+4. inspect and reuse the saved results
 
 If you want the short version, read the [README](../../README.md).
 
@@ -25,7 +24,6 @@ flowchart LR
 | --- | --- | --- |
 | `M1_pre_calculations` | Prepare external calculation inputs | input files and submission helpers |
 | `M2_data_extractor` | Turn molecular files into descriptors | feature tables |
-| `MolAlign` | Alignment and renumbering utilities | aligned structures and helper outputs |
 
 ## Visual cues
 

@@ -1,9 +1,13 @@
 # Changelog
 
+## 0.5.1 — 2026-11-01
+
+- Package description and documentation wording.
+
 ## 0.5.0 — 2026-10-31
 
 DescriPyTor is now a descriptor-extraction package. It reads Gaussian, ORCA, xTB and `.xyz` output and returns a
-feature table defined atom by atom; it no longer fits models. Earlier releases are withdrawn.
+feature table defined atom by atom. Earlier releases are withdrawn.
 
 - **Descriptors:** Sterimol (L, B1, B5, loc_B1, loc_B5, θ and the in-plane azimuth, from tabulated radii or a density
   cube), charges and charge differences, the dipole in a frame you define, bond lengths, angles and dihedrals,

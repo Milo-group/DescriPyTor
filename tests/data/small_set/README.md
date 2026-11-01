@@ -1,6 +1,6 @@
 # Small test set (8 alcohols + 1 tiny Ni complex)
 
-Self-contained XYZ geometries for extraction and modeling tests. No Gaussian
+Self-contained XYZ geometries for extraction tests. No Gaussian
 logs, feathers, or xTB dumps are required.
 
 ## Files
@@ -9,8 +9,7 @@ logs, feathers, or xTB dumps are required.
 |---|---|
 | `xyz/*.xyz` | One conformer per molecule |
 | `targets.csv` | Name, SMILES, boiling point (°C) |
-| `modeling_table.csv` | Extracted Sterimol / bonds / %Vbur + `bp_c` (written by `extract.py`) |
-| `classification_toy.csv` | 12-row subset of the logistic example (class labels) |
+| `small_set_table.csv` | Extracted Sterimol / bonds / %Vbur + `bp_c` (written by `extract.py`) |
 
 ## Atom numbering (every alcohol)
 

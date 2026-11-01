@@ -28,8 +28,8 @@ jupyter notebook Getting_started_with_examples/Practical_Notebook_Features.ipynb
 dipoles, vibrations). 26 structures including `basic.feather`. Load with
 `descripytor.examples.feather_example_dir()`. This is the GUI default (**Use example set**).
 
-**Baptiste products** — 18 structures including `unsub.feather`, plus `outcomes.csv` for
-modeling. Load with `descripytor.examples.baptiste_example_dir()`.
+**Baptiste products** — 18 structures including `unsub.feather`, plus `outcomes.csv`.
+Load with `descripytor.examples.baptiste_example_dir()`.
 
 
 **`cube_example/`** — density cubes for `descripytor cube` (Sterimol from electron density).

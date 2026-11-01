@@ -1,6 +1,6 @@
 # M2 — feature extraction
 
-Turns quantum-chemistry output into model-ready descriptors.
+Turns quantum-chemistry output into descriptors.
 
 - **`Molecule`** — one molecule: geometry, connectivity, charges, dipoles, vibrations.
 - **`Molecules`** — a whole set, with batch extractors returning wide DataFrames.
@@ -252,6 +252,6 @@ electronic environment. Driven from the CLI with `descripytor cube`.
   the run. Always check `failed_molecules`.
 - **Re-extract after renumbering** — descriptors are index-based.
 - **Correlations**: `get_molecules_features_set` writes a correlation table alongside the
-  matrix; scan it before modelling, since near-duplicate descriptors inflate subset counts.
+  matrix; scan it for near-duplicate descriptors.
 
 Full pipeline context: [root README](../README.md).

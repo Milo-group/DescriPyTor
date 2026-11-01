@@ -901,7 +901,6 @@ if (typeof $3Dmol === "undefined") {
     font-size:13.5px; color:var(--muted); text-align:center; line-height:1.5;
   }
   @media (max-width:900px) { .cview-main { grid-template-columns:1fr; } .cv-viewer, .cvlist-wrap { min-height:360px; max-height:none; } }
-  /* The Model tab */
   .model-grid { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:12px; }
   .model-field { display:flex; flex-direction:column; gap:5px; min-width:0; }
   .model-field.wide { grid-column:span 2; }
@@ -1181,7 +1180,6 @@ if (typeof $3Dmol === "undefined") {
         <span class="flow-step"><strong>2</strong> pick atoms</span>
         <span class="flow-step"><strong>3</strong> enable engines</span>
         <span class="flow-step"><strong>4</strong> export config</span>
-        <span class="flow-step"><strong>5</strong> model CSV</span>
       </div>
       <div class="preset-grid" id="workflowPresets">
         <button class="preset-card" data-preset="feather"><b>Feather only</b><span>DescriPyTor features from feather files.</span></button>
@@ -4385,7 +4383,7 @@ function cvEnsMeasure() {
     const big = st.sd > (ix.length === 2 ? 0.1 : 10);
     return `<div class="cv-ens-card"><h4>${kind} ${names}${groups.length > 1 ? ' · ' + esc(g.src) : ''}</h4>
       <div class="cv-ens-sum">Boltzmann mean <b>${st.mean.toFixed(ix.length === 2 ? 3 : 1)} ${unit}</b> · sd ${st.sd.toFixed(ix.length === 2 ? 3 : 1)} · range ${st.min.toFixed(ix.length === 2 ? 3 : 1)} to ${st.max.toFixed(ix.length === 2 ? 3 : 1)} over ${g.cs.length} conformer${g.cs.length > 1 ? 's' : ''}${g.weighted ? '' : ' (no energies: equal weights)'}
-      ${g.cs.length > 1 ? (big ? ' · <b style="color:#b45309">moves between conformers</b>: which conformer you model matters' : ' · <span style="color:#2f7a4f">steady across the conformers</span>') : ''}</div>
+      ${g.cs.length > 1 ? (big ? ' · <b style="color:#b45309">moves between conformers</b>: which conformer you extract matters' : ' · <span style="color:#2f7a4f">steady across the conformers</span>') : ''}</div>
       <div class="cv-ens-grid"><div>${cvEnsPlot(g.cs, st.unwrapped || vals, unit, st.mean)}</div><div>${cvEnsTable(g.cs, [[`${kind} ${unit}`, c => cvGeom(c.atoms, ix).toFixed(ix.length === 2 ? 3 : 1)]])}</div></div></div>`; }).join(''); });
 }
 let cvStSeq = 0, cvStLastKey = null;
@@ -6376,7 +6374,7 @@ if (window.FEATURE_EXPLORER_HTML && _sessionMol) {
 }
 
 /* ================================================================== *
- * Guided tutorial: circle + arrow on Load → Pick → Extract → Model   *
+ * Guided tutorial: circle + arrow on Load → Pick → Extract           *
  * ================================================================== */
 function tourNotify(kind) {
   if (typeof window.__descripytorTourNotify === "function") window.__descripytorTourNotify(kind);
@@ -6417,7 +6415,7 @@ function tourIsOpen() {
 
   const WELCOME = {
       id: "welcome",
-      title: "Load, extract, then model",
+      title: "Load, pick, extract",
       body: "Three clicks: example set, example picks, Extract CSV. Shift-click Tutorial later if you want the long atom-by-atom walkthrough.",
       target: null,
       nextLabel: "Start",

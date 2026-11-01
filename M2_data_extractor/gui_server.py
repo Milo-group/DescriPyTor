@@ -304,7 +304,7 @@ def _ensure_3dmol_js(folder):
 
 @app.route("/visual", strict_slashes=False)
 def visual_gui():
-    """Serve the combined atom-picker, extraction, and modeling workflow."""
+    """Serve the combined atom-picker and extraction page."""
     path = atom_picker_html()
     response = send_file(path, mimetype="text/html")
     response.headers["Cache-Control"] = "no-cache"       # revalidate: after an update the browser kept showing the old page
@@ -1447,7 +1447,7 @@ import threading
 # Raised whenever the pages need a route an older server does not have. A server still running from before then answers
 # /status with a lower number, and a new start tells the user to stop it instead of reusing it (its pages are read from
 # disk, so they would be new while its routes are old: the link to /feature_explorer gave Not Found).
-GUI_API = 4      # 4: pages from other sites refused, the removed modeling panel's routes gone
+GUI_API = 4      # 4: pages from other sites refused
 
 
 def _tcp_port_open(port):

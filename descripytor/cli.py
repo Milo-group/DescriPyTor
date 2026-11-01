@@ -150,7 +150,7 @@ def resolve_n_jobs(user_n_jobs) -> int:
 
 def resolve_effective_n_jobs(requested_n_jobs: int, bool_parallel: bool) -> int:
     """
-    Normalize the runtime worker count for CLI model execution.
+    Normalize the runtime worker count for CLI runs.
 
     `n_jobs` is treated as the primary control. A value greater than 1 enables
     parallel execution even when `--bool-parallel` is omitted, while
@@ -315,7 +315,7 @@ def main():
     visual_parser = subparsers.add_parser(
         "visual_extractor", aliases=["visual"], help="Open the 3D atom picker in a browser", formatter_class=raw,
         description="The atom picker: load a .xyz or .feather, click the atoms each descriptor is read at (the molecule is drawn by\n"
-                    "the feature explorer), extract the feature table for a folder of feathers, and fit a model.\n"
+                    "the feature explorer), and extract the feature table for a folder of feathers.\n"
                     "Starts a local server and opens http://127.0.0.1:7432/visual. Ctrl+C stops it.",
     )
     visual_parser.add_argument(

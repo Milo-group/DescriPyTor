@@ -5,7 +5,6 @@ kappa, Zagreb, Wiener, Balaban J, Estrada, and related counts. They need no
 complex, no conformer ensemble, and no QM.
 
 ``tf_*`` columns are the raw ``t_*`` values divided by the heavy-atom count.
-That size-normalized block is what the reported models searched over.
 
 RDKit is used only to parse SMILES into a graph. The indices themselves are
 computed from the adjacency list so the formulae stay explicit (and so a
