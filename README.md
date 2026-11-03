@@ -8,8 +8,8 @@ and draws every descriptor on the molecule so you can see where a number comes f
 Modeled after the R package *MoleculaR* ([docs](https://barkais.github.io/)).
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/images/pipeline-overview.png" width="620" alt="From SMILES or structure, through conformer search and DFT, to a feature matrix."><br>
-  <em>Structure in, descriptors out.</em>
+  <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/animations/hero.svg" width="900" alt="Animation: a p-CF3 aryl product turns about its Sterimol L axis while the B1 and B5 vectors follow it, and the seven Sterimol columns (L, B5, loc_B5, B1, loc_B1, the B1-B5 azimuth and angle) fill in beside it."><br>
+  <em>Pick two atoms, get the numbers, and see each one on the molecule.</em>
 </p>
 
 ## Contents
@@ -249,6 +249,10 @@ descriptors you already understand, each read in a frame you define.
 | **Ring vibration** | one ring atom | `cross` / `para` frequencies and angles of the ring |
 | **Buried volume, cone angle, SASA, dispersion** | metal or apex atom | via morfeus |
 | **Metal complex** | complex XYZ, optional xTB output | `fromM_*`, `sub_*`, %V<sub>bur</sub>, charges, bond orders, graph indices |
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Milo-group/DescriPyTor/main/docs/animations/descriptors.svg" width="900" alt="A gallery of twelve cards, each drawing one descriptor family on a real molecule with the call and the values the package returns: Sterimol, loc_B1 and loc_B5, the B1-B5 angle, the dipole in a chosen frame, charges, charge difference, bond lengths and angles, stretching and ring vibrations, buried volume, metal-complex arms, and a linear regression parity plot.">
+</p>
 
 **A common frame.** Every molecule is rotated onto the same origin and axes, so "the dipole along y" means the same
 thing in every row. You pick three groups: the origin is their centroid, ŷ points at the y-atom, and x̂ is the plane
