@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.3 — 2026-11-03
+
+- **The arm's stereocentre is read at the carbon next to the donor** (`metal_complex.STEREOCENTRE_RULE = "alpha_carbon"`).
+  The previous rule took the largest substituent anywhere on the donor's ring, so a 5,5-diphenyl oxazoline was read
+  through a phenyl about 5 Å from the metal. R is now the group on that carbon with the larger B1. `"alpha"` restores the
+  previous pick.
+- **The metal bonds only its co-ligands and two donors** (`metal_complex.METAL_BONDS = "donors"`). The covalent rule also
+  bonded it to nearby carbons (an imine carbon at 2.70 Å), aryl chlorides and a third donor, and each such edge cut the arm
+  fragments. A mer tridentate is now read at its outer two donors, with a warning. `"all"` restores the previous graph.
+- Arm values change for metal complexes with such a contact or such a substituent.
+
 ## 0.5.2 — 2026-11-01
 
 - Built-in structures renamed; the example run script and the mode viewer removed (ORCA reading stays, in `utils/orca_text.py`).

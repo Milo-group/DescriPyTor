@@ -31,6 +31,7 @@ import glob
 import os
 import warnings
 from collections import deque
+from itertools import combinations
 
 import numpy as np
 import pandas as pd
@@ -67,6 +68,9 @@ VDW_BURIAL = {
 }
 
 ANCILLARY_ELEMENTS = ("H", "Cl", "F", "Br")
+DONOR_ELEMENTS = ("N", "P", "O", "S")
+METALS = ("Cu", "Ni", "Pd", "Co", "Fe", "Rh", "Ir", "Zn", "Ag", "Au", "Pt", "Ru")
+METAL_BONDS = "donors"     # the metal bonds its co-ligands and two donors; "all" keeps every contact under the covalent rule
 # Per-arm Sterimol values written as <frame>_<key>_sym/_asym. "theta" is the angle
 # between the vector to the B5 atom and the B1 plane; it is defined for every arm
 # (0 for a lone H on the axis). "angle" is phi, the in-plane azimuth, which has no
@@ -102,13 +106,17 @@ THETA_SOFT_STEP = 0.05         # deg, direction grid for the soft rule
 # only the donor and the metal, as earlier versions did.
 SUB_FRAGMENT_BOUND = "donor_ring"
 
-# Which (C*, R) pair stands for an arm's substituent when several qualify. "alpha" (the default):
-# the largest substituent on the donor's ring; among equals the one on the carbon bonded to the
-# donor, then the one nearest the metal, so the choice does not depend on the atom order of the
-# file. A donor outside any ring whose only candidates are bonds inside a ring (ipso -> ortho of a
-# P-aryl group) has no substituent axis and the arm is skipped. "first" keeps the first of the
-# largest in atom order, as every release up to 0.2.1 did.
-STEREOCENTRE_RULE = "alpha"
+# Which (C*, R) pair stands for an arm's substituent. "alpha_carbon" (the default): C* is the one
+# carbon of the donor's ring bonded to the donor and off the backbone, R the group on it with the
+# larger B1 (equal B1: nearer the metal). An arm without such a carbon (an acyclic donor, an imine),
+# or a call without coordinates, falls to "alpha": the largest substituent anywhere on the donor's
+# ring; among equals the one on the carbon bonded to the donor, then the one nearest the metal, so
+# the choice does not depend on the atom order of the file. "alpha" read a phenyl about 5 Å from the
+# metal as the group next to the donor. A donor outside any
+# ring whose only candidates are bonds inside a ring (ipso -> ortho of a P-aryl group) has no
+# substituent axis and the arm is skipped. "first" keeps the first of the largest in atom order, as
+# every release up to 0.2.1 did.
+STEREOCENTRE_RULE = "alpha_carbon"
 
 # mu_outofplane and mu_desym are components along axes whose sign follows which donor is listed
 # first in the file (the plane normal is D1 x D2). True reports their magnitudes, the only
@@ -427,6 +435,28 @@ def donor_indices(symbols):
     return 0, 1 + n, 2 + n
 
 
+def chelate_donors(symbols, coords, adj):
+    """``(D1, D2)`` of a canonical complex, cutting every other metal contact out of ``adj`` in place.
+
+    The covalent rule also bonds the metal to the imine carbon on a donor (Cu-C 2.70 A, a 1,3 contact) and to aryl
+    chlorides, and those edges cut the arm fragments. With a third N/P/O/S on the metal (a mer tridentate) the arms
+    are the widest pair, the outer two donors, so the central one is not read as an arm.
+    """
+    metal, d1, d2 = donor_indices(symbols)
+    if METAL_BONDS == "all" or symbols[metal] not in METALS or d2 >= len(symbols) or not {symbols[d1], symbols[d2]} <= set(DONOR_ELEMENTS):
+        return d1, d2
+    colig = set(range(1, d1))
+    bonded = [j for j in adj[metal] if j not in colig and symbols[j] in DONOR_ELEMENTS and (j in (d1, d2) or j > d2)]
+    if len(bonded) > 2:
+        unit = {j: (coords[j] - coords[metal]) / np.linalg.norm(coords[j] - coords[metal]) for j in bonded}
+        d1, d2 = min(combinations(sorted(bonded), 2), key=lambda p: unit[p[0]] @ unit[p[1]])
+        warnings.warn(f"{len(bonded)} donors on the metal (atoms {[j + 1 for j in sorted(bonded)]}): arms read at the widest pair, atoms {d1 + 1} and {d2 + 1}", stacklevel=2)
+    for j in [j for j in adj[metal] if j not in colig | {d1, d2}]:
+        adj[metal].remove(j)
+        adj[j].remove(metal)
+    return d1, d2
+
+
 def backbone(adj, d1, d2, metal=0):
     """Atoms on the shortest d1→d2 path that does not go through the metal."""
     queue, seen = deque([(d1, [d1])]), {d1, metal}
@@ -457,14 +487,38 @@ def ring_through(adj, a, b, metal=0, cap=8):
     return {a, b}
 
 
+def _alpha_carbon_pick(symbols, adj, donor, other, metal, coords):
+    """``(C*, R)`` under the "alpha_carbon" rule, or None when the arm has no single such carbon."""
+    ring, bb = donor_ring(adj, donor, metal), backbone(adj, donor, other, metal)
+    alpha = [c for c in adj[donor] if c in ring and c not in bb and symbols[c] == "C"]
+    if len(alpha) != 1:
+        return None
+    cc = alpha[0]
+    groups = [r for r in adj[cc] if r not in ring and r != metal]
+    if not groups:
+        return None
+    radii = [PKG_CPK.get(t, 1.92) for t in nob_types(symbols, adj)]
+    block = tuple(sorted({x + 1 for x in ring | {metal}} - {cc + 1}))
+
+    def rank(r):
+        s = sterimol(symbols, coords, cc + 1, r + 1, radii, block=block)
+        return -round(s["B1"], 6) if s else 0.0, float(np.linalg.norm(coords[r] - coords[metal]))
+
+    return cc, min(groups, key=rank)
+
+
 def stereocentre(symbols, adj, donor, other, metal=0, coords=None):
     """``(C*, R)`` for one chelate arm: substituted ring carbon and substituent.
 
-    ``coords`` lets the "alpha" rule break its last tie by distance to the metal; without them
-    the first candidate in atom order is kept.
+    ``coords`` are needed by the "alpha_carbon" rule, and let the "alpha" rule break its last tie
+    by distance to the metal; without them the first candidate in atom order is kept.
     """
+    if STEREOCENTRE_RULE == "alpha_carbon" and coords is not None:
+        pick = _alpha_carbon_pick(symbols, adj, donor, other, metal, coords)
+        if pick is not None:
+            return pick
     bb = backbone(adj, donor, other, metal)
-    if STEREOCENTRE_RULE == "alpha":
+    if STEREOCENTRE_RULE in ("alpha", "alpha_carbon"):
         cand = []
         for carbon in adj[donor]:
             if carbon == metal or symbols[carbon] == "H" or carbon in bb:
@@ -537,7 +591,8 @@ class MetalComplex:
         self.name = name
         self.energy = energy
         self.adj = adjacency(self.symbols, self.coords)
-        self.metal, self.donor_1, self.donor_2 = donor_indices(self.symbols)
+        self.metal = 0
+        self.donor_1, self.donor_2 = chelate_donors(self.symbols, self.coords, self.adj)
 
     @classmethod
     def from_xyz(cls, filepath, energy_convention: str = "last") -> "MetalComplex":

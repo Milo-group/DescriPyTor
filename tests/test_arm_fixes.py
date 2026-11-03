@@ -66,6 +66,43 @@ def test_arm_values_do_not_depend_on_atom_order():
         assert abs(a[k] - b[k]) < 1e-6, k
 
 
+def _oxazoline_on_copper(c4, c5):
+    """Cu on the N of one oxazoline, the other donor an imine N on C2, with the groups `c4` and `c5` on the ring"""
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    mol = Chem.AddHs(Chem.MolFromSmiles(f"[Cu-2]1[N+]2=C(C=[N+]1C)OC{c5}C2{c4}"))
+    assert AllChem.EmbedMolecule(mol, randomSeed=1) == 0
+    sym = [a.GetSymbol() for a in mol.GetAtoms()]
+    adj = [[n.GetIdx() for n in a.GetNeighbors()] for a in mol.GetAtoms()]
+    n1, n2 = [a.GetIdx() for a in mol.GetAtoms() if a.GetSymbol() == "N"]
+    alpha = next(k for k in adj[n1] if sym[k] == "C" and len([q for q in adj[k] if sym[q] == "O"]) == 0)
+    return sym, adj, np.array(mol.GetConformer().GetPositions()), n1, n2, alpha
+
+
+def test_arm_is_read_at_the_carbon_next_to_the_donor(monkeypatch):
+    """5,5-diphenyl, bare next to N: the H beside N, not a phenyl on the far carbon; "alpha" keeps the old pick"""
+    sym, adj, xyz, n1, n2, alpha = _oxazoline_on_copper("", "(c3ccccc3)(c3ccccc3)")
+    cc, r = mc.stereocentre(sym, adj, n1, n2, metal=0, coords=xyz)
+    assert cc == alpha and sym[r] == "H"
+    monkeypatch.setattr(mc, "STEREOCENTRE_RULE", "alpha")
+    cc, r = mc.stereocentre(sym, adj, n1, n2, metal=0, coords=xyz)
+    assert cc != alpha and sym[r] == "C"
+
+
+def test_larger_group_is_the_wider_one_not_the_more_branched_first_atom():
+    sym, adj, xyz, n1, n2, alpha = _oxazoline_on_copper("(C)(C(C)(C)C)", "")
+    cc, r = mc.stereocentre(sym, adj, n1, n2, metal=0, coords=xyz)
+    assert cc == alpha and len([k for k in adj[r] if sym[k] == "C"]) == 4
+
+
+def test_arm_without_a_ring_carbon_keeps_the_previous_pick(monkeypatch):
+    """the imine N: no ring, so both rules read the same pair"""
+    sym, adj, xyz, n1, n2, alpha = _oxazoline_on_copper("", "")
+    got = mc.stereocentre(sym, adj, n2, n1, metal=0, coords=xyz)
+    monkeypatch.setattr(mc, "STEREOCENTRE_RULE", "alpha")
+    assert mc.stereocentre(sym, adj, n2, n1, metal=0, coords=xyz) == got
+
+
 def test_p_aryl_arm_has_no_substituent_axis():
     """P bonded to two phenyls and a backbone carbon: ipso -> ortho is a ring bond, not a substituent."""
     from rdkit import Chem

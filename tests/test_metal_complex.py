@@ -43,6 +43,7 @@ def earlier_scan_grid(monkeypatch):
     monkeypatch.setattr(metal_complex, "STERIMOL_KEYS", ("B1", "B5", "L", "angle"))
     monkeypatch.setattr(metal_complex, "STERIMOL_THETA_RULE", "scan")
     monkeypatch.setattr(metal_complex, "STEREOCENTRE_RULE", "first")
+    monkeypatch.setattr(metal_complex, "METAL_BONDS", "all")
 
 
 
@@ -95,6 +96,25 @@ def _toy_chelate(bite_deg):
                        [2.0 * np.cos(half), 2.0 * np.sin(half), 0.0],
                        [2.0 * np.cos(half), -2.0 * np.sin(half), 0.0]])
     return MetalComplex(["Cu", "Cl", "N", "N"], coords, name="toy")
+
+
+def test_a_carbon_contact_is_not_a_metal_bond(monkeypatch):
+    """Cu-C 2.70 A sits under the 1.3 rule (limit 2.704) and must not stay in the graph."""
+    monkeypatch.undo()
+    coords = np.array([[0, 0, 0], [0, 0, 2.2], [1.4, 1.4, 0], [1.4, -1.4, 0], [-2.7, 0, 0.0]])
+    m = MetalComplex(["Cu", "Cl", "N", "N", "C"], coords)
+    assert sorted(m.adj[0]) == [1, 2, 3] and (m.donor_1, m.donor_2) == (2, 3)
+    monkeypatch.setattr(metal_complex, "METAL_BONDS", "all")
+    assert 4 in MetalComplex(["Cu", "Cl", "N", "N", "C"], coords).adj[0]
+
+
+def test_a_mer_tridentate_is_read_at_its_outer_donors(monkeypatch):
+    """The central pyridine is written second in the canonical order; the arms are the two trans donors."""
+    monkeypatch.undo()
+    coords = np.array([[0, 0, 0], [0, 0, 2.2], [0, 2.0, 0], [2.0, 0, 0], [0, -2.0, 0.0]])
+    with pytest.warns(UserWarning, match="3 donors on the metal"):
+        m = MetalComplex(["Cu", "Cl", "N", "N", "N"], coords)
+    assert (m.donor_1, m.donor_2) == (2, 4) and 3 not in m.adj[0]
 
 
 def test_bite_outside_the_builder_window_warns():
