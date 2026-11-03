@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.4 — 2026-11-03
+
+- **Linear regression is back** (`M3_modeler`): an exhaustive search of ordinary least-squares models over a feature
+  table, ranked by leave-one-out Q², with a report per model (fit, folds, VIF, coefficients, left-out samples).
+  `descripytor model -m regression`, `M3_modeler.modeling.LinearRegressionModel`, and
+  `Getting_started_with_examples/Practical_Notebook_Modeling.ipynb` with its example table.
+- `shap` is optional: without it the report skips its SHAP page.
+
 ## 0.5.3 — 2026-11-03
 
 - **The arm's stereocentre is read at the carbon next to the donor** (`metal_complex.STEREOCENTRE_RULE = "alpha_carbon"`).

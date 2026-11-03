@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "descripytor"
-version = "0.5.3"
+version = "0.5.4"
 description = "Interpretable molecular descriptors from quantum-chemistry output."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -70,6 +70,7 @@ include = [
     "descripytor*",
     "M1_pre_calculations*",
     "M2_data_extractor*",
+    "M3_modeler*",
     "utils*",
 ]
 exclude = ["runs*", "work*", "docs*", "Getting_started_with_examples*", "tests*"]

@@ -5,7 +5,8 @@ This tutorial is a guided path through the most common DescriPyTor workflow:
 1. prepare molecular data
 2. extract descriptors
 3. assemble a feature matrix
-4. inspect and reuse the saved results
+4. run a linear regression search
+5. inspect and reuse the saved results
 
 If you want the short version, read the [README](../../README.md).
 
@@ -125,6 +126,8 @@ DescriPyTor also includes viewer-oriented utilities for comparing related struct
 The best hands-on examples are already in the repository:
 
 - [Getting_started_with_examples/Practical_Notebook_Features.ipynb](../Practical_Notebook_Features.ipynb)
+- [Getting_started_with_examples/Practical_Notebook_Modeling.ipynb](../Practical_Notebook_Modeling.ipynb)
+- [Getting_started_with_examples/modeling_example/Linear_Dataset_Example.csv](../modeling_example/Linear_Dataset_Example.csv)
 
 ## Troubleshooting
 
@@ -145,6 +148,6 @@ If you are opening DescriPyTor for the first time, this is a good order:
 2. Open `Getting_started_with_examples/README.md`
 3. Launch `python __main__.py gui`
 4. Run the extractor example on `descripytor/examples/feather_example`
-5. Open `descripytor feature_explorer` and draw the descriptors you extracted
+5. Run a small regression search with a conservative `--max-features`
 
-That sequence gives you a feel for the whole stack.
+That sequence gives you a feel for the whole stack without throwing you into a multi-million-combination model search on day one.

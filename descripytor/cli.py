@@ -52,6 +52,9 @@ def _load_runtime_dependencies(include_modeling: bool = False) -> None:
     from M2_data_extractor.cube_sterimol import cube_many
     from M2_data_extractor.sterimol_standalone import Molecules_xyz
 
+    if include_modeling:
+        global LinearRegressionModel
+        from M3_modeler.modeling import LinearRegressionModel
 
 
 def load_answers_json(path = None):
@@ -166,6 +169,11 @@ def resolve_effective_n_jobs(requested_n_jobs: int, bool_parallel: bool) -> int:
         return requested_n_jobs
     return 1
 
+def add_modeling_path():
+    """Add M3_modeler to sys.path if a clone-layout folder exists."""
+    path = os.path.join(_project_root(), "M3_modeler")
+    if os.path.isdir(path) and path not in sys.path:
+        sys.path.append(path)
 
 def safe_chdir(workdir, features_csv):
     """
@@ -182,6 +190,73 @@ def safe_chdir(workdir, features_csv):
         if os.path.isdir(base):
             os.chdir(base)
 
+def run_experiment(
+    mode: str,
+    features_csv: str,
+    target_csv: str = "",
+    y_value: str = "output",
+    n_jobs: int = 1,
+    min_features_num: int = 2,
+    max_features_num: int = 4,
+    threshold: float = 0.70,
+    top_n: int = 50,
+    leave_out: Optional[List[str]] = None,
+    process_method: str = "one csv",
+    bool_parallel: bool = False,
+) -> float:
+    """
+    Run the regression search and return elapsed seconds.
+    - For regression, calls: fit_and_evaluate_combinations(...) if available, else search_models(...)
+    """
+    _load_runtime_dependencies(include_modeling=True)
+
+
+    csv_filepaths = {
+        "features_csv_filepath": features_csv,
+        "target_csv_filepath": target_csv or ""
+    }
+
+    leave_out = list(leave_out or [])
+    if target_csv and process_method == "one csv":
+        process_method = "two csvs"      # -t given: the target comes from its own file
+
+    # Instantiate correct model class
+    if mode.lower() == "regression":
+        model = LinearRegressionModel(
+            csv_filepaths,
+            process_method=process_method,
+            y_value=y_value,
+            leave_out=leave_out,
+            min_features_num=min_features_num,
+            max_features_num=max_features_num,
+           
+        )
+    else:
+        raise ValueError("mode must be 'regression'")
+
+    # Decide parallel cores
+    eff_n_jobs = resolve_effective_n_jobs(n_jobs, bool_parallel)
+    print(f"\n[run_experiment] mode={mode} | n_jobs={eff_n_jobs} (requested={n_jobs}, parallel={bool_parallel})")
+    print(f"[run_experiment] features={features_csv} | target={target_csv or '(none)'} | y_value={y_value}")
+    print(f"[run_experiment] min/max features: {min_features_num}/{max_features_num}\n")
+
+    # Run
+    start = time.time()
+    if mode.lower() == "regression":
+        if hasattr(model, "search_models"):
+            model.search_models(
+                top_n=top_n,
+                n_jobs=eff_n_jobs,
+                threshold=threshold,
+                bool_parallel=bool_parallel
+            )
+        else:
+            raise AttributeError("Regression model lacks search_models.")
+
+    elapsed = time.time() - start
+    print(f"\n[run_experiment] Completed in {elapsed:.2f} s\n")
+    gc.collect()
+    return elapsed
 
 
 def run_visual_app(host=None, port=None, open_browser=True, page="/visual"):
@@ -192,7 +267,7 @@ def run_visual_app(host=None, port=None, open_browser=True, page="/visual"):
     serve(host=host, port=port, open_browser=open_browser, page=page)
 
 
-CLI_HELP = """DescriPyTor: molecular descriptors from quantum-chemistry output.
+CLI_HELP = """DescriPyTor: molecular descriptors from quantum-chemistry output, and the models built on them.
 
 Pages (each opens in the browser; the two link to each other):
   visual_extractor   pick atoms on a molecule, extract descriptors for a folder of structures
@@ -200,6 +275,7 @@ Pages (each opens in the browser; the two link to each other):
 
 Batch commands:
   extractor          descriptors for a folder of .feather files, from an input file of atom choices
+  model              search linear regression models over a feature table
   pipeline          SMILES -> structures -> chained cluster stages (GOAT / UMA / xTB / ORCA / Gaussian)
 
 Converters (they ask for their inputs):
@@ -210,6 +286,7 @@ CLI_EPILOG = """examples:
   descripytor visual_extractor
   descripytor feature_explorer --mol ligand_1 --preset "theta construction"
   descripytor extractor -i input.json -o features -f feathers/
+  descripytor model -m regression -f features.csv -t targets.csv --min-features 2 --max-features 3
   descripytor pipeline status protocol.json
 
 `descripytor <command> --help` lists the options of one command. Older names still work:
@@ -338,6 +415,23 @@ def main():
     theta_parser.add_argument("--no-browser", action="store_true", help="Start the server without opening a browser tab")
     theta_parser.add_argument("--host", default=None, help="Bind address (default 127.0.0.1)")
     theta_parser.add_argument("--port", type=int, default=None, help="Port (default 7432)")
+    model_parser = subparsers.add_parser("model", help="Search linear regression models",
+        description="Search linear regression models over every combination of min..max features of a\n"
+                    "feature table, keep the best, and write the report. Example:\n"
+                    "  descripytor model -m regression -f features.csv -t targets.csv --min-features 2 --max-features 3", formatter_class=raw)
+    model_parser.add_argument("-m", "--mode", choices=["regression"], required=True,
+                              help="Which task to run.")
+    model_parser.add_argument("-f", "--features_csv", required=True, help="Path to features CSV.")
+    model_parser.add_argument("-t", "--target_csv", default="", help="Path to target CSV.")
+    model_parser.add_argument("-y", "--y_value", default="output", help="Base name for output files.")
+    model_parser.add_argument("-j", "--n_jobs", type=int,
+                              help="Cores to use (-1 = all). If omitted, uses NSLOTS or all logical cores. Values > 1 enable parallel execution.")
+    model_parser.add_argument("--min-features", type=int, default=4, help="Minimum features per model.")
+    model_parser.add_argument("--max-features", type=int, default=4, help="Maximum features per model.")
+    model_parser.add_argument("--top-n", type=int, default=50, help="How many top models to keep/evaluate.")
+    model_parser.add_argument("--bool-parallel", action="store_true", help="Enable parallel evaluation.")
+    model_parser.add_argument("--threshold", type=float, default=0.70, help="Initial R2 threshold.")
+    model_parser.add_argument("--leave-out", nargs="*", default=[], help="Space-separated list of samples to leave out.")
     feature_extraction = subparsers.add_parser("extractor", help="Run feature extraction - complete set - from input file",
         description="Extract every descriptor named in an input file (the atom choices; visual_extractor writes one) for all the\n"
                     ".feather files of a folder. Example:\n  descripytor extractor -i input.json -o features -f feathers/", formatter_class=raw)
@@ -427,6 +521,29 @@ def main():
                 break
 
             
+    elif args.command == "model":
+        # Prepare environment/import path & working dir
+        n_jobs = resolve_n_jobs(args.n_jobs)
+        if n_jobs == -1:
+            import psutil
+            n_jobs = int(psutil.cpu_count(logical=True))
+        add_modeling_path()
+        # safe_chdir(args.workdir, args.features_csv)
+
+        elapsed = run_experiment(
+            mode=args.mode,
+            features_csv=args.features_csv,
+            target_csv=args.target_csv,
+            y_value=args.y_value,
+            n_jobs=n_jobs,
+            min_features_num=args.min_features,
+            max_features_num=args.max_features,
+            threshold=args.threshold,
+            top_n=args.top_n,
+            leave_out=args.leave_out,
+            bool_parallel=args.bool_parallel,
+        )
+        print(f"[model] Total execution time: {elapsed:.2f} seconds")
 
     elif args.command == "extractor":
         # Run the feature extraction

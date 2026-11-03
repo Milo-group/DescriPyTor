@@ -22,6 +22,7 @@ Modeled after the R package *MoleculaR* ([docs](https://barkais.github.io/)).
 - [Python API](#python-api)
 - [Descriptors](#descriptors)
 - [From SMILES on a cluster](#from-smiles-on-a-cluster)
+- [Linear regression](#linear-regression)
 - [More tools](#more-tools)
 - [Documentation](#documentation)
 - [Repository layout](#repository-layout)
@@ -153,6 +154,7 @@ Pages
   feature_explorer   draw any descriptor on the molecule                                           (alias: theta)
 
 Batch
+  model              search linear regression models over a feature table
   extractor          descriptors for a folder of .feather files, from an input file of atom choices
   pipeline           SMILES -> structures -> chained cluster stages (GOAT / UMA / xTB / ORCA / Gaussian)
 
@@ -167,6 +169,7 @@ Converters (they ask for their inputs)
 | `visual_extractor` | `--port` (7432), `--host`, `--no-browser` |
 | `feature_explorer` | `--mol NAME`, `--preset NAME`, `--port`, `--host`, `--no-browser` |
 | `extractor` | `-i input.json`, `-o output_name`, `-f feather_dir` |
+| `model` | `-m regression`, `-f features.csv`, `-t targets.csv`, `--min-features`, `--max-features`, `--top-n`, `--leave-out NAME ...`, `-j` |
 | `pipeline` | `{build,adopt,submit,status,retry,reset,watch,fetch} protocol.json` and its flags ([docs/PIPELINE.md](https://github.com/Milo-group/DescriPyTor/blob/main/docs/PIPELINE.md)) |
 
 Example:
@@ -290,6 +293,33 @@ Protocol format and every flag: [docs/PIPELINE.md](https://github.com/Milo-group
 
 ---
 
+## Linear regression
+
+`M3_modeler` searches ordinary least-squares models over every combination of `min`..`max` columns of a feature table,
+ranks them by leave-one-out Q², and writes a report for a chosen model: the fit, the cross-validation folds, VIF, the
+coefficients with their intervals, and the prediction of any samples you leave out.
+
+```bash
+descripytor model -m regression -f features.csv --min-features 2 --max-features 3   # the target is the column 'output'
+```
+
+```python
+import ast
+from M3_modeler.modeling import LinearRegressionModel
+from M3_modeler import plot
+
+model = LinearRegressionModel({"features_csv_filepath": "features.csv", "target_csv_filepath": ""},
+                              process_method="one csv", y_value="output", min_features_num=1, max_features_num=3)
+results = model.search_models(top_n=10, threshold=0.5)
+plot.run_single_combo_report(model, features=list(ast.literal_eval(results.iloc[0]["combination"])))
+```
+
+A worked example: [Getting_started_with_examples/Practical_Notebook_Modeling.ipynb](https://github.com/Milo-group/DescriPyTor/blob/main/Getting_started_with_examples/Practical_Notebook_Modeling.ipynb)
+on `modeling_example/Linear_Dataset_Example.csv`. With few samples, an exhaustive search finds high Q² by chance: keep
+`--max-features` small and check the best model on samples it never saw.
+
+---
+
 ## More tools
 
 - **Other descriptor engines** in one pass (RDKit, Mordred, DeepChem, morfeus, AQME/xTB), merged into one CSV:
@@ -323,6 +353,7 @@ M1_pre_calculations/            structures and calculation inputs; pipeline/ (th
 M2_data_extractor/              descriptor extraction: Molecules, Molecule, MetalComplex
   atom_picker.html                the visual extractor's page, served by gui_server.py
   feature_explorer/               the feature explorer: sources, build.py, and the gates that check it against the Python
+M3_modeler/                     linear regression search over a feature table, and its report
 utils/                          shared file handling, geometry, visualization
 Getting_started_with_examples/  notebooks, example data, the multi-engine toolkit
 docs/                           manuals, images, animations

@@ -43,6 +43,7 @@ work/*
 **/results_*.db
 **/results_*.sqlite
 **/results_*.csv
+**/regression_results.txt
 Getting_started_with_examples/descriptor_extraction_toolkit/run_config.json
 Getting_started_with_examples/descriptor_extraction_toolkit/atom_picker_loaded.html
 M2_data_extractor/static/3Dmol-min.js

@@ -2,7 +2,7 @@
 DescriPyTor package.
 
 DescriPyTor provides tools for preparing molecular calculations, extracting
-quantum-chemistry descriptors.
+quantum-chemistry descriptors, and searching linear regression models.
 
 Most users enter through the command-line interface (``descripytor`` /
 ``python -m descripytor``) or through the high-level classes:
@@ -10,6 +10,7 @@ Most users enter through the command-line interface (``descripytor`` /
 - ``M2_data_extractor.data_extractor.Molecule``
 - ``M2_data_extractor.data_extractor.Molecules``
 - ``M2_data_extractor.metal_complex.MetalComplex``
+- ``M3_modeler.modeling.LinearRegressionModel``
 """
 
 from descripytor import __version__
