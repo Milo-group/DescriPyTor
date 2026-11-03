@@ -468,7 +468,11 @@ def main():
 
     args = parser.parse_args()
     if args.command == "pipeline":
-        return run_pipeline(args)
+        from M1_pre_calculations.pipeline.cluster import ClusterError
+        try:
+            return run_pipeline(args)
+        except ClusterError as e:
+            sys.exit(f"pipeline {args.action}: {e}")
     if args.command in ("feature_explorer", "theta"):
         run_visual_app(host=args.host, port=args.port, open_browser=not args.no_browser,
                        page=feature_explorer_page(args.mol, args.preset))

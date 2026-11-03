@@ -42,7 +42,12 @@ class Remote:
     def _ssh(self, command: str, timeout: int | None = None) -> str:
         cmd = ["ssh", "-n", "-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=30", "-o", "IdentitiesOnly=yes",
                "-i", self.key, self.host, command]
-        r = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout)
+        try:
+            r = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout)
+        except subprocess.TimeoutExpired:
+            self.error = f"timed out after {timeout or self.timeout} s"
+            return ""
+        self.error = (r.stderr or b"").decode("utf-8", "replace").strip()
         return (r.stdout or b"").decode("utf-8", "replace")
 
     def run(self, script: str, tries: int = 3, timeout: int | None = None) -> str:
@@ -57,7 +62,8 @@ class Remote:
             if BEGIN in last and END in last:
                 return last.split(BEGIN, 1)[1].rsplit(END, 1)[0].strip("\n")
             time.sleep(2)
-        raise ClusterError(f"no complete reply from {self.host}: {last[-300:]!r}")
+        raise ClusterError(f"no complete reply from {self.host} (ssh: {getattr(self, 'error', '')[-300:] or 'no message'}). "
+                           f"Check the protocol's cluster host and key, and that `ssh -i {self.key} {self.host}` works.")
 
     def upload_tree(self, local: Path, remote: str) -> None:
         buf = io.BytesIO()

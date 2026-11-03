@@ -284,7 +284,9 @@ What to decide and check at each step of an extraction: [docs/EXTRACTION_PROTOCO
 ## From SMILES on a cluster
 
 `descripytor pipeline` takes a table of SMILES to numbered structures and chains conformer search and
-quantum-chemistry stages (GOAT, UMA, xTB, ORCA, Gaussian) on an SGE cluster, one action at a time:
+quantum-chemistry stages (GOAT, UMA, xTB, ORCA, Gaussian) on an SGE cluster, one action at a time.
+Start from [`M1_pre_calculations/pipeline/examples/protocol_bgu.json`](https://github.com/Milo-group/DescriPyTor/blob/main/M1_pre_calculations/pipeline/examples/protocol_bgu.json)
+and set its `cluster` block (your `host`, ssh `key` and remote `root`) before `submit`; `build` and `--dry-run` run locally.
 
 ```bash
 descripytor pipeline build  protocol.json        # SMILES -> numbered xyz
